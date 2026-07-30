@@ -1,0 +1,46 @@
+# Builds and publishes dist/ to GitHub Pages on every push to main.
+#
+# Pages can serve a branch folder directly, but only / or /docs, never /dist,
+# so the deploy runs as a workflow instead. Building here rather than shipping
+# the committed dist/ means a stale commit cannot quietly go live.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# let a running deploy finish rather than cancelling it half published
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # no dependencies to install, so this is build plus the full test suite
+      - run: npm run check
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
