@@ -64,9 +64,13 @@ function isSolvable(start, nodeCap = 40000){
   }
   return false;
 }
-/* three stars at or under par, two up to half again, one beyond */
-function rate(moves, par){
-  if (par == null) return 3;
+/* three stars at or under par, two up to half again, one beyond.
+
+   An inexact par is an upper bound the search settled for, not the minimum, so
+   it cannot decide any bracket: it is treated the same as no par at all rather
+   than scored as if it were real. */
+function rate(moves, par, exact = true){
+  if (par == null || !exact) return 3;
   if (moves <= par) return 3;
   if (moves <= Math.round(par * 1.5)) return 2;
   return 1;

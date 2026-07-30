@@ -27,7 +27,8 @@ const App = (() => {
     S.history = [];
     S.queue = [];
     S.running = false;
-    S.par = progress.parFor(level);
+    /* the baked table is exact, and so is anything progress kept */
+    S.par = PARS[level] ?? progress.parFor(level);
     S.parExact = S.par != null;
     Board.view = Rules.clone(S.tubes);
     Board.selected = null;
@@ -114,7 +115,7 @@ const App = (() => {
 
   /* ---------- finishing ---------- */
   function finish(){
-    const stars = Rules.rate(S.moves, S.par);
+    const stars = Rules.rate(S.moves, S.par, S.parExact);
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const perfect = stars === 3;

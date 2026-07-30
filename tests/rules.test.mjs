@@ -63,4 +63,13 @@ describe('rules', () => {
     equal(Rules.rate(16, 10), 1, 'beyond that is one star');
     equal(Rules.rate(99, null), 3, 'with no par known, do not punish');
   });
+  it('refuses to score against an inexact par', () => {
+    /* A par the search only estimated is an upper bound, so a run that beats it
+       has not been shown to match the minimum and a run that misses it has not
+       been shown to miss the minimum. Neither may move the rating. */
+    equal(Rules.rate(50, 59, false), 3, 'an estimate cannot cost a star');
+    equal(Rules.rate(70, 59, false), 3, 'an estimate cannot cost a star either way');
+    equal(Rules.rate(50, 41, true), 2, 'the same run against a real par is two stars');
+    equal(Rules.rate(41, 41, true), 3, 'matching a real par is still three');
+  });
 });

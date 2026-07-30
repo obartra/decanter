@@ -88,6 +88,13 @@ reduce the total segment count by more than one, and the solved state has
 exactly one segment per colour. So the remaining distance is never less than
 `h`.
 
+That last step leans on a property of the generator, not of the rules: every
+colour is dealt exactly `capacity` units, so every colour finishes in exactly
+one bottle. A level that gave some colour two bottles' worth would end with more
+segments than colours, `h` would overshoot at the goal, and par could come back
+too high. Deal colours in whole bottles, or change `h` to subtract the number of
+filled bottles the solved state needs rather than the number of colours.
+
 **Why it is consistent.** Segment count never increases, and drops by at most
 one per move, so `h(n) <= 1 + h(n')` for every successor. With a consistent
 heuristic and a closed set, A\* returns a true minimum.
@@ -107,13 +114,25 @@ Duplicate targets with identical contents are also collapsed. `tests/solver.test
 checks that none of this changes the answer, by comparing against a brute force
 breadth-first search that applies no pruning at all.
 
-**Budget.** 400,000 expansions or 8 seconds, whichever comes first. Profiling
-found exact answers well inside that for every level size the game generates,
-worst case about 4 seconds at 12 colours. If a search ever does run out, the
-app falls back to a found solution length and prefixes it with `~`, and that
-estimate is never cached as fact.
+**Where par actually comes from.** Not from the browser. `tools/pars.mjs` solves
+every level offline with a budget no page load could afford and writes
+`src/js/35-pars.js`, which is committed. Levels are deterministic, so par is a
+fixed property of a level and there is nothing to rediscover on each visit. A
+slow phone and a fast laptop show the same number, and the search never competes
+with the animation for a frame.
 
-The search runs in a Web Worker so a long solve never blocks a pour.
+**The fallback, for levels past the table.** 400,000 expansions or 8 seconds in
+a Web Worker, so a long solve never blocks a pour. When Workers are unavailable,
+some sandboxed embeds and privacy modes, the solve runs inline against a much
+tighter 60,000 and 1.2 seconds.
+
+That tighter budget is not hypothetical. Before the table existed, four of the
+first sixty levels ran out of it and fell back to `anySolution()`, whose answer
+is whatever depth a depth-first search stumbles into first. Level 38 reported 59
+pours against a true minimum of 41. An estimate is shown with a `~` and is never
+cached as fact, and it no longer decides stars either: `rate()` takes an `exact`
+flag and treats an inexact par as no par at all, because a run that beats an
+upper bound has not been shown to match the minimum.
 
 ---
 
