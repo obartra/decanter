@@ -15,19 +15,28 @@ const css = sorted('src/css').map(f => read(`src/css/${f}`)).join('\n');
 const js  = sorted('src/js').map(f => `\n/* ---- ${f} ---- */\n${read(`src/js/${f}`)}`).join('\n');
 const solver = read('src/worker/solver.js');
 
-const fontFace = (fraunces, grotesk) => `<style>
-@font-face{font-family:'Fraunces';font-style:normal;font-weight:600 900;font-display:swap;src:url(${fraunces}) format('woff2')}
-@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:400 700;font-display:swap;src:url(${grotesk}) format('woff2')}
+const fontFace = (cinzel, sans, sansBold) => `<style>
+@font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(${cinzel}) format('woff2')}
+@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(${sans}) format('woff2')}
+@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(${sansBold}) format('woff2')}
+</style>`;
+
+/* The backdrops arrive as custom properties so the stylesheets never name a
+   path. The installable build points them at cacheable files; the portable one
+   inlines the bytes, which is the only way a single file can still be a cellar. */
+const artVars = (map, board, win) => `<style>
+:root{--art-map:url(${map});--art-board:url(${board});--art-win:url(${win})}
 </style>`;
 
 const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">`;
 
-function compose({ fonts, head }){
+function compose({ fonts, art, head }){
   return read('src/index.html')
     .replace('<!--PWAHEAD-->', head)
     .replace('<!--FONTS-->', fonts)
+    .replace('<!--ART-->', art)
     .replace('<!--CSS-->', () => css)
     .replace('<!--SOLVER-->', () => solver)
     .replace('<!--JS-->', () => js);
@@ -37,15 +46,27 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(join(root, 'assets/fonts'), join(dist, 'fonts'), { recursive: true });
 cpSync(join(root, 'assets/icons'), join(dist, 'icons'), { recursive: true });
+cpSync(join(root, 'assets/art'), join(dist, 'art'), { recursive: true });
 
-/* 1. the installable app, fonts as separate cacheable files */
-const app = compose({ fonts: fontFace('./fonts/fraunces.woff2', './fonts/spacegrotesk.woff2'), head: pwaHead });
+/* 1. the installable app, fonts and art as separate cacheable files */
+const app = compose({
+  fonts: fontFace('./fonts/cinzel.woff2', './fonts/alegreyasans.woff2', './fonts/alegreyasans-bold.woff2'),
+  art: artVars('./art/map.webp', './art/board.webp', './art/win.webp'),
+  head: pwaHead
+});
 writeFileSync(join(dist, 'index.html'), app);
 
-/* 2. one portable file, fonts inlined, opens straight off disk */
-const b64 = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).toString('base64');
-writeFileSync(join(dist, 'decanter-standalone.html'),
-  compose({ fonts: fontFace(b64('assets/fonts/fraunces.woff2'), b64('assets/fonts/spacegrotesk.woff2')), head: '' }));
+/* 2. one portable file, everything inlined, opens straight off disk */
+const data = (p, mime) => `data:${mime};base64,` + readFileSync(join(root, p)).toString('base64');
+const font = p => data(p, 'font/woff2');
+const image = p => data(p, 'image/webp');
+writeFileSync(join(dist, 'decanter-standalone.html'), compose({
+  fonts: fontFace(font('assets/fonts/cinzel.woff2'),
+                  font('assets/fonts/alegreyasans.woff2'),
+                  font('assets/fonts/alegreyasans-bold.woff2')),
+  art: artVars(image('assets/art/map.webp'), image('assets/art/board.webp'), image('assets/art/win.webp')),
+  head: ''
+}));
 
 writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
   id: '/decanter/',
@@ -57,8 +78,8 @@ writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
   display: 'standalone',
   display_override: ['standalone', 'fullscreen', 'minimal-ui'],
   orientation: 'portrait',
-  background_color: '#0b0426',
-  theme_color: '#150836',
+  background_color: '#0B0805',
+  theme_color: '#1A120A',
   categories: ['games', 'puzzle'],
   icons: [
     { src: './icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Decanter</title>
-<meta name="theme-color" content="#150836">
+<meta name="theme-color" content="#1A120A">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="A water sorting puzzle. Pour until every bottle holds one color.">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,25 +15,39 @@
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <style>
-@font-face{font-family:'Fraunces';font-style:normal;font-weight:600 900;font-display:swap;src:url(./fonts/fraunces.woff2) format('woff2')}
-@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:400 700;font-display:swap;src:url(./fonts/spacegrotesk.woff2) format('woff2')}
+@font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(./fonts/cinzel.woff2) format('woff2')}
+@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(./fonts/alegreyasans.woff2) format('woff2')}
+@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(./fonts/alegreyasans-bold.woff2) format('woff2')}
+</style>
+<style>
+:root{--art-map:url(./art/map.webp);--art-board:url(./art/board.webp);--art-win:url(./art/win.webp)}
 </style>
 <style>:root{
-  --ink:#EAF0FF; --ink-dim:#9FA8D4;
-  --glass-line:rgba(158,196,255,.30);
-  --c0:#E6402E; --c1:#F5B932; --c2:#7BC142; --c3:#3AA3E3;
-  --c4:#9B5DE5; --c5:#1FC7A8; --c6:#FF6FA5; --c7:#FF8A3D;
-  --c8:#5A6BFF; --c9:#B6E132; --c10:#B33A63; --c11:#D9C6A0;
+  --ink:#EFE4D2; --ink-dim:#A2907A;
+  --gold:#E0B15C; --gold-lit:#F4D9A0;
+  --glass-line:rgba(238,224,200,.28);
+  /* jewelled potions rather than primaries, so they sit in candlelight */
+  --c0:#C9455E; --c1:#E9B35C; --c2:#6BC5A8; --c3:#5B8FD6;
+  --c4:#9B6BC9; --c5:#3FBFA6; --c6:#E4779B; --c7:#E08A4C;
+  --c8:#6E7FD6; --c9:#AFCB63; --c10:#A83E5C; --c11:#D9C6A0;
   --bw:52px; --bh:calc(var(--bw)*3.3); --cap-h:calc(var(--bw)*.26);
   --cols:3; --units:4;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-  margin:0; font-family:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
-  color:var(--ink); background:#08031a;
-  background-image:radial-gradient(130% 80% at 50% -10%, #4A22A0 0%, #2A1266 32%, #150836 60%, #08031a 100%);
+  margin:0; font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
+  color:var(--ink); background:#0B0805;
+  background-size:cover; background-position:center top; background-repeat:no-repeat;
   background-attachment:fixed; -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+/* Each view stands in its own corner of the cellar. The scrim is what keeps the
+   HUD readable over painted art that was never designed to sit behind text. */
+body[data-view="map"]{
+  background-image:linear-gradient(180deg,rgba(11,8,5,.82) 0%,rgba(11,8,5,.34) 26%,rgba(11,8,5,.72) 100%), var(--art-map);
+}
+body[data-view="game"]{
+  background-image:linear-gradient(180deg,rgba(11,8,5,.78) 0%,rgba(11,8,5,.20) 30%,rgba(11,8,5,.55) 100%), var(--art-board);
 }
 body::after{
   content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
@@ -50,30 +64,33 @@ body[data-view="map"] #mapView,
 body[data-view="game"] #gameView{display:flex}
 
 .eyebrow{font-size:9px; letter-spacing:.34em; text-transform:uppercase; color:var(--ink-dim); margin:0 0 3px}
+/* Cinzel is inscriptional Roman caps, so it wants to be spaced out, not tightened */
 .wordmark{
-  font-family:"Fraunces",Georgia,serif; font-weight:900;
-  font-variation-settings:"opsz" 120,"SOFT" 40;
-  font-size:clamp(25px,6.2vw,38px); letter-spacing:-.03em; line-height:.9; margin:0;
-  background:linear-gradient(180deg,#fff 0%, #C9D6FF 55%, #8FA0E8 100%);
+  font-family:"Cinzel",Georgia,serif; font-weight:700;
+  font-size:clamp(22px,5.4vw,33px); letter-spacing:.07em; line-height:1; margin:0;
+  text-transform:uppercase;
+  background:linear-gradient(180deg,#FBEBC8 0%, var(--gold) 52%, #A9762F 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent;
-  filter:drop-shadow(0 4px 18px rgba(120,120,255,.35));
+  filter:drop-shadow(0 3px 14px rgba(224,177,92,.28));
 }
 .wordmark.small{font-size:clamp(18px,4.6vw,24px)}
 
 .btn{
   font-family:inherit; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
   color:var(--ink); padding:10px 15px; border-radius:999px;
-  border:1px solid rgba(150,180,255,.22);
-  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  border:1px solid rgba(224,177,92,.26);
+  background:linear-gradient(180deg,rgba(60,44,26,.62),rgba(24,17,10,.52));
+  backdrop-filter:blur(5px);
   cursor:pointer; transition:transform .15s, border-color .2s, opacity .2s;
 }
-.btn:hover{border-color:rgba(190,215,255,.5); transform:translateY(-1px)}
+.btn:hover{border-color:rgba(244,217,160,.55); transform:translateY(-1px)}
 .btn:active{transform:translateY(1px)}
 .btn:disabled{opacity:.3; cursor:default; transform:none}
 .btn.off{opacity:.45}
 .btn.ghost{border-color:transparent; background:none; color:var(--ink-dim)}
-.btn.primary{border-color:transparent; background:linear-gradient(180deg,#8B6BFF,#5B33D6);
-  box-shadow:0 6px 20px rgba(110,70,255,.45)}
+.btn.primary{border-color:rgba(250,232,190,.5); color:#2A1B08;
+  background:linear-gradient(180deg,#F6E0B0,var(--gold) 60%,#B8823A);
+  box-shadow:0 6px 22px rgba(224,177,92,.35)}
 .controls{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
 
 #confetti{position:fixed; inset:0; z-index:95; pointer-events:none; overflow:hidden}
@@ -81,22 +98,25 @@ body[data-view="game"] #gameView{display:flex}
 
 .veil{
   position:fixed; inset:0; z-index:80; display:grid; place-items:center; padding:24px;
-  background:radial-gradient(60% 50% at 50% 50%, rgba(40,18,100,.72), rgba(4,2,14,.86));
+  background:linear-gradient(180deg,rgba(11,8,5,.86),rgba(11,8,5,.92)), var(--art-win);
+  background-size:cover; background-position:center;
   backdrop-filter:blur(7px); opacity:0; pointer-events:none; transition:opacity .4s ease;
 }
 .veil.show{opacity:1; pointer-events:auto}
 .panel{
   text-align:center; max-width:340px; padding:28px 26px; border-radius:24px;
-  border:1px solid rgba(160,190,255,.22);
-  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03));
+  border:1px solid rgba(224,177,92,.28);
+  background:linear-gradient(180deg,rgba(46,33,19,.86),rgba(18,13,8,.82));
+  backdrop-filter:blur(8px); box-shadow:0 24px 60px rgba(0,0,0,.55);
   transform:translateY(14px) scale(.97); transition:transform .45s cubic-bezier(.2,1.2,.4,1);
 }
 .veil.show .panel{transform:none}
-.panel h2{font-family:"Fraunces",serif; font-weight:900; font-size:30px; margin:0 0 6px; letter-spacing:-.02em}
-.stars{font-size:26px; letter-spacing:6px; margin:2px 0 10px; color:#FFD48A}
-.stars .dim{color:rgba(255,255,255,.18)}
+.panel h2{font-family:"Cinzel",serif; font-weight:700; font-size:26px; margin:0 0 8px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--gold-lit)}
+.stars{font-size:26px; letter-spacing:6px; margin:2px 0 10px; color:var(--gold-lit)}
+.stars .dim{color:rgba(239,228,210,.16)}
 .panel p{color:var(--ink-dim); font-size:13px; line-height:1.6; margin:0 0 6px}
-.panel .hint{color:#FFC08A; font-size:11px; letter-spacing:.04em; min-height:16px; margin-bottom:16px}
+.panel .hint{color:var(--gold); font-size:11px; letter-spacing:.04em; min-height:16px; margin-bottom:16px}
 .panelBtns{display:flex; gap:8px; justify-content:center; margin-bottom:10px}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important; transition-duration:.08s !important}}
 
@@ -116,7 +136,7 @@ body[data-view="game"] #gameView{display:flex}
   will-change:transform; touch-action:manipulation;
 }
 .bottle:focus-visible{outline:none}
-.bottle:focus-visible .glass{box-shadow:0 0 0 2px #fff, 0 0 26px rgba(120,180,255,.5)}
+.bottle:focus-visible .glass{box-shadow:0 0 0 2px #fff, 0 0 26px rgba(232,190,110,.55)}
 .bottle.lifted{transform:translateY(-20px)}
 .bottle.pouring{z-index:60}
 .bottle.thunk{animation:thunk .5s cubic-bezier(.2,1.4,.4,1)}
@@ -126,8 +146,8 @@ body[data-view="game"] #gameView{display:flex}
 .collar{
   position:absolute; top:0; left:50%; transform:translateX(-50%); z-index:4;
   width:44%; height:calc(var(--cap-h) + 2px); border-radius:4px 4px 2px 2px;
-  background:linear-gradient(180deg,#5C6E9E 0%,#2A3560 42%,#141C3C 100%);
-  box-shadow:inset 0 1px 0 rgba(200,220,255,.55), inset -2px 0 3px rgba(0,0,0,.35);
+  background:linear-gradient(180deg,#8A7247 0%,#4E3D22 42%,#291F10 100%);
+  box-shadow:inset 0 1px 0 rgba(246,226,182,.5), inset -2px 0 3px rgba(0,0,0,.4);
 }
 .collar::after{content:""; position:absolute; left:14%; top:12%; width:16%; height:70%;
   border-radius:3px; background:rgba(255,255,255,.30)}
@@ -136,9 +156,9 @@ body[data-view="game"] #gameView{display:flex}
   position:absolute; left:0; right:0; bottom:0; height:var(--bh);
   border-radius:calc(var(--bw)*.30) calc(var(--bw)*.30) calc(var(--bw)*.17) calc(var(--bw)*.17);
   overflow:hidden;
-  background:linear-gradient(180deg, rgba(20,16,60,.55), rgba(10,6,34,.72));
-  box-shadow:inset 0 0 0 1.5px var(--glass-line), inset 0 6px 14px rgba(120,170,255,.10),
-             0 10px 24px rgba(0,0,0,.45), 0 0 20px rgba(80,140,255,.14);
+  background:linear-gradient(180deg, rgba(38,29,18,.5), rgba(14,10,6,.68));
+  box-shadow:inset 0 0 0 1.5px var(--glass-line), inset 0 6px 14px rgba(255,225,170,.08),
+             0 10px 24px rgba(0,0,0,.5), 0 0 20px rgba(224,177,92,.10);
   transition:box-shadow .4s ease;
 }
 .fill{position:absolute; inset:0; display:flex; flex-direction:column-reverse}
@@ -162,8 +182,8 @@ body[data-view="game"] #gameView{display:flex}
 
 /* cork: the plug is inside the neck, clipped by the glass */
 .bottle.done .glass{
-  box-shadow:inset 0 0 0 1.5px rgba(215,238,255,.8), inset 0 6px 14px rgba(180,215,255,.18),
-             0 10px 24px rgba(0,0,0,.45), 0 0 32px rgba(160,205,255,.42);
+  box-shadow:inset 0 0 0 1.5px rgba(252,238,208,.8), inset 0 6px 14px rgba(255,226,170,.18),
+             0 10px 24px rgba(0,0,0,.5), 0 0 32px rgba(232,190,110,.45);
 }
 .plug{
   position:absolute; left:50%; top:0; z-index:5;
@@ -229,13 +249,13 @@ body[data-view="game"] #gameView{display:flex}
 .hud{display:flex; gap:6px}
 .stat{
   min-width:62px; padding:6px 10px 7px; text-align:center;
-  border:1px solid rgba(150,180,255,.18); border-radius:11px;
-  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  border:1px solid rgba(224,177,92,.20); border-radius:11px;
+  background:linear-gradient(180deg,rgba(52,38,22,.58),rgba(20,14,9,.48));
   backdrop-filter:blur(6px);
 }
-.stat b{display:block; font-family:"Fraunces",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
+.stat b{display:block; font-family:"Cinzel",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
 .stat span{color:var(--ink-dim); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase}
-.stat.over b{color:#FFC08A}
+.stat.over b{color:#F0894F}
 /* the pour counter carries par with it, so the number you are chasing is never
    a separate thing to go and look at */
 #movesStat{min-width:112px}
@@ -243,7 +263,7 @@ body[data-view="game"] #gameView{display:flex}
 /* --- gold --- */
 .purse{
   display:flex; align-items:center; gap:5px; min-width:72px; justify-content:flex-end;
-  font-family:"Fraunces",serif; font-weight:600; font-size:15px; color:#F4D9A0;
+  font-family:"Cinzel",serif; font-weight:600; font-size:15px; color:#F4D9A0;
 }
 .purse .coin{color:#E0B15C; font-size:11px}
 .btn.priced{display:inline-flex; flex-direction:column; align-items:center; gap:1px; line-height:1.1}
@@ -253,7 +273,7 @@ body[data-view="game"] #gameView{display:flex}
 .btn.priced:disabled small{color:var(--ink-dim)}
 .btn.priced.spent small{text-decoration:line-through}
 .payout{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:2px 0 10px}
-.payout b{font-family:"Fraunces",serif; font-weight:700; font-size:22px; color:#F4D9A0}
+.payout b{font-family:"Cinzel",serif; font-weight:700; font-size:22px; color:#F4D9A0}
 .payout span{color:var(--ink-dim); font-size:9px; letter-spacing:.16em; text-transform:uppercase}
 
 .mapHeader{
@@ -263,8 +283,8 @@ body[data-view="game"] #gameView{display:flex}
 .mapMeta{display:flex; flex-direction:column; align-items:flex-end; gap:2px}
 .tally{text-align:right}
 .tally b{
-  display:block; font-family:"Fraunces",serif; font-weight:900; font-size:26px;
-  line-height:1; color:#FFD48A;
+  display:block; font-family:"Cinzel",serif; font-weight:900; font-size:26px;
+  line-height:1; color:var(--gold-lit);
 }
 .tally span{font-size:8.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-dim)}
 
@@ -283,7 +303,7 @@ body[data-view="game"] #gameView{display:flex}
 }
 .chapter span{
   display:inline-block; position:relative;
-  font-family:"Fraunces",serif; font-weight:600; font-size:14px; letter-spacing:.02em;
+  font-family:"Cinzel",serif; font-weight:600; font-size:14px; letter-spacing:.02em;
   color:var(--tint); padding:0 14px;
   text-shadow:0 2px 12px rgba(0,0,0,.6);
 }
@@ -299,21 +319,21 @@ body[data-view="game"] #gameView{display:flex}
   position:absolute; transform:translate(-50%, 50%);
   width:52px; height:52px; border-radius:50%;
   display:grid; place-items:center; gap:0;
-  font-family:"Fraunces",serif; font-weight:600; font-size:19px; color:#fff;
+  font-family:"Cinzel",serif; font-weight:600; font-size:19px; color:#fff;
   cursor:pointer; padding:0;
-  border:1.5px solid rgba(170,200,255,.28);
-  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
-  box-shadow:0 6px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
+  border:1.5px solid rgba(224,177,92,.34);
+  background:linear-gradient(180deg, rgba(64,47,27,.82), rgba(26,18,11,.78));
+  box-shadow:0 6px 16px rgba(0,0,0,.55), inset 0 1px 0 rgba(244,217,160,.22);
   transition:transform .18s cubic-bezier(.3,1.3,.5,1), box-shadow .25s;
 }
 .node:hover:not(:disabled){transform:translate(-50%,50%) scale(1.08)}
 .node .num{line-height:1}
 .node .ns{
   position:absolute; bottom:-13px; left:50%; transform:translateX(-50%);
-  font-size:10px; letter-spacing:1px; color:#FFD48A; white-space:nowrap;
+  font-size:10px; letter-spacing:1px; color:var(--gold-lit); white-space:nowrap;
   text-shadow:0 1px 4px rgba(0,0,0,.8);
 }
-.node .ns i{color:rgba(255,255,255,.22); font-style:normal}
+.node .ns i{color:rgba(239,228,210,.20); font-style:normal}
 
 .node.cleared{
   border-color:color-mix(in srgb, var(--tint) 60%, transparent);
@@ -321,23 +341,23 @@ body[data-view="game"] #gameView{display:flex}
     radial-gradient(circle at 32% 26%, rgba(255,255,255,.42), rgba(255,255,255,0) 58%),
     linear-gradient(180deg, color-mix(in srgb, var(--tint) 85%, #fff 15%), color-mix(in srgb, var(--tint) 70%, #000 30%));
   box-shadow:0 6px 18px rgba(0,0,0,.5), 0 0 22px color-mix(in srgb, var(--tint) 35%, transparent);
-  color:#0E0726;
+  color:#231607;
 }
 .node.current{
-  border-color:rgba(255,255,255,.75);
-  background:linear-gradient(180deg,#F3E9FF,#B9A2FF);
-  color:#1A0B3A; font-size:21px;
-  box-shadow:0 8px 22px rgba(0,0,0,.5), 0 0 0 6px rgba(150,120,255,.18), 0 0 34px rgba(160,130,255,.55);
+  border-color:rgba(250,232,190,.8);
+  background:linear-gradient(180deg,#FBEBC8,var(--gold) 62%,#B8823A);
+  color:#2A1B08; font-size:21px;
+  box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 6px rgba(224,177,92,.16), 0 0 34px rgba(224,177,92,.5);
   animation:beacon 2.4s ease-in-out infinite;
 }
 @keyframes beacon{
-  0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.5), 0 0 0 6px rgba(150,120,255,.18), 0 0 30px rgba(160,130,255,.45)}
-  50%{box-shadow:0 8px 22px rgba(0,0,0,.5), 0 0 0 12px rgba(150,120,255,.06), 0 0 44px rgba(170,140,255,.7)}
+  0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 6px rgba(224,177,92,.16), 0 0 30px rgba(224,177,92,.4)}
+  50%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 12px rgba(224,177,92,.05), 0 0 44px rgba(238,197,120,.65)}
 }
 .node.locked{
-  cursor:default; font-size:14px; color:rgba(200,215,255,.35);
-  border-color:rgba(150,180,255,.12);
-  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+  cursor:default; font-size:14px; color:rgba(239,228,210,.32);
+  border-color:rgba(224,177,92,.12);
+  background:linear-gradient(180deg, rgba(40,29,17,.55), rgba(16,11,7,.5));
   box-shadow:none;
 }
 .node.locked:nth-of-type(n){opacity:.85}
@@ -1421,9 +1441,9 @@ const MapView = (() => {
     svg.innerHTML = `
       <defs>
         <linearGradient id="pathFade" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stop-color="#9FA8D4" stop-opacity=".55"/>
-          <stop offset="${(count / (count + 3)).toFixed(2)}" stop-color="#9FA8D4" stop-opacity=".28"/>
-          <stop offset="1" stop-color="#9FA8D4" stop-opacity="0"/>
+          <stop offset="0" stop-color="#E0B15C" stop-opacity=".55"/>
+          <stop offset="${(count / (count + 3)).toFixed(2)}" stop-color="#E0B15C" stop-opacity=".28"/>
+          <stop offset="1" stop-color="#E0B15C" stop-opacity="0"/>
         </linearGradient>
       </defs>
       <path d="${MapGeom.pathThrough(pts, H)}" fill="none" stroke="url(#pathFade)"

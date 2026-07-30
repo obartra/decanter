@@ -12,8 +12,8 @@
     "minimal-ui"
   ],
   "orientation": "portrait",
-  "background_color": "#0b0426",
-  "theme_color": "#150836",
+  "background_color": "#0B0805",
+  "theme_color": "#1A120A",
   "categories": [
     "games",
     "puzzle"

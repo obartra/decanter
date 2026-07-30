@@ -6,13 +6,13 @@
 .hud{display:flex; gap:6px}
 .stat{
   min-width:62px; padding:6px 10px 7px; text-align:center;
-  border:1px solid rgba(150,180,255,.18); border-radius:11px;
-  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  border:1px solid rgba(224,177,92,.20); border-radius:11px;
+  background:linear-gradient(180deg,rgba(52,38,22,.58),rgba(20,14,9,.48));
   backdrop-filter:blur(6px);
 }
-.stat b{display:block; font-family:"Fraunces",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
+.stat b{display:block; font-family:"Cinzel",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
 .stat span{color:var(--ink-dim); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase}
-.stat.over b{color:#FFC08A}
+.stat.over b{color:#F0894F}
 /* the pour counter carries par with it, so the number you are chasing is never
    a separate thing to go and look at */
 #movesStat{min-width:112px}
@@ -20,7 +20,7 @@
 /* --- gold --- */
 .purse{
   display:flex; align-items:center; gap:5px; min-width:72px; justify-content:flex-end;
-  font-family:"Fraunces",serif; font-weight:600; font-size:15px; color:#F4D9A0;
+  font-family:"Cinzel",serif; font-weight:600; font-size:15px; color:#F4D9A0;
 }
 .purse .coin{color:#E0B15C; font-size:11px}
 .btn.priced{display:inline-flex; flex-direction:column; align-items:center; gap:1px; line-height:1.1}
@@ -30,5 +30,5 @@
 .btn.priced:disabled small{color:var(--ink-dim)}
 .btn.priced.spent small{text-decoration:line-through}
 .payout{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:2px 0 10px}
-.payout b{font-family:"Fraunces",serif; font-weight:700; font-size:22px; color:#F4D9A0}
+.payout b{font-family:"Cinzel",serif; font-weight:700; font-size:22px; color:#F4D9A0}
 .payout span{color:var(--ink-dim); font-size:9px; letter-spacing:.16em; text-transform:uppercase}

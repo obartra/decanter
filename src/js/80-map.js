@@ -60,9 +60,9 @@ const MapView = (() => {
     svg.innerHTML = `
       <defs>
         <linearGradient id="pathFade" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stop-color="#9FA8D4" stop-opacity=".55"/>
-          <stop offset="${(count / (count + 3)).toFixed(2)}" stop-color="#9FA8D4" stop-opacity=".28"/>
-          <stop offset="1" stop-color="#9FA8D4" stop-opacity="0"/>
+          <stop offset="0" stop-color="#E0B15C" stop-opacity=".55"/>
+          <stop offset="${(count / (count + 3)).toFixed(2)}" stop-color="#E0B15C" stop-opacity=".28"/>
+          <stop offset="1" stop-color="#E0B15C" stop-opacity="0"/>
         </linearGradient>
       </defs>
       <path d="${MapGeom.pathThrough(pts, H)}" fill="none" stroke="url(#pathFade)"
