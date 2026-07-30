@@ -64,15 +64,21 @@ function isSolvable(start, nodeCap = 40000){
   }
   return false;
 }
-/* three stars at or under par, two up to half again, one beyond.
+/* Three stars at par or one over, two up to four over, one for solving it at all.
 
    An inexact par is an upper bound the search settled for, not the minimum, so
    it cannot decide any bracket: it is treated the same as no par at all rather
-   than scored as if it were real. */
-function rate(moves, par, exact = true){
-  if (par == null || !exact) return 3;
-  if (moves <= par) return 3;
-  if (moves <= Math.round(par * 1.5)) return 2;
+   than scored as if it were real.
+
+   A bought vessel caps the run at two stars. Par is the minimum for the bottles
+   the level deals you, so once an extra one is on the shelf the board is easier
+   than the number being scored against, and the third star would be measuring a
+   different puzzle from the one par describes. */
+function rate(moves, par, exact = true, vesselUsed = false){
+  const cap = vesselUsed ? 2 : 3;
+  if (par == null || !exact) return cap;
+  if (moves <= par + CONFIG.stars.clean) return cap;
+  if (moves <= par + CONFIG.stars.passable) return Math.min(2, cap);
   return 1;
 }
 globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,

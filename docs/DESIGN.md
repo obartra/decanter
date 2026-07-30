@@ -136,6 +136,42 @@ upper bound has not been shown to match the minimum.
 
 ---
 
+## 3a. The economy
+
+Stars are pours against par: par or one over is three, up to four over is two,
+solving it at all is one. There is no zero-star finish.
+
+Gold is deliberately thin, because the tension is the point. A good first run
+pays 14, a replay of the same level pays 6, a sloppy replay pays 1.
+
+| In | | Out | |
+| --- | --- | --- | --- |
+| 3★ | 6 | Extra vessel | 45 |
+| 2★ | 3 | Undo | 3 free per level, then 8 |
+| 1★ | 1 | Restart | free, time is the cost |
+| First clear | 8, once | | |
+| Daily draught | 12 | | |
+
+The purse opens at 86: one vessel away from broke. Above roughly 150 the
+pressure disappears, which is the number to watch when retuning.
+
+Two rules do the real work. The first-clear bonus is paid once ever, so a
+cleared level pays stars only and cannot be farmed. And a vessel costs about
+three well-played new levels, so the only rescue worth buying has to be funded
+on boards you have not solved yet. A player who three-stars everything affords a
+vessel roughly every third level; a player scraping one star almost never can,
+which pushes them to restart and learn the board instead of buying past it.
+
+**Why a bought vessel caps the run at two stars.** Par is the exact minimum for
+the bottles the level deals. Put a seventh on the shelf and the board is strictly
+easier than the number being scored against, so a third star would be measuring a
+different puzzle. Capping is also what keeps par honest without re-solving the
+altered board at runtime, which would drag back the estimate path that
+`35-pars.js` exists to remove. Restarting keeps a vessel already paid for, so a
+restart cannot launder the purchase back into a clean run.
+
+---
+
 ## 4. Levels
 
 Levels are deterministic in their number. `hashSeed(n)` avalanches the level

@@ -4,15 +4,29 @@ const App = (() => {
   const S = {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
-    par: null, parExact: false, parRequest: 0
+    par: null, parExact: false, parRequest: 0,
+    undosUsed: 0, vesselUsed: false
   };
   const $ = id => document.getElementById(id);
 
   /* ---------- routing ---------- */
+  /* local calendar day, so the draught refreshes on the player's midnight */
+  function today(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function paintMap(){
+    $('mapGold').textContent = progress.gold;
+    const ready = progress.dailyReady(today());
+    $('daily').disabled = !ready;
+    $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
+  }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
+    paintMap();
   }
   function showGame(level){
     document.body.dataset.view = 'game';
@@ -20,9 +34,15 @@ const App = (() => {
   }
 
   /* ---------- a level ---------- */
-  function start(level){
+  /* Restarting keeps a vessel the player already paid for, so a restart cannot
+     be used to launder the purchase back into a three-star run. Leaving the
+     level and coming back deals a clean board, and costs the gold again. */
+  function start(level, keepVessel){
     S.level = level;
     S.tubes = Levels.make(level);
+    if (keepVessel) S.tubes.push([]);
+    S.vesselUsed = !!keepVessel;
+    S.undosUsed = 0;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -49,14 +69,30 @@ const App = (() => {
       paintHud();
     });
   }
+  const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
+  const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
+
   function paintHud(){
+    const busy = S.queue.length > 0 || S.running;
+    const par = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
     $('statLevel').textContent = S.level;
     $('statMoves').textContent = S.moves;
-    $('statPar').textContent = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
+    $('statPar').textContent = par;
+    $('pourLabel').textContent = `Pours · Par ${par}`;
     $('statLeft').textContent = S.tubes.filter(t => t.length && !Rules.isFull(t)).length;
     $('movesStat').classList.toggle('over', S.par != null && S.moves > S.par);
-    $('undo').disabled = !S.history.length || S.queue.length > 0 || S.running;
-    $('restart').disabled = (!S.history.length && !S.moves) || S.queue.length > 0 || S.running;
+    $('gold').textContent = progress.gold;
+
+    const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
+    $('undoCost').textContent = freeLeft ? `${freeLeft} free` : `${CONFIG.economy.undoCost}`;
+    $('undo').disabled = !S.history.length || busy ||
+      (!undoIsFree() && !progress.canAfford(CONFIG.economy.undoCost));
+
+    $('vesselCost').textContent = CONFIG.economy.vessel;
+    $('vessel').disabled = busy || S.vesselUsed || !progress.canAfford(CONFIG.economy.vessel);
+    $('vessel').classList.toggle('spent', S.vesselUsed);
+
+    $('restart').disabled = (!S.history.length && !S.moves) || busy;
   }
 
   /* ---------- input ---------- */
@@ -126,7 +162,7 @@ const App = (() => {
 
   /* ---------- finishing ---------- */
   function finish(){
-    const stars = Rules.rate(S.moves, S.par, S.parExact);
+    const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const perfect = stars === 3;
@@ -139,7 +175,16 @@ const App = (() => {
     const bestLine = progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
       ? ` Your best here is ${progress.bestFor(S.level)}.` : '';
     $('winLine').textContent = `Sorted in ${S.moves} pours.${parLine}${bestLine}`;
-    $('winHint').textContent = perfect ? '' : 'Match par to earn the third star.';
+
+    /* say where the gold came from, so the thin payouts read as earned */
+    const parts = [`${stars}★`];
+    if (result.firstClear) parts.push('first clear');
+    $('goldEarned').textContent = `+${result.earned}`;
+    $('goldWhy').textContent = `Gold · ${parts.join(' + ')}`;
+
+    $('winHint').textContent = S.vesselUsed
+      ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
+      : (perfect ? '' : 'Par or one over earns the third star.');
     $('retry').hidden = perfect;
     $('retry').classList.toggle('primary', !perfect);
     $('next').classList.toggle('primary', perfect);
@@ -167,6 +212,9 @@ const App = (() => {
 
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;
+      /* charge before rolling back, so a refused payment changes nothing */
+      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){ Audio.deny(); return; }
+      S.undosUsed++;
       const prev = S.history.pop();
       S.tubes = prev.tubes;
       S.moves = prev.moves;
@@ -176,9 +224,23 @@ const App = (() => {
       Board.render();
       paintHud();
     };
+    $('vessel').onclick = () => {
+      if (S.queue.length || S.running || S.vesselUsed) return;
+      if (!progress.spend(CONFIG.economy.vessel)){ Audio.deny(); return; }
+      S.vesselUsed = true;
+      S.tubes.push([]);
+      Board.view.push([]);
+      /* the shelf changed shape, so the snapshots behind us no longer describe
+         this board and undoing into one would quietly take the vessel back */
+      S.history = [];
+      Board.selected = null;
+      Audio.lift();
+      Board.render();
+      paintHud();
+    };
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
-      start(S.level);
+      start(S.level, S.vesselUsed);
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
     $('winMap').onclick = () => { $('veil').classList.remove('show'); showMap(true); };
@@ -193,6 +255,12 @@ const App = (() => {
       };
     });
     $('mapPlay').onclick = () => { Audio.unlock(); showGame(progress.unlocked); };
+    $('daily').onclick = () => {
+      Audio.unlock();
+      if (!progress.claimDaily(today())){ Audio.deny(); return; }
+      Audio.lift();
+      paintMap();
+    };
 
     let rt;
     addEventListener('resize', () => {

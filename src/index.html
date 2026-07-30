@@ -23,11 +23,15 @@
       <p class="eyebrow">Chapter</p>
       <h1 class="wordmark" id="mapChapter">The Cellar</h1>
     </div>
-    <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+    <div class="mapMeta">
+      <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="mapGold">0</b></div>
+      <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+    </div>
   </header>
   <div class="mapScroll" id="mapScroll"><div class="mapCanvas"></div></div>
   <footer class="controls">
     <button class="btn primary" id="mapPlay" type="button">Play</button>
+    <button class="btn priced" id="daily" type="button">Daily<small id="dailyCost">+12</small></button>
     <button class="btn js-sound" type="button">Sound on</button>
     <button class="btn primary" id="install" type="button" hidden>Install</button>
   </footer>
@@ -37,17 +41,18 @@
   <header class="gameHeader">
     <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
     <h1 class="wordmark small">Decanter</h1>
-    <span class="spacer"></span>
+    <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="gold">0</b></div>
   </header>
   <div class="hud">
     <div class="stat"><b id="statLevel">1</b><span>Level</span></div>
-    <div class="stat" id="movesStat"><b id="statMoves">0</b><span>Pours</span></div>
-    <div class="stat"><b id="statPar">…</b><span>Par</span></div>
+    <div class="stat" id="movesStat"><b id="statMoves">0</b><span id="pourLabel">Pours · Par —</span></div>
+    <div class="stat" hidden><b id="statPar">…</b></div>
     <div class="stat"><b id="statLeft">4</b><span>To sort</span></div>
   </div>
   <div class="board" id="board"></div>
   <div class="controls">
-    <button class="btn" id="undo" type="button">Undo</button>
+    <button class="btn priced" id="undo" type="button">Undo<small id="undoCost">3 free</small></button>
+    <button class="btn priced" id="vessel" type="button">Vessel<small id="vesselCost">45</small></button>
     <button class="btn" id="restart" type="button">Restart</button>
     <button class="btn js-sound" type="button">Sound on</button>
   </div>
@@ -60,6 +65,7 @@
     <h2 id="winTitle">Poured clean</h2>
     <div class="stars" id="stars"></div>
     <p id="winLine"></p>
+    <div class="payout"><b id="goldEarned">+0</b><span id="goldWhy"></span></div>
     <p class="hint" id="winHint"></p>
     <div class="panelBtns">
       <button class="btn" id="retry" type="button">Retry</button>

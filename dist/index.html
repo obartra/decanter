@@ -236,11 +236,31 @@ body[data-view="game"] #gameView{display:flex}
 .stat b{display:block; font-family:"Fraunces",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
 .stat span{color:var(--ink-dim); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase}
 .stat.over b{color:#FFC08A}
+/* the pour counter carries par with it, so the number you are chasing is never
+   a separate thing to go and look at */
+#movesStat{min-width:112px}
+
+/* --- gold --- */
+.purse{
+  display:flex; align-items:center; gap:5px; min-width:72px; justify-content:flex-end;
+  font-family:"Fraunces",serif; font-weight:600; font-size:15px; color:#F4D9A0;
+}
+.purse .coin{color:#E0B15C; font-size:11px}
+.btn.priced{display:inline-flex; flex-direction:column; align-items:center; gap:1px; line-height:1.1}
+.btn.priced small{
+  font-size:8.5px; letter-spacing:.14em; text-transform:uppercase; color:#E0B15C; font-weight:600;
+}
+.btn.priced:disabled small{color:var(--ink-dim)}
+.btn.priced.spent small{text-decoration:line-through}
+.payout{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:2px 0 10px}
+.payout b{font-family:"Fraunces",serif; font-weight:700; font-size:22px; color:#F4D9A0}
+.payout span{color:var(--ink-dim); font-size:9px; letter-spacing:.16em; text-transform:uppercase}
 
 .mapHeader{
   display:flex; align-items:flex-end; justify-content:space-between;
   width:100%; max-width:520px; gap:12px;
 }
+.mapMeta{display:flex; flex-direction:column; align-items:flex-end; gap:2px}
 .tally{text-align:right}
 .tally b{
   display:block; font-family:"Fraunces",serif; font-weight:900; font-size:26px;
@@ -331,11 +351,15 @@ body[data-view="game"] #gameView{display:flex}
       <p class="eyebrow">Chapter</p>
       <h1 class="wordmark" id="mapChapter">The Cellar</h1>
     </div>
-    <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+    <div class="mapMeta">
+      <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="mapGold">0</b></div>
+      <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+    </div>
   </header>
   <div class="mapScroll" id="mapScroll"><div class="mapCanvas"></div></div>
   <footer class="controls">
     <button class="btn primary" id="mapPlay" type="button">Play</button>
+    <button class="btn priced" id="daily" type="button">Daily<small id="dailyCost">+12</small></button>
     <button class="btn js-sound" type="button">Sound on</button>
     <button class="btn primary" id="install" type="button" hidden>Install</button>
   </footer>
@@ -345,17 +369,18 @@ body[data-view="game"] #gameView{display:flex}
   <header class="gameHeader">
     <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
     <h1 class="wordmark small">Decanter</h1>
-    <span class="spacer"></span>
+    <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="gold">0</b></div>
   </header>
   <div class="hud">
     <div class="stat"><b id="statLevel">1</b><span>Level</span></div>
-    <div class="stat" id="movesStat"><b id="statMoves">0</b><span>Pours</span></div>
-    <div class="stat"><b id="statPar">…</b><span>Par</span></div>
+    <div class="stat" id="movesStat"><b id="statMoves">0</b><span id="pourLabel">Pours · Par —</span></div>
+    <div class="stat" hidden><b id="statPar">…</b></div>
     <div class="stat"><b id="statLeft">4</b><span>To sort</span></div>
   </div>
   <div class="board" id="board"></div>
   <div class="controls">
-    <button class="btn" id="undo" type="button">Undo</button>
+    <button class="btn priced" id="undo" type="button">Undo<small id="undoCost">3 free</small></button>
+    <button class="btn priced" id="vessel" type="button">Vessel<small id="vesselCost">45</small></button>
     <button class="btn" id="restart" type="button">Restart</button>
     <button class="btn js-sound" type="button">Sound on</button>
   </div>
@@ -368,6 +393,7 @@ body[data-view="game"] #gameView{display:flex}
     <h2 id="winTitle">Poured clean</h2>
     <div class="stars" id="stars"></div>
     <p id="winLine"></p>
+    <div class="payout"><b id="goldEarned">+0</b><span id="goldWhy"></span></div>
     <p class="hint" id="winHint"></p>
     <div class="panelBtns">
       <button class="btn" id="retry" type="button">Retry</button>
@@ -511,7 +537,22 @@ const CONFIG = {
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
-  solver: { nodeCap: 400000, msCap: 8000 }
+  solver: { nodeCap: 400000, msCap: 8000 },
+  /* Gold is deliberately thin: the only rescue worth buying costs about three
+     well-played new levels, and replaying old ones barely pays, so a stockpile
+     has to be earned on new boards rather than ground out on cleared ones.
+     A good first run pays 14, a replay 6, a sloppy replay 1. */
+  economy: {
+    startingGold: 86,
+    starGold: { 3: 6, 2: 3, 1: 1 },
+    firstClear: 8,
+    daily: 12,
+    vessel: 45,
+    freeUndos: 3,
+    undoCost: 8
+  },
+  /* stars are pours against par: par or par+1 is clean, up to par+4 is passable */
+  stars: { clean: 1, passable: 4 }
 };
 globalThis.CONFIG = CONFIG;
 
@@ -614,15 +655,21 @@ function isSolvable(start, nodeCap = 40000){
   }
   return false;
 }
-/* three stars at or under par, two up to half again, one beyond.
+/* Three stars at par or one over, two up to four over, one for solving it at all.
 
    An inexact par is an upper bound the search settled for, not the minimum, so
    it cannot decide any bracket: it is treated the same as no par at all rather
-   than scored as if it were real. */
-function rate(moves, par, exact = true){
-  if (par == null || !exact) return 3;
-  if (moves <= par) return 3;
-  if (moves <= Math.round(par * 1.5)) return 2;
+   than scored as if it were real.
+
+   A bought vessel caps the run at two stars. Par is the minimum for the bottles
+   the level deals you, so once an extra one is on the shelf the board is easier
+   than the number being scored against, and the third star would be measuring a
+   different puzzle from the one par describes. */
+function rate(moves, par, exact = true, vesselUsed = false){
+  const cap = vesselUsed ? 2 : 3;
+  if (par == null || !exact) return cap;
+  if (moves <= par + CONFIG.stars.clean) return cap;
+  if (moves <= par + CONFIG.stars.passable) return Math.min(2, cap);
   return 1;
 }
 globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,
@@ -703,7 +750,14 @@ function safeStorage(){
   }
 }
 function blank(){
-  return { version:1, unlocked:1, stars:{}, best:{}, pars:{}, sound:true };
+  return {
+    version:1, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
+    gold: CONFIG.economy.startingGold,
+    /* levels whose one-time first-clear bonus has already been paid */
+    claimed:{},
+    /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
+    dailyOn: null
+  };
 }
 function createProgress(storage){
   const store = storage || safeStorage();
@@ -716,6 +770,9 @@ function createProgress(storage){
     }
   } catch (e) { state = blank(); }
   if (!Number.isInteger(state.unlocked) || state.unlocked < 1) state.unlocked = 1;
+  /* a save written before gold existed still deserves a starting purse */
+  if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
+  if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
 
   function save(){
     try { store.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -735,15 +792,54 @@ function createProgress(storage){
       return Object.values(state.stars).reduce((a, b) => a + b, 0);
     },
     isUnlocked: level => level <= state.unlocked,
-    /* replaying a level can raise a score but never lower it */
+
+    /* ---- gold ---- */
+    get gold(){ return state.gold; },
+    /* spending is all-or-nothing: a partial debit would leave the player paying
+       for a rescue they did not get */
+    spend(cost){
+      if (!Number.isInteger(cost) || cost < 0 || state.gold < cost) return false;
+      state.gold -= cost;
+      save();
+      return true;
+    },
+    canAfford: cost => state.gold >= cost,
+    /* the draught is once per local day, and the day is passed in so this stays
+       testable and so a clock that jumps cannot pay twice for the same date */
+    dailyReady: today => state.dailyOn !== today,
+    claimDaily(today){
+      if (state.dailyOn === today) return 0;
+      state.dailyOn = today;
+      state.gold += CONFIG.economy.daily;
+      save();
+      return CONFIG.economy.daily;
+    },
+
+    /* replaying a level can raise a score but never lower it. Star gold is paid
+       every time, the first-clear bonus only ever once, which is what keeps a
+       cleared level from being farmable. */
     complete(level, moves, stars){
       const prevStars = state.stars[level] || 0;
       if (stars > prevStars) state.stars[level] = stars;
       const prevBest = level in state.best ? state.best[level] : Infinity;
       if (moves < prevBest) state.best[level] = moves;
       if (level >= state.unlocked) state.unlocked = level + 1;
+
+      const firstClear = !state.claimed[level];
+      const starGold = CONFIG.economy.starGold[stars] || 0;
+      const bonus = firstClear ? CONFIG.economy.firstClear : 0;
+      state.claimed[level] = true;
+      state.gold += starGold + bonus;
+
       save();
-      return { improvedStars: stars > prevStars, improvedBest: moves < prevBest };
+      return {
+        improvedStars: stars > prevStars,
+        improvedBest: moves < prevBest,
+        firstClear,
+        starGold,
+        bonus,
+        earned: starGold + bonus
+      };
     },
     reset(){ state = blank(); save(); }
   };
@@ -1399,15 +1495,29 @@ const App = (() => {
   const S = {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
-    par: null, parExact: false, parRequest: 0
+    par: null, parExact: false, parRequest: 0,
+    undosUsed: 0, vesselUsed: false
   };
   const $ = id => document.getElementById(id);
 
   /* ---------- routing ---------- */
+  /* local calendar day, so the draught refreshes on the player's midnight */
+  function today(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function paintMap(){
+    $('mapGold').textContent = progress.gold;
+    const ready = progress.dailyReady(today());
+    $('daily').disabled = !ready;
+    $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
+  }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
+    paintMap();
   }
   function showGame(level){
     document.body.dataset.view = 'game';
@@ -1415,9 +1525,15 @@ const App = (() => {
   }
 
   /* ---------- a level ---------- */
-  function start(level){
+  /* Restarting keeps a vessel the player already paid for, so a restart cannot
+     be used to launder the purchase back into a three-star run. Leaving the
+     level and coming back deals a clean board, and costs the gold again. */
+  function start(level, keepVessel){
     S.level = level;
     S.tubes = Levels.make(level);
+    if (keepVessel) S.tubes.push([]);
+    S.vesselUsed = !!keepVessel;
+    S.undosUsed = 0;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -1444,14 +1560,30 @@ const App = (() => {
       paintHud();
     });
   }
+  const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
+  const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
+
   function paintHud(){
+    const busy = S.queue.length > 0 || S.running;
+    const par = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
     $('statLevel').textContent = S.level;
     $('statMoves').textContent = S.moves;
-    $('statPar').textContent = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
+    $('statPar').textContent = par;
+    $('pourLabel').textContent = `Pours · Par ${par}`;
     $('statLeft').textContent = S.tubes.filter(t => t.length && !Rules.isFull(t)).length;
     $('movesStat').classList.toggle('over', S.par != null && S.moves > S.par);
-    $('undo').disabled = !S.history.length || S.queue.length > 0 || S.running;
-    $('restart').disabled = (!S.history.length && !S.moves) || S.queue.length > 0 || S.running;
+    $('gold').textContent = progress.gold;
+
+    const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
+    $('undoCost').textContent = freeLeft ? `${freeLeft} free` : `${CONFIG.economy.undoCost}`;
+    $('undo').disabled = !S.history.length || busy ||
+      (!undoIsFree() && !progress.canAfford(CONFIG.economy.undoCost));
+
+    $('vesselCost').textContent = CONFIG.economy.vessel;
+    $('vessel').disabled = busy || S.vesselUsed || !progress.canAfford(CONFIG.economy.vessel);
+    $('vessel').classList.toggle('spent', S.vesselUsed);
+
+    $('restart').disabled = (!S.history.length && !S.moves) || busy;
   }
 
   /* ---------- input ---------- */
@@ -1521,7 +1653,7 @@ const App = (() => {
 
   /* ---------- finishing ---------- */
   function finish(){
-    const stars = Rules.rate(S.moves, S.par, S.parExact);
+    const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const perfect = stars === 3;
@@ -1534,7 +1666,16 @@ const App = (() => {
     const bestLine = progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
       ? ` Your best here is ${progress.bestFor(S.level)}.` : '';
     $('winLine').textContent = `Sorted in ${S.moves} pours.${parLine}${bestLine}`;
-    $('winHint').textContent = perfect ? '' : 'Match par to earn the third star.';
+
+    /* say where the gold came from, so the thin payouts read as earned */
+    const parts = [`${stars}★`];
+    if (result.firstClear) parts.push('first clear');
+    $('goldEarned').textContent = `+${result.earned}`;
+    $('goldWhy').textContent = `Gold · ${parts.join(' + ')}`;
+
+    $('winHint').textContent = S.vesselUsed
+      ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
+      : (perfect ? '' : 'Par or one over earns the third star.');
     $('retry').hidden = perfect;
     $('retry').classList.toggle('primary', !perfect);
     $('next').classList.toggle('primary', perfect);
@@ -1562,6 +1703,9 @@ const App = (() => {
 
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;
+      /* charge before rolling back, so a refused payment changes nothing */
+      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){ Audio.deny(); return; }
+      S.undosUsed++;
       const prev = S.history.pop();
       S.tubes = prev.tubes;
       S.moves = prev.moves;
@@ -1571,9 +1715,23 @@ const App = (() => {
       Board.render();
       paintHud();
     };
+    $('vessel').onclick = () => {
+      if (S.queue.length || S.running || S.vesselUsed) return;
+      if (!progress.spend(CONFIG.economy.vessel)){ Audio.deny(); return; }
+      S.vesselUsed = true;
+      S.tubes.push([]);
+      Board.view.push([]);
+      /* the shelf changed shape, so the snapshots behind us no longer describe
+         this board and undoing into one would quietly take the vessel back */
+      S.history = [];
+      Board.selected = null;
+      Audio.lift();
+      Board.render();
+      paintHud();
+    };
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
-      start(S.level);
+      start(S.level, S.vesselUsed);
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
     $('winMap').onclick = () => { $('veil').classList.remove('show'); showMap(true); };
@@ -1588,6 +1746,12 @@ const App = (() => {
       };
     });
     $('mapPlay').onclick = () => { Audio.unlock(); showGame(progress.unlocked); };
+    $('daily').onclick = () => {
+      Audio.unlock();
+      if (!progress.claimDaily(today())){ Audio.deny(); return; }
+      Audio.lift();
+      paintMap();
+    };
 
     let rt;
     addEventListener('resize', () => {

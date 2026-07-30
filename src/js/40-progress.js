@@ -21,7 +21,14 @@ function safeStorage(){
   }
 }
 function blank(){
-  return { version:1, unlocked:1, stars:{}, best:{}, pars:{}, sound:true };
+  return {
+    version:1, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
+    gold: CONFIG.economy.startingGold,
+    /* levels whose one-time first-clear bonus has already been paid */
+    claimed:{},
+    /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
+    dailyOn: null
+  };
 }
 function createProgress(storage){
   const store = storage || safeStorage();
@@ -34,6 +41,9 @@ function createProgress(storage){
     }
   } catch (e) { state = blank(); }
   if (!Number.isInteger(state.unlocked) || state.unlocked < 1) state.unlocked = 1;
+  /* a save written before gold existed still deserves a starting purse */
+  if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
+  if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
 
   function save(){
     try { store.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -53,15 +63,54 @@ function createProgress(storage){
       return Object.values(state.stars).reduce((a, b) => a + b, 0);
     },
     isUnlocked: level => level <= state.unlocked,
-    /* replaying a level can raise a score but never lower it */
+
+    /* ---- gold ---- */
+    get gold(){ return state.gold; },
+    /* spending is all-or-nothing: a partial debit would leave the player paying
+       for a rescue they did not get */
+    spend(cost){
+      if (!Number.isInteger(cost) || cost < 0 || state.gold < cost) return false;
+      state.gold -= cost;
+      save();
+      return true;
+    },
+    canAfford: cost => state.gold >= cost,
+    /* the draught is once per local day, and the day is passed in so this stays
+       testable and so a clock that jumps cannot pay twice for the same date */
+    dailyReady: today => state.dailyOn !== today,
+    claimDaily(today){
+      if (state.dailyOn === today) return 0;
+      state.dailyOn = today;
+      state.gold += CONFIG.economy.daily;
+      save();
+      return CONFIG.economy.daily;
+    },
+
+    /* replaying a level can raise a score but never lower it. Star gold is paid
+       every time, the first-clear bonus only ever once, which is what keeps a
+       cleared level from being farmable. */
     complete(level, moves, stars){
       const prevStars = state.stars[level] || 0;
       if (stars > prevStars) state.stars[level] = stars;
       const prevBest = level in state.best ? state.best[level] : Infinity;
       if (moves < prevBest) state.best[level] = moves;
       if (level >= state.unlocked) state.unlocked = level + 1;
+
+      const firstClear = !state.claimed[level];
+      const starGold = CONFIG.economy.starGold[stars] || 0;
+      const bonus = firstClear ? CONFIG.economy.firstClear : 0;
+      state.claimed[level] = true;
+      state.gold += starGold + bonus;
+
       save();
-      return { improvedStars: stars > prevStars, improvedBest: moves < prevBest };
+      return {
+        improvedStars: stars > prevStars,
+        improvedBest: moves < prevBest,
+        firstClear,
+        starGold,
+        bonus,
+        earned: starGold + bonus
+      };
     },
     reset(){ state = blank(); save(); }
   };
