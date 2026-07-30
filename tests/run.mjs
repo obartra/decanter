@@ -5,5 +5,6 @@ import './levels.test.mjs';
 import './pars.test.mjs';
 import './progress.test.mjs';
 import './map.test.mjs';
+import './queue.test.mjs';
 import './build.test.mjs';
 await run();

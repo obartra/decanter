@@ -96,20 +96,31 @@ const App = (() => {
     S.moves++;
     S.queue.push(move);
     paintHud();
-    drain();
+    drain().catch(() => {});   /* drain's finally has already restored the state */
   }
+  /* The view trails the logic here, so this loop owes the player two things: it
+     must always let go of `running`, and it must always leave the view where the
+     logic already is. Undo and Restart are disabled while a pour is in flight,
+     so a drain that dies halfway strands the level with no way out but a reload. */
   async function drain(){
     if (S.running) return;
     S.running = true;
-    while (S.queue.length){
-      const move = S.queue.shift();
-      await Board.animate(move);
-      Rules.applyMove(Board.view, move);
-      Board.render();
-      if (Rules.isFull(Board.view[move.to])) Board.seal(move.to);
+    try {
+      while (S.queue.length){
+        const move = S.queue.shift();
+        try {
+          await Board.animate(move);
+        } catch {
+          /* a dropped animation still owes the board its result */
+        }
+        Rules.applyMove(Board.view, move);
+        Board.render();
+        if (Rules.isFull(Board.view[move.to])) Board.seal(move.to);
+      }
+    } finally {
+      S.running = false;
+      paintHud();
     }
-    S.running = false;
-    paintHud();
     if (Rules.isSolved(S.tubes)) finish();
   }
 

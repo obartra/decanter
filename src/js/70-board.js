@@ -8,6 +8,32 @@ const Board = (() => {
   let onTap = () => {};
 
   const sleep = ms => new Promise(r => setTimeout(r, reduce ? Math.min(ms, 60) : ms));
+
+  /* Drives a frame loop from 0 to 1 over ms, backstopped by a timer.
+     requestAnimationFrame stops firing in a hidden tab, so a pour started just
+     before the screen locks would otherwise never finish, and the queue waiting
+     on it would never drain. Timers still fire when hidden, so one is kept as a
+     floor: the animation jumps to its end state rather than hanging. */
+  function frames(ms, onFrame){
+    return new Promise(res => {
+      const t0 = performance.now();
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(bail);
+        onFrame(1);
+        res();
+      };
+      const bail = setTimeout(finish, ms + 500);
+      (function step(now){
+        if (done) return;
+        const p = Math.min(1, (now - t0) / ms);
+        if (p < 1){ onFrame(p); requestAnimationFrame(step); }
+        else finish();
+      })(t0);
+    });
+  }
   const el = i => root.querySelector(`.bottle[data-i="${i}"]`);
   const colorVar = c => `var(--c${c})`;
 
@@ -163,12 +189,7 @@ const Board = (() => {
       pool.style.opacity = head >= 1 ? '.7' : '0';
     };
     /* the leading edge falls, it does not appear all at once */
-    const tA = performance.now(), fallMs = reduce ? 40 : 190;
-    await new Promise(res => (function step(now){
-      head = Math.min(1, (now - tA) / fallMs);
-      paint();
-      if (head < 1) requestAnimationFrame(step); else res();
-    })(tA));
+    await frames(reduce ? 40 : 190, p => { head = p; paint(); });
     Audio.pourStart();
 
     const srcBand = src.querySelector('.fill').lastElementChild;
@@ -199,13 +220,8 @@ const Board = (() => {
       if (!reduce) splash(impactX, P1.y, raw, w);
     }
     /* the tail lets go of the lip and falls away */
-    const tB = performance.now(), cutMs = reduce ? 40 : 240;
     bead.style.transition = 'opacity .18s'; bead.style.opacity = '0';
-    await new Promise(res => (function step(now){
-      tail = Math.min(1, (now - tB) / cutMs);
-      paint();
-      if (tail < 1) requestAnimationFrame(step); else res();
-    })(tB));
+    await frames(reduce ? 40 : 240, p => { tail = p; paint(); });
     Audio.pourEnd();
     body.remove(); shine.remove(); bead.remove(); pool.remove();
     src.style.transition = 'transform .34s cubic-bezier(.3,.6,.3,1)';
