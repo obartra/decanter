@@ -1,0 +1,15 @@
+.gameHeader{
+  display:flex; align-items:center; justify-content:space-between;
+  width:100%; max-width:520px; gap:8px;
+}
+.gameHeader .spacer{width:72px}
+.hud{display:flex; gap:6px}
+.stat{
+  min-width:62px; padding:6px 10px 7px; text-align:center;
+  border:1px solid rgba(150,180,255,.18); border-radius:11px;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  backdrop-filter:blur(6px);
+}
+.stat b{display:block; font-family:"Fraunces",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
+.stat span{color:var(--ink-dim); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase}
+.stat.over b{color:#FFC08A}

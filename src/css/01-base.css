@@ -1,0 +1,81 @@
+:root{
+  --ink:#EAF0FF; --ink-dim:#9FA8D4;
+  --glass-line:rgba(158,196,255,.30);
+  --c0:#E6402E; --c1:#F5B932; --c2:#7BC142; --c3:#3AA3E3;
+  --c4:#9B5DE5; --c5:#1FC7A8; --c6:#FF6FA5; --c7:#FF8A3D;
+  --c8:#5A6BFF; --c9:#B6E132; --c10:#B33A63; --c11:#D9C6A0;
+  --bw:52px; --bh:calc(var(--bw)*3.3); --cap-h:calc(var(--bw)*.26);
+  --cols:3; --units:4;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  color:var(--ink); background:#08031a;
+  background-image:radial-gradient(130% 80% at 50% -10%, #4A22A0 0%, #2A1266 32%, #150836 60%, #08031a 100%);
+  background-attachment:fixed; -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  opacity:.35; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='.5'/></svg>");
+}
+.view{
+  position:relative; z-index:1; height:100dvh; display:none;
+  flex-direction:column; align-items:center;
+  padding:clamp(10px,2.4vw,20px) 12px calc(12px + env(safe-area-inset-bottom));
+  gap:clamp(8px,1.7vh,16px);
+}
+body[data-view="map"] #mapView,
+body[data-view="game"] #gameView{display:flex}
+
+.eyebrow{font-size:9px; letter-spacing:.34em; text-transform:uppercase; color:var(--ink-dim); margin:0 0 3px}
+.wordmark{
+  font-family:"Fraunces",Georgia,serif; font-weight:900;
+  font-variation-settings:"opsz" 120,"SOFT" 40;
+  font-size:clamp(25px,6.2vw,38px); letter-spacing:-.03em; line-height:.9; margin:0;
+  background:linear-gradient(180deg,#fff 0%, #C9D6FF 55%, #8FA0E8 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 4px 18px rgba(120,120,255,.35));
+}
+.wordmark.small{font-size:clamp(18px,4.6vw,24px)}
+
+.btn{
+  font-family:inherit; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink); padding:10px 15px; border-radius:999px;
+  border:1px solid rgba(150,180,255,.22);
+  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  cursor:pointer; transition:transform .15s, border-color .2s, opacity .2s;
+}
+.btn:hover{border-color:rgba(190,215,255,.5); transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.3; cursor:default; transform:none}
+.btn.off{opacity:.45}
+.btn.ghost{border-color:transparent; background:none; color:var(--ink-dim)}
+.btn.primary{border-color:transparent; background:linear-gradient(180deg,#8B6BFF,#5B33D6);
+  box-shadow:0 6px 20px rgba(110,70,255,.45)}
+.controls{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+
+#confetti{position:fixed; inset:0; z-index:95; pointer-events:none; overflow:hidden}
+.conf{position:absolute; border-radius:1px; will-change:transform}
+
+.veil{
+  position:fixed; inset:0; z-index:80; display:grid; place-items:center; padding:24px;
+  background:radial-gradient(60% 50% at 50% 50%, rgba(40,18,100,.72), rgba(4,2,14,.86));
+  backdrop-filter:blur(7px); opacity:0; pointer-events:none; transition:opacity .4s ease;
+}
+.veil.show{opacity:1; pointer-events:auto}
+.panel{
+  text-align:center; max-width:340px; padding:28px 26px; border-radius:24px;
+  border:1px solid rgba(160,190,255,.22);
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03));
+  transform:translateY(14px) scale(.97); transition:transform .45s cubic-bezier(.2,1.2,.4,1);
+}
+.veil.show .panel{transform:none}
+.panel h2{font-family:"Fraunces",serif; font-weight:900; font-size:30px; margin:0 0 6px; letter-spacing:-.02em}
+.stars{font-size:26px; letter-spacing:6px; margin:2px 0 10px; color:#FFD48A}
+.stars .dim{color:rgba(255,255,255,.18)}
+.panel p{color:var(--ink-dim); font-size:13px; line-height:1.6; margin:0 0 6px}
+.panel .hint{color:#FFC08A; font-size:11px; letter-spacing:.04em; min-height:16px; margin-bottom:16px}
+.panelBtns{display:flex; gap:8px; justify-content:center; margin-bottom:10px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important; transition-duration:.08s !important}}

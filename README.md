@@ -1,0 +1,47 @@
+# Decanter
+
+A water sorting puzzle that runs entirely offline. Pour between bottles until
+each one holds a single colour. No servers, no network calls, no analytics.
+Fonts, icons, and the puzzle solver all ship with the app.
+
+
+## Quick start
+
+```sh
+npm run check     # build, then run the tests
+npm run serve     # build and serve dist/ at http://localhost:8080
+```
+
+Open the local address and use the Install button, or your browser's install
+option, to add it to a home screen or dock.
+
+## What is where
+
+| Path | |
+| --- | --- |
+| `src/js/` | modules, concatenated in filename order. Under 50 is pure logic, above is browser code |
+| `src/css/` | stylesheets, concatenated in filename order |
+| `src/worker/solver.js` | A\* search that computes each level's par |
+| `tools/build.mjs` | the entire build, no bundler |
+| `tests/` | 51 tests, no dependencies |
+| `dist/` | build output, committed so it can be deployed as is |
+
+## Deploying
+
+`dist/` is a static folder using only relative paths. Drop it on GitHub Pages,
+Netlify, Cloudflare Pages, or any bucket, including a subdirectory.
+
+`dist/decanter-standalone.html` is the same game as a single file with the fonts
+inlined. It opens straight off disk but cannot install, since service workers
+need HTTPS or localhost.
+
+## Notes
+
+- Levels are deterministic in their number, so level 12 is the same puzzle for
+  everyone, and stars mean the same thing on every device.
+- Par is the true minimum pour count, not an estimate. See
+  [docs/DESIGN.md](docs/DESIGN.md) for why that is trustworthy.
+- Bump nothing to release: the service worker's cache name is a hash of the
+  built page, so a new build replaces the old cache on its own.
+
+Design and implementation notes: [docs/DESIGN.md](docs/DESIGN.md)

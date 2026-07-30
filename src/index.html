@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Decanter</title>
+<meta name="theme-color" content="#150836">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A water sorting puzzle. Pour until every bottle holds one color.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Decanter">
+<!--PWAHEAD-->
+<!--FONTS-->
+<style><!--CSS--></style>
+</head>
+<body data-view="map">
+
+<section class="view" id="mapView">
+  <header class="mapHeader">
+    <div>
+      <p class="eyebrow">Chapter</p>
+      <h1 class="wordmark" id="mapChapter">The Cellar</h1>
+    </div>
+    <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+  </header>
+  <div class="mapScroll" id="mapScroll"><div class="mapCanvas"></div></div>
+  <footer class="controls">
+    <button class="btn primary" id="mapPlay" type="button">Play</button>
+    <button class="btn js-sound" type="button">Sound on</button>
+    <button class="btn primary" id="install" type="button" hidden>Install</button>
+  </footer>
+</section>
+
+<section class="view" id="gameView">
+  <header class="gameHeader">
+    <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
+    <h1 class="wordmark small">Decanter</h1>
+    <span class="spacer"></span>
+  </header>
+  <div class="hud">
+    <div class="stat"><b id="statLevel">1</b><span>Level</span></div>
+    <div class="stat" id="movesStat"><b id="statMoves">0</b><span>Pours</span></div>
+    <div class="stat"><b id="statPar">…</b><span>Par</span></div>
+    <div class="stat"><b id="statLeft">4</b><span>To sort</span></div>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="controls">
+    <button class="btn" id="undo" type="button">Undo</button>
+    <button class="btn" id="restart" type="button">Restart</button>
+    <button class="btn js-sound" type="button">Sound on</button>
+  </div>
+</section>
+
+<div id="confetti"></div>
+
+<div class="veil" id="veil">
+  <div class="panel">
+    <h2 id="winTitle">Poured clean</h2>
+    <div class="stars" id="stars"></div>
+    <p id="winLine"></p>
+    <p class="hint" id="winHint"></p>
+    <div class="panelBtns">
+      <button class="btn" id="retry" type="button">Retry</button>
+      <button class="btn primary" id="next" type="button">Next level</button>
+    </div>
+    <button class="btn ghost" id="winMap" type="button">Back to map</button>
+  </div>
+</div>
+
+<script id="solverSrc" type="text/js-worker"><!--SOLVER--></script>
+<script><!--JS--></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "decanter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A water sorting puzzle that runs entirely offline.",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "node tests/run.mjs",
+    "check": "npm run build && npm test",
+    "serve": "npm run build && cd dist && python3 -m http.server 8080",
+    "icons": "python3 tools/make-icons.py"
+  },
+  "engines": { "node": ">=18" }
+}
