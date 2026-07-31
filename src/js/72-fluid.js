@@ -113,11 +113,19 @@ const Fluid = (() => {
       const bx = b.offsetLeft, by = b.offsetTop;
       const gx = bx + glass.offsetLeft, gy = by + glass.offsetTop;
       const gw = glass.offsetWidth, gh = glass.offsetHeight;
+      /* The glass has shoulders: its top corners are rounded by 30% of the
+         bottle's width. A square clip would let liquid fill the corners the
+         glass curves away from, which reads as a block sitting above the
+         shoulder or below the base. */
+      const cs = getComputedStyle(glass);
+      const r = k => Math.max(0, (parseFloat(cs[k]) || 0) - 2);
       bottles[i] = {
         i, el: b,
         x0: gx + 2, x1: gx + gw - 2,
         yTop: gy + 2, yBot: gy + gh - 2,
         cap: gh - 4,
+        radii: [r('borderTopLeftRadius'), r('borderTopRightRadius'),
+                r('borderBottomRightRadius'), r('borderBottomLeftRadius')],
         /* transform-origin is the centre of the whole bottle, collar included */
         cx: bx + b.offsetWidth / 2,
         cy: by + b.offsetHeight / 2,
@@ -426,12 +434,21 @@ const Fluid = (() => {
 
     ctx.save();
     ctx.beginPath();
+    /* Each glass is added in its own frame, so the rounded outline and any tilt
+       are both honoured. Path points are baked at the transform in force when
+       they are added, so changing it between subpaths is safe. */
     bottles.forEach(b => {
       if (!b) return;
-      const q = corners(b);
-      ctx.moveTo(q[0].x, q[0].y);
-      for (let i = 1; i < q.length; i++) ctx.lineTo(q[i].x, q[i].y);
-      ctx.closePath();
+      ctx.save();
+      if (b.m){
+        ctx.translate(b.cx, b.cy);
+        ctx.transform(b.m.a, b.m.b, b.m.c, b.m.d, b.m.e, b.m.f);
+        ctx.translate(-b.cx, -b.cy);
+      }
+      const w = b.x1 - b.x0, h = b.yBot - b.yTop;
+      if (ctx.roundRect) ctx.roundRect(b.x0, b.yTop, w, h, b.radii);
+      else ctx.rect(b.x0, b.yTop, w, h);
+      ctx.restore();
     });
     ctx.clip();
     paint(held);
