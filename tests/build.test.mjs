@@ -27,7 +27,7 @@ describe('build output', () => {
   it('leaves no unfilled template slots', () => {
     for (const f of ['index.html', 'decanter-standalone.html']){
       const html = text(f);
-      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--ART-->', '<!--PWAHEAD-->']){
+      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--ART-->', '<!--BUILD-->', '<!--PWAHEAD-->']){
         assert(!html.includes(slot), `dist/${f} still contains ${slot}`);
       }
     }
@@ -87,6 +87,16 @@ describe('build output', () => {
     const version = text('sw.js').match(/const VERSION = '([^']+)'/)[1];
     assert(/^decanter-[0-9a-f]{10}$/.test(version), `unexpected cache name: ${version}`);
   });
+  it('stamps the page with the same build the worker caches', () => {
+    /* so anyone looking at a bug can say which build they are looking at,
+       instead of arguing about it */
+    const stamp = text('index.html').match(/<meta name="build" content="([0-9a-f]{10})">/);
+    assert(stamp, 'index.html carries no build stamp');
+    const version = text('sw.js').match(/const VERSION = 'decanter-([0-9a-f]{10})'/);
+    assert(version, 'the worker has no version');
+    equal(stamp[1], version[1], 'page and worker disagree about which build this is');
+  });
+
   it('always revalidates the page, so a stale build cannot stick', () => {
     /* every byte of the app is inlined into index.html, so serving a cached page
        serves cached code. Without revalidation the host's max-age on HTML can
