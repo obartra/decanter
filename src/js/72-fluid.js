@@ -39,7 +39,7 @@ const Fluid = (() => {
   let bottles = [], parts = [], bands = null;
   let running = false, raf = 0, last = 0, acc = 0, idle = 0;
   let rho0 = 2.4, calibrated = false;
-  let jet = null;                       /* the pour in flight, if any */
+  let flow = null;                      /* the transfer in progress, if any */
 
   const K = 0.34, KNEAR = 0.85, MAXD = 1.0;
   const GRAV = 680, BUOY = 90, VISC = 0.14, DAMP = 0.985, H2 = 256, HR = 16;
@@ -209,7 +209,7 @@ const Fluid = (() => {
       retry = setTimeout(() => sync(view), 120);
       return;
     }
-    parts = []; bands = null; calibrated = false; rho0 = 2.4; jet = null;
+    parts = []; bands = null; calibrated = false; rho0 = 2.4; flow = null;
     view.forEach((tube, i) => fillBottle(i, tube));
     draw();
   }
@@ -217,40 +217,26 @@ const Fluid = (() => {
   /* ---- the solver ---- */
   function step(dt){
     readTransforms();
-    if (jet){
-      jet.t += dt;
-      const want = Math.min(jet.quota, Math.floor((jet.t / jet.dur) * jet.quota));
-      /* Leave from the lip of the bottle that is actually tipping, recomputed
-         every step so the stream tracks the tilt instead of appearing beside the
-         target with nothing joining it to the bottle it came from. */
-      const s = bottles[jet.from], d = bottles[jet.to];
-      const mouth = s ? toWorld(s, (s.x0 + s.x1) / 2, s.yTop) : { x: jet.x, y: jet.y };
-      /* Aim it, do not throw it. Solving the projectile for a fixed flight time
-         puts the stream in the target's mouth whatever the geometry; the guessed
-         sideways velocity it replaces sprayed liquid across the whole shelf. */
-      const FLIGHT = 0.34;
-      const landX = d ? (d.x0 + d.x1) / 2 : mouth.x;
-      const landY = d ? d.yTop + 8 : mouth.y + 60;
-      const vx = (landX - mouth.x) / FLIGHT;
-      const vy = ((landY - mouth.y) - 0.5 * GRAV * FLIGHT * FLIGHT) / FLIGHT;
-      jet.mouth = mouth;
-      while (jet.sent < want){
-        jet.sent++;
-        const j = (Math.random() - .5) * 1.2;
-        add(mouth.x + j, mouth.y + j, jet.c, -1,
-            vx + (Math.random() - .5) * 5, vy + (Math.random() - .5) * 5);
-        parts[parts.length - 1].poured = true;
-        parts[parts.length - 1].age = 0;
-      }
-      /* The source loses what the jet carries, taken from the surface down, so
-         it empties while the target fills instead of staying full until the
-         board is re-seeded underneath it. */
+    if (flow){
+      flow.t += dt;
+      const want = Math.min(flow.total, Math.floor((flow.t / flow.dur) * flow.total));
       let died = false;
-      while (jet.pulled < jet.sent && jet.pulled < jet.pool.length){
-        jet.pool[jet.pulled++].dead = true;
+      while (flow.moved < want && flow.moved < flow.pool.length){
+        const gone = flow.pool[flow.moved++];
+        gone.dead = true;
         died = true;
+        /* the same drop, arriving: dropped in just under the target's rim so it
+           falls the last of the way and settles like the rest of the liquid */
+        const d = bottles[flow.to];
+        if (d){
+          const x = d.x0 + 2 + Math.random() * Math.max(1, d.x1 - d.x0 - 4);
+          add(x, d.yTop + 3 + Math.random() * 2, flow.c, flow.to, 0, 40);
+        }
       }
       if (died) parts = parts.filter(p => !p.dead);
+      if (flow.moved >= flow.total || flow.moved >= flow.pool.length){
+        const fin = flow.done; flow = null; fin();
+      }
     }
 
     for (let i = 0; i < parts.length; i++){
@@ -334,21 +320,10 @@ const Fluid = (() => {
       });
     }
 
-    /* walls, ownership, culling */
-    const T = jet ? bottles[jet.to] : null;
+    /* walls: every particle belongs to a glass, so every particle is held by one */
     for (let i = parts.length - 1; i >= 0; i--){
       const p = parts[i];
-      if (p.home === -1){
-        p.age = (p.age || 0) + dt;
-        if (T && p.y > T.yTop + 1 && p.x > T.x0 - 2 && p.x < T.x1 + 2){ p.home = jet.to; p.age = 0; }
-        /* Anything that has outlived its flight, fallen past the target, or left
-           the board is gone. Without this, liquid that missed kept flying and
-           kept being drawn, which is what covered the cellar in droplets. */
-        else if (!T || p.age > 1.6 || p.y > T.yBot || p.x < -20 || p.x > W + 20 || p.y < -40){
-          parts.splice(i, 1); continue;
-        }
-      }
-      if (p.home !== -1){
+      {
         const b = bottles[p.home];
         if (!b){ parts.splice(i, 1); continue; }
         if (b.m){
@@ -388,18 +363,6 @@ const Fluid = (() => {
   }
   let bandT = 0;
 
-  /* a pour is done when everything it threw has landed and gone quiet */
-  function settled(){
-    if (!jet) return true;
-    if (jet.sent < jet.quota) return false;
-    for (let i = 0; i < parts.length; i++){
-      const p = parts[i];
-      if (p.home === -1) return false;
-      if (p.poured && Math.hypot(p.vx, p.vy) > 26) return false;
-    }
-    return true;
-  }
-
   /* metaballs for one set of particles: blobs, threshold, tint */
   function paint(list){
     const groups = {};
@@ -433,30 +396,14 @@ const Fluid = (() => {
     });
   }
 
-  /* Two passes, because the two kinds of liquid want opposite clips.
-
-     Liquid that belongs to a bottle is clipped to that glass and nothing else.
-     Sharing one clip with the jet was the bug behind the slabs: the corridor
-     that let the stream through was a band spanning source to target, and on a
-     two-row board it cut across the bottoms of the row above, letting their
-     liquid render far outside any glass.
-
-     The jet belongs to no bottle, so it is drawn on its own. It needs no clip:
-     only airborne particles are in that pass, so nothing can leak. */
+  /* One pass, always clipped to the glass. There is no second kind of liquid
+     any more: every particle belongs to a bottle, so nothing can be drawn
+     anywhere else even by mistake. */
   function draw(){
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
-
-    const held = [], air = [];
-    for (let i = 0; i < parts.length; i++){
-      (parts[i].home === -1 ? air : held).push(parts[i]);
-    }
-
     ctx.save();
     ctx.beginPath();
-    /* Each glass is added in its own frame, so the rounded outline and any tilt
-       are both honoured. Path points are baked at the transform in force when
-       they are added, so changing it between subpaths is safe. */
     bottles.forEach(b => {
       if (!b) return;
       ctx.save();
@@ -471,26 +418,8 @@ const Fluid = (() => {
       ctx.restore();
     });
     ctx.clip();
-    paint(held);
+    paint(parts);
     ctx.restore();
-
-    /* The stream is clipped too. Leaving it unclipped on the grounds that only
-       airborne liquid is in this pass was wrong: airborne liquid goes wherever
-       it is thrown, and drew over the whole board. The corridor is the span from
-       the pouring lip to the target's mouth and nothing wider. */
-    if (air.length && jet){
-      const d = bottles[jet.to], m = jet.mouth;
-      if (d && m){
-        const x0 = Math.min(m.x, d.x0) - 26, x1 = Math.max(m.x, d.x1) + 26;
-        const y0 = Math.min(m.y, d.yTop) - 26, y1 = d.yBot;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x0, y0, x1 - x0, y1 - y0);
-        ctx.clip();
-        paint(air);
-        ctx.restore();
-      }
-    }
   }
 
   const anyMoved = () => bottles.some(b => b && b.m);
@@ -506,25 +435,34 @@ const Fluid = (() => {
     while (acc >= fixed && guard--){ step(fixed); acc -= fixed; }
     if (acc > fixed) acc = 0;
     draw();
-    if (jet && settled()){
-      const done = jet.done;
-      jet = null;
-      for (let i = 0; i < parts.length; i++) parts[i].poured = false;
-      done();
-    }
     /* Keep running while anything is moving the glass, so a lifted or bouncing
        bottle carries its liquid with it, then stand down once the shelf is
        still again rather than burning frames on a settled board. */
-    if (!jet && !anyMoved()){ if (++idle > 10) stop(); } else idle = 0;
+    if (!flow && !anyMoved()){ if (++idle > 24) stop(); } else idle = 0;
   }
   function wake(){ idle = 0; start(); }
   function start(){ if (running) return; running = true; last = performance.now(); acc = 0; loop(); }
   function stop(){ running = false; cancelAnimationFrame(raf); }
 
-  /* Resolves when the liquid has settled. Backstopped by a timer for the same
-     reason the scripted pour is: requestAnimationFrame stops in a hidden tab,
-     and a pour that never finishes would strand the queue waiting on it. */
-  function pour(move){
+  /* Moves liquid from one bottle to another without ever putting any in the air.
+
+     The stream used to be simulated: particles launched from the lip and caught
+     by the target. That is where every pour bug came from. Liquid in flight
+     belongs to no glass, so it needs its own clip, its own aim and its own
+     culling, and getting any of the three wrong sprays the cellar. It also has
+     to carry the full volume, which at roughly a hundred particles from a single
+     point reads as one blob rather than a stream.
+
+     So the sim no longer draws the stream at all: the scripted ribbon does, the
+     same one that draws it when the sim is switched off. Here the source drains
+     from its surface while the target fills at its own, which is the part the
+     sim is genuinely good at. Nothing is ever outside a glass, so nothing can
+     land outside one.
+
+     Backstopped by a timer for the same reason the scripted pour is:
+     requestAnimationFrame stops in a hidden tab, and a transfer that never
+     finished would strand the queue waiting on it. */
+  function transfer(move){
     return new Promise(resolve => {
       const src = bottles[move.from], dst = bottles[move.to];
       if (!src || !dst){ resolve(); return; }
@@ -533,33 +471,27 @@ const Fluid = (() => {
         if (done) return;
         done = true;
         clearTimeout(bail);
-        jet = null;
+        flow = null;
         resolve();
       };
-      const dir = dst.x0 > src.x0 ? 1 : -1;
-      const perUnit = src.perUnit || Math.round(((src.x1 - src.x0) * (src.cap / Rules.CAP)) / 24);
-      const quota = Math.max(12, perUnit * move.n);
-      /* the liquid the source is about to lose, nearest its mouth first */
+      const perUnit = src.perUnit || 60;
+      const total = Math.max(8, perUnit * move.n);
       const pool = parts.filter(p => p.home === move.from && p.c === move.color)
                         .sort((a, b) => a.y - b.y)
-                        .slice(0, quota);
-      jet = {
+                        .slice(0, total);
+      flow = {
         from: move.from, to: move.to, c: move.color,
-        x: (dst.x0 + dst.x1) / 2 - dir * (dst.x1 - dst.x0) * 0.5,
-        y: dst.yTop - 26,
-        vx: dir * 34, vy: 46,
-        quota,
-        pool, pulled: 0,
-        sent: 0, t: 0, dur: 0.22 * move.n + 0.18,
+        total, moved: 0, pool, t: 0,
+        dur: 0.26 * move.n + 0.34,
         done: finish
       };
-      const bail = setTimeout(finish, 900 + 420 * move.n);
-      start();
+      const bail = setTimeout(finish, 1400 + 500 * move.n);
+      wake();
     });
   }
 
   return {
-    supported, mount, sync, pour, draw, wake,
+    supported, mount, sync, transfer, draw, wake,
     resize(){ if (root && bottles.length) measure(); },
     get mounted(){ return !!root; }
   };

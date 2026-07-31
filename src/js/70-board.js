@@ -130,36 +130,16 @@ const Board = (() => {
     return 'M' + L.map(p => p.join(' ')).join('L') + 'L' + R.reverse().map(p => p.join(' ')).join('L') + 'Z';
   }
 
-  /* With the particle liquid on, the bottle still tips but the pour itself is
-     simulated, so the scripted ribbon and bands sit this one out. */
-  async function animateFluid(move){
-    const src = el(move.from), dst = el(move.to);
-    if (!src || !dst) return;
-    const w = src.offsetWidth, h = src.offsetHeight;
-    const dir = dst.offsetLeft > src.offsetLeft ? 1 : -1;
-    const ang = 72 * dir, rad = ang * Math.PI / 180;
-    const lipX = dst.offsetLeft + w/2 - dir * w * 0.82;
-    const lipY = dst.offsetTop - w * 0.42;
-    const dx = (lipX - (h/2) * Math.sin(rad)) - (src.offsetLeft + w/2);
-    const dy = (lipY + (h/2) * Math.cos(rad)) - (src.offsetTop + h/2);
-
-    src.classList.add('pouring');
-    src.classList.remove('lifted');
-    src.style.transition = 'transform .3s cubic-bezier(.35,.05,.3,1)';
-    src.style.transform = `translate(${dx}px, ${dy}px) rotate(${ang}deg)`;
-    await sleep(300);
-    Audio.pourStart();
-    await Fluid.pour(move);
-    Audio.pourEnd();
-    src.style.transition = 'transform .34s cubic-bezier(.3,.6,.3,1)';
-    src.style.transform = '';
-    await sleep(reduce ? 60 : 340);
-    src.classList.remove('pouring');
-    src.style.transition = '';
+  /* The stream is drawn the same way whether the sim is on or not. With the sim
+     on the bands it updates are invisible (the fill is transparent) and the
+     liquid you see is the sim's, moved bottle to bottle alongside this. */
+  async function animate(move){
+    const moved = fluidOn ? Fluid.transfer(move) : null;
+    await scripted(move);
+    if (moved) await moved;
   }
 
-  async function animate(move){
-    if (fluidOn) return animateFluid(move);
+  async function scripted(move){
     const src = el(move.from), dst = el(move.to);
     if (!src || !dst) return;
     const w = src.offsetWidth, h = src.offsetHeight;
