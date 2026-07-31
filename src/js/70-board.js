@@ -106,6 +106,10 @@ const Board = (() => {
     fx.setAttribute('height', root.clientHeight);
     /* the glass moved, so the liquid has to be re-measured and re-seeded */
     if (fluidOn) Fluid.sync(view);
+    /* a shelf under every row, wherever the grid happened to put them */
+    const rows = [...root.querySelectorAll('.bottle .glass')]
+      .map(g => Math.round(g.getBoundingClientRect().bottom));
+    Backdrop.setShelf([...new Set(rows)]);
   }
 
   /* --- stream geometry: a tapering ribbon along a quadratic arc --- */

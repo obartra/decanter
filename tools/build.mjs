@@ -28,20 +28,15 @@ const fontFace = (cinzel, sans, sansBold) => `<style>
 /* The backdrops arrive as custom properties so the stylesheets never name a
    path. The installable build points them at cacheable files; the portable one
    inlines the bytes, which is the only way a single file can still be a cellar. */
-const artVars = (map, board, win) => `<style>
-:root{--art-map:url(${map});--art-board:url(${board});--art-win:url(${win})}
-</style>`;
-
 const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">`;
 
-function compose({ fonts, art, head }){
+function compose({ fonts, head }){
   return read('src/index.html')
     .replace('<!--BUILD-->', `<meta name="build" content="${buildId}">`)
     .replace('<!--PWAHEAD-->', head)
     .replace('<!--FONTS-->', fonts)
-    .replace('<!--ART-->', art)
     .replace('<!--CSS-->', () => css)
     .replace('<!--SOLVER-->', () => solver)
     .replace('<!--JS-->', () => js);
@@ -51,25 +46,21 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(join(root, 'assets/fonts'), join(dist, 'fonts'), { recursive: true });
 cpSync(join(root, 'assets/icons'), join(dist, 'icons'), { recursive: true });
-cpSync(join(root, 'assets/art'), join(dist, 'art'), { recursive: true });
 
-/* 1. the installable app, fonts and art as separate cacheable files */
+/* 1. the installable app, fonts as separate cacheable files. The room is drawn
+   at runtime, so there is no art to ship. */
 const app = compose({
   fonts: fontFace('./fonts/cinzel.woff2', './fonts/alegreyasans.woff2', './fonts/alegreyasans-bold.woff2'),
-  art: artVars('./art/map.webp', './art/board.webp', './art/win.webp'),
   head: pwaHead
 });
 writeFileSync(join(dist, 'index.html'), app);
 
-/* 2. one portable file, everything inlined, opens straight off disk */
-const data = (p, mime) => `data:${mime};base64,` + readFileSync(join(root, p)).toString('base64');
-const font = p => data(p, 'font/woff2');
-const image = p => data(p, 'image/webp');
+/* 2. one portable file, fonts inlined, opens straight off disk */
+const font = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).toString('base64');
 writeFileSync(join(dist, 'decanter-standalone.html'), compose({
   fonts: fontFace(font('assets/fonts/cinzel.woff2'),
                   font('assets/fonts/alegreyasans.woff2'),
                   font('assets/fonts/alegreyasans-bold.woff2')),
-  art: artVars(image('assets/art/map.webp'), image('assets/art/board.webp'), image('assets/art/win.webp')),
   head: ''
 }));
 

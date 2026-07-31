@@ -11,7 +11,6 @@ describe('build output', () => {
     for (const f of ['index.html', 'sw.js', 'manifest.webmanifest',
                      'decanter-standalone.html', 'fonts/cinzel.woff2',
                      'fonts/alegreyasans.woff2', 'fonts/alegreyasans-bold.woff2',
-                     'art/map.webp', 'art/board.webp', 'art/win.webp',
                      'icons/icon-192.png',
                      'icons/icon-512.png', 'icons/maskable-512.png']){
       assert(has(f), `dist/${f} is missing, run npm run build`);
@@ -27,7 +26,7 @@ describe('build output', () => {
   it('leaves no unfilled template slots', () => {
     for (const f of ['index.html', 'decanter-standalone.html']){
       const html = text(f);
-      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--ART-->', '<!--BUILD-->', '<!--PWAHEAD-->']){
+      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--BUILD-->', '<!--PWAHEAD-->']){
         assert(!html.includes(slot), `dist/${f} still contains ${slot}`);
       }
     }

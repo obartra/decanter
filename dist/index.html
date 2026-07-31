@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="e163ef22a8">
+<meta name="build" content="e198cb734e">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -20,13 +20,10 @@
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(./fonts/alegreyasans.woff2) format('woff2')}
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(./fonts/alegreyasans-bold.woff2) format('woff2')}
 </style>
-<style>
-:root{--art-map:url(./art/map.webp);--art-board:url(./art/board.webp);--art-win:url(./art/win.webp)}
-</style>
 <style>:root{
   --ink:#EFE4D2; --ink-dim:#A2907A;
   --gold:#E0B15C; --gold-lit:#F4D9A0;
-  --glass-line:rgba(238,224,200,.28);
+  --glass-line:rgba(246,234,212,.42);
   /* --c0..--c11 are published from CONFIG.palette at boot, see 90-app.js */
   --bw:52px; --bh:calc(var(--bw)*3.3); --cap-h:calc(var(--bw)*.26);
   --cols:3; --units:4;
@@ -36,22 +33,11 @@ html,body{height:100%}
 body{
   margin:0; font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
   color:var(--ink); background:#0B0805;
-  background-size:cover; background-position:center top; background-repeat:no-repeat;
-  background-attachment:fixed; -webkit-font-smoothing:antialiased; overflow:hidden;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
 }
-/* Each view stands in its own corner of the cellar. The scrim is what keeps the
-   HUD readable over painted art that was never designed to sit behind text. */
-body[data-view="map"]{
-  background-image:linear-gradient(180deg,rgba(11,8,5,.82) 0%,rgba(11,8,5,.34) 26%,rgba(11,8,5,.72) 100%), var(--art-map);
-}
-body[data-view="game"]{
-  background-image:linear-gradient(180deg,rgba(11,8,5,.78) 0%,rgba(11,8,5,.20) 30%,rgba(11,8,5,.55) 100%), var(--art-board);
-}
-body::after{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
-  opacity:.35; mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='.5'/></svg>");
-}
+/* The room is drawn to a canvas behind everything, so it can put its shelf
+   exactly where the bottles stand at any size. See 65-backdrop.js. */
+.backdrop{position:fixed; inset:0; z-index:0; pointer-events:none}
 .view{
   position:relative; z-index:1; height:100dvh; display:none;
   flex-direction:column; align-items:center;
@@ -96,8 +82,7 @@ body[data-view="game"] #gameView{display:flex}
 
 .veil{
   position:fixed; inset:0; z-index:80; display:grid; place-items:center; padding:24px;
-  background:linear-gradient(180deg,rgba(11,8,5,.86),rgba(11,8,5,.92)), var(--art-win);
-  background-size:cover; background-position:center;
+  background:linear-gradient(180deg,rgba(11,8,5,.90),rgba(6,4,2,.95));
   backdrop-filter:blur(7px); opacity:0; pointer-events:none; transition:opacity .4s ease;
 }
 .veil.show{opacity:1; pointer-events:auto}
@@ -154,9 +139,9 @@ body[data-view="game"] #gameView{display:flex}
   position:absolute; left:0; right:0; bottom:0; height:var(--bh);
   border-radius:calc(var(--bw)*.30) calc(var(--bw)*.30) calc(var(--bw)*.17) calc(var(--bw)*.17);
   overflow:hidden;
-  background:linear-gradient(180deg, rgba(38,29,18,.5), rgba(14,10,6,.68));
-  box-shadow:inset 0 0 0 1.5px var(--glass-line), inset 0 6px 14px rgba(255,225,170,.08),
-             0 10px 24px rgba(0,0,0,.5), 0 0 20px rgba(224,177,92,.10);
+  background:linear-gradient(180deg, rgba(58,46,30,.40), rgba(20,15,9,.58));
+  box-shadow:inset 0 0 0 1.5px var(--glass-line), inset 0 6px 14px rgba(255,232,186,.13),
+             0 10px 26px rgba(0,0,0,.55), 0 0 22px rgba(224,177,92,.14);
   transition:box-shadow .4s ease;
 }
 .fill{position:absolute; inset:0; display:flex; flex-direction:column-reverse}
@@ -1035,6 +1020,236 @@ const SolverClient = (() => {
 globalThis.SolverClient = SolverClient;
 
 
+/* ---- 65-backdrop.js ---- */
+/* The room, drawn rather than photographed.
+
+   The painted backdrops this replaces were a fixed size, so their shelf line
+   landed wherever the viewport put it and the bottles stood in front of it
+   rather than on it. Here the shelf is told where the bottles are and drawn
+   underneath them, so it is aligned at every size by construction.
+
+   Colours are sampled from the reference art: near black at the top, warm brown
+   through the middle, a glow at the base, candlelight at #D59738. The moss field
+   behind the map comes from the same source, greens from #151A0B to #868552.
+
+   Everything is seeded, so the room is the same room on every visit, and it is
+   redrawn only when the size or the shelf changes. */
+const Backdrop = (() => {
+  const CELLAR = {
+    sky: ['#040507', '#0B0805', '#150F08', '#1E1509', '#0A0704'],
+    glow: '213,151,56',
+    silhouette: '#0E0A05',
+    rim: '255,214,150'
+  };
+  const MOSS = {
+    sky: ['#0A0E06', '#141A0A', '#252D14', '#31391B', '#10150A'],
+    glow: '134,133,82',
+    silhouette: '#10160A',
+    rim: '200,214,150'
+  };
+
+  let cv = null, ctx = null, W = 0, H = 0, dpr = 1;
+  let kind = 'cellar', shelves = [], drawn = '';
+
+  function mount(){
+    if (cv) return;
+    cv = document.createElement('canvas');
+    cv.className = 'backdrop';
+    ctx = cv.getContext('2d');
+    document.body.insertBefore(cv, document.body.firstChild);
+    /* The room has to follow the window. Without this it drew once at whatever
+       size the page happened to be during boot, which on a first paint can be
+       nothing at all, and then never again: the whole reason for drawing the
+       room instead of loading it is that it fits the viewport it is in. */
+    addEventListener('resize', render);
+    addEventListener('orientationchange', render);
+  }
+
+  const rand = seed => RNG.mulberry32(RNG.hashSeed(seed));
+
+  function sky(p){
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    p.sky.forEach((c, i) => g.addColorStop(i / (p.sky.length - 1), c));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /* a candle somewhere off to one side, which is what makes the room warm */
+  function candle(p){
+    const g = ctx.createRadialGradient(W * 0.32, H * 0.34, 0, W * 0.32, H * 0.34, Math.max(W, H) * 0.55);
+    g.addColorStop(0, `rgba(${p.glow},.13)`);
+    g.addColorStop(0.4, `rgba(${p.glow},.045)`);
+    g.addColorStop(1, `rgba(${p.glow},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /* dark vessels standing behind, suggested rather than drawn */
+  function clutter(p, baseY, seed){
+    const r = rand('clutter' + (seed || 0));
+    const n = Math.round(W / 76) + 5;
+    for (let i = 0; i < n; i++){
+      const squat = r() < 0.4;
+      const bw = W * (squat ? 0.035 + r() * 0.045 : 0.022 + r() * 0.03);
+      const bh = bw * (squat ? 1.0 + r() * 0.7 : 2.2 + r() * 2.4);
+      const x = r() * (W + bw) - bw / 2;
+      const y = baseY - bh;
+      const neck = bw * (0.2 + r() * 0.18);
+      /* they sit behind, so they are barely there: shapes in the dark rather
+         than objects competing with the bottles being played */
+      ctx.globalAlpha = 0.30 + r() * 0.26;
+      ctx.fillStyle = p.silhouette;
+      ctx.beginPath();
+      const rad = squat ? bw * 0.46 : bw * 0.32;
+      if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, [rad, rad, bw * 0.16, bw * 0.16]);
+      else ctx.rect(x, y, bw, bh);
+      ctx.fill();
+      ctx.fillRect(x + (bw - neck) / 2, y - bh * 0.14, neck, bh * 0.16);
+      ctx.globalAlpha = 0.05 + r() * 0.06;
+      ctx.fillStyle = `rgb(${p.rim})`;
+      ctx.fillRect(x + bw * 0.14, y + bh * 0.14, Math.max(1, bw * 0.04), bh * 0.7);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* The shelf sits exactly where the bottles stand, because it is told where
+     that is. This is the whole reason the art is drawn and not loaded. */
+  function shelf(p, y, seed, last){
+    const t = Math.min(30, Math.max(13, H * 0.035));
+    const r = rand('shelf' + seed);
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y, W, H - y); ctx.clip();
+    const under = ctx.createLinearGradient(0, y, 0, y + t * 3.2);
+    under.addColorStop(0, 'rgba(0,0,0,.62)');
+    under.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = under;
+    ctx.fillRect(0, y, W, t * 3.2);
+    ctx.restore();
+
+    const face = ctx.createLinearGradient(0, y, 0, y + t);
+    face.addColorStop(0, '#7A4E1C');
+    face.addColorStop(0.35, '#5A3612');
+    face.addColorStop(1, '#2E1C0A');
+    ctx.fillStyle = face;
+    ctx.fillRect(0, y, W, t);
+
+    /* grain, and the odd wet streak running off the edge */
+    for (let i = 0; i < Math.round(W / 26); i++){
+      const gy = y + 2 + r() * (t - 4);
+      ctx.strokeStyle = `rgba(20,11,4,${0.10 + r() * 0.26})`;
+      ctx.lineWidth = 0.6 + r() * 1.1;
+      ctx.beginPath();
+      const sx = r() * W, len = W * (0.05 + r() * 0.22);
+      ctx.moveTo(sx, gy);
+      ctx.bezierCurveTo(sx + len * 0.3, gy + 0.8, sx + len * 0.7, gy - 0.8, sx + len, gy);
+      ctx.stroke();
+    }
+    for (let i = 0; i < Math.round(W / 130) + 2; i++){
+      const dx = r() * W, dl = t * (0.6 + r() * 2.4);
+      ctx.fillStyle = `rgba(122,78,28,${0.18 + r() * 0.22})`;
+      ctx.fillRect(dx, y + t, 1 + r() * 2, dl);
+    }
+    ctx.fillStyle = `rgba(${p.rim},.16)`;
+    ctx.fillRect(0, y, W, 1.2);
+
+    /* only under the lowest shelf is there cabinet rather than more room */
+    if (last){
+      const below = ctx.createLinearGradient(0, y + t, 0, H);
+      below.addColorStop(0, 'rgba(4,3,2,.70)');
+      below.addColorStop(0.45, 'rgba(6,4,3,.85)');
+      below.addColorStop(1, 'rgba(2,1,1,.93)');
+      ctx.fillStyle = below;
+      ctx.fillRect(0, y + t, W, H - y - t);
+    }
+  }
+
+  /* clumps of undergrowth, so the moss is a place rather than a colour */
+  function blotches(p){
+    const r = rand('moss');
+    const n = Math.round((W * H) / 17000) + 10;
+    for (let i = 0; i < n; i++){
+      const x = r() * W, y = r() * H;
+      const rad = Math.min(W, H) * (0.02 + r() * 0.075);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+      const light = r() < 0.42;
+      g.addColorStop(0, light ? `rgba(${p.glow},.14)` : 'rgba(3,5,2,.16)');
+      g.addColorStop(1, light ? `rgba(${p.glow},0)` : 'rgba(3,5,2,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(x, y, rad, rad * (0.5 + r() * 0.5), r() * 3.14, 0, 6.283);
+      ctx.fill();
+    }
+  }
+
+  function vignette(strong){
+    const g = ctx.createRadialGradient(W / 2, H * 0.46, Math.min(W, H) * 0.24,
+                                       W / 2, H * 0.46, Math.max(W, H) * 0.80);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.55, `rgba(0,0,0,${strong ? .34 : .20})`);
+    g.addColorStop(1, `rgba(0,0,0,${strong ? .88 : .66})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function grain(){
+    const r = rand('grain');
+    const n = Math.round((W * H) / 900);
+    ctx.globalAlpha = 0.045;
+    for (let i = 0; i < n; i++){
+      ctx.fillStyle = r() > 0.5 ? '#fff' : '#000';
+      ctx.fillRect(r() * W, r() * H, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render(){
+    if (!cv) return;
+    const w = Math.round(innerWidth), h = Math.round(innerHeight);
+    const key = `${kind}|${w}|${h}|${shelves.join(',')}`;
+    if (key === drawn) return;          /* nothing moved, nothing to redraw */
+    if (w < 8 || h < 8) return;         /* no viewport yet: wait to be asked again */
+    drawn = key;
+
+    W = w; H = h;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.ceil(W * dpr); cv.height = Math.ceil(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+
+    const p = kind === 'moss' ? MOSS : CELLAR;
+    sky(p);
+    candle(p);
+    if (shelves.length){
+      /* a plank under every row, so no bottle is left standing on nothing */
+      shelves.forEach((y, i) => {
+        clutter(p, y + 2, i);
+        shelf(p, y, i, i === shelves.length - 1);
+      });
+    } else {
+      blotches(p);
+    }
+    vignette(shelves.length > 0);
+    grain();
+  }
+
+  return {
+    mount,
+    set kind(k){ if (k !== kind){ kind = k; render(); } },
+    get kind(){ return kind; },
+    /* the viewport y of every row the bottles stand on, or nothing for a room
+       with no shelving at all */
+    setShelf(ys){
+      const next = (ys == null ? [] : [].concat(ys))
+        .map(Math.round).filter(Number.isFinite).sort((a, b) => a - b);
+      if (next.join() !== shelves.join()){ shelves = next; render(); }
+    },
+    render
+  };
+})();
+globalThis.Backdrop = Backdrop;
+
+
 /* ---- 70-board.js ---- */
 /* Everything that draws bottles and animates a pour. Owns the *view* state,
    which trails the logical state while queued animations catch up. */
@@ -1144,6 +1359,10 @@ const Board = (() => {
     fx.setAttribute('height', root.clientHeight);
     /* the glass moved, so the liquid has to be re-measured and re-seeded */
     if (fluidOn) Fluid.sync(view);
+    /* a shelf under every row, wherever the grid happened to put them */
+    const rows = [...root.querySelectorAll('.bottle .glass')]
+      .map(g => Math.round(g.getBoundingClientRect().bottom));
+    Backdrop.setShelf([...new Set(rows)]);
   }
 
   /* --- stream geometry: a tapering ribbon along a quadratic arc --- */
@@ -1569,10 +1788,10 @@ const Fluid = (() => {
 
     /* lit on the left, shaded on the right, only where there is liquid */
     const g = ctx.createLinearGradient(b.x0, 0, b.x1, 0);
-    g.addColorStop(0, 'rgba(28,17,7,.34)');
-    g.addColorStop(0.22, 'rgba(255,236,196,.13)');
-    g.addColorStop(0.55, 'rgba(255,214,150,.04)');
-    g.addColorStop(1, 'rgba(8,5,10,.40)');
+    g.addColorStop(0, 'rgba(28,17,7,.20)');
+    g.addColorStop(0.24, 'rgba(255,240,206,.15)');
+    g.addColorStop(0.6, 'rgba(255,224,170,.05)');
+    g.addColorStop(1, 'rgba(8,5,10,.26)');
     ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = g;
     ctx.fillRect(-4, 0, W + 8, H);
@@ -1872,12 +2091,15 @@ const App = (() => {
   }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
+    Backdrop.kind = 'moss';
+    Backdrop.setShelf(null);
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
     paintMap();
   }
   function showGame(level){
     document.body.dataset.view = 'game';
+    Backdrop.kind = 'cellar';
     start(level);
   }
 
@@ -2125,6 +2347,7 @@ const App = (() => {
   return {
     boot(){
       publishPalette();
+      Backdrop.mount();
       bind();
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);

@@ -214,10 +214,10 @@ const Fluid = (() => {
 
     /* lit on the left, shaded on the right, only where there is liquid */
     const g = ctx.createLinearGradient(b.x0, 0, b.x1, 0);
-    g.addColorStop(0, 'rgba(28,17,7,.34)');
-    g.addColorStop(0.22, 'rgba(255,236,196,.13)');
-    g.addColorStop(0.55, 'rgba(255,214,150,.04)');
-    g.addColorStop(1, 'rgba(8,5,10,.40)');
+    g.addColorStop(0, 'rgba(28,17,7,.20)');
+    g.addColorStop(0.24, 'rgba(255,240,206,.15)');
+    g.addColorStop(0.6, 'rgba(255,224,170,.05)');
+    g.addColorStop(1, 'rgba(8,5,10,.26)');
     ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = g;
     ctx.fillRect(-4, 0, W + 8, H);

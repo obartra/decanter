@@ -33,12 +33,15 @@ const App = (() => {
   }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
+    Backdrop.kind = 'moss';
+    Backdrop.setShelf(null);
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
     paintMap();
   }
   function showGame(level){
     document.body.dataset.view = 'game';
+    Backdrop.kind = 'cellar';
     start(level);
   }
 
@@ -286,6 +289,7 @@ const App = (() => {
   return {
     boot(){
       publishPalette();
+      Backdrop.mount();
       bind();
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);
