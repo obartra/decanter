@@ -31,7 +31,14 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   if (req.mode === 'navigate'){
-    e.respondWith(fetch(req).catch(() => caches.match('./index.html', { ignoreSearch: true })));
+    /* Revalidate the page every time. The whole app is inlined into index.html,
+       so a cached page is cached *code*: with the host's max-age on HTML, a plain
+       fetch() can serve a build that is minutes old and no reload will shift it.
+       no-cache still sends the ETag, so an unchanged page costs a 304. */
+    e.respondWith(
+      fetch(req.url, { cache: 'no-cache' })
+        .catch(() => caches.match('./index.html', { ignoreSearch: true }))
+    );
     return;
   }
   e.respondWith(

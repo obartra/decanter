@@ -87,6 +87,17 @@ describe('build output', () => {
     const version = text('sw.js').match(/const VERSION = '([^']+)'/)[1];
     assert(/^decanter-[0-9a-f]{10}$/.test(version), `unexpected cache name: ${version}`);
   });
+  it('always revalidates the page, so a stale build cannot stick', () => {
+    /* every byte of the app is inlined into index.html, so serving a cached page
+       serves cached code. Without revalidation the host's max-age on HTML can
+       pin an old build in place and no amount of reloading dislodges it. */
+    const sw = text('sw.js');
+    assert(/mode === 'navigate'/.test(sw), 'no navigation branch in the worker');
+    const nav = sw.slice(sw.indexOf("mode === 'navigate'"), sw.indexOf("mode === 'navigate'") + 420);
+    assert(/cache:\s*'no-cache'/.test(nav),
+      'navigations must revalidate, or a cached index.html pins an old build');
+  });
+
   it('registers the worker only where it can work', () => {
     assert(read('src/js/95-pwa.js').includes("location.protocol.startsWith('http')"),
       'registering from file:// throws, so it must be guarded');
