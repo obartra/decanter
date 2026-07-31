@@ -57,16 +57,40 @@ const MapView = (() => {
 
     svg.setAttribute('width', width);
     svg.setAttribute('height', H);
+    /* A road, laid along the very spline the nodes sit on, so it cannot drift
+       off them the way a painted one did. Built up in strokes: a bed of earth,
+       the stone surface, a lit crown, then dashes across it for cobbles. */
+    const d = MapGeom.pathThrough(pts, H);
+    const fade = `${(count / (count + 3)).toFixed(2)}`;
     svg.innerHTML = `
       <defs>
         <linearGradient id="pathFade" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0" stop-color="#E0B15C" stop-opacity=".55"/>
-          <stop offset="${(count / (count + 3)).toFixed(2)}" stop-color="#E0B15C" stop-opacity=".28"/>
+          <stop offset="${fade}" stop-color="#E0B15C" stop-opacity=".28"/>
           <stop offset="1" stop-color="#E0B15C" stop-opacity="0"/>
         </linearGradient>
+        <linearGradient id="roadFade" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+          <stop offset="${fade}" stop-color="#fff" stop-opacity=".7"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </linearGradient>
+        <mask id="roadMask">
+          <path d="${d}" fill="none" stroke="url(#roadFade)" stroke-width="64" stroke-linecap="round"/>
+        </mask>
       </defs>
-      <path d="${MapGeom.pathThrough(pts, H)}" fill="none" stroke="url(#pathFade)"
-            stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14"/>`;
+      <g mask="url(#roadMask)">
+        <path d="${d}" fill="none" stroke="#0E1207" stroke-width="60" stroke-linecap="round"/>
+        <path d="${d}" fill="none" stroke="#3B3B22" stroke-width="46" stroke-linecap="round"/>
+        <path d="${d}" fill="none" stroke="#585437" stroke-width="38" stroke-linecap="round"/>
+        <path d="${d}" fill="none" stroke="#6E6A45" stroke-width="26" stroke-linecap="round"/>
+        <path d="${d}" fill="none" stroke="#1C1D10" stroke-width="38" stroke-linecap="round"
+              stroke-dasharray="3 13" opacity=".55"/>
+        <path d="${d}" fill="none" stroke="#1C1D10" stroke-width="20" stroke-linecap="round"
+              stroke-dasharray="3 21" stroke-dashoffset="9" opacity=".4"/>
+        <path d="${d}" fill="none" stroke="#8A8558" stroke-width="7" stroke-linecap="round" opacity=".22"/>
+      </g>
+      <path d="${d}" fill="none" stroke="url(#pathFade)"
+            stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14"/>`;
 
     canvas.querySelectorAll('.node,.chapter').forEach(n => n.remove());
 

@@ -106,10 +106,17 @@ const Board = (() => {
     fx.setAttribute('height', root.clientHeight);
     /* the glass moved, so the liquid has to be re-measured and re-seeded */
     if (fluidOn) Fluid.sync(view);
-    /* a shelf under every row, wherever the grid happened to put them */
-    const rows = [...root.querySelectorAll('.bottle .glass')]
-      .map(g => Math.round(g.getBoundingClientRect().bottom));
-    Backdrop.setShelf([...new Set(rows)]);
+    /* Every row, with the footprint of each bottle on it, so the shelving can be
+       built underneath and each bottle given a shadow where it meets the wood. */
+    const byRow = new Map();
+    root.querySelectorAll('.bottle').forEach(b => {
+      const g = b.querySelector('.glass'); if (!g) return;
+      const r = g.getBoundingClientRect();
+      const y = Math.round(r.bottom);
+      if (!byRow.has(y)) byRow.set(y, { y, top: Math.round(r.top), spots: [] });
+      byRow.get(y).spots.push([Math.round(r.left), Math.round(r.right)]);
+    });
+    Backdrop.setShelf([...byRow.values()]);
   }
 
   /* --- stream geometry: a tapering ribbon along a quadratic arc --- */
