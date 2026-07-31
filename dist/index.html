@@ -1475,16 +1475,56 @@ const Fluid = (() => {
       const glass = b.querySelector('.glass');
       if (!glass) return;
       const g = glass.getBoundingClientRect();
+      const o = b.getBoundingClientRect();
       bottles[i] = {
-        i,
-        x0: g.left - box.left + 3,
-        x1: g.right - box.left - 3,
+        i, el: b,
+        /* the glass at rest, in board coordinates. Everything else is derived by
+           putting this rectangle through the bottle's live transform. */
+        x0: g.left - box.left + 2,
+        x1: g.right - box.left - 2,
         yTop: g.top - box.top + 2,
-        yBot: g.bottom - box.top - 3,
-        cap: g.height - 5
+        yBot: g.bottom - box.top - 2,
+        cap: g.height - 4,
+        /* transform-origin is the centre of the whole bottle, collar included */
+        cx: o.left - box.left + o.width / 2,
+        cy: o.top - box.top + o.height / 2,
+        m: null, inv: null
       };
     });
     return bottles.length > 0;
+  }
+
+  /* A tipping bottle carries its glass with it, so the walls have to tip too.
+     The bottle is treated as an oriented box: particles are pushed into local,
+     upright space to be clamped, then put back. Gravity is never rotated, which
+     is what keeps the surface level while the glass turns around it. */
+  function readTransforms(){
+    for (let i = 0; i < bottles.length; i++){
+      const b = bottles[i];
+      if (!b || !b.el) continue;
+      if (!b.el.classList.contains('pouring')){ b.m = b.inv = null; continue; }
+      const t = getComputedStyle(b.el).transform;
+      if (!t || t === 'none'){ b.m = b.inv = null; continue; }
+      try {
+        b.m = new DOMMatrixReadOnly(t);
+        b.inv = b.m.inverse();
+      } catch (e) { b.m = b.inv = null; }
+    }
+  }
+  function toLocal(b, x, y){
+    if (!b.inv) return { x, y };
+    const p = b.inv.transformPoint(new DOMPoint(x - b.cx, y - b.cy));
+    return { x: p.x + b.cx, y: p.y + b.cy };
+  }
+  function toWorld(b, x, y){
+    if (!b.m) return { x, y };
+    const p = b.m.transformPoint(new DOMPoint(x - b.cx, y - b.cy));
+    return { x: p.x + b.cx, y: p.y + b.cy };
+  }
+  /* the glass outline in board coordinates, tilt included */
+  function corners(b){
+    return [[b.x0, b.yTop], [b.x1, b.yTop], [b.x1, b.yBot], [b.x0, b.yBot]]
+      .map(([x, y]) => toWorld(b, x, y));
   }
 
   function add(x, y, c, home, vx, vy){
@@ -1524,6 +1564,7 @@ const Fluid = (() => {
 
   /* ---- the solver ---- */
   function step(dt){
+    readTransforms();
     if (jet){
       jet.t += dt;
       const want = Math.min(jet.quota, Math.floor((jet.t / jet.dur) * jet.quota));
@@ -1534,6 +1575,15 @@ const Fluid = (() => {
             jet.vx + (Math.random() - .5) * 6, jet.vy + (Math.random() - .5) * 6);
         parts[parts.length - 1].poured = true;
       }
+      /* The source loses what the jet carries, taken from the surface down, so
+         it empties while the target fills instead of staying full until the
+         board is re-seeded underneath it. */
+      let died = false;
+      while (jet.pulled < jet.sent && jet.pulled < jet.pool.length){
+        jet.pool[jet.pulled++].dead = true;
+        died = true;
+      }
+      if (died) parts = parts.filter(p => !p.dead);
     }
 
     for (let i = 0; i < parts.length; i++){
@@ -1605,7 +1655,7 @@ const Fluid = (() => {
       }
       bands = {};
       Object.keys(per).forEach(bi => {
-        const b = bottles[bi]; if (!b) return;
+        const b = bottles[bi]; if (!b || b.m) return;   /* upright bottles only */
         const counts = per[bi];
         const keys = Object.keys(counts).sort((A, B) => densityOf(+B) - densityOf(+A));
         const total = keys.reduce((s, k) => s + counts[k], 0);
@@ -1628,10 +1678,21 @@ const Fluid = (() => {
       if (p.home !== -1){
         const b = bottles[p.home];
         if (!b){ parts.splice(i, 1); continue; }
-        if (p.x < b.x0) p.x = b.x0;
-        if (p.x > b.x1) p.x = b.x1;
-        if (p.y > b.yBot) p.y = b.yBot;
-        if (p.y < b.yTop - 30) p.y = b.yTop - 30;
+        if (b.m){
+          /* tipped: clamp in the bottle's own frame, then come back out. The
+             mouth is left open so liquid can leave a bottle that is pouring. */
+          const L = toLocal(b, p.x, p.y);
+          if (L.x < b.x0) L.x = b.x0;
+          if (L.x > b.x1) L.x = b.x1;
+          if (L.y > b.yBot) L.y = b.yBot;
+          const back = toWorld(b, L.x, L.y);
+          p.x = back.x; p.y = back.y;
+        } else {
+          if (p.x < b.x0) p.x = b.x0;
+          if (p.x > b.x1) p.x = b.x1;
+          if (p.y > b.yBot) p.y = b.yBot;
+          if (p.y < b.yTop - 30) p.y = b.yTop - 30;
+        }
       }
       p.vx = (p.x - p.px) * 60 * DAMP;
       p.vy = (p.y - p.py) * 60 * DAMP;
@@ -1642,6 +1703,7 @@ const Fluid = (() => {
     if (bands){
       for (let i = 0; i < parts.length; i++){
         const p = parts[i]; if (p.home === -1) continue;
+        const b = bottles[p.home]; if (!b || b.m) continue;
         const band = bands[p.home] && bands[p.home][p.c];
         if (!band) continue;
         const slack = 1.5 + (p.wob || 0);
@@ -1670,11 +1732,27 @@ const Fluid = (() => {
     ctx.clearRect(0, 0, W, H);
     ctx.save();
     ctx.beginPath();
+    /* Clip to the glass itself, tilt included. The old clip was a full-height
+       column per bottle, which is why liquid appeared outside the bottle and
+       above the shelf: the metaball blur spreads well past the particles, and
+       nothing was cutting it off at the glass. */
     bottles.forEach(b => {
       if (!b) return;
-      /* the glass, plus the air above it so a jet in flight is visible */
-      ctx.rect(b.x0 - 1, 0, b.x1 - b.x0 + 2, b.yBot - 0);
+      const q = corners(b);
+      ctx.moveTo(q[0].x, q[0].y);
+      for (let i = 1; i < q.length; i++) ctx.lineTo(q[i].x, q[i].y);
+      ctx.closePath();
     });
+    /* while pouring, the air between the two mouths, so the jet is not cut off */
+    if (jet){
+      const s = bottles[jet.from], d = bottles[jet.to];
+      if (s && d){
+        const x0 = Math.min(jet.x, s.x0, d.x0) - 18;
+        const x1 = Math.max(jet.x, s.x1, d.x1) + 18;
+        const y0 = Math.min(jet.y, d.yTop) - 30;
+        ctx.rect(x0, y0, x1 - x0, Math.max(0, d.yTop - y0) + 2);
+      }
+    }
     ctx.clip();
 
     const groups = {};
@@ -1748,12 +1826,18 @@ const Fluid = (() => {
       };
       const dir = dst.x0 > src.x0 ? 1 : -1;
       const perUnit = Math.round(((src.x1 - src.x0) * (src.cap / Rules.CAP)) / 24);
+      const quota = Math.max(12, perUnit * move.n);
+      /* the liquid the source is about to lose, nearest its mouth first */
+      const pool = parts.filter(p => p.home === move.from && p.c === move.color)
+                        .sort((a, b) => a.y - b.y)
+                        .slice(0, quota);
       jet = {
         from: move.from, to: move.to, c: move.color,
         x: (dst.x0 + dst.x1) / 2 - dir * (dst.x1 - dst.x0) * 0.5,
         y: dst.yTop - 26,
         vx: dir * 34, vy: 46,
-        quota: Math.max(12, perUnit * move.n),
+        quota,
+        pool, pulled: 0,
         sent: 0, t: 0, dur: 0.22 * move.n + 0.18,
         done: finish
       };
