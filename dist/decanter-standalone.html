@@ -1324,6 +1324,7 @@ const Board = (() => {
     setTimeout(() => {
       Audio.cork();
       b.classList.add('thunk');
+      if (fluidOn) Fluid.wake();   /* the bounce moves the glass; bring the liquid */
       b.querySelector('.sheen')?.classList.add('run');
       const ring = document.createElement('div');
       ring.className = 'ring';
@@ -1355,7 +1356,8 @@ const Board = (() => {
     get view(){ return view; },
     set view(v){ view = v; },
     get selected(){ return selected; },
-    set selected(v){ selected = v; },
+    /* lifting a bottle moves its glass, so the liquid has to be told to follow */
+    set selected(v){ selected = v; if (fluidOn) Fluid.wake(); },
     set onTap(fn){ onTap = fn; },
     el, render, animate, seal, nudge, reduce
   };
@@ -1403,7 +1405,7 @@ const Fluid = (() => {
   let root = null, cv = null, ctx = null, field = null, mask = null, sprite = null;
   let W = 0, H = 0, dpr = 1, R = 9;
   let bottles = [], parts = [], bands = null;
-  let running = false, raf = 0, last = 0, acc = 0;
+  let running = false, raf = 0, last = 0, acc = 0, idle = 0;
   let rho0 = 2.4, calibrated = false;
   let jet = null;                       /* the pour in flight, if any */
 
@@ -1472,20 +1474,21 @@ const Fluid = (() => {
     els.forEach((b, i) => {
       const glass = b.querySelector('.glass');
       if (!glass) return;
-      const g = glass.getBoundingClientRect();
-      const o = b.getBoundingClientRect();
+      /* Offsets, not bounding rects. Offsets are layout values and ignore
+         transforms, so this is the glass at rest even if the bottle happens to
+         be lifted or mid-bounce right now. Measuring the transformed rect would
+         bake the lift into the rest geometry and then apply it a second time. */
+      const bx = b.offsetLeft, by = b.offsetTop;
+      const gx = bx + glass.offsetLeft, gy = by + glass.offsetTop;
+      const gw = glass.offsetWidth, gh = glass.offsetHeight;
       bottles[i] = {
         i, el: b,
-        /* the glass at rest, in board coordinates. Everything else is derived by
-           putting this rectangle through the bottle's live transform. */
-        x0: g.left - box.left + 2,
-        x1: g.right - box.left - 2,
-        yTop: g.top - box.top + 2,
-        yBot: g.bottom - box.top - 2,
-        cap: g.height - 4,
+        x0: gx + 2, x1: gx + gw - 2,
+        yTop: gy + 2, yBot: gy + gh - 2,
+        cap: gh - 4,
         /* transform-origin is the centre of the whole bottle, collar included */
-        cx: o.left - box.left + o.width / 2,
-        cy: o.top - box.top + o.height / 2,
+        cx: bx + b.offsetWidth / 2,
+        cy: by + b.offsetHeight / 2,
         m: null, inv: null
       };
     });
@@ -1496,13 +1499,18 @@ const Fluid = (() => {
      The bottle is treated as an oriented box: particles are pushed into local,
      upright space to be clamped, then put back. Gravity is never rotated, which
      is what keeps the surface level while the glass turns around it. */
+  /* Every bottle, not just the one pouring. Selecting a bottle lifts it 20px and
+     landing bounces it, and while the sim only watched the pouring bottle those
+     moved the glass without moving the liquid: a lifted bottle left a slab of it
+     protruding below, and a bouncing one showed it above the rim. Reading the
+     computed transform for all of them costs a handful of style reads next to a
+     solver that is already relaxing hundreds of particles. */
   function readTransforms(){
     for (let i = 0; i < bottles.length; i++){
       const b = bottles[i];
       if (!b || !b.el) continue;
-      if (!b.el.classList.contains('pouring')){ b.m = b.inv = null; continue; }
       const t = getComputedStyle(b.el).transform;
-      if (!t || t === 'none'){ b.m = b.inv = null; continue; }
+      if (!t || t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)'){ b.m = b.inv = null; continue; }
       try {
         b.m = new DOMMatrixReadOnly(t);
         b.inv = b.m.inverse();
@@ -1800,6 +1808,8 @@ const Fluid = (() => {
     if (air.length) paint(air);
   }
 
+  const anyMoved = () => bottles.some(b => b && b.m);
+
   function loop(){
     if (!running) return;
     raf = requestAnimationFrame(loop);
@@ -1815,10 +1825,14 @@ const Fluid = (() => {
       const done = jet.done;
       jet = null;
       for (let i = 0; i < parts.length; i++) parts[i].poured = false;
-      stop();
       done();
     }
+    /* Keep running while anything is moving the glass, so a lifted or bouncing
+       bottle carries its liquid with it, then stand down once the shelf is
+       still again rather than burning frames on a settled board. */
+    if (!jet && !anyMoved()){ if (++idle > 10) stop(); } else idle = 0;
   }
+  function wake(){ idle = 0; start(); }
   function start(){ if (running) return; running = true; last = performance.now(); acc = 0; loop(); }
   function stop(){ running = false; cancelAnimationFrame(raf); }
 
@@ -1860,7 +1874,7 @@ const Fluid = (() => {
   }
 
   return {
-    supported, mount, sync, pour, draw,
+    supported, mount, sync, pour, draw, wake,
     resize(){ if (root && bottles.length) measure(); },
     get mounted(){ return !!root; }
   };

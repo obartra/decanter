@@ -289,6 +289,7 @@ const Board = (() => {
     setTimeout(() => {
       Audio.cork();
       b.classList.add('thunk');
+      if (fluidOn) Fluid.wake();   /* the bounce moves the glass; bring the liquid */
       b.querySelector('.sheen')?.classList.add('run');
       const ring = document.createElement('div');
       ring.className = 'ring';
@@ -320,7 +321,8 @@ const Board = (() => {
     get view(){ return view; },
     set view(v){ view = v; },
     get selected(){ return selected; },
-    set selected(v){ selected = v; },
+    /* lifting a bottle moves its glass, so the liquid has to be told to follow */
+    set selected(v){ selected = v; if (fluidOn) Fluid.wake(); },
     set onTap(fn){ onTap = fn; },
     el, render, animate, seal, nudge, reduce
   };
