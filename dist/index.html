@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="21e0b1b9f3">
+<meta name="build" content="6a8dee0540">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -2306,6 +2306,18 @@ const App = (() => {
     CONFIG.palette.forEach((hex, i) => s.setProperty(`--c${i}`, hex));
   }
 
+  /* A new build is waiting. Reloading is the only way to pick it up, but doing
+     it under someone mid-pour would lose their level, so it waits for a moment
+     that costs nothing: on the map, with nothing animating. Progress is saved
+     per level, so nothing is lost by then. */
+  let updatePending = false;
+  function takeUpdate(){
+    if (!updatePending) return;
+    if (document.body.dataset.view !== 'map') return;
+    if (S.running || S.queue.length) return;
+    location.reload();
+  }
+
   /* local calendar day, so the draught refreshes on the player's midnight */
   function today(){
     const d = new Date();
@@ -2325,6 +2337,7 @@ const App = (() => {
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
     paintMap();
+    takeUpdate();
   }
   function showGame(level){
     document.body.dataset.view = 'game';
@@ -2582,6 +2595,8 @@ const App = (() => {
       paintSound(progress.sound);
       showMap(false);
     },
+    /* a newer build has taken over the page */
+    updateReady(){ updatePending = true; takeUpdate(); },
     /* exposed for debugging in the console */
     _state: S, _progress: progress
   };
@@ -2610,8 +2625,42 @@ document.addEventListener('DOMContentLoaded', () => App.boot());
     };
   }
   addEventListener('appinstalled', () => { if (btn) btn.hidden = true; deferred = null; });
+  /* Picking up a new build.
+
+     Revalidating the page only helps someone who navigates. A tab that is
+     already open never navigates again, so without this it runs whatever build
+     it started with for as long as it stays open, which is how a fix can be
+     live and invisible at the same time.
+
+     So the worker is asked for a new build periodically and whenever the tab
+     comes back to the front, and when one takes over, the page reloads itself.
+     Not mid-pour though: App decides when that is polite. */
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
-    addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    addEventListener('load', async () => {
+      let reg = null;
+      try { reg = await navigator.serviceWorker.register('./sw.js'); } catch (e) { return; }
+
+      const check = () => { try { reg.update(); } catch (e) {} };
+      setInterval(check, 5 * 60 * 1000);
+      addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+      addEventListener('focus', check);
+      addEventListener('online', check);
+
+      /* A page that starts uncontrolled gets claimed once as its worker installs.
+         That first claim is an install, not an update, and must not reload. What
+         it must not do either is disqualify the tab forever: tracking the
+         controller rather than remembering a flag from load time means the
+         second change is still recognised as the update it is. */
+      let controller = navigator.serviceWorker.controller;
+      let taken = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        const had = controller;
+        controller = navigator.serviceWorker.controller;
+        if (!had || taken) return;
+        taken = true;
+        App.updateReady();
+      });
+    });
   }
 })();
 </script>

@@ -111,4 +111,33 @@ describe('build output', () => {
     assert(read('src/js/95-pwa.js').includes("location.protocol.startsWith('http')"),
       'registering from file:// throws, so it must be guarded');
   });
+
+  it('picks up a new build without being asked', () => {
+    /* Revalidating the page only helps someone who navigates. A tab left open
+       never navigates again, so it would run the build it started with for as
+       long as it stayed open: a fix can be live and invisible at the same time. */
+    const pwa = read('src/js/95-pwa.js');
+    assert(/reg\.update\(\)/.test(pwa), 'nothing ever asks for a newer build');
+    assert(/setInterval\(/.test(pwa), 'no periodic check');
+    assert(/visibilitychange/.test(pwa), 'no check when the tab comes back');
+    assert(/controllerchange/.test(pwa), 'nothing notices a new build taking over');
+    /* A page that starts uncontrolled is claimed once as its worker installs.
+       Remembering a flag from load time treats that as disqualifying and the tab
+       never updates again; tracking the controller keeps the next change usable. */
+    assert(/controller = navigator\.serviceWorker\.controller/.test(pwa),
+      'the controller must be tracked, not sampled once at load');
+    assert(/if \(!had \|\| taken\) return/.test(pwa),
+      'a first install must not be mistaken for an update, nor disqualify the tab');
+    assert(/App\.updateReady\(\)/.test(pwa), 'the app is never told an update is ready');
+  });
+
+  it('never reloads out from under a pour', () => {
+    /* progress is saved per level, so reloading on the map costs nothing, but
+       reloading mid-level would throw away the level being played */
+    const app = read('src/js/90-app.js');
+    const fn = app.slice(app.indexOf('function takeUpdate('), app.indexOf('/* local calendar day'));
+    assert(/dataset\.view !== 'map'/.test(fn), 'it must wait for the map');
+    assert(/S\.running \|\| S\.queue\.length/.test(fn), 'it must wait for the animation to finish');
+    assert(/location\.reload\(\)/.test(fn), 'it never actually reloads');
+  });
 });

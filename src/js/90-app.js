@@ -19,6 +19,18 @@ const App = (() => {
     CONFIG.palette.forEach((hex, i) => s.setProperty(`--c${i}`, hex));
   }
 
+  /* A new build is waiting. Reloading is the only way to pick it up, but doing
+     it under someone mid-pour would lose their level, so it waits for a moment
+     that costs nothing: on the map, with nothing animating. Progress is saved
+     per level, so nothing is lost by then. */
+  let updatePending = false;
+  function takeUpdate(){
+    if (!updatePending) return;
+    if (document.body.dataset.view !== 'map') return;
+    if (S.running || S.queue.length) return;
+    location.reload();
+  }
+
   /* local calendar day, so the draught refreshes on the player's midnight */
   function today(){
     const d = new Date();
@@ -38,6 +50,7 @@ const App = (() => {
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
     paintMap();
+    takeUpdate();
   }
   function showGame(level){
     document.body.dataset.view = 'game';
@@ -295,6 +308,8 @@ const App = (() => {
       paintSound(progress.sound);
       showMap(false);
     },
+    /* a newer build has taken over the page */
+    updateReady(){ updatePending = true; takeUpdate(); },
     /* exposed for debugging in the console */
     _state: S, _progress: progress
   };
