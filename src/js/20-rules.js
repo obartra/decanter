@@ -64,11 +64,12 @@ function isSolvable(start, nodeCap = 40000){
   }
   return false;
 }
-/* Three stars at par or one over, two up to four over, one for solving it at all.
+/* Three stars at par, two one over, one two over. Three or more over the minimum
+   is a failed run: the bottles are sorted, but not well enough to count.
 
    An inexact par is an upper bound the search settled for, not the minimum, so
-   it cannot decide any bracket: it is treated the same as no par at all rather
-   than scored as if it were real.
+   it cannot decide any bracket, least of all a failing one: it is treated the
+   same as no par at all rather than scored as if it were real.
 
    A bought vessel caps the run at two stars. Par is the minimum for the bottles
    the level deals you, so once an extra one is on the shelf the board is easier
@@ -77,9 +78,12 @@ function isSolvable(start, nodeCap = 40000){
 function rate(moves, par, exact = true, vesselUsed = false){
   const cap = vesselUsed ? 2 : 3;
   if (par == null || !exact) return cap;
-  if (moves <= par + CONFIG.stars.clean) return cap;
-  if (moves <= par + CONFIG.stars.passable) return Math.min(2, cap);
-  return 1;
+  const over = moves - par;
+  const earned = over <= CONFIG.stars.three ? 3
+               : over <= CONFIG.stars.two ? 2
+               : over <= CONFIG.stars.one ? 1
+               : 0;
+  return Math.min(earned, cap);
 }
 globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,
                      canPour, pourAmount, applyMove, legalMoves, isSolvable, rate };

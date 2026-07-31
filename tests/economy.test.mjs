@@ -7,26 +7,29 @@ const E = CONFIG.economy;
 const fresh = () => Progress.createProgress(Progress.memoryStorage());
 
 describe('star brackets', () => {
-  it('pays three stars at par and one over', () => {
-    equal(Rules.rate(11, 11), 3, 'par is clean');
-    equal(Rules.rate(12, 11), 3, 'one over is still clean');
+  it('pays three stars only for the minimum', () => {
+    equal(Rules.rate(11, 11), 3, 'par is three');
+    equal(Rules.rate(9, 11), 3, 'under par cannot happen, but is not punished');
   });
-  it('pays two stars up to four over', () => {
-    equal(Rules.rate(13, 11), 2);
-    equal(Rules.rate(15, 11), 2, 'four over is the last two-star run');
+  it('drops a star for each pour over', () => {
+    equal(Rules.rate(12, 11), 2, 'one over');
+    equal(Rules.rate(13, 11), 1, 'two over');
   });
-  it('pays one star for solving it at all, however sloppy', () => {
-    equal(Rules.rate(16, 11), 1, 'five over drops to one');
-    equal(Rules.rate(400, 11), 1, 'there is no zero-star finish');
+  it('fails a run three or more over the minimum', () => {
+    /* the bottles are sorted, but not well enough to count */
+    equal(Rules.rate(14, 11), 0, 'three over is a fail');
+    equal(Rules.rate(400, 11), 0, 'and so is anything worse');
   });
   it('caps a bought vessel at two stars', () => {
     /* par describes the bottles the level dealt, not the shelf you bought */
     equal(Rules.rate(11, 11, true, true), 2, 'a perfect run with a vessel is two');
-    equal(Rules.rate(13, 11, true, true), 2);
-    equal(Rules.rate(16, 11, true, true), 1, 'the cap does not rescue a bad run');
+    equal(Rules.rate(13, 11, true, true), 1, 'the cap does not lift the lower tiers');
+    equal(Rules.rate(14, 11, true, true), 0, 'nor rescue a failed one');
   });
   it('still refuses to score against an inexact par', () => {
+    /* an estimate must never be the thing that fails somebody */
     equal(Rules.rate(50, 59, false), 3, 'an estimate cannot cost a star');
+    equal(Rules.rate(500, 59, false), 3, 'and cannot fail a run either');
     equal(Rules.rate(50, 59, false, true), 2, 'but a vessel still caps it');
   });
 });
@@ -64,6 +67,31 @@ describe('gold', () => {
     const farmed = p.gold - afterFirstPass;
     equal(farmed, 5 * E.starGold[3], 'replays pay stars only');
     assert(farmed < 5 * 14, 'farming must pay less than fresh clears');
+  });
+
+  it('pays nothing for a failed run, and opens nothing', () => {
+    const p = fresh();
+    const gold = p.gold, unlocked = p.unlocked;
+    const r = p.complete(1, 99, 0);
+    equal(r.earned, 0, 'a failed run earns no gold');
+    equal(r.failed, true);
+    equal(p.gold, gold, 'the purse should not move');
+    equal(p.unlocked, unlocked, 'the next level stays shut');
+    equal(p.starsFor(1), 0);
+    equal(p.bestFor(1), null, 'a failed run is not a best');
+    /* and it must not burn the one-time bonus for the eventual real clear */
+    equal(p.complete(1, 11, 3).firstClear, true, 'the first clear bonus survives a failure');
+  });
+
+  it('does not undo an earlier clear when a replay fails', () => {
+    const p = fresh();
+    p.complete(2, 11, 3);
+    const gold = p.gold, unlocked = p.unlocked;
+    p.complete(2, 99, 0);
+    equal(p.starsFor(2), 3, 'stars already earned are kept');
+    equal(p.bestFor(2), 11, 'so is the best');
+    equal(p.unlocked, unlocked, 'and the unlock');
+    equal(p.gold, gold, 'a failed replay pays nothing');
   });
 
   it('draws the daily draught once per day', () => {

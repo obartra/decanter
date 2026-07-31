@@ -90,6 +90,14 @@ function createProgress(storage){
        every time, the first-clear bonus only ever once, which is what keeps a
        cleared level from being farmable. */
     complete(level, moves, stars){
+      /* A failed run sorted the bottles but not well enough to count, so it
+         banks nothing: no gold, no best, no first-clear bonus, and the next
+         level stays shut. Nothing is taken away either, so an earlier clear of
+         the same level keeps whatever it earned. */
+      if (stars <= 0){
+        return { failed: true, improvedStars: false, improvedBest: false,
+                 firstClear: false, starGold: 0, bonus: 0, earned: 0 };
+      }
       const prevStars = state.stars[level] || 0;
       if (stars > prevStars) state.stars[level] = stars;
       const prevBest = level in state.best ? state.best[level] : Infinity;
@@ -104,6 +112,7 @@ function createProgress(storage){
 
       save();
       return {
+        failed: false,
         improvedStars: stars > prevStars,
         improvedBest: moves < prevBest,
         firstClear,

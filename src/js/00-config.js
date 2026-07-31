@@ -29,7 +29,8 @@ const CONFIG = {
     freeUndos: 3,
     undoCost: 8
   },
-  /* stars are pours against par: par or par+1 is clean, up to par+4 is passable */
-  stars: { clean: 1, passable: 4 }
+  /* Stars are pours over par: par earns three, one over two, two over one, and
+     three or more over is a failed run worth nothing. */
+  stars: { three: 0, two: 1, one: 2 }
 };
 globalThis.CONFIG = CONFIG;

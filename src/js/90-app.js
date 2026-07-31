@@ -191,13 +191,14 @@ const App = (() => {
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const perfect = stars === 3;
+    const failed = stars === 0;
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
-    $('winTitle').textContent = perfect ? 'Poured clean' : 'Level cleared';
+    $('winTitle').textContent = failed ? 'Too many pours' : perfect ? 'Poured clean' : 'Level cleared';
     const parLine = S.par == null
       ? ''
       : ` ${S.parExact ? 'The minimum is' : 'The best found is about'} ${S.par}.`;
-    const bestLine = progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
+    const bestLine = !failed && progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
       ? ` Your best here is ${progress.bestFor(S.level)}.` : '';
     $('winLine').textContent = `Sorted in ${S.moves} pours.${parLine}${bestLine}`;
 
@@ -205,19 +206,28 @@ const App = (() => {
     const parts = [`${stars}★`];
     if (result.firstClear) parts.push('first clear');
     $('goldEarned').textContent = `+${result.earned}`;
-    $('goldWhy').textContent = `Gold · ${parts.join(' + ')}`;
+    $('goldWhy').textContent = failed ? 'No gold · run failed' : `Gold · ${parts.join(' + ')}`;
 
-    $('winHint').textContent = S.vesselUsed
-      ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
-      : (perfect ? '' : 'Par or one over earns the third star.');
+    /* A failed run banks nothing and does not open the next level, so the panel
+       has to say so plainly and offer the only thing that helps: another go. */
+    $('winHint').textContent = failed
+      ? `Three or more over the minimum does not count. Clear it in ${S.par + CONFIG.stars.one} or fewer.`
+      : S.vesselUsed
+        ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
+        : (perfect ? '' : 'Match the minimum for all three stars.');
     $('retry').hidden = perfect;
     $('retry').classList.toggle('primary', !perfect);
+    $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
     $('next').classList.toggle('primary', perfect);
-    if (result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
+    if (!failed && result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
 
     setTimeout(() => {
-      Audio.win();
-      Confetti.rain(CONFIG.palette.slice(0, Levels.shape(S.level).colors));
+      if (failed){
+        Audio.deny();
+      } else {
+        Audio.win();
+        Confetti.rain(CONFIG.palette.slice(0, Levels.shape(S.level).colors));
+      }
       $('veil').classList.add('show');
     }, 700);
   }

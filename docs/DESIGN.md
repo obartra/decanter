@@ -138,17 +138,28 @@ upper bound has not been shown to match the minimum.
 
 ## 3a. The economy
 
-Stars are pours against par: par or one over is three, up to four over is two,
-solving it at all is one. There is no zero-star finish.
+Stars are pours over par, and they run out fast: par is three, one over is two,
+two over is one, and three or more over is a failed run. Sorting the bottles is
+not the same as clearing the level.
+
+A failed run banks nothing. No gold, no best, no first-clear bonus, and the next
+level stays shut. It takes nothing away either, so an earlier clear of the same
+level keeps everything it earned and a later failure cannot undo it.
+
+This is tight on purpose, and worth knowing how tight: level 1 has a par of 12,
+so 15 pours fails it. An inexact par can therefore never be scored at all, since
+an estimate is an upper bound and would fail people for the search's shortcomings
+rather than their own.
 
 Gold is deliberately thin, because the tension is the point. A good first run
 pays 14, a replay of the same level pays 6, a sloppy replay pays 1.
 
 | In | | Out | |
 | --- | --- | --- | --- |
-| 3★ | 6 | Extra vessel | 45 |
-| 2★ | 3 | Undo | 3 free per level, then 8 |
-| 1★ | 1 | Restart | free, time is the cost |
+| 3★ (par) | 6 | Extra vessel | 45 |
+| 2★ (par+1) | 3 | Undo | 3 free per level, then 8 |
+| 1★ (par+2) | 1 | Restart | free, time is the cost |
+| 0★ (par+3 or worse) | nothing | | |
 | First clear | 8, once | | |
 | Daily draught | 12 | | |
 

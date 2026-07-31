@@ -68,7 +68,7 @@ describe('rules', () => {
        been shown to miss the minimum. Neither may move the rating. */
     equal(Rules.rate(50, 59, false), 3, 'an estimate cannot cost a star');
     equal(Rules.rate(70, 59, false), 3, 'an estimate cannot cost a star either way');
-    equal(Rules.rate(46, 41, true), 1, 'the same run against a real par is judged');
+    equal(Rules.rate(46, 41, true), 0, 'the same run against a real par is judged');
     equal(Rules.rate(41, 41, true), 3, 'matching a real par is still three');
   });
 });

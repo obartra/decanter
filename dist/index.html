@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="6a8dee0540">
+<meta name="build" content="c65d062c6c">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -568,8 +568,9 @@ const CONFIG = {
     freeUndos: 3,
     undoCost: 8
   },
-  /* stars are pours against par: par or par+1 is clean, up to par+4 is passable */
-  stars: { clean: 1, passable: 4 }
+  /* Stars are pours over par: par earns three, one over two, two over one, and
+     three or more over is a failed run worth nothing. */
+  stars: { three: 0, two: 1, one: 2 }
 };
 globalThis.CONFIG = CONFIG;
 
@@ -672,11 +673,12 @@ function isSolvable(start, nodeCap = 40000){
   }
   return false;
 }
-/* Three stars at par or one over, two up to four over, one for solving it at all.
+/* Three stars at par, two one over, one two over. Three or more over the minimum
+   is a failed run: the bottles are sorted, but not well enough to count.
 
    An inexact par is an upper bound the search settled for, not the minimum, so
-   it cannot decide any bracket: it is treated the same as no par at all rather
-   than scored as if it were real.
+   it cannot decide any bracket, least of all a failing one: it is treated the
+   same as no par at all rather than scored as if it were real.
 
    A bought vessel caps the run at two stars. Par is the minimum for the bottles
    the level deals you, so once an extra one is on the shelf the board is easier
@@ -685,9 +687,12 @@ function isSolvable(start, nodeCap = 40000){
 function rate(moves, par, exact = true, vesselUsed = false){
   const cap = vesselUsed ? 2 : 3;
   if (par == null || !exact) return cap;
-  if (moves <= par + CONFIG.stars.clean) return cap;
-  if (moves <= par + CONFIG.stars.passable) return Math.min(2, cap);
-  return 1;
+  const over = moves - par;
+  const earned = over <= CONFIG.stars.three ? 3
+               : over <= CONFIG.stars.two ? 2
+               : over <= CONFIG.stars.one ? 1
+               : 0;
+  return Math.min(earned, cap);
 }
 globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,
                      canPour, pourAmount, applyMove, legalMoves, isSolvable, rate };
@@ -836,6 +841,14 @@ function createProgress(storage){
        every time, the first-clear bonus only ever once, which is what keeps a
        cleared level from being farmable. */
     complete(level, moves, stars){
+      /* A failed run sorted the bottles but not well enough to count, so it
+         banks nothing: no gold, no best, no first-clear bonus, and the next
+         level stays shut. Nothing is taken away either, so an earlier clear of
+         the same level keeps whatever it earned. */
+      if (stars <= 0){
+        return { failed: true, improvedStars: false, improvedBest: false,
+                 firstClear: false, starGold: 0, bonus: 0, earned: 0 };
+      }
       const prevStars = state.stars[level] || 0;
       if (stars > prevStars) state.stars[level] = stars;
       const prevBest = level in state.best ? state.best[level] : Infinity;
@@ -850,6 +863,7 @@ function createProgress(storage){
 
       save();
       return {
+        failed: false,
         improvedStars: stars > prevStars,
         improvedBest: moves < prevBest,
         firstClear,
@@ -2478,13 +2492,14 @@ const App = (() => {
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const perfect = stars === 3;
+    const failed = stars === 0;
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
-    $('winTitle').textContent = perfect ? 'Poured clean' : 'Level cleared';
+    $('winTitle').textContent = failed ? 'Too many pours' : perfect ? 'Poured clean' : 'Level cleared';
     const parLine = S.par == null
       ? ''
       : ` ${S.parExact ? 'The minimum is' : 'The best found is about'} ${S.par}.`;
-    const bestLine = progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
+    const bestLine = !failed && progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
       ? ` Your best here is ${progress.bestFor(S.level)}.` : '';
     $('winLine').textContent = `Sorted in ${S.moves} pours.${parLine}${bestLine}`;
 
@@ -2492,19 +2507,28 @@ const App = (() => {
     const parts = [`${stars}★`];
     if (result.firstClear) parts.push('first clear');
     $('goldEarned').textContent = `+${result.earned}`;
-    $('goldWhy').textContent = `Gold · ${parts.join(' + ')}`;
+    $('goldWhy').textContent = failed ? 'No gold · run failed' : `Gold · ${parts.join(' + ')}`;
 
-    $('winHint').textContent = S.vesselUsed
-      ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
-      : (perfect ? '' : 'Par or one over earns the third star.');
+    /* A failed run banks nothing and does not open the next level, so the panel
+       has to say so plainly and offer the only thing that helps: another go. */
+    $('winHint').textContent = failed
+      ? `Three or more over the minimum does not count. Clear it in ${S.par + CONFIG.stars.one} or fewer.`
+      : S.vesselUsed
+        ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
+        : (perfect ? '' : 'Match the minimum for all three stars.');
     $('retry').hidden = perfect;
     $('retry').classList.toggle('primary', !perfect);
+    $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
     $('next').classList.toggle('primary', perfect);
-    if (result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
+    if (!failed && result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
 
     setTimeout(() => {
-      Audio.win();
-      Confetti.rain(CONFIG.palette.slice(0, Levels.shape(S.level).colors));
+      if (failed){
+        Audio.deny();
+      } else {
+        Audio.win();
+        Confetti.rain(CONFIG.palette.slice(0, Levels.shape(S.level).colors));
+      }
       $('veil').classList.add('show');
     }, 700);
   }
