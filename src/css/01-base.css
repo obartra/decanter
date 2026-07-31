@@ -2,10 +2,7 @@
   --ink:#EFE4D2; --ink-dim:#A2907A;
   --gold:#E0B15C; --gold-lit:#F4D9A0;
   --glass-line:rgba(238,224,200,.28);
-  /* jewelled potions rather than primaries, so they sit in candlelight */
-  --c0:#C9455E; --c1:#E9B35C; --c2:#6BC5A8; --c3:#5B8FD6;
-  --c4:#9B6BC9; --c5:#3FBFA6; --c6:#E4779B; --c7:#E08A4C;
-  --c8:#6E7FD6; --c9:#AFCB63; --c10:#A83E5C; --c11:#D9C6A0;
+  /* --c0..--c11 are published from CONFIG.palette at boot, see 90-app.js */
   --bw:52px; --bh:calc(var(--bw)*3.3); --cap-h:calc(var(--bw)*.26);
   --cols:3; --units:4;
 }

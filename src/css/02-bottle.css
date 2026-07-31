@@ -118,3 +118,13 @@
 @keyframes pool{0%{transform:translateX(-50%) scale(.4,.6);opacity:.8}
   100%{transform:translateX(-50%) scale(1.6,1);opacity:0}}
 .drop{position:absolute; border-radius:50%; z-index:54; pointer-events:none}
+
+/* --- particle liquid ---
+   When the sim is running it draws every bottle's contents onto one canvas over
+   the board, so the DOM bands stand down. The glass, collar, sheen and cork are
+   still DOM: only the liquid moves to the canvas. */
+.board.simulated .fill{opacity:0}
+.fluidLayer{
+  position:absolute; inset:0; z-index:0;
+  pointer-events:none;
+}

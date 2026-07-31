@@ -10,6 +10,15 @@ const App = (() => {
   const $ = id => document.getElementById(id);
 
   /* ---------- routing ---------- */
+  /* The stylesheets colour bands with var(--cN), the pour and the particle sim
+     read CONFIG.palette. Publishing one from the other keeps a single source:
+     when the palette moved to jewel tones and the CSS did not, the sim poured
+     the old colours into the new bottles. */
+  function publishPalette(){
+    const s = document.documentElement.style;
+    CONFIG.palette.forEach((hex, i) => s.setProperty(`--c${i}`, hex));
+  }
+
   /* local calendar day, so the draught refreshes on the player's midnight */
   function today(){
     const d = new Date();
@@ -276,6 +285,7 @@ const App = (() => {
   }
   return {
     boot(){
+      publishPalette();
       bind();
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);

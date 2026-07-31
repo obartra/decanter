@@ -3,9 +3,12 @@ const CONFIG = {
   capacity: 4,
   maxColors: 12,
   minColors: 4,
-  /* liquid palette, index === color id */
-  palette: ['#E6402E','#F5B932','#7BC142','#3AA3E3','#9B5DE5','#1FC7A8',
-            '#FF6FA5','#FF8A3D','#5A6BFF','#B6E132','#B33A63','#D9C6A0'],
+  /* Liquid palette, index === colour id, and the only place a liquid colour is
+     written down. The --cN custom properties the stylesheets use are published
+     from here at boot, so the bands, the pour and the particle sim cannot drift
+     apart the way they did when the palette lived in two files. */
+  palette: ['#C9455E','#E9B35C','#6BC5A8','#5B8FD6','#9B6BC9','#2E9E86',
+            '#E4779B','#D9793A','#4A5A8C','#AFCB63','#8E2F49','#D9C6A0'],
   sectionSize: 10,
   sectionNames: ['The Cellar','The Apothecary','The Distillery',
                  'The Conservatory','The Vault','The Observatory'],
