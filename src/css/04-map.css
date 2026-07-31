@@ -83,3 +83,4 @@
   box-shadow:none;
 }
 .node.locked:nth-of-type(n){opacity:.85}
+.mapRoad{position:absolute; left:0; bottom:0; pointer-events:none}
