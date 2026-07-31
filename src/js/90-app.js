@@ -85,7 +85,7 @@ const App = (() => {
   function askPar(){
     const id = ++S.parRequest;
     const level = S.level;
-    $('statPar').textContent = '…';
+    $('pourLabel').textContent = 'Reading the board…';
     SolverClient.solve(S.tubes, Levels.shape(level).colors, res => {
       if (id !== S.parRequest) return;
       S.par = res.par;
@@ -94,6 +94,15 @@ const App = (() => {
       paintHud();
     });
   }
+  /* how many more pours the current star tier can absorb */
+  function sparePours(stars){
+    if (S.par == null || !S.parExact || stars <= 0) return 0;
+    const over = stars === 3 ? CONFIG.stars.three
+               : stars === 2 ? CONFIG.stars.two
+               : CONFIG.stars.one;
+    return Math.max(0, S.par + over - S.moves);
+  }
+
   const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
   const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
 
@@ -101,11 +110,22 @@ const App = (() => {
     const busy = S.queue.length > 0 || S.running;
     const par = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
     $('statLevel').textContent = S.level;
-    $('statMoves').textContent = S.moves;
-    $('statPar').textContent = par;
-    $('pourLabel').textContent = `Pours · Par ${par}`;
-    $('statLeft').textContent = S.tubes.filter(t => t.length && !Rules.isFull(t)).length;
-    $('movesStat').classList.toggle('over', S.par != null && S.moves > S.par);
+
+    /* You start on three stars and spend them. Counting pours up tells you what
+       you have done; counting down to the next star tells you what it will cost,
+       which is the thing worth knowing while there is still a choice to make. */
+    const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
+    $('statStars').innerHTML = [0,1,2]
+      .map(i => (i < stars ? '★' : '<span class="dim">★</span>')).join('');
+    $('movesStat').classList.toggle('over', stars <= 1);
+    $('movesStat').classList.toggle('spent', stars === 0);
+
+    const spare = sparePours(stars);
+    $('pourLabel').textContent =
+      S.par == null || !S.parExact ? `${S.moves} pours`
+      : stars === 0 ? 'Too many pours'
+      : spare > 0 ? `${spare} to spare`
+      : 'Next pour costs a star';
     $('gold').textContent = progress.gold;
 
     const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
@@ -211,10 +231,8 @@ const App = (() => {
     /* A failed run banks nothing and does not open the next level, so the panel
        has to say so plainly and offer the only thing that helps: another go. */
     $('winHint').textContent = failed
-      ? `Three or more over the minimum does not count. Clear it in ${S.par + CONFIG.stars.one} or fewer.`
-      : S.vesselUsed
-        ? 'A bought vessel caps the run at two stars. Clear it unaided for the third.'
-        : (perfect ? '' : 'Match the minimum for all three stars.');
+      ? `Clear it in ${S.par + CONFIG.stars.one} or fewer.`
+      : '';
     $('retry').hidden = perfect;
     $('retry').classList.toggle('primary', !perfect);
     $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
