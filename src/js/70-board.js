@@ -134,9 +134,13 @@ const Board = (() => {
      on the bands it updates are invisible (the fill is transparent) and the
      liquid you see is the sim's, moved bottle to bottle alongside this. */
   async function animate(move){
-    const moved = fluidOn ? Fluid.transfer(move) : null;
+    if (!fluidOn) return scripted(move);
+    /* the level starts falling when the bottle has finished tipping and the
+       stream actually leaves the lip, not while it is still on its way over */
+    const tilt = reduce ? 60 : 480;
+    const moved = sleep(tilt).then(() => Fluid.transfer(move));
     await scripted(move);
-    if (moved) await moved;
+    await moved;
   }
 
   async function scripted(move){

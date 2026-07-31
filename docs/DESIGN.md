@@ -172,6 +172,38 @@ restart cannot launder the purchase back into a clean run.
 
 ---
 
+## 3b. The liquid
+
+The contents of every bottle are drawn onto one canvas behind the glass. It is a
+mask, not a simulation, which is how liquid in a container is normally done: the
+shape of the glass is the clip, and the surface is a horizontal line in world
+space. A tipping bottle turns its clip and leaves the line alone, so the liquid
+stays level while the glass rotates without that having to be arranged.
+
+For an upright bottle the fill line is arithmetic. For a tipped one the glass is
+a rotated quad and the line is still horizontal, so the level is whichever height
+leaves the right *area* underneath it, found by bisection: a dozen polygon clips
+per band, exact rather than approximated.
+
+Everything follows from the clip. Liquid is only ever drawn through a glass, so
+liquid outside a glass is not a state this code can represent.
+
+**What this replaced.** The first attempt ported a particle fluid from the design
+study: position-based dynamics, density relaxation, metaballs. It was adapted
+from a looping demo that poured one fixed bottle into one fixed neighbour
+forever, and it produced, in order, liquid that stayed behind when its bottle
+moved, hard-edged slabs where a square clip met a rounded glass, droplets sprayed
+across the room, and a rectangle of colour hanging in mid-air. Every one of those
+was liquid in flight: liquid that belongs to no container needs its own aim, its
+own clip and its own culling, and getting any of the three wrong puts it
+somewhere it should never be.
+
+The pour itself is drawn by the scripted ribbon in `70-board.js`, a tapering arc
+from lip to target, which is how games draw a pour. The sim animates one number
+per bottle: the level.
+
+---
+
 ## 4. Levels
 
 Levels are deterministic in their number. `hashSeed(n)` avalanches the level

@@ -13,6 +13,7 @@ import { describe, it, assert, equal, read } from './helpers.mjs';
 
 const board = read('src/js/70-board.js');
 const app = read('src/js/90-app.js');
+const fluid = read('src/js/72-fluid.js');
 
 const drain = app.slice(app.indexOf('async function drain('),
                         app.indexOf('/* ---------- finishing'));
@@ -46,5 +47,25 @@ describe('pour queue', () => {
       'the await on Board.animate should be wrapped so a throw cannot break the loop');
     assert(/Rules\.applyMove\(Board\.view/.test(drain),
       'the view must still be caught up to the logic after a dropped animation');
+  });
+
+  it('has no notion of liquid that belongs to no bottle', () => {
+    /* This is the invariant the whole rewrite bought. Liquid is drawn through
+       the glass it is in, so "outside a glass" has no representation: it is not
+       a case that is handled, it is a case that cannot be written down. Every
+       pour bug in this file's history was liquid in flight, which needed its own
+       aim, its own clip and its own culling, and went wrong in all three. */
+    assert(!/home\s*===?\s*-1/.test(fluid), 'a homeless-particle branch is back');
+    assert(!/\bparts\b/.test(fluid), 'a particle array is back');
+    assert(/ctx\.clip\(\)/.test(fluid), 'the glass clip is gone');
+  });
+
+  it('draws nothing outside a clip', () => {
+    /* every fill in the renderer has to sit between a clip and its restore */
+    const body = fluid.slice(fluid.indexOf('function drawBottle'), fluid.indexOf('function draw()'));
+    const clipAt = body.indexOf('ctx.clip()');
+    assert(clipAt > 0, 'drawBottle does not clip');
+    const firstFill = body.search(/ctx\.fill(Rect|\()/);
+    assert(firstFill > clipAt, 'a fill happens before the clip is applied');
   });
 });
