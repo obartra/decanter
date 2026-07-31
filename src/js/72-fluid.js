@@ -187,9 +187,15 @@ const Fluid = (() => {
     ordered.forEach((c, layer) => {
       const lh = b.cap / Rules.CAP;
       const yTop = b.yBot - (layer + 1) * lh;
+      let n = 0;
       for (let y = yTop + 1.5; y < yTop + lh - 1; y += step)
-        for (let x = b.x0 + 2; x < b.x1 - 1.5; x += step)
+        for (let x = b.x0 + 2; x < b.x1 - 1.5; x += step){
           add(x + (Math.random() - .5) * .6, y + (Math.random() - .5) * .6, c, bi);
+          n++;
+        }
+      /* how much liquid one unit is worth here, counted rather than estimated,
+         so a pour drains exactly what it carries */
+      if (n) b.perUnit = n;
     });
   }
 
@@ -219,14 +225,22 @@ const Fluid = (() => {
          target with nothing joining it to the bottle it came from. */
       const s = bottles[jet.from], d = bottles[jet.to];
       const mouth = s ? toWorld(s, (s.x0 + s.x1) / 2, s.yTop) : { x: jet.x, y: jet.y };
-      const aimX = d ? (d.x0 + d.x1) / 2 : mouth.x;
-      const vx = Math.max(-160, Math.min(160, (aimX - mouth.x) * 1.2));
+      /* Aim it, do not throw it. Solving the projectile for a fixed flight time
+         puts the stream in the target's mouth whatever the geometry; the guessed
+         sideways velocity it replaces sprayed liquid across the whole shelf. */
+      const FLIGHT = 0.34;
+      const landX = d ? (d.x0 + d.x1) / 2 : mouth.x;
+      const landY = d ? d.yTop + 8 : mouth.y + 60;
+      const vx = (landX - mouth.x) / FLIGHT;
+      const vy = ((landY - mouth.y) - 0.5 * GRAV * FLIGHT * FLIGHT) / FLIGHT;
+      jet.mouth = mouth;
       while (jet.sent < want){
         jet.sent++;
-        const j = (Math.random() - .5) * 1.4;
+        const j = (Math.random() - .5) * 1.2;
         add(mouth.x + j, mouth.y + j, jet.c, -1,
-            vx + (Math.random() - .5) * 10, 34 + (Math.random() - .5) * 6);
+            vx + (Math.random() - .5) * 5, vy + (Math.random() - .5) * 5);
         parts[parts.length - 1].poured = true;
+        parts[parts.length - 1].age = 0;
       }
       /* The source loses what the jet carries, taken from the surface down, so
          it empties while the target fills instead of staying full until the
@@ -325,8 +339,14 @@ const Fluid = (() => {
     for (let i = parts.length - 1; i >= 0; i--){
       const p = parts[i];
       if (p.home === -1){
-        if (T && p.y > T.yTop + 1 && p.x > T.x0 - 2 && p.x < T.x1 + 2) p.home = jet.to;
-        else if (!T || p.y > T.yBot) { parts.splice(i, 1); continue; }
+        p.age = (p.age || 0) + dt;
+        if (T && p.y > T.yTop + 1 && p.x > T.x0 - 2 && p.x < T.x1 + 2){ p.home = jet.to; p.age = 0; }
+        /* Anything that has outlived its flight, fallen past the target, or left
+           the board is gone. Without this, liquid that missed kept flying and
+           kept being drawn, which is what covered the cellar in droplets. */
+        else if (!T || p.age > 1.6 || p.y > T.yBot || p.x < -20 || p.x > W + 20 || p.y < -40){
+          parts.splice(i, 1); continue;
+        }
       }
       if (p.home !== -1){
         const b = bottles[p.home];
@@ -454,7 +474,23 @@ const Fluid = (() => {
     paint(held);
     ctx.restore();
 
-    if (air.length) paint(air);
+    /* The stream is clipped too. Leaving it unclipped on the grounds that only
+       airborne liquid is in this pass was wrong: airborne liquid goes wherever
+       it is thrown, and drew over the whole board. The corridor is the span from
+       the pouring lip to the target's mouth and nothing wider. */
+    if (air.length && jet){
+      const d = bottles[jet.to], m = jet.mouth;
+      if (d && m){
+        const x0 = Math.min(m.x, d.x0) - 26, x1 = Math.max(m.x, d.x1) + 26;
+        const y0 = Math.min(m.y, d.yTop) - 26, y1 = d.yBot;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, y0, x1 - x0, y1 - y0);
+        ctx.clip();
+        paint(air);
+        ctx.restore();
+      }
+    }
   }
 
   const anyMoved = () => bottles.some(b => b && b.m);
@@ -501,7 +537,7 @@ const Fluid = (() => {
         resolve();
       };
       const dir = dst.x0 > src.x0 ? 1 : -1;
-      const perUnit = Math.round(((src.x1 - src.x0) * (src.cap / Rules.CAP)) / 24);
+      const perUnit = src.perUnit || Math.round(((src.x1 - src.x0) * (src.cap / Rules.CAP)) / 24);
       const quota = Math.max(12, perUnit * move.n);
       /* the liquid the source is about to lose, nearest its mouth first */
       const pool = parts.filter(p => p.home === move.from && p.c === move.color)
