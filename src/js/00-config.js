@@ -4,9 +4,9 @@ const CONFIG = {
   maxColors: 12,
   minColors: 4,
   /* Bumped whenever a level number starts dealing a different board, which so
-     far means regenerating src/js/32-order.js. A save records stars and best
-     move counts against level numbers, so those records stop meaning anything
-     when the boards move; see 40-progress.js for what is kept and what is not. */
+     far means regenerating src/js/32-order.js. It invalidates the par a save has
+     cached, which belongs to a board that no longer exists. It does not touch
+     what a player earned; see 40-progress.js. */
   layout: 5,
   /* Liquid palette, index === colour id, and the only place a liquid colour is
      written down. The --cN custom properties the stylesheets use are published

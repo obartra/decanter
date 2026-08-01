@@ -35,29 +35,33 @@ describe('progress', () => {
     equal(p.bestFor(1), 9);
     assert(res.improvedStars && res.improvedBest, 'the improvement should be reported');
   });
-  it('a save from an older layout keeps its purse but not its board records', () => {
+  it('a save from an older layout keeps everything it earned', () => {
+    /* The boards moved under this save. What the player earned is still theirs:
+       taking stars away to keep the record tidy is a worse trade than leaving a
+       best the new board happens not to allow. */
     const p = stored({
       layout: CONFIG.layout - 1, unlocked: 40, gold: 210,
       stars: { 1: 3, 39: 2 }, best: { 1: 12, 39: 44 }, pars: { 1: 12 },
       claimed: { 1: true, 39: true }, sound: false
     });
-    equal(p.unlocked, 40, 'how far they got does not depend on which board it was');
+    equal(p.unlocked, 40, 'how far they got is the thing that must not be lost');
     equal(p.gold, 210, 'their purse is theirs');
-    equal(p.starsFor(1), 0, 'a rating of a board they will not be dealt again means nothing');
-    equal(p.bestFor(1), null, 'nor does a best that could now sit below par');
+    equal(p.starsFor(1), 3, 'and so are their stars');
+    equal(p.bestFor(1), 12, 'and their best');
     assert(p.raw.claimed[39], 'first-clear stays paid, so old levels cannot be farmed again');
+    equal(p.parFor(1), null, 'but a par cached for a board that is gone would score the wrong bar');
     equal(p.raw.layout, CONFIG.layout, 'and the save is stamped, so this happens once');
   });
   it('treats a save with no layout stamp as an old one', () => {
-    /* the stamp was added after the game was already being played, so the very
-       saves most likely to hold ratings for boards that have since moved are
-       exactly the ones with no stamp to compare */
-    const p = stored({ unlocked: 12, gold: 140, stars: { 1: 3, 5: 2 }, best: { 1: 12 }, claimed: { 1: true } });
-    equal(p.starsFor(1), 0, 'a rating from before the stamp is a rating of another board');
-    equal(p.bestFor(1), null);
-    equal(p.unlocked, 12, 'but how far they got still stands');
-    equal(p.gold, 140, 'and so does the purse');
-    assert(p.raw.claimed[1], 'and first-clear stays paid');
+    /* the stamp was added after the game was already being played, so a save
+       without one is the likeliest to be holding a par for a board that moved */
+    const p = stored({ unlocked: 12, gold: 140, stars: { 1: 3 }, best: { 1: 12 },
+                       pars: { 1: 9 }, claimed: { 1: true } });
+    equal(p.parFor(1), null, 'a par from before the stamp belongs to another board');
+    equal(p.starsFor(1), 3, 'the stars do not');
+    equal(p.bestFor(1), 12);
+    equal(p.unlocked, 12, 'and how far they got still stands');
+    equal(p.gold, 140);
     equal(p.raw.layout, CONFIG.layout, 'and it is stamped now, so this happens once');
   });
   it('a save on the current layout is left alone', () => {

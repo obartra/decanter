@@ -297,6 +297,16 @@ const App = (() => {
     Board.onTap = tap;
     MapView.mount($('mapScroll'));
     MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
+    /* Paying past a board from the map opens the next one and nothing else: no
+       stars, no best, and the first-clear bonus stays unclaimed, so coming back
+       and actually beating it still pays what it always would have. */
+    MapView.onBuy = level => {
+      Audio.unlock();
+      if (!progress.buyUnlock(level - 1, skipCost())){ Audio.deny(); return; }
+      Audio.tick();
+      paintMap();
+      MapView.render(progress);
+    };
 
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;

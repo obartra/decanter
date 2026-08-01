@@ -76,6 +76,27 @@
   0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 6px rgba(224,177,92,.16), 0 0 30px rgba(224,177,92,.4)}
   50%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 12px rgba(224,177,92,.05), 0 0 44px rgba(238,197,120,.65)}
 }
+/* The next one along can be bought rather than beaten, so it shows its price
+   instead of just a padlock. One tap arms it and the second pays: a single tap
+   on something you cannot play yet should never spend anything. */
+.node.buyable{
+  opacity:1; cursor:pointer;
+  border-color:rgba(224,177,92,.42);
+  box-shadow:0 0 0 1px rgba(224,177,92,.14), 0 6px 16px rgba(0,0,0,.45);
+}
+.node.buyable .num{font-size:13px; opacity:.75}
+.node .ns.buy{
+  color:var(--gold-lit); font-size:8px; letter-spacing:.06em;
+  font-style:normal; opacity:.95;
+}
+.node.buyable:disabled{opacity:.5; cursor:default}
+.node.armed{
+  border-color:var(--gold-lit);
+  background:linear-gradient(180deg,rgba(94,68,28,.85),rgba(38,26,12,.8));
+  box-shadow:0 0 0 2px rgba(224,177,92,.5), 0 0 20px rgba(224,177,92,.35);
+}
+.node.armed .num{font-size:15px; opacity:1; color:var(--gold-lit)}
+
 .node.locked{
   cursor:default; font-size:14px; color:rgba(239,228,210,.32);
   border-color:rgba(224,177,92,.12);

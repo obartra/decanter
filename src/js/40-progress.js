@@ -60,14 +60,16 @@ function createProgress(storage){
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
-  /* The boards moved, so a rating recorded against a level number is a rating of
-     a board this save will never be dealt again, and a best move count could sit
-     below the new par and read as impossible. Those go. Gold, how far the player
-     got, and which first-clear bonuses were already paid all survive, because
-     none of them describes a particular board. */
+  /* The boards moved. What a player earned stays earned: stars and best move
+     counts are theirs, and taking them away to keep a record tidy is a worse
+     trade than leaving a best that the new board happens not to allow.
+
+     The cached par does go. It is not something anyone earned, it is a note of
+     how few pours a particular board needed, and that board is gone. Keeping it
+     would let a level be scored against a bar belonging to a different puzzle. */
   if (state.layout !== CONFIG.layout){
     state.layout = CONFIG.layout;
-    state.stars = {}; state.best = {}; state.pars = {};
+    state.pars = {};
   }
 
   function save(){

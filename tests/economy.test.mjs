@@ -205,10 +205,7 @@ describe('spending', () => {
     const p = Progress.createProgress(store);
     equal(p.gold, 86, 'an old save should be granted the starting purse');
     equal(p.unlocked, 4, 'without losing its progress');
-    /* Its stars go, though. A save this old predates the layout stamp, which
-       means the boards have moved under it and the rating is of a board it will
-       not be dealt again. How far the player got is what survives. */
-    equal(p.starsFor(1), 0);
+    equal(p.starsFor(1), 3, 'and keeping the stars it earned');
   });
 
   it('keeps a corrupt balance from poisoning the purse', () => {

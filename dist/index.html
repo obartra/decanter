@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="7d1d322ca4">
+<meta name="build" content="413d081a26">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -143,12 +143,16 @@ body[data-view="game"] #gameView{display:flex}
   justify-content:center; align-content:center; place-items:center;
   flex:1; width:100%; min-height:0;
 }
-.fx{position:absolute; inset:0; z-index:52; pointer-events:none; overflow:visible}
+/* The stream sits behind the liquid, so where it meets what is already in the
+   bottle it disappears into it rather than running over the top of it. Above the
+   surface the canvas is transparent and the stream shows through as it falls.
+   Board layers, back to front: stream, liquid, bottles. */
+.fx{position:absolute; inset:0; z-index:1; pointer-events:none; overflow:visible}
 
 .bottle{
   -webkit-appearance:none; appearance:none; border:0; padding:0; background:none;
   position:relative; width:var(--bw); height:calc(var(--bh) + var(--cap-h));
-  cursor:pointer; transform-origin:50% 50%;
+  cursor:pointer; transform-origin:50% 50%; z-index:3;
   transition:transform .3s cubic-bezier(.4,.1,.3,1);
   will-change:transform; touch-action:manipulation;
 }
@@ -266,7 +270,7 @@ body[data-view="game"] #gameView{display:flex}
    still DOM: only the liquid moves to the canvas. */
 .board.simulated .fill{opacity:0}
 .fluidLayer{
-  position:absolute; inset:0; z-index:0;
+  position:absolute; inset:0; z-index:2;
   pointer-events:none;
 }
 
@@ -404,6 +408,27 @@ body[data-view="game"] #gameView{display:flex}
   0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 6px rgba(224,177,92,.16), 0 0 30px rgba(224,177,92,.4)}
   50%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 12px rgba(224,177,92,.05), 0 0 44px rgba(238,197,120,.65)}
 }
+/* The next one along can be bought rather than beaten, so it shows its price
+   instead of just a padlock. One tap arms it and the second pays: a single tap
+   on something you cannot play yet should never spend anything. */
+.node.buyable{
+  opacity:1; cursor:pointer;
+  border-color:rgba(224,177,92,.42);
+  box-shadow:0 0 0 1px rgba(224,177,92,.14), 0 6px 16px rgba(0,0,0,.45);
+}
+.node.buyable .num{font-size:13px; opacity:.75}
+.node .ns.buy{
+  color:var(--gold-lit); font-size:8px; letter-spacing:.06em;
+  font-style:normal; opacity:.95;
+}
+.node.buyable:disabled{opacity:.5; cursor:default}
+.node.armed{
+  border-color:var(--gold-lit);
+  background:linear-gradient(180deg,rgba(94,68,28,.85),rgba(38,26,12,.8));
+  box-shadow:0 0 0 2px rgba(224,177,92,.5), 0 0 20px rgba(224,177,92,.35);
+}
+.node.armed .num{font-size:15px; opacity:1; color:var(--gold-lit)}
+
 .node.locked{
   cursor:default; font-size:14px; color:rgba(239,228,210,.32);
   border-color:rgba(224,177,92,.12);
@@ -603,9 +628,9 @@ const CONFIG = {
   maxColors: 12,
   minColors: 4,
   /* Bumped whenever a level number starts dealing a different board, which so
-     far means regenerating src/js/32-order.js. A save records stars and best
-     move counts against level numbers, so those records stop meaning anything
-     when the boards move; see 40-progress.js for what is kept and what is not. */
+     far means regenerating src/js/32-order.js. It invalidates the par a save has
+     cached, which belongs to a board that no longer exists. It does not touch
+     what a player earned; see 40-progress.js. */
   layout: 5,
   /* Liquid palette, index === colour id, and the only place a liquid colour is
      written down. The --cN custom properties the stylesheets use are published
@@ -991,14 +1016,16 @@ function createProgress(storage){
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
-  /* The boards moved, so a rating recorded against a level number is a rating of
-     a board this save will never be dealt again, and a best move count could sit
-     below the new par and read as impossible. Those go. Gold, how far the player
-     got, and which first-clear bonuses were already paid all survive, because
-     none of them describes a particular board. */
+  /* The boards moved. What a player earned stays earned: stars and best move
+     counts are theirs, and taking them away to keep a record tidy is a worse
+     trade than leaving a best that the new board happens not to allow.
+
+     The cached par does go. It is not something anyone earned, it is a note of
+     how few pours a particular board needed, and that board is gone. Keeping it
+     would let a level be scored against a bar belonging to a different puzzle. */
   if (state.layout !== CONFIG.layout){
     state.layout = CONFIG.layout;
-    state.stars = {}; state.best = {}; state.pars = {};
+    state.pars = {};
   }
 
   function save(){
@@ -2522,6 +2549,11 @@ globalThis.MapGeom = MapGeom;
 const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
+  let onBuy = () => {};
+  /* Which locked level the player has tapped once. Paying is two taps, not one:
+     a single tap on the thing you cannot play yet should not spend anything. */
+  let armed = null;
+  const unlockCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
   let lastFocus = 1;
 
   /* The road, laid stone by stone along the very spline the nodes sit on. It is
@@ -2680,22 +2712,41 @@ const MapView = (() => {
       const cleared = stars > 0;
       const current = level === unlocked;
       const locked = level > unlocked;
+      /* Only the very next one can be bought. Paying past a board you have not
+         beaten is a way through, not a way to skip the game. */
+      const last = Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity;
+      const buyable = locked && level === unlocked + 1 && level <= last;
+      const cost = unlockCost();
+      const affordable = progress.canAfford(cost);
+      const isArmed = buyable && armed === level;
 
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '') + (locked ? ' locked' : '');
+      b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '')
+        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '');
       b.style.left = p.x + 'px';
       b.style.bottom = p.y + 'px';
       b.style.setProperty('--tint', Levels.sectionTint(level));
       b.dataset.level = level;
-      b.disabled = locked;
-      b.setAttribute('aria-label', locked
-        ? `Level ${level}, locked`
+      b.disabled = locked && (!buyable || !affordable);
+      b.setAttribute('aria-label',
+        buyable ? `Level ${level}, locked. Open it for ${cost} gold`
+        : locked ? `Level ${level}, locked`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
-      b.innerHTML = locked
-        ? '<span class="num">🔒</span>'
+      b.innerHTML = isArmed
+        ? `<span class="num">${cost}</span><span class="ns buy">Open?</span>`
+        : buyable ? `<span class="num">&#128274;</span><span class="ns buy">${cost} &#9670;</span>`
+        : locked ? '<span class="num">&#128274;</span>'
         : `<span class="num">${level}</span>${cleared ? starRow(stars) : ''}`;
-      if (!locked) b.addEventListener('click', () => onPick(level));
+      if (buyable){
+        b.addEventListener('click', () => {
+          if (armed !== level){ armed = level; render(progress); return; }
+          armed = null;
+          onBuy(level);
+        });
+      } else if (!locked){
+        b.addEventListener('click', () => { armed = null; onPick(level); });
+      }
       canvas.appendChild(b);
     }
     document.getElementById('mapStars').textContent = progress.totalStars();
@@ -2720,6 +2771,7 @@ const MapView = (() => {
       canvas.appendChild(svg);
     },
     set onPick(fn){ onPick = fn; },
+    set onBuy(fn){ onBuy = fn; },
     render, scrollToCurrent
   };
 })();
@@ -3026,6 +3078,16 @@ const App = (() => {
     Board.onTap = tap;
     MapView.mount($('mapScroll'));
     MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
+    /* Paying past a board from the map opens the next one and nothing else: no
+       stars, no best, and the first-clear bonus stays unclaimed, so coming back
+       and actually beating it still pays what it always would have. */
+    MapView.onBuy = level => {
+      Audio.unlock();
+      if (!progress.buyUnlock(level - 1, skipCost())){ Audio.deny(); return; }
+      Audio.tick();
+      paintMap();
+      MapView.render(progress);
+    };
 
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;

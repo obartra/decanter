@@ -47,6 +47,11 @@ globalThis.MapGeom = MapGeom;
 const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
+  let onBuy = () => {};
+  /* Which locked level the player has tapped once. Paying is two taps, not one:
+     a single tap on the thing you cannot play yet should not spend anything. */
+  let armed = null;
+  const unlockCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
   let lastFocus = 1;
 
   /* The road, laid stone by stone along the very spline the nodes sit on. It is
@@ -205,22 +210,41 @@ const MapView = (() => {
       const cleared = stars > 0;
       const current = level === unlocked;
       const locked = level > unlocked;
+      /* Only the very next one can be bought. Paying past a board you have not
+         beaten is a way through, not a way to skip the game. */
+      const last = Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity;
+      const buyable = locked && level === unlocked + 1 && level <= last;
+      const cost = unlockCost();
+      const affordable = progress.canAfford(cost);
+      const isArmed = buyable && armed === level;
 
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '') + (locked ? ' locked' : '');
+      b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '')
+        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '');
       b.style.left = p.x + 'px';
       b.style.bottom = p.y + 'px';
       b.style.setProperty('--tint', Levels.sectionTint(level));
       b.dataset.level = level;
-      b.disabled = locked;
-      b.setAttribute('aria-label', locked
-        ? `Level ${level}, locked`
+      b.disabled = locked && (!buyable || !affordable);
+      b.setAttribute('aria-label',
+        buyable ? `Level ${level}, locked. Open it for ${cost} gold`
+        : locked ? `Level ${level}, locked`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
-      b.innerHTML = locked
-        ? '<span class="num">🔒</span>'
+      b.innerHTML = isArmed
+        ? `<span class="num">${cost}</span><span class="ns buy">Open?</span>`
+        : buyable ? `<span class="num">&#128274;</span><span class="ns buy">${cost} &#9670;</span>`
+        : locked ? '<span class="num">&#128274;</span>'
         : `<span class="num">${level}</span>${cleared ? starRow(stars) : ''}`;
-      if (!locked) b.addEventListener('click', () => onPick(level));
+      if (buyable){
+        b.addEventListener('click', () => {
+          if (armed !== level){ armed = level; render(progress); return; }
+          armed = null;
+          onBuy(level);
+        });
+      } else if (!locked){
+        b.addEventListener('click', () => { armed = null; onPick(level); });
+      }
       canvas.appendChild(b);
     }
     document.getElementById('mapStars').textContent = progress.totalStars();
@@ -245,6 +269,7 @@ const MapView = (() => {
       canvas.appendChild(svg);
     },
     set onPick(fn){ onPick = fn; },
+    set onBuy(fn){ onBuy = fn; },
     render, scrollToCurrent
   };
 })();
