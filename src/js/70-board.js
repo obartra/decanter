@@ -222,6 +222,9 @@ const Board = (() => {
     const dy = (lipY + (h/2) * Math.cos(rad)) - (src.offsetTop + h/2);
 
     src.classList.add('pouring');
+    /* the receiver goes over the pourer for the length of the pour, so the
+       stream arrives behind its glass and reads as going into it */
+    dst.classList.add('receiving');
     src.classList.remove('lifted');
     src.style.transition = `transform ${lean}ms cubic-bezier(.3,0,.4,1)`;
     src.style.transform = `translate(${dx*0.4}px, ${dy-16}px) rotate(${ang*0.22}deg)`;
@@ -308,6 +311,7 @@ const Board = (() => {
     src.style.transform = '';
     await sleep(reduce ? 60 : 340);
     src.classList.remove('pouring');
+    dst.classList.remove('receiving');
     src.style.transition = '';
   }
 

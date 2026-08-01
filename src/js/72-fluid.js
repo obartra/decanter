@@ -17,6 +17,8 @@ const Fluid = (() => {
   }
 
   let root = null, cv = null, ctx = null;
+  /* the layer the bottle in flight is drawn on, above the bottles standing still */
+  let top = null, topCtx = null;
   let W = 0, H = 0, dpr = 1;
   let bottles = [];        /* geometry, measured from the DOM */
   let state = [];          /* per bottle: bands bottom to top, units may be fractional */
@@ -29,13 +31,18 @@ const Fluid = (() => {
     root = el;
     cv = document.createElement('canvas');
     cv.className = 'fluidLayer';
+    top = document.createElement('canvas');
+    top.className = 'fluidTop';
     ctx = cv.getContext('2d');
+    topCtx = top.getContext('2d');
   }
   /* render() rebuilds the board with innerHTML, so the canvas is put back as the
      first child: behind the bottles, where the glass and its sheen sit over the
      liquid rather than under it. */
   function attach(){
-    if (root && cv.parentNode !== root) root.insertBefore(cv, root.firstChild);
+    if (!root) return;
+    if (cv.parentNode !== root) root.insertBefore(cv, root.firstChild);
+    if (top.parentNode !== root) root.appendChild(top);
   }
 
   /* Offsets, not bounding rects: offsets are layout values and ignore
@@ -49,9 +56,15 @@ const Fluid = (() => {
     W = Math.round(box.width);
     H = Math.round(box.height);
     dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = Math.ceil(W * dpr); cv.height = Math.ceil(H * dpr);
-    cv.style.width = W + 'px'; cv.style.height = H + 'px';
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+    for (const el of [cv, top]){
+      if (!el) continue;
+      el.width = Math.ceil(W * dpr); el.height = Math.ceil(H * dpr);
+      el.style.width = W + 'px'; el.style.height = H + 'px';
+    }
+    for (const c of [ctx, topCtx]){
+      if (!c) continue;
+      c.setTransform(1, 0, 0, 1, 0, 0); c.scale(dpr, dpr);
+    }
 
     bottles = [];
     root.querySelectorAll('.bottle').forEach((b, i) => {
@@ -175,26 +188,26 @@ const Fluid = (() => {
   }
 
   /* ---- drawing ---- */
-  function glassPath(b){
-    ctx.save();
+  function glassPath(c, b){
+    c.save();
     if (b.m){
-      ctx.translate(b.cx, b.cy);
-      ctx.transform(b.m.a, b.m.b, b.m.c, b.m.d, b.m.e, b.m.f);
-      ctx.translate(-b.cx, -b.cy);
+      c.translate(b.cx, b.cy);
+      c.transform(b.m.a, b.m.b, b.m.c, b.m.d, b.m.e, b.m.f);
+      c.translate(-b.cx, -b.cy);
     }
     const w = b.x1 - b.x0, h = b.yBot - b.yTop;
-    if (ctx.roundRect) ctx.roundRect(b.x0, b.yTop, w, h, b.radii);
-    else ctx.rect(b.x0, b.yTop, w, h);
-    ctx.restore();
+    if (c.roundRect) c.roundRect(b.x0, b.yTop, w, h, b.radii);
+    else c.rect(b.x0, b.yTop, w, h);
+    c.restore();
   }
 
-  function drawBottle(b, bands){
+  function drawBottle(c, b, bands){
     if (!b || !bands || !bands.length) return;
     const quad = corners(b);
-    ctx.save();
-    ctx.beginPath();
-    glassPath(b);
-    ctx.clip();
+    c.save();
+    c.beginPath();
+    glassPath(c, b);
+    c.clip();
 
     let below = 0;
     bands.forEach(band => {
@@ -204,12 +217,12 @@ const Fluid = (() => {
       const yLo = levelFor(b, quad, f0);
       const yHi = levelFor(b, quad, f1);
       if (yLo - yHi < 0.2) return;
-      ctx.fillStyle = colorOf(band.c);
-      ctx.fillRect(-4, yHi, W + 8, yLo - yHi);
+      c.fillStyle = colorOf(band.c);
+      c.fillRect(-4, yHi, W + 8, yLo - yHi);
       /* a brighter line where one liquid meets the next, so the layers read as
          surfaces rather than as stacked blocks */
-      ctx.fillStyle = 'rgba(255,255,255,.16)';
-      ctx.fillRect(-4, yHi, W + 8, Math.min(2.5, yLo - yHi));
+      c.fillStyle = 'rgba(255,255,255,.16)';
+      c.fillRect(-4, yHi, W + 8, Math.min(2.5, yLo - yHi));
     });
 
     /* Lit on the left, shaded on the right, only where there is liquid.
@@ -218,21 +231,31 @@ const Fluid = (() => {
        the same dark, whatever colour is underneath, so it pulls the whole palette
        toward one muddy brown and colours that are far apart on paper arrive
        looking alike. It was heavy enough to undo a palette chosen for contrast. */
-    const g = ctx.createLinearGradient(b.x0, 0, b.x1, 0);
+    const g = c.createLinearGradient(b.x0, 0, b.x1, 0);
     g.addColorStop(0, 'rgba(28,17,7,.13)');
     g.addColorStop(0.24, 'rgba(255,240,206,.07)');
     g.addColorStop(0.6, 'rgba(255,224,170,.02)');
     g.addColorStop(1, 'rgba(8,5,10,.17)');
-    ctx.globalCompositeOperation = 'source-atop';
-    ctx.fillStyle = g;
-    ctx.fillRect(-4, 0, W + 8, H);
-    ctx.restore();
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = g;
+    c.fillRect(-4, 0, W + 8, H);
+    c.restore();
   }
 
+  /* The bottle in flight is drawn on its own canvas, which sits above the other
+     bottles. All the liquid used to share one canvas below every bottle, so a
+     tilted bottle leaning over its neighbours had its contents hidden behind
+     their glass: the bottle moved and the liquid did not go with it. */
   function draw(){
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
-    for (let i = 0; i < bottles.length; i++) drawBottle(bottles[i], state[i]);
+    if (topCtx) topCtx.clearRect(0, 0, W, H);
+    const lifted = anim ? anim.from : -1;
+    for (let i = 0; i < bottles.length; i++){
+      if (i === lifted) continue;
+      drawBottle(ctx, bottles[i], state[i]);
+    }
+    if (lifted >= 0 && topCtx) drawBottle(topCtx, bottles[lifted], state[lifted]);
   }
 
   /* ---- the pour ----

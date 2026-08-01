@@ -25,7 +25,10 @@
 .bottle:focus-visible{outline:none}
 .bottle:focus-visible .glass{box-shadow:0 0 0 2px #fff, 0 0 26px rgba(232,190,110,.55)}
 .bottle.lifted{transform:translateY(-20px)}
+/* and the bottle being poured into goes over the one pouring, so the stream
+   arrives behind its glass and reads as going in rather than across */
 .bottle.pouring{z-index:60}
+.bottle.receiving{z-index:61}
 /* A hint marks the pair rather than moving anything: it names where the pour
    comes from and where it goes, and both have to be legible or the hint is only
    half an answer. The source lights warm and first; the target answers a beat
@@ -153,5 +156,13 @@
 .board.simulated .fill{opacity:0}
 .fluidLayer{
   position:absolute; inset:0; z-index:2;
+  pointer-events:none;
+}
+/* The bottle in flight and its contents ride above the bottles standing still,
+   so a tilt that leans over a neighbour is not cut off by that neighbour's
+   glass. Just under the pouring bottle's own glass, so the liquid still reads as
+   being inside it. */
+.fluidTop{
+  position:absolute; inset:0; z-index:59;
   pointer-events:none;
 }

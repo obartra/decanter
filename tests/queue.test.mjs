@@ -57,15 +57,17 @@ describe('pour queue', () => {
        aim, its own clip and its own culling, and went wrong in all three. */
     assert(!/home\s*===?\s*-1/.test(fluid), 'a homeless-particle branch is back');
     assert(!/\bparts\b/.test(fluid), 'a particle array is back');
-    assert(/ctx\.clip\(\)/.test(fluid), 'the glass clip is gone');
+    assert(/\.clip\(\)/.test(fluid), 'the glass clip is gone');
   });
 
   it('draws nothing outside a clip', () => {
     /* every fill in the renderer has to sit between a clip and its restore */
+    /* matched without naming the context, which is a parameter now that the
+       bottle in flight is drawn onto a different canvas from the rest */
     const body = fluid.slice(fluid.indexOf('function drawBottle'), fluid.indexOf('function draw()'));
-    const clipAt = body.indexOf('ctx.clip()');
+    const clipAt = body.search(/\.clip\(\)/);
     assert(clipAt > 0, 'drawBottle does not clip');
-    const firstFill = body.search(/ctx\.fill(Rect|\()/);
+    const firstFill = body.search(/\.fill(Rect|Style|\()/);
     assert(firstFill > clipAt, 'a fill happens before the clip is applied');
   });
 });
