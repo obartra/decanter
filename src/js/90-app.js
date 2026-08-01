@@ -5,7 +5,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false
+    undosUsed: 0, vesselUsed: false, over: false
   };
   const $ = id => document.getElementById(id);
 
@@ -42,6 +42,11 @@ const App = (() => {
     const ready = progress.dailyReady(today());
     $('daily').disabled = !ready;
     $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
+    /* a board costs gold to deal, so the map has to say so and stop offering one
+       that cannot be paid for */
+    const fee = CONFIG.economy.attempt;
+    $('playCost').textContent = fee;
+    $('mapPlay').disabled = !progress.canAfford(fee);
   }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
@@ -52,11 +57,17 @@ const App = (() => {
     paintMap();
     takeUpdate();
   }
-  function showGame(level){
+  /* Every board dealt is paid for, whether it is a new level or another go at
+     one just lost. Charging here rather than inside start() keeps the internal
+     re-deals free: only a deliberate attempt costs. */
+  function attempt(level, keepVessel){
+    if (!progress.spend(CONFIG.economy.attempt)){ Audio.deny(); paintMap(); return false; }
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
-    start(level);
+    start(level, keepVessel);
+    return true;
   }
+  function showGame(level){ attempt(level); }
 
   /* ---------- a level ---------- */
   /* Restarting keeps a vessel the player already paid for, so a restart cannot
@@ -68,6 +79,7 @@ const App = (() => {
     if (keepVessel) S.tubes.push([]);
     S.vesselUsed = !!keepVessel;
     S.undosUsed = 0;
+    S.over = false;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -144,6 +156,7 @@ const App = (() => {
   /* Logic resolves on tap. Animation trails behind in a queue, so a player can
      keep pouring without waiting for the bottle to finish tipping. */
   function tap(i){
+    if (S.over) return;                 /* the run is decided; stop taking pours */
     Audio.unlock();
     const sel = Board.selected;
     if (sel === null){
@@ -175,6 +188,11 @@ const App = (() => {
     S.history.push({ tubes: Rules.clone(S.tubes), moves: S.moves });
     Rules.applyMove(S.tubes, move);
     S.moves++;
+    /* Decide it here, not when the queue happens to empty. Pouring quickly keeps
+       the queue full, and a check that waits for it to drain lets the run carry
+       on well past the pour that already lost it. */
+    if (!Rules.isSolved(S.tubes) &&
+        Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) === 0) S.over = true;
     S.queue.push(move);
     paintHud();
     drain().catch(() => {});   /* drain's finally has already restored the state */
@@ -202,7 +220,8 @@ const App = (() => {
       S.running = false;
       paintHud();
     }
-    if (Rules.isSolved(S.tubes)) finish();
+    /* the board has stopped moving, so whatever was decided can now be shown */
+    if (Rules.isSolved(S.tubes) || S.over) finish();
   }
 
   /* ---------- finishing ---------- */
@@ -233,21 +252,31 @@ const App = (() => {
     $('winHint').textContent = failed
       ? `Clear it in ${S.par + CONFIG.stars.one} or fewer.`
       : '';
+    const fee = CONFIG.economy.attempt;
+    const canPay = progress.canAfford(fee);
+    $('veil').classList.toggle('failed', failed);
     $('retry').hidden = perfect;
+    $('retry').innerHTML = failed || !perfect
+      ? `Try again<small>${fee} &#9670;</small>` : 'Retry';
+    $('retry').classList.toggle('priced', true);
     $('retry').classList.toggle('primary', !perfect);
+    $('retry').disabled = !canPay;
     $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
     $('next').classList.toggle('primary', perfect);
+    $('next').disabled = !canPay;
+    if (!canPay) $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
     if (!failed && result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
 
     setTimeout(() => {
       if (failed){
         Audio.deny();
+        Board.nudge(S.level % Math.max(1, S.tubes.length));   /* the shelf takes it too */
       } else {
         Audio.win();
         Confetti.rain(CONFIG.palette.slice(0, Levels.shape(S.level).colors));
       }
       $('veil').classList.add('show');
-    }, 700);
+    }, failed ? 260 : 700);
   }
 
   /* ---------- wiring ---------- */
@@ -293,12 +322,25 @@ const App = (() => {
     };
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
-      start(S.level, S.vesselUsed);
+      attempt(S.level, S.vesselUsed);
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
-    $('winMap').onclick = () => { $('veil').classList.remove('show'); showMap(true); };
-    $('retry').onclick = () => { $('veil').classList.remove('show'); start(S.level); };
-    $('next').onclick = () => { $('veil').classList.remove('show'); showGame(S.level + 1); };
+    $('winMap').onclick = () => {
+      $('veil').classList.remove('show');
+      $('veil').classList.remove('failed');
+      showMap(true);
+    };
+    $('retry').onclick = () => {
+      if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
+      $('veil').classList.remove('show');
+      $('veil').classList.remove('failed');
+      attempt(S.level);
+    };
+    $('next').onclick = () => {
+      if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
+      $('veil').classList.remove('show');
+      showGame(S.level + 1);
+    };
     document.querySelectorAll('.js-sound').forEach(btn => {
       btn.onclick = () => {
         Audio.unlock();

@@ -27,7 +27,12 @@ const CONFIG = {
     daily: 12,
     vessel: 45,
     freeUndos: 3,
-    undoCost: 8
+    undoCost: 8,
+    /* Every board dealt costs the same, whether it is a new level or another go
+       at one you just lost. It is the entry fee that gives a failed run a price:
+       without it, failing costs nothing but the time already spent. Small enough
+       that the daily draught alone keeps anyone solvent. */
+    attempt: 5
   },
   /* Stars are pours over par: par earns three, one over two, two over one, and
      three or more over is a failed run worth nothing. */

@@ -94,6 +94,31 @@ describe('gold', () => {
     equal(p.gold, gold, 'a failed replay pays nothing');
   });
 
+  it('charges for every board dealt', () => {
+    const p = fresh();
+    const start = p.gold;
+    assert(p.spend(E.attempt), 'a first attempt is affordable');
+    equal(p.gold, start - E.attempt);
+    assert(p.spend(E.attempt), 'so is another go at the same level');
+    equal(p.gold, start - E.attempt * 2, 'a retry costs the same as a fresh deal');
+  });
+
+  it('leaves a good clear ahead of what it cost to attempt', () => {
+    /* if an attempt cost more than a clear pays, playing well would still lose
+       money and the whole economy would run backwards */
+    const firstGood = E.starGold[3] + E.firstClear;
+    assert(E.attempt < E.starGold[3], `an attempt (${E.attempt}) must cost less than a 3-star replay pays (${E.starGold[3]})`);
+    assert(firstGood - E.attempt > 0, 'a good first clear must be net positive');
+  });
+
+  it('cannot strand a player with no way back', () => {
+    /* Failing costs the fee and pays nothing, so someone can be ground down to
+       broke. The daily draught is the floor: it has to buy enough attempts to
+       matter, or the game ends for anyone who has a bad day. */
+    const attempts = Math.floor(E.daily / E.attempt);
+    assert(attempts >= 2, `a daily draught buys only ${attempts} attempts`);
+  });
+
   it('draws the daily draught once per day', () => {
     const p = fresh();
     const before = p.gold;

@@ -146,6 +146,13 @@ A failed run banks nothing. No gold, no best, no first-clear bonus, and the next
 level stays shut. It takes nothing away either, so an earlier clear of the same
 level keeps everything it earned and a later failure cannot undo it.
 
+It also ends there. Once a run cannot earn a star however it finishes, the board
+stops taking pours and says so, rather than making someone play out a level that
+is already lost. That is decided the moment the pour lands, not when the
+animation queue happens to empty: pouring quickly keeps the queue full, and a
+check that waits for it to drain lets a run carry on several pours past the one
+that lost it.
+
 This is tight on purpose, and worth knowing how tight: level 1 has a par of 12,
 so 15 pours fails it. An inexact par can therefore never be scored at all, since
 an estimate is an upper bound and would fail people for the search's shortcomings
@@ -156,12 +163,22 @@ pays 14, a replay of the same level pays 6, a sloppy replay pays 1.
 
 | In | | Out | |
 | --- | --- | --- | --- |
-| 3★ (par) | 6 | Extra vessel | 45 |
-| 2★ (par+1) | 3 | Undo | 3 free per level, then 8 |
-| 1★ (par+2) | 1 | Restart | free, time is the cost |
+| 3★ (par) | 6 | Any attempt | 5 |
+| 2★ (par+1) | 3 | Extra vessel | 45 |
+| 1★ (par+2) | 1 | Undo | 3 free per level, then 8 |
 | 0★ (par+3 or worse) | nothing | | |
 | First clear | 8, once | | |
 | Daily draught | 12 | | |
+
+Every board dealt costs the same, whether it is a new level or another go at one
+just lost. That is what gives a failed run a price: without it, failing costs
+nothing but the time already spent, and there is no reason not to flail. A good
+first clear still nets 9, and a three-star replay nets 1, so playing well always
+pays.
+
+The fee has to stay well under what a clear returns or the economy runs
+backwards, and the daily draught has to buy several attempts or a bad day ends
+the game. Both are pinned by tests rather than left to judgement.
 
 The purse opens at 86: one vessel away from broke. Above roughly 150 the
 pressure disappears, which is the number to watch when retuning.
