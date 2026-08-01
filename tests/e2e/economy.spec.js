@@ -39,8 +39,9 @@ test('a locked level nobody can afford refuses the tap', async ({ page }) => {
 });
 
 test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
-  await start(page, { unlocked: 4, gold: 400 });
-  await openLevel(page, 4);
+  /* hints are the apothecary's, so this has to be played somewhere it has them */
+  await start(page, { unlocked: 11, gold: 400, seen: { 0: true, 1: true } });
+  await openLevel(page, 11);
   const before = await page.evaluate(() => globalThis.App._progress.gold);
   await page.locator('#hint').click();
 
@@ -60,8 +61,9 @@ test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
 });
 
 test('a vessel adds a bottle, and restarting takes it away', async ({ page }) => {
-  await start(page, { unlocked: 7, gold: 900 });
-  await openLevel(page, 7);
+  /* the vessel is the distillery's */
+  await start(page, { unlocked: 21, gold: 900, seen: { 0: true, 1: true, 2: true } });
+  await openLevel(page, 21);
   const before = await page.evaluate(() => globalThis.App._state.tubes.length);
   await page.locator('#vessel').click();
   await expect.poll(() => page.evaluate(() => globalThis.App._state.tubes.length)).toBe(before + 1);
@@ -97,8 +99,39 @@ test('a level not yet beaten still charges to deal', async ({ page }) => {
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(before - fee);
 });
 
+test('the first chapter opens with one tool, not all of them', async ({ page }) => {
+  await start(page, { unlocked: 1, gold: 400, seen: { 0: true } });
+  await openLevel(page, 1);
+  await expect(page.locator('#undo')).toBeVisible();
+  await expect(page.locator('#hint')).toBeHidden();
+  await expect(page.locator('#vessel')).toBeHidden();
+});
+
+test('later chapters hand over the rest', async ({ page }) => {
+  await start(page, { unlocked: 25, gold: 900, seen: { 0: true, 1: true, 2: true } });
+  await openLevel(page, 25);
+  await expect(page.locator('#undo')).toBeVisible();
+  await expect(page.locator('#hint')).toBeVisible();
+  await expect(page.locator('#vessel')).toBeVisible();
+});
+
+test('a chapter introduces itself once', async ({ page }) => {
+  await start(page, { unlocked: 11, gold: 900, seen: { 0: true } });
+  await page.locator('[data-level="11"]').click();
+  await expect(page.locator('#chapterVeil')).toHaveClass(/show/);
+  await expect(page.locator('#chapterName')).toHaveText('The Apothecary');
+  await expect(page.locator('#chapterGrant')).toContainText('Hints');
+  await page.locator('#chapterGo').click();
+  await expect(page.locator('#chapterVeil')).not.toHaveClass(/show/);
+
+  /* back to the map and in again: it has been read */
+  await page.locator('#toMap').click();
+  await page.locator('[data-level="11"]').click();
+  await expect(page.locator('#chapterVeil')).not.toHaveClass(/show/);
+});
+
 test('the board can be read after the run, and taps go back', async ({ page }) => {
-  await start(page, { unlocked: 4, gold: 400 });
+  await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
   await openLevel(page, 4);
   await page.evaluate(() => document.getElementById('veil').classList.add('show'));
   await page.locator('#peek').click();
@@ -107,9 +140,11 @@ test('the board can be read after the run, and taps go back', async ({ page }) =
   /* the board takes no input while it is being read */
   expect(await page.evaluate(() => getComputedStyle(document.getElementById('board')).pointerEvents))
     .toBe('none');
-  /* anywhere at all, including over a control, because while the board is being
-     read a tap means put the panel back and nothing else */
-  await page.locator('#board').click({ position: { x: 5, y: 5 }, force: true });
+  /* anywhere at all, because while the board is being read a tap means put the
+     panel back and nothing else. A raw click at a point on the screen rather
+     than at an element, since every element there ignores pointers. */
+  const box = page.viewportSize();
+  await page.mouse.click(Math.round(box.width / 2), Math.round(box.height / 2));
   await expect(page.locator('#veil')).toHaveClass(/show/);
   await expect(page.locator('body')).not.toHaveClass(/peeking/);
 });

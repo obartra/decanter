@@ -5,7 +5,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
+    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
 
@@ -68,13 +68,33 @@ const App = (() => {
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
+    openChapter(level);
     return true;
+  }
+
+  /* The opening of a chapter, once. Shown after the board is dealt rather than
+     instead of it, so what it is talking about is already behind the card. */
+  function openChapter(level){
+    const section = Levels.sectionOf(level);
+    const chapter = Chapters.at(section);
+    if (!chapter || progress.hasSeen(section)) return;
+    progress.markSeen(section);
+    $('chapterNum').textContent = section + 1;
+    $('chapterName').textContent = Levels.sectionName(level);
+    $('chapterBlurb').textContent = chapter.blurb;
+    const grant = Chapters.GRANT_NAMES[chapter.grant];
+    $('chapterGrant').hidden = !grant;
+    $('chapterGrant').textContent = grant ? `Unlocked · ${grant}` : '';
+    $('chapterVeil').style.setProperty('--tint', Levels.sectionTint(level));
+    $('chapterVeil').classList.add('show');
   }
   function showGame(level){ attempt(level); }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
   /* what this particular board costs to deal: nothing if it is already beaten */
   const costOf = level => (progress.starsFor(level) > 0
     ? CONFIG.economy.replay : CONFIG.economy.attempt);
+  /* the first hint of a run can be free, once a chapter has said so */
+  const hintCost = () => (S.hintsUsed < progress.perks().freeHints ? 0 : progress.perks().hintCost);
 
   /* ---------- a level ---------- */
   /* A restart deals the level from scratch, and that includes the extra bottle:
@@ -88,6 +108,7 @@ const App = (() => {
     if (keepVessel) S.tubes.push([]);
     S.vesselUsed = !!keepVessel;
     S.undosUsed = 0;
+    S.hintsUsed = 0;
     S.over = false;
     S.reason = null;
     S.hinting = false;
@@ -128,7 +149,7 @@ const App = (() => {
   }
   const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
-  const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
+  const undoIsFree = () => S.undosUsed < progress.perks().freeUndos;
 
   function paintHud(){
     const busy = S.queue.length > 0 || S.running;
@@ -154,7 +175,7 @@ const App = (() => {
       : 'pours left';
     $('gold').textContent = progress.gold;
 
-    const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
+    const freeLeft = Math.max(0, progress.perks().freeUndos - S.undosUsed);
     $('undoCost').textContent = freeLeft ? `${freeLeft} free` : `${CONFIG.economy.undoCost}`;
     $('undo').disabled = !S.history.length || busy ||
       (!undoIsFree() && !progress.canAfford(CONFIG.economy.undoCost));
@@ -165,8 +186,16 @@ const App = (() => {
 
     $('restart').disabled = (!S.history.length && !S.moves) || busy;
 
-    $('hintCost').textContent = CONFIG.economy.hint;
-    $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(CONFIG.economy.hint);
+    /* Tools arrive a chapter at a time, so one that has not been granted yet is
+       not there at all. Showing it disabled would advertise something the player
+       cannot act on and cannot find out how to get. */
+    const perks = progress.perks();
+    const hintFee = hintCost();
+    $('undo').hidden = !perks.undo;
+    $('vessel').hidden = !perks.vessel;
+    $('hint').hidden = !perks.hint;
+    $('hintCost').textContent = hintFee > 0 ? hintFee : 'free';
+    $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(hintFee);
     $('hint').classList.toggle('spent', S.hinting);
   }
 
@@ -380,7 +409,7 @@ const App = (() => {
        there is a move to show: a search that gives up owes the player nothing. */
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
-      if (!progress.canAfford(CONFIG.economy.hint)){ Audio.deny(); return; }
+      if (!progress.canAfford(hintCost())){ Audio.deny(); return; }
       Audio.unlock();
       S.hinting = true;
       paintHud();
@@ -390,7 +419,8 @@ const App = (() => {
         /* the board moved on while the search ran, so the answer is about a
            position that is no longer in front of anyone */
         if (level !== S.level || moves !== S.moves){ paintHud(); return; }
-        if (!res.first || !progress.spend(CONFIG.economy.hint)){ Audio.deny(); paintHud(); return; }
+        if (!res.first || !progress.spend(hintCost())){ Audio.deny(); paintHud(); return; }
+        S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
         Audio.lift();
         paintHud();
@@ -402,6 +432,14 @@ const App = (() => {
       $('veil').classList.remove('failed');
       showMap(true);
     };
+    $('chapterGo').onclick = () => {
+      Audio.unlock(); Audio.tick();
+      $('chapterVeil').classList.remove('show');
+      paintHud();
+    };
+    $('chapterVeil').addEventListener('click', e => {
+      if (e.target === $('chapterVeil')) $('chapterGo').click();
+    });
     $('winMap').onclick = closePanel;
     /* Look at the board the run ended on. Available however it ended, because
        wanting to see what you were left with is not a thing only winners do.
@@ -410,14 +448,22 @@ const App = (() => {
     $('peek').onclick = () => {
       $('veil').classList.remove('show');
       document.body.classList.add('peeking');
-      /* on the next tick, so the tap that opened this does not also close it */
+      /* On the next tick, so the tap that opened this does not also close it.
+         Captured on the document rather than left to bubble: while the board is
+         being read every part of it is pointer-events:none, so which element a
+         tap actually lands on depends on what happens to be underneath, and a
+         listener waiting for it to bubble up is waiting on that accident. */
       setTimeout(() => {
         const back = () => {
+          document.removeEventListener('pointerdown', back, true);
+          document.removeEventListener('click', back, true);
+          document.removeEventListener('keydown', back, true);
           document.body.classList.remove('peeking');
           $('veil').classList.add('show');
         };
-        addEventListener('pointerdown', back, { once: true });
-        addEventListener('keydown', back, { once: true });
+        document.addEventListener('pointerdown', back, true);
+        document.addEventListener('click', back, true);
+        document.addEventListener('keydown', back, true);
       }, 0);
     };
     /* Tapping the dark outside the panel does what the panel's own way out does.

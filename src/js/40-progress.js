@@ -35,7 +35,9 @@ function blank(){
     /* levels whose one-time first-clear bonus has already been paid */
     claimed:{},
     /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
-    dailyOn: null
+    dailyOn: null,
+    /* chapters whose opening has already been read, so it is shown once */
+    seen: {}
   };
 }
 function createProgress(storage){
@@ -60,6 +62,7 @@ function createProgress(storage){
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
+  if (!state.seen || typeof state.seen !== 'object') state.seen = {};
   /* The boards moved. What a player earned stays earned: stars and best move
      counts are theirs, and taking them away to keep a record tidy is a worse
      trade than leaving a best that the new board happens not to allow.
@@ -85,6 +88,17 @@ function createProgress(storage){
     parFor: level => (level in state.pars ? state.pars[level] : null),
     rememberPar(level, par, exact){
       if (exact && Number.isInteger(par)) { state.pars[level] = par; save(); }
+    },
+    /* Everything the chapters have handed over by now. Taken from how far the
+       player has got rather than from the level in front of them, so going back
+       to an early board does not take the tools away again. */
+    perks(){ return Chapters.perksFor(Levels.sectionOf(state.unlocked)); },
+    hasSeen: section => !!state.seen[section],
+    markSeen(section){
+      if (state.seen[section]) return false;
+      state.seen[section] = true;
+      save();
+      return true;
     },
     totalStars(){
       return Object.values(state.stars).reduce((a, b) => a + b, 0);

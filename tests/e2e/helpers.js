@@ -46,12 +46,26 @@ export async function start(page, save = {}) {
 }
 
 /* Open a level from the map. Waits for the board to be dealt rather than for a
-   fixed time, so a slow machine does not turn into a flaky spec. */
+   fixed time, so a slow machine does not turn into a flaky spec.
+
+   Reaching a chapter for the first time puts its opening over the board, so this
+   reads it and moves on the way a player would. A spec that is about the opening
+   itself passes `seen` in its save and never gets here. */
 export async function openLevel(page, level) {
   await page.locator(`[data-level="${level}"]`).click();
   await page.waitForFunction(l => globalThis.App._state.level === l
     && globalThis.App._state.tubes.length > 0, level);
+  await dismissChapter(page);
   await page.waitForFunction(() => document.querySelectorAll('#board .bottle').length > 0);
+}
+
+export async function dismissChapter(page) {
+  const card = page.locator('#chapterVeil');
+  if (await card.evaluate(el => el.classList.contains('show')).catch(() => false)) {
+    await page.locator('#chapterGo').click();
+    await page.waitForFunction(() =>
+      !document.getElementById('chapterVeil').classList.contains('show'));
+  }
 }
 
 /* Play one pour and wait for the animation to land, so the next one starts from

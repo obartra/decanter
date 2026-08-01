@@ -3,6 +3,7 @@ import './rules.test.mjs';
 import './solver.test.mjs';
 import './levels.test.mjs';
 import './pars.test.mjs';
+import './chapters.test.mjs';
 import './progress.test.mjs';
 import './panel.test.mjs';
 import './playthrough.test.mjs';

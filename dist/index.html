@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="db2086f92d">
+<meta name="build" content="3372a3160f">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -92,6 +92,22 @@ body[data-view="game"] #gameView{display:flex}
    player to make room for it. */
 .controls{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
 .winFoot{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+
+/* The opening of a chapter, shown once. It is the only place the game explains
+   itself, so it gets room rather than a toast that slides away mid sentence. */
+.chapterCard{max-width:340px}
+.chapterCard .kicker{
+  margin:0 0 4px; font-size:9px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.chapterCard .kicker b{color:var(--gold-lit); font-weight:600}
+.chapterBlurb{margin:10px 0 0; font-size:13px; line-height:1.55; color:var(--ink)}
+.chapterGrant{
+  margin:14px 0 0; padding:9px 12px; border-radius:10px;
+  border:1px solid rgba(224,177,92,.3); background:rgba(224,177,92,.07);
+  font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-lit);
+}
+#chapterGo{margin-top:16px}
 
 /* Reading the board after the run is over. It is drained of colour so it plainly
    is not in play, and it takes no input at all: the next touch anywhere puts the
@@ -566,6 +582,16 @@ body[data-view="game"] #gameView{display:flex}
 </section>
 
 <div id="confetti"></div>
+
+<div class="veil" id="chapterVeil">
+  <div class="panel chapterCard">
+    <p class="kicker">Chapter <b id="chapterNum">1</b></p>
+    <h2 id="chapterName">The Cellar</h2>
+    <p class="chapterBlurb" id="chapterBlurb"></p>
+    <p class="chapterGrant" id="chapterGrant" hidden></p>
+    <button class="btn primary" id="chapterGo" type="button">Begin</button>
+  </div>
+</div>
 
 <div class="veil" id="veil">
   <div class="panel">
@@ -1061,6 +1087,94 @@ globalThis.PARS = Object.freeze({1:12,2:12,3:18,4:16,5:16,6:17,7:25,8:23,9:24,10
 globalThis.LAST_LEVEL = 120;
 
 
+/* ---- 36-chapters.js ---- */
+/* What each chapter gives you.
+
+   The game is one mechanic for a hundred and twenty levels, and the only things
+   that change are how big the board is and which board it is. Handing over every
+   tool at level one means the game is as open in the first minute as it will
+   ever be. Handing them over a chapter at a time gives it somewhere to go.
+
+   Every grant here is deliberately outside the rules of the board. Nothing in
+   this file changes what a pour does, which boards are dealt, or how few pours
+   one can be finished in. That matters more than it looks: par is solved
+   offline, the difficulty of all 120 levels is measured against it, and the
+   order they are played in is derived from that. A grant that changed the board
+   would invalidate every one of those and mean re-solving the game. A grant that
+   changes what the player can buy, or how much of it, costs nothing.
+
+   So these are all economy and interface. The expensive kind of variety, a rule
+   that changes what a pour can do, is a separate decision with a much larger
+   bill attached. See docs/design/04-economy.md. */
+const CHAPTERS = [
+  {
+    grant: 'undo',
+    blurb: 'Pour between bottles to gather each colour. A pour only goes onto its own colour, or into an empty bottle. Down here you can always take one back.'
+  },
+  {
+    grant: 'hint',
+    blurb: 'The apothecary knows which measure comes next. For a price, it will tell you the pour it would make.'
+  },
+  {
+    grant: 'vessel',
+    blurb: 'The still has spare glass. Buy an extra bottle when a board leaves you nowhere to put anything, at the cost of the third star.'
+  },
+  {
+    grant: 'undos',
+    blurb: 'Nothing here is in a hurry. Two more pours to take back, free, on every run from now on.'
+  },
+  {
+    grant: 'thrift',
+    blurb: 'What the vault holds, it keeps. Hints cost you less from here on.'
+  },
+  {
+    grant: 'foresight',
+    blurb: 'From up here you can see one move ahead of yourself. The first hint of every run is free.'
+  }
+];
+
+/* what the grant is called where the player meets it */
+const GRANT_NAMES = {
+  undo: 'Undo',
+  hint: 'Hints',
+  vessel: 'The vessel',
+  undos: 'Two more free undos',
+  thrift: 'Cheaper hints',
+  foresight: 'One free hint a run'
+};
+
+const at = section => CHAPTERS[section] || null;
+const grantAt = section => (CHAPTERS[section] ? CHAPTERS[section].grant : null);
+
+/* Everything the player has been given by the time they reach `section`, applied
+   in order. Accumulated rather than looked up, so a chapter can deepen something
+   an earlier one introduced. */
+function perksFor(section){
+  const reached = Math.max(0, Math.min(section, CHAPTERS.length - 1));
+  const perks = {
+    undo: false,
+    hint: false,
+    vessel: false,
+    freeUndos: CONFIG.economy.freeUndos,
+    hintCost: CONFIG.economy.hint,
+    freeHints: 0
+  };
+  for (let i = 0; i <= reached; i++){
+    switch (CHAPTERS[i] && CHAPTERS[i].grant){
+      case 'undo': perks.undo = true; break;
+      case 'hint': perks.hint = true; break;
+      case 'vessel': perks.vessel = true; break;
+      case 'undos': perks.freeUndos += 2; break;
+      case 'thrift': perks.hintCost = Math.round(CONFIG.economy.hint * 0.6); break;
+      case 'foresight': perks.freeHints = 1; break;
+    }
+  }
+  return perks;
+}
+
+globalThis.Chapters = { count: CHAPTERS.length, at, grantAt, perksFor, GRANT_NAMES };
+
+
 /* ---- 40-progress.js ---- */
 /* Saved progress. The storage backend is injected so tests can hand it a fake
    and sandboxed previews can fall back to memory when localStorage throws. */
@@ -1099,7 +1213,9 @@ function blank(){
     /* levels whose one-time first-clear bonus has already been paid */
     claimed:{},
     /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
-    dailyOn: null
+    dailyOn: null,
+    /* chapters whose opening has already been read, so it is shown once */
+    seen: {}
   };
 }
 function createProgress(storage){
@@ -1124,6 +1240,7 @@ function createProgress(storage){
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
+  if (!state.seen || typeof state.seen !== 'object') state.seen = {};
   /* The boards moved. What a player earned stays earned: stars and best move
      counts are theirs, and taking them away to keep a record tidy is a worse
      trade than leaving a best that the new board happens not to allow.
@@ -1149,6 +1266,17 @@ function createProgress(storage){
     parFor: level => (level in state.pars ? state.pars[level] : null),
     rememberPar(level, par, exact){
       if (exact && Number.isInteger(par)) { state.pars[level] = par; save(); }
+    },
+    /* Everything the chapters have handed over by now. Taken from how far the
+       player has got rather than from the level in front of them, so going back
+       to an early board does not take the tools away again. */
+    perks(){ return Chapters.perksFor(Levels.sectionOf(state.unlocked)); },
+    hasSeen: section => !!state.seen[section],
+    markSeen(section){
+      if (state.seen[section]) return false;
+      state.seen[section] = true;
+      save();
+      return true;
     },
     totalStars(){
       return Object.values(state.stars).reduce((a, b) => a + b, 0);
@@ -2936,7 +3064,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
+    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
 
@@ -2999,13 +3127,33 @@ const App = (() => {
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
+    openChapter(level);
     return true;
+  }
+
+  /* The opening of a chapter, once. Shown after the board is dealt rather than
+     instead of it, so what it is talking about is already behind the card. */
+  function openChapter(level){
+    const section = Levels.sectionOf(level);
+    const chapter = Chapters.at(section);
+    if (!chapter || progress.hasSeen(section)) return;
+    progress.markSeen(section);
+    $('chapterNum').textContent = section + 1;
+    $('chapterName').textContent = Levels.sectionName(level);
+    $('chapterBlurb').textContent = chapter.blurb;
+    const grant = Chapters.GRANT_NAMES[chapter.grant];
+    $('chapterGrant').hidden = !grant;
+    $('chapterGrant').textContent = grant ? `Unlocked · ${grant}` : '';
+    $('chapterVeil').style.setProperty('--tint', Levels.sectionTint(level));
+    $('chapterVeil').classList.add('show');
   }
   function showGame(level){ attempt(level); }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
   /* what this particular board costs to deal: nothing if it is already beaten */
   const costOf = level => (progress.starsFor(level) > 0
     ? CONFIG.economy.replay : CONFIG.economy.attempt);
+  /* the first hint of a run can be free, once a chapter has said so */
+  const hintCost = () => (S.hintsUsed < progress.perks().freeHints ? 0 : progress.perks().hintCost);
 
   /* ---------- a level ---------- */
   /* A restart deals the level from scratch, and that includes the extra bottle:
@@ -3019,6 +3167,7 @@ const App = (() => {
     if (keepVessel) S.tubes.push([]);
     S.vesselUsed = !!keepVessel;
     S.undosUsed = 0;
+    S.hintsUsed = 0;
     S.over = false;
     S.reason = null;
     S.hinting = false;
@@ -3059,7 +3208,7 @@ const App = (() => {
   }
   const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
-  const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
+  const undoIsFree = () => S.undosUsed < progress.perks().freeUndos;
 
   function paintHud(){
     const busy = S.queue.length > 0 || S.running;
@@ -3085,7 +3234,7 @@ const App = (() => {
       : 'pours left';
     $('gold').textContent = progress.gold;
 
-    const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
+    const freeLeft = Math.max(0, progress.perks().freeUndos - S.undosUsed);
     $('undoCost').textContent = freeLeft ? `${freeLeft} free` : `${CONFIG.economy.undoCost}`;
     $('undo').disabled = !S.history.length || busy ||
       (!undoIsFree() && !progress.canAfford(CONFIG.economy.undoCost));
@@ -3096,8 +3245,16 @@ const App = (() => {
 
     $('restart').disabled = (!S.history.length && !S.moves) || busy;
 
-    $('hintCost').textContent = CONFIG.economy.hint;
-    $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(CONFIG.economy.hint);
+    /* Tools arrive a chapter at a time, so one that has not been granted yet is
+       not there at all. Showing it disabled would advertise something the player
+       cannot act on and cannot find out how to get. */
+    const perks = progress.perks();
+    const hintFee = hintCost();
+    $('undo').hidden = !perks.undo;
+    $('vessel').hidden = !perks.vessel;
+    $('hint').hidden = !perks.hint;
+    $('hintCost').textContent = hintFee > 0 ? hintFee : 'free';
+    $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(hintFee);
     $('hint').classList.toggle('spent', S.hinting);
   }
 
@@ -3311,7 +3468,7 @@ const App = (() => {
        there is a move to show: a search that gives up owes the player nothing. */
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
-      if (!progress.canAfford(CONFIG.economy.hint)){ Audio.deny(); return; }
+      if (!progress.canAfford(hintCost())){ Audio.deny(); return; }
       Audio.unlock();
       S.hinting = true;
       paintHud();
@@ -3321,7 +3478,8 @@ const App = (() => {
         /* the board moved on while the search ran, so the answer is about a
            position that is no longer in front of anyone */
         if (level !== S.level || moves !== S.moves){ paintHud(); return; }
-        if (!res.first || !progress.spend(CONFIG.economy.hint)){ Audio.deny(); paintHud(); return; }
+        if (!res.first || !progress.spend(hintCost())){ Audio.deny(); paintHud(); return; }
+        S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
         Audio.lift();
         paintHud();
@@ -3333,6 +3491,14 @@ const App = (() => {
       $('veil').classList.remove('failed');
       showMap(true);
     };
+    $('chapterGo').onclick = () => {
+      Audio.unlock(); Audio.tick();
+      $('chapterVeil').classList.remove('show');
+      paintHud();
+    };
+    $('chapterVeil').addEventListener('click', e => {
+      if (e.target === $('chapterVeil')) $('chapterGo').click();
+    });
     $('winMap').onclick = closePanel;
     /* Look at the board the run ended on. Available however it ended, because
        wanting to see what you were left with is not a thing only winners do.
@@ -3341,14 +3507,22 @@ const App = (() => {
     $('peek').onclick = () => {
       $('veil').classList.remove('show');
       document.body.classList.add('peeking');
-      /* on the next tick, so the tap that opened this does not also close it */
+      /* On the next tick, so the tap that opened this does not also close it.
+         Captured on the document rather than left to bubble: while the board is
+         being read every part of it is pointer-events:none, so which element a
+         tap actually lands on depends on what happens to be underneath, and a
+         listener waiting for it to bubble up is waiting on that accident. */
       setTimeout(() => {
         const back = () => {
+          document.removeEventListener('pointerdown', back, true);
+          document.removeEventListener('click', back, true);
+          document.removeEventListener('keydown', back, true);
           document.body.classList.remove('peeking');
           $('veil').classList.add('show');
         };
-        addEventListener('pointerdown', back, { once: true });
-        addEventListener('keydown', back, { once: true });
+        document.addEventListener('pointerdown', back, true);
+        document.addEventListener('click', back, true);
+        document.addEventListener('keydown', back, true);
       }, 0);
     };
     /* Tapping the dark outside the panel does what the panel's own way out does.
