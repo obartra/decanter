@@ -97,6 +97,37 @@ test('a level not yet beaten still charges to deal', async ({ page }) => {
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(before - fee);
 });
 
+test('the first chapter opens with one tool, not all of them', async ({ page }) => {
+  await start(page, { unlocked: 1, gold: 400, seen: { 0: true } });
+  await openLevel(page, 1);
+  await expect(page.locator('#undo')).toBeVisible();
+  await expect(page.locator('#hint')).toBeHidden();
+  await expect(page.locator('#vessel')).toBeHidden();
+});
+
+test('later chapters hand over the rest', async ({ page }) => {
+  await start(page, { unlocked: 25, gold: 900, seen: { 0: true, 1: true, 2: true } });
+  await openLevel(page, 25);
+  await expect(page.locator('#undo')).toBeVisible();
+  await expect(page.locator('#hint')).toBeVisible();
+  await expect(page.locator('#vessel')).toBeVisible();
+});
+
+test('a chapter introduces itself once', async ({ page }) => {
+  await start(page, { unlocked: 11, gold: 900, seen: { 0: true } });
+  await page.locator('[data-level="11"]').click();
+  await expect(page.locator('#chapterVeil')).toHaveClass(/show/);
+  await expect(page.locator('#chapterName')).toHaveText('The Apothecary');
+  await expect(page.locator('#chapterGrant')).toContainText('Hints');
+  await page.locator('#chapterGo').click();
+  await expect(page.locator('#chapterVeil')).not.toHaveClass(/show/);
+
+  /* back to the map and in again: it has been read */
+  await page.locator('#toMap').click();
+  await page.locator('[data-level="11"]').click();
+  await expect(page.locator('#chapterVeil')).not.toHaveClass(/show/);
+});
+
 test('the board can be read after the run, and taps go back', async ({ page }) => {
   await start(page, { unlocked: 4, gold: 400 });
   await openLevel(page, 4);

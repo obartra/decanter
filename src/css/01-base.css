@@ -71,6 +71,22 @@ body[data-view="game"] #gameView{display:flex}
 .controls{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
 .winFoot{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
 
+/* The opening of a chapter, shown once. It is the only place the game explains
+   itself, so it gets room rather than a toast that slides away mid sentence. */
+.chapterCard{max-width:340px}
+.chapterCard .kicker{
+  margin:0 0 4px; font-size:9px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.chapterCard .kicker b{color:var(--gold-lit); font-weight:600}
+.chapterBlurb{margin:10px 0 0; font-size:13px; line-height:1.55; color:var(--ink)}
+.chapterGrant{
+  margin:14px 0 0; padding:9px 12px; border-radius:10px;
+  border:1px solid rgba(224,177,92,.3); background:rgba(224,177,92,.07);
+  font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-lit);
+}
+#chapterGo{margin-top:16px}
+
 /* Reading the board after the run is over. It is drained of colour so it plainly
    is not in play, and it takes no input at all: the next touch anywhere puts the
    panel back rather than pouring anything. */
