@@ -11,9 +11,16 @@ const CONFIG = {
   /* Liquid palette, index === colour id, and the only place a liquid colour is
      written down. The --cN custom properties the stylesheets use are published
      from here at boot, so the bands, the pour and the particle sim cannot drift
-     apart the way they did when the palette lived in two files. */
-  palette: ['#C9455E','#E9B35C','#6BC5A8','#5B8FD6','#9B6BC9','#2E9E86',
-            '#E4779B','#D9793A','#4A5A8C','#AFCB63','#8E2F49','#D9C6A0'],
+     apart the way they did when the palette lived in two files.
+
+     Chosen so that no two liquids are close to the eye. The previous set was
+     picked by hand and two pairs sat at a CIEDE2000 distance of about 12, which
+     is close enough to lose a level to, and seven pairs sat under 20. Every hue
+     here is within twelve degrees of the one it replaced, so the family is the
+     same; the separation is bought with lightness and chroma instead. The worst
+     pair is now about 24. See the test, which measures it. */
+  palette: ['#E2546F','#B08016','#32D8B5','#95B9F6','#A36AC4','#36756F',
+            '#F1B7D1','#FF9E75','#1A64A6','#629D38','#734555','#D3C9A0'],
   sectionSize: 10,
   sectionNames: ['The Cellar','The Apothecary','The Distillery',
                  'The Conservatory','The Vault','The Observatory'],

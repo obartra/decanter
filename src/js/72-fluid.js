@@ -212,12 +212,17 @@ const Fluid = (() => {
       ctx.fillRect(-4, yHi, W + 8, Math.min(2.5, yLo - yHi));
     });
 
-    /* lit on the left, shaded on the right, only where there is liquid */
+    /* Lit on the left, shaded on the right, only where there is liquid.
+
+       Kept light on purpose. This washes every band with the same warm white and
+       the same dark, whatever colour is underneath, so it pulls the whole palette
+       toward one muddy brown and colours that are far apart on paper arrive
+       looking alike. It was heavy enough to undo a palette chosen for contrast. */
     const g = ctx.createLinearGradient(b.x0, 0, b.x1, 0);
-    g.addColorStop(0, 'rgba(28,17,7,.20)');
-    g.addColorStop(0.24, 'rgba(255,240,206,.15)');
-    g.addColorStop(0.6, 'rgba(255,224,170,.05)');
-    g.addColorStop(1, 'rgba(8,5,10,.26)');
+    g.addColorStop(0, 'rgba(28,17,7,.13)');
+    g.addColorStop(0.24, 'rgba(255,240,206,.07)');
+    g.addColorStop(0.6, 'rgba(255,224,170,.02)');
+    g.addColorStop(1, 'rgba(8,5,10,.17)');
     ctx.globalCompositeOperation = 'source-atop';
     ctx.fillStyle = g;
     ctx.fillRect(-4, 0, W + 8, H);
