@@ -448,14 +448,22 @@ const App = (() => {
     $('peek').onclick = () => {
       $('veil').classList.remove('show');
       document.body.classList.add('peeking');
-      /* on the next tick, so the tap that opened this does not also close it */
+      /* On the next tick, so the tap that opened this does not also close it.
+         Captured on the document rather than left to bubble: while the board is
+         being read every part of it is pointer-events:none, so which element a
+         tap actually lands on depends on what happens to be underneath, and a
+         listener waiting for it to bubble up is waiting on that accident. */
       setTimeout(() => {
         const back = () => {
+          document.removeEventListener('pointerdown', back, true);
+          document.removeEventListener('click', back, true);
+          document.removeEventListener('keydown', back, true);
           document.body.classList.remove('peeking');
           $('veil').classList.add('show');
         };
-        addEventListener('pointerdown', back, { once: true });
-        addEventListener('keydown', back, { once: true });
+        document.addEventListener('pointerdown', back, true);
+        document.addEventListener('click', back, true);
+        document.addEventListener('keydown', back, true);
       }, 0);
     };
     /* Tapping the dark outside the panel does what the panel's own way out does.

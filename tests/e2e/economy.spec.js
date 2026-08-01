@@ -140,9 +140,11 @@ test('the board can be read after the run, and taps go back', async ({ page }) =
   /* the board takes no input while it is being read */
   expect(await page.evaluate(() => getComputedStyle(document.getElementById('board')).pointerEvents))
     .toBe('none');
-  /* anywhere at all, including over a control, because while the board is being
-     read a tap means put the panel back and nothing else */
-  await page.locator('#board').click({ position: { x: 5, y: 5 }, force: true });
+  /* anywhere at all, because while the board is being read a tap means put the
+     panel back and nothing else. A raw click at a point on the screen rather
+     than at an element, since every element there ignores pointers. */
+  const box = page.viewportSize();
+  await page.mouse.click(Math.round(box.width / 2), Math.round(box.height / 2));
   await expect(page.locator('#veil')).toHaveClass(/show/);
   await expect(page.locator('body')).not.toHaveClass(/peeking/);
 });
