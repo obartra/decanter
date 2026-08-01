@@ -68,6 +68,7 @@ const App = (() => {
     return true;
   }
   function showGame(level){ attempt(level); }
+  const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
 
   /* ---------- a level ---------- */
   /* Restarting keeps a vessel the player already paid for, so a restart cannot
@@ -264,6 +265,17 @@ const App = (() => {
     $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
     $('next').classList.toggle('primary', perfect);
     $('next').disabled = !canPay;
+
+    /* Beaten by a board is not the same as stuck on it. Paying past it opens the
+       next one and deals it, so a level nobody can crack is a decision with a
+       price rather than a wall. */
+    const stuck = failed && !progress.isUnlocked(S.level + 1);
+    $('skip').hidden = !stuck;
+    $('skipCost').textContent = skipCost();
+    $('skip').disabled = !progress.canAfford(skipCost());
+    if (stuck && !canPay && !progress.canAfford(skipCost())){
+      $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
+    }
     if (!canPay) $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
     if (!failed && result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
 
@@ -335,6 +347,14 @@ const App = (() => {
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       attempt(S.level);
+    };
+    $('skip').onclick = () => {
+      if (!progress.buyUnlock(S.level, skipCost())){ Audio.deny(); return; }
+      $('veil').classList.remove('show', 'failed');
+      /* the fee covered the board too, so this deals it without charging again */
+      document.body.dataset.view = 'game';
+      Backdrop.kind = 'cellar';
+      start(S.level + 1);
     };
     $('next').onclick = () => {
       if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }

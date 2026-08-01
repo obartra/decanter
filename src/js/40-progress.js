@@ -86,6 +86,18 @@ function createProgress(storage){
       return CONFIG.economy.daily;
     },
 
+    /* Paying past a board opens the next one and nothing else. No stars, no
+       best, and the first-clear bonus is left unclaimed, so coming back later
+       and actually beating it still pays what it always would have. */
+    buyUnlock(level, cost){
+      if (state.unlocked > level) return false;       /* already past it */
+      if (!Number.isInteger(cost) || cost < 0 || state.gold < cost) return false;
+      state.gold -= cost;
+      state.unlocked = level + 1;
+      save();
+      return true;
+    },
+
     /* replaying a level can raise a score but never lower it. Star gold is paid
        every time, the first-clear bonus only ever once, which is what keeps a
        cleared level from being farmable. */

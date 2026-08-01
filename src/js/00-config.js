@@ -32,7 +32,11 @@ const CONFIG = {
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough
        that the daily draught alone keeps anyone solvent. */
-    attempt: 5
+    attempt: 5,
+    /* Paying past a board you cannot beat costs twice an attempt, and that covers
+       dealing the next one too, so moving on is one decision rather than two
+       charges. Derived from the attempt fee so the two cannot drift apart. */
+    skipMultiple: 2
   },
   /* Stars are pours over par: par earns three, one over two, two over one, and
      three or more over is a failed run worth nothing. */

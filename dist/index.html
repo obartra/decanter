@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="d7aa2c8eb0">
+<meta name="build" content="0bf3d45ecb">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -458,6 +458,7 @@ body[data-view="game"] #gameView{display:flex}
     <p class="hint" id="winHint"></p>
     <div class="panelBtns">
       <button class="btn" id="retry" type="button">Retry</button>
+      <button class="btn priced" id="skip" type="button" hidden>Move on<small id="skipCost">10</small></button>
       <button class="btn primary" id="next" type="button">Next level</button>
     </div>
     <button class="btn ghost" id="winMap" type="button">Back to map</button>
@@ -618,7 +619,11 @@ const CONFIG = {
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough
        that the daily draught alone keeps anyone solvent. */
-    attempt: 5
+    attempt: 5,
+    /* Paying past a board you cannot beat costs twice an attempt, and that covers
+       dealing the next one too, so moving on is one decision rather than two
+       charges. Derived from the attempt fee so the two cannot drift apart. */
+    skipMultiple: 2
   },
   /* Stars are pours over par: par earns three, one over two, two over one, and
      three or more over is a failed run worth nothing. */
@@ -887,6 +892,18 @@ function createProgress(storage){
       state.gold += CONFIG.economy.daily;
       save();
       return CONFIG.economy.daily;
+    },
+
+    /* Paying past a board opens the next one and nothing else. No stars, no
+       best, and the first-clear bonus is left unclaimed, so coming back later
+       and actually beating it still pays what it always would have. */
+    buyUnlock(level, cost){
+      if (state.unlocked > level) return false;       /* already past it */
+      if (!Number.isInteger(cost) || cost < 0 || state.gold < cost) return false;
+      state.gold -= cost;
+      state.unlocked = level + 1;
+      save();
+      return true;
     },
 
     /* replaying a level can raise a score but never lower it. Star gold is paid
@@ -2421,6 +2438,7 @@ const App = (() => {
     return true;
   }
   function showGame(level){ attempt(level); }
+  const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
 
   /* ---------- a level ---------- */
   /* Restarting keeps a vessel the player already paid for, so a restart cannot
@@ -2617,6 +2635,17 @@ const App = (() => {
     $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
     $('next').classList.toggle('primary', perfect);
     $('next').disabled = !canPay;
+
+    /* Beaten by a board is not the same as stuck on it. Paying past it opens the
+       next one and deals it, so a level nobody can crack is a decision with a
+       price rather than a wall. */
+    const stuck = failed && !progress.isUnlocked(S.level + 1);
+    $('skip').hidden = !stuck;
+    $('skipCost').textContent = skipCost();
+    $('skip').disabled = !progress.canAfford(skipCost());
+    if (stuck && !canPay && !progress.canAfford(skipCost())){
+      $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
+    }
     if (!canPay) $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
     if (!failed && result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
 
@@ -2688,6 +2717,14 @@ const App = (() => {
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       attempt(S.level);
+    };
+    $('skip').onclick = () => {
+      if (!progress.buyUnlock(S.level, skipCost())){ Audio.deny(); return; }
+      $('veil').classList.remove('show', 'failed');
+      /* the fee covered the board too, so this deals it without charging again */
+      document.body.dataset.view = 'game';
+      Backdrop.kind = 'cellar';
+      start(S.level + 1);
     };
     $('next').onclick = () => {
       if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }

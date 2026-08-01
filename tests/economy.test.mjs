@@ -119,6 +119,43 @@ describe('gold', () => {
     assert(attempts >= 2, `a daily draught buys only ${attempts} attempts`);
   });
 
+  it('lets a player pay past a board that beat them', () => {
+    const cost = E.attempt * E.skipMultiple;
+    equal(cost, E.attempt * 2, 'paying past a board costs twice an attempt');
+    const p = fresh();
+    const gold = p.gold;
+    assert(p.buyUnlock(1, cost), 'level 2 should open');
+    equal(p.gold, gold - cost);
+    equal(p.unlocked, 2);
+    /* opening the next board is all it buys */
+    equal(p.starsFor(1), 0, 'no stars for a board that was paid past');
+    equal(p.bestFor(1), null, 'and no best');
+    equal(p.complete(1, 11, 3).firstClear, true,
+      'coming back and actually beating it still pays the first-clear bonus');
+  });
+
+  it('will not sell an unlock twice, or one already open', () => {
+    const p = fresh();
+    const cost = E.attempt * E.skipMultiple;
+    assert(p.buyUnlock(1, cost));
+    const after = p.gold;
+    assert(p.buyUnlock(1, cost) === false, 'the same unlock cannot be sold again');
+    equal(p.gold, after, 'and a refused purchase must not charge');
+  });
+
+  it('refuses to sell an unlock it cannot cover', () => {
+    const p = fresh();
+    assert(p.buyUnlock(1, 10_000) === false);
+    equal(p.gold, 86, 'a refused purchase must not move the balance');
+    equal(p.unlocked, 1, 'nor open anything');
+  });
+
+  it('makes beating a board cheaper than buying past it', () => {
+    /* otherwise paying is simply the better play and the puzzle is decorative */
+    const skip = E.attempt * E.skipMultiple;
+    assert(E.attempt < skip, 'another go must cost less than skipping');
+  });
+
   it('draws the daily draught once per day', () => {
     const p = fresh();
     const before = p.gold;
