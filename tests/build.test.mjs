@@ -131,6 +131,21 @@ describe('build output', () => {
     assert(/App\.updateReady\(\)/.test(pwa), 'the app is never told an update is ready');
   });
 
+  it('never drops a resize taken during a pour', () => {
+    /* Rebuilding the board mid pour would strand the animation, so the resize is
+       held back. Held back is only safe if something applies it afterwards:
+       nothing else will, because the glass re-centres by itself in CSS while the
+       liquid keeps the geometry it measured before, so the two come apart and
+       stay apart until the next resize. */
+    const app = read('src/js/90-app.js');
+    const held = app.slice(app.indexOf('const onResize ='), app.indexOf('addEventListener(\'keydown\''));
+    assert(/missedResize = true/.test(held), 'a resize during a pour must be remembered, not dropped');
+    const drain = app.slice(app.indexOf('async function drain('), app.indexOf('function finish('));
+    assert(/missedResize/.test(drain) && /Board\.render\(\)/.test(drain),
+      'and the board must be rebuilt once the pours land');
+    assert(/addEventListener\('orientationchange'/.test(app),
+      'some browsers rotate without firing resize');
+  });
   it('never reloads out from under a pour', () => {
     /* progress is saved per level, so reloading on the map costs nothing, but
        reloading mid-level would throw away the level being played */

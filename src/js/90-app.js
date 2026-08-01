@@ -24,6 +24,8 @@ const App = (() => {
      that costs nothing: on the map, with nothing animating. Progress is saved
      per level, so nothing is lost by then. */
   let updatePending = false;
+  /* a resize that arrived while the board was mid pour, applied once it lands */
+  let missedResize = false;
   function takeUpdate(){
     if (!updatePending) return;
     if (document.body.dataset.view !== 'map') return;
@@ -221,6 +223,11 @@ const App = (() => {
       S.running = false;
       paintHud();
     }
+    /* the pours have landed, so a resize held back during them can be applied */
+    if (missedResize){
+      missedResize = false;
+      try { Board.render(); } catch { /* a failed redraw must not eat the result */ }
+    }
     /* the board has stopped moving, so whatever was decided can now be shown */
     if (Rules.isSolved(S.tubes) || S.over) finish();
   }
@@ -376,14 +383,27 @@ const App = (() => {
       paintMap();
     };
 
+    /* A resize while a pour is in flight cannot rebuild the board: render() wipes
+       the bottles and would strand the animation mid air. Dropping it is worse
+       though, because nothing brings it back: the glass re-centres by itself in
+       CSS while the liquid keeps the geometry it measured before, so the two come
+       apart and stay apart. So remember it and apply it once the pours land. */
     let rt;
-    addEventListener('resize', () => {
-      clearTimeout(rt);
-      rt = setTimeout(() => {
-        if (document.body.dataset.view === 'map') MapView.render(progress);
-        else if (!S.running && !S.queue.length) Board.render();
-      }, 120);
-    });
+    const relayout = () => {
+      if (document.body.dataset.view === 'map') MapView.render(progress);
+      else Board.render();
+    };
+    const onResize = () => {
+      if (document.body.dataset.view !== 'map' && (S.running || S.queue.length)){
+        missedResize = true;
+        return;
+      }
+      relayout();
+    };
+    const scheduleResize = () => { clearTimeout(rt); rt = setTimeout(onResize, 120); };
+    addEventListener('resize', scheduleResize);
+    /* some browsers rotate without firing resize */
+    addEventListener('orientationchange', scheduleResize);
     addEventListener('keydown', e => {
       if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
     });
