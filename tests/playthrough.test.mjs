@@ -185,7 +185,7 @@ describe('playing it', () => {
     equal(panel.skipHidden, false);
   });
 
-  it('replaying a cleared level cannot farm the first-clear bonus', () => {
+  it('replaying a cleared level pays nothing, which is what makes it free', () => {
     const p = Progress.createProgress(Progress.memoryStorage());
     const line = optimalLine(base.clone(Levels.make(1)), PARS[1]).map(m => [m[0], m[1]]);
     const run = play(1, line);
@@ -193,7 +193,7 @@ describe('playing it', () => {
     const after = p.gold;
     const again = p.complete(1, run.moves, run.stars);
     assert(!again.firstClear, 'the bonus is once only');
-    equal(p.gold, after + CONFIG.economy.starGold[3], 'a replay pays for the stars and nothing else');
+    equal(p.gold, after, 'and the level has already paid what its rating is worth');
   });
 
   it('finishes the game at the last level and offers nothing past it', () => {
