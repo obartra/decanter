@@ -147,8 +147,14 @@ function createProgress(storage){
       if (moves < prevBest) state.best[level] = moves;
       if (level >= state.unlocked) state.unlocked = Math.min(level + 1, lastLevel());
 
+      /* A level pays for the rating it is worth, not for each time it is
+         cleared. Clearing at two stars and coming back for the third pays the
+         difference, so the level pays the same in total either way and going
+         back for it cannot be turned into an income. Without this, free replays
+         would be a tap that prints gold. */
+      const worth = n => CONFIG.economy.starGold[n] || 0;
       const firstClear = !state.claimed[level];
-      const starGold = CONFIG.economy.starGold[stars] || 0;
+      const starGold = Math.max(0, worth(stars) - worth(prevStars));
       const bonus = firstClear ? CONFIG.economy.firstClear : 0;
       state.claimed[level] = true;
       state.gold += starGold + bonus;

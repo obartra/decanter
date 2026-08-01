@@ -41,32 +41,38 @@ describe('gold', () => {
     assert(86 - E.vessel < E.vessel, 'but not two, or there is no pressure');
   });
 
-  it('pays 14 for a good first run and 6 for the replay', () => {
+  it('pays 14 for a good first run and nothing for repeating it', () => {
     const p = fresh();
     const first = p.complete(1, 11, 3);
     equal(first.earned, 14, 'three stars plus the first clear');
     equal(first.firstClear, true);
     const again = p.complete(1, 11, 3);
-    equal(again.earned, 6, 'the bonus is never paid twice');
+    equal(again.earned, 0, 'the level has already paid what it is worth');
     equal(again.firstClear, false);
   });
 
-  it('pays a sloppy replay almost nothing', () => {
+  it('pays the difference when a replay earns a better rating', () => {
+    /* A level pays for the rating it is worth, not per clear, so going back for
+       the third star pays the gap and the level totals the same either way. */
     const p = fresh();
-    p.complete(3, 40, 1);
-    equal(p.complete(3, 40, 1).earned, 1, 'one star, no bonus');
+    const first = p.complete(3, 40, 1);
+    equal(first.earned, E.starGold[1] + E.firstClear);
+    const better = p.complete(3, 20, 3);
+    equal(better.earned, E.starGold[3] - E.starGold[1], 'only the improvement');
+    equal(p.gold, E.startingGold + E.starGold[3] + E.firstClear,
+      'however it got there, the level paid what three stars are worth, once');
   });
 
-  it('cannot be ground out on cleared levels', () => {
-    /* replaying every cleared level perfectly should still not fund a vessel
-       faster than simply playing new ones */
+  it('pays nothing at all for grinding cleared levels', () => {
+    /* Replaying a cleared level is free, so this is the check that free does not
+       mean a tap that prints gold. */
     const p = fresh();
     for (let lvl = 1; lvl <= 5; lvl++) p.complete(lvl, 11, 3);
     const afterFirstPass = p.gold;
-    for (let lvl = 1; lvl <= 5; lvl++) p.complete(lvl, 11, 3);
-    const farmed = p.gold - afterFirstPass;
-    equal(farmed, 5 * E.starGold[3], 'replays pay stars only');
-    assert(farmed < 5 * 14, 'farming must pay less than fresh clears');
+    for (let round = 0; round < 3; round++){
+      for (let lvl = 1; lvl <= 5; lvl++) p.complete(lvl, 11, 3);
+    }
+    equal(p.gold - afterFirstPass, 0, 'fifteen replays paid nothing');
   });
 
   it('pays nothing for a failed run, and opens nothing', () => {

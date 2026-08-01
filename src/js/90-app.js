@@ -45,9 +45,10 @@ const App = (() => {
     $('daily').disabled = !ready;
     $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
     /* a board costs gold to deal, so the map has to say so and stop offering one
-       that cannot be paid for */
-    const fee = CONFIG.economy.attempt;
-    $('playCost').textContent = fee;
+       that cannot be paid for. A level already beaten is free, and says free
+       rather than showing a nought nobody has to think about. */
+    const fee = costOf(progress.unlocked);
+    $('playCost').textContent = fee > 0 ? fee : 'free';
     $('mapPlay').disabled = !progress.canAfford(fee);
   }
   function showMap(scrollSmooth){
@@ -63,7 +64,7 @@ const App = (() => {
      one just lost. Charging here rather than inside start() keeps the internal
      re-deals free: only a deliberate attempt costs. */
   function attempt(level, keepVessel){
-    if (!progress.spend(CONFIG.economy.attempt)){ Audio.deny(); paintMap(); return false; }
+    if (!progress.spend(costOf(level))){ Audio.deny(); paintMap(); return false; }
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
@@ -71,6 +72,9 @@ const App = (() => {
   }
   function showGame(level){ attempt(level); }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
+  /* what this particular board costs to deal: nothing if it is already beaten */
+  const costOf = level => (progress.starsFor(level) > 0
+    ? CONFIG.economy.replay : CONFIG.economy.attempt);
 
   /* ---------- a level ---------- */
   /* A restart deals the level from scratch, and that includes the extra bottle:
@@ -274,7 +278,7 @@ const App = (() => {
     $('goldEarned').textContent = `+${result.earned}`;
     $('goldWhy').textContent = failed ? 'No gold · run failed' : `Gold · ${parts.join(' + ')}`;
 
-    const fee = CONFIG.economy.attempt;
+    const fee = costOf(S.level);
     const panel = Panel.decide({
       level: S.level, lastLevel: progress.lastLevel, failed, stars,
       nextUnlocked: progress.isUnlocked(S.level + 1),
@@ -288,7 +292,8 @@ const App = (() => {
 
     $('veil').classList.toggle('failed', failed);
     $('retry').hidden = panel.retryHidden;
-    $('retry').innerHTML = panel.retryHidden ? 'Retry' : `Try again<small>${fee} &#9670;</small>`;
+    $('retry').innerHTML = panel.retryHidden ? 'Retry'
+      : fee > 0 ? `Try again<small>${fee} &#9670;</small>` : 'Try again<small>free</small>';
     $('retry').classList.toggle('priced', true);
     $('retry').classList.toggle('primary', panel.retryPrimary);
     $('retry').disabled = panel.retryDisabled;
@@ -422,7 +427,7 @@ const App = (() => {
       if (e.target === $('veil')) closePanel();
     });
     $('retry').onclick = () => {
-      if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
+      if (!progress.canAfford(costOf(S.level))){ Audio.deny(); return; }
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       attempt(S.level);
@@ -437,7 +442,7 @@ const App = (() => {
     };
     $('next').onclick = () => {
       if (S.level >= progress.lastLevel){ Audio.deny(); return; }
-      if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
+      if (!progress.canAfford(costOf(S.level + 1))){ Audio.deny(); return; }
       $('veil').classList.remove('show');
       showGame(S.level + 1);
     };

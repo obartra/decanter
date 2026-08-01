@@ -50,6 +50,12 @@ const CONFIG = {
        four clean clears, so it is a way out of a board you cannot read rather
        than a way to play the game. */
     hint: 25,
+    /* Going back to a level you have already cleared is free. The fee exists to
+       give a failed run a price, and a level you have beaten has no run to lose:
+       chasing the third star is the part worth encouraging, not taxing. This is
+       only safe because a level pays for the stars it is worth rather than for
+       every clear, so replaying it cannot mint gold. See 40-progress.js. */
+    replay: 0,
     /* Every board dealt costs the same, whether it is a new level or another go
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough

@@ -79,6 +79,24 @@ test('a vessel adds a bottle, and restarting takes it away', async ({ page }) =>
   expect(await page.evaluate(() => globalThis.App._state.vesselUsed)).toBe(false);
 });
 
+test('going back to a cleared level is free, and pays nothing', async ({ page }) => {
+  await start(page, { unlocked: 3, gold: 400, stars: { 1: 3 }, claimed: { 1: true } });
+  await expect(page.locator('#playCost')).toBeVisible();
+  const before = await page.evaluate(() => globalThis.App._progress.gold);
+  await page.locator('[data-level="1"]').click();
+  await page.waitForFunction(() => globalThis.App._state.level === 1);
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(before);
+});
+
+test('a level not yet beaten still charges to deal', async ({ page }) => {
+  await start(page, { unlocked: 3, gold: 400, stars: { 1: 3 } });
+  const before = await page.evaluate(() => globalThis.App._progress.gold);
+  await page.locator('[data-level="3"]').click();
+  await page.waitForFunction(() => globalThis.App._state.level === 3);
+  const fee = await page.evaluate(() => globalThis.CONFIG.economy.attempt);
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(before - fee);
+});
+
 test('the board can be read after the run, and taps go back', async ({ page }) => {
   await start(page, { unlocked: 4, gold: 400 });
   await openLevel(page, 4);
