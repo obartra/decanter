@@ -39,8 +39,9 @@ test('a locked level nobody can afford refuses the tap', async ({ page }) => {
 });
 
 test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
-  await start(page, { unlocked: 4, gold: 400 });
-  await openLevel(page, 4);
+  /* hints are the apothecary's, so this has to be played somewhere it has them */
+  await start(page, { unlocked: 11, gold: 400, seen: { 0: true, 1: true } });
+  await openLevel(page, 11);
   const before = await page.evaluate(() => globalThis.App._progress.gold);
   await page.locator('#hint').click();
 
@@ -60,8 +61,9 @@ test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
 });
 
 test('a vessel adds a bottle, and restarting takes it away', async ({ page }) => {
-  await start(page, { unlocked: 7, gold: 900 });
-  await openLevel(page, 7);
+  /* the vessel is the distillery's */
+  await start(page, { unlocked: 21, gold: 900, seen: { 0: true, 1: true, 2: true } });
+  await openLevel(page, 21);
   const before = await page.evaluate(() => globalThis.App._state.tubes.length);
   await page.locator('#vessel').click();
   await expect.poll(() => page.evaluate(() => globalThis.App._state.tubes.length)).toBe(before + 1);
@@ -129,7 +131,7 @@ test('a chapter introduces itself once', async ({ page }) => {
 });
 
 test('the board can be read after the run, and taps go back', async ({ page }) => {
-  await start(page, { unlocked: 4, gold: 400 });
+  await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
   await openLevel(page, 4);
   await page.evaluate(() => document.getElementById('veil').classList.add('show'));
   await page.locator('#peek').click();
