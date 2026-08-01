@@ -10,11 +10,23 @@
    true distance is d, a move is optimal precisely when the result can still be
    solved in d-1, because one pour can only ever reduce the distance by one.
 
+   Moves are counted by the board they produce, not by the pair of bottles they
+   name. Pouring into the first empty bottle and pouring into the second are the
+   same decision, and counting them separately made every extra empty look like
+   another way to go wrong. It mattered: it inflated three-empty boards by up to
+   ten orders of magnitude and made them look far harder than the two-empty
+   boards beside them, which is the same state-preserving reduction the solver
+   applies for the same reason.
+
    Uses the independent rules in tests/baseline.mjs, so this measures the game as
    played rather than the solver's idea of it.
 
    Shared by tools/difficulty.mjs (reports) and tools/order.mjs (sorts). */
 import * as base from '../tests/baseline.mjs';
+
+/* A board as a multiset of bottles, so two arrangements that differ only in
+   which slot holds what are one board. */
+export const canon = t => t.map(x => x.join(',')).sort().join('|');
 
 /* the solver's heuristic, restated here against the independent rules */
 export function h(tubes){
@@ -68,8 +80,8 @@ function makeSolvableIn(budget){
    Returns null if par turns out to be unreachable, and throws TOO_DEAR if the
    board exceeds `budget` expansions.
 
-     tight    the fraction of moves that are right at an average decision, so
-              how narrow the line is regardless of how long it is
+     tight    the fraction of distinct decisions that are right at an average
+              step, so how narrow the line is regardless of how long it is
      logOdds  log10 of the chance of walking the whole thing correctly, which
               folds in length as well as narrowness
 
@@ -83,19 +95,25 @@ export function analyse(tubes, par, budget = DEFAULT_BUDGET){
   let logOdds = 0, steps = 0, goodSum = 0, legalSum = 0, worst = 1;
 
   while (dist > 0){
-    const moves = base.legalMoves(state);
+    /* one entry per distinct board reachable in one pour, not one per legal pour */
+    const outcomes = new Map();
+    for (const m of base.legalMoves(state)){
+      const next = base.apply(base.clone(state), m);
+      const k = canon(next);
+      if (!outcomes.has(k)) outcomes.set(k, next);
+    }
     const good = [];
-    for (const m of moves){
-      if (solvableIn(base.apply(base.clone(state), m), dist - 1)) good.push(m);
+    for (const next of outcomes.values()){
+      if (solvableIn(base.clone(next), dist - 1)) good.push(next);
     }
     if (!good.length) return null;             /* par is not reachable from here */
-    const odds = good.length / moves.length;
+    const odds = good.length / outcomes.size;
     logOdds += Math.log10(odds);
     worst = Math.min(worst, odds);
-    goodSum += good.length; legalSum += moves.length; steps++;
+    goodSum += good.length; legalSum += outcomes.size; steps++;
     /* follow the middle option, so the line taken is not systematically the
        first or last move the rule generator happens to emit */
-    state = base.apply(base.clone(state), good[good.length >> 1]);
+    state = good[good.length >> 1];
     dist--;
   }
   return {

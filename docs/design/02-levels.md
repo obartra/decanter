@@ -63,19 +63,25 @@ so generation stays fast. The expensive question is answered once, offline, by
 
 ## Ordering by measured difficulty
 
-The shape climbing looked like a difficulty curve and was not one. Measuring the
-first 120 levels put the correlation between level number and actual difficulty
-at **r = 0.05**: the twelve-colour levels alone, which is everything past 17,
-spanned fourteen orders of magnitude in how likely par is, in the arbitrary order
-the seeds happened to produce. The three most demanding boards in the whole table
-sat at levels 3, 4 and 8.
+The shape climbing looked like a difficulty curve and was not one. Measured over
+the first 120 levels, the order the game shipped with correlated with actual
+difficulty at **r = 0.15**, and **62 of its 119 steps went down**: more than half
+the time, the next level was easier than the one before. The board grew, and that
+was all it did.
 
 ### What is measured
 
-A board is hard when the optimal line is narrow. At each step some moves are
-legal and only some keep par reachable, so the chance of choosing correctly is
-`good / legal`, and the chance of walking the whole line is those odds
-multiplied. That collapses fast, so it is reported as a log.
+A board is hard when the optimal line is narrow. At each step some number of
+things you could do keep par reachable and the rest do not, so the chance of
+choosing correctly is `good / distinct`, and the chance of walking the whole line
+is those odds multiplied. That collapses fast, so it is reported as a log.
+
+**Distinct, not legal.** Moves are counted by the board they produce, not by the
+pair of bottles they name. Pouring into the first empty bottle and pouring into
+the second are one decision, and counting them as two made every extra empty look
+like another way to go wrong. This is the same state-preserving reduction the
+solver applies, for the same reason, and getting it wrong cost more than any
+other mistake here: see [below](#three-things-that-did-not-work).
 
 Which moves are optimal is decided exactly, not sampled. From a state whose true
 distance is `d`, a move is optimal precisely when the result is still solvable in
@@ -112,31 +118,27 @@ ordering disagree about what a level even was.
 steadily and never shrinks, which is what a player reads as progress and what the
 layout, the shelving and the map all depend on. Everything else is free.
 
-That freedom matters because of the second problem, which was worse than the
-first: the shape itself sawtoothed.
+That freedom is what the ordering needs, because the boards a level dealt were
+simply whatever its seed produced. Measured, the original first sixteen went:
 
 ```
- 1  4c   1.89      9  8c   3.64
- 2  4c   1.95     10  8c   3.70
- 3  5c   5.00     11  9c   6.36
- 4  5c   5.13     12  9c   7.91   <- wall
- 5  6c   2.33     13 10c   3.97   <- relief
- 6  6c   2.46     14 10c   3.77
- 7  7c   4.41     15 11c   7.02
- 8  7c   6.10     16 11c   9.36   <- harder than everything up to level 90
+ 1  4c/2e   1.85      9  8c/2e   5.91
+ 2  4c/2e   3.35     10  8c/2e   7.25
+ 3  5c/3e   6.58     11  9c/3e   6.51
+ 4  5c/3e   8.92     12  9c/3e   6.94
+ 5  6c/2e   6.99     13 10c/2e   9.89
+ 6  6c/2e   2.92     14 10c/2e   3.82   <- easier than level 3
+ 7  7c/3e   7.07     15 11c/3e   5.75
+ 8  7c/3e  10.58     16 11c/3e  14.10   <- harder than most of what follows
 ```
 
-`empties` alternates with the parity of the colour count, to keep the bottle
-count even, and **empties dominate**: every extra empty adds legal moves and most
-of them are wrong. So the odd-colour levels came out far harder than the
-even-colour levels on either side. A player hit a wall at 12, got relief at 13, a
-worse wall at 16, and relief again at 17.
+Not a curve, and not a pattern either: level 14 is easier than level 3 and level
+16 is harder than the great majority of the levels after it.
 
-The fix falls out of the constraint. Two shapes share each bottle count: 5
-colours with 3 empties and 6 colours with 2 empties are both eight bottles and
-look the same on screen. So levels are grouped into **bottle-count bands** and
-each band's levels are filled from the measured difficulty of the boards that fit
-that many bottles, whichever shape they wear.
+Two shapes share each bottle count: 5 colours with 3 empties and 6 colours with 2
+empties are both eight bottles and look the same on screen. So levels are grouped
+into **bottle-count bands** and each band's levels are filled from the measured
+difficulty of the boards that fit that many bottles, whichever shape they wear.
 
 - **A band with many levels** (the fourteen-bottle band holds every level past
   fifteen) sorts boards of the shape its levels already used. It needs
@@ -145,7 +147,11 @@ that many bottles, whichever shape they wear.
   without slack the top of the curve gets quietly truncated by its own
   measurement cost.
 - **A band with few levels** measures a field of every shape it could wear and
-  lets the numbers pick. Every one of them chose the two-empty shape.
+  lets the numbers pick.
+
+Every band chose a **two-empty** shape, and kept choosing it after the counting
+was corrected, so an empty bottle does cost something. Just nowhere near what the
+first version of the measurement claimed.
 
 Small bands are filled in **level order, carrying a floor**, not band by band. A
 band can only offer boards of its own bottle count, so a band that starts easier
@@ -153,15 +159,24 @@ than the last one ended puts a dip in the curve exactly where the board grows,
 which is the moment the game is claiming to get harder. The floor costs a little
 accuracy against the target and buys monotonicity.
 
-Candidates are chosen against a **global** target interpolated from where the
-sorted band landed, not against a spread within their own band. An earlier
-version did the latter and gave level 8 a board harder than most twelve-colour
-levels, because every candidate there was hard and being mid-pool said nothing
-about how it compared to the rest of the game.
+Candidates are chosen against a **global** target rather than a spread within
+their own band. An earlier version did the latter and gave level 8 a board harder
+than most twelve-colour levels, because every candidate there was hard and being
+mid-pool said nothing about how it compared to the rest of the game.
 
-### Two things that did not work
+### Three things that did not work
 
-Both are recorded because both looked obviously right.
+All three are recorded because all three looked obviously right.
+
+**Counting legal moves instead of distinct outcomes.** This one was not a
+performance shortcut but a wrong definition, and it is the reason the section
+above was rewritten. Three empty bottles offer three legal pours of the same
+liquid to the same effect; counted separately, two of them are wrong answers that
+nobody could have got wrong. It inflated three-empty boards by up to **ten orders
+of magnitude** (level 11 measured 10^-16.1, and 10^-6.5 once corrected) and
+produced a confident, entirely false account of the early game as a parity
+sawtooth. The lesson is not that the number was imprecise. It is that a metric
+can be precise, reproducible, and measuring the wrong thing.
 
 **Sifting on par.** Full measurement is expensive and par is milliseconds, so the
 first version sifted a wide field on par and measured only the shortest boards,
@@ -189,10 +204,15 @@ first version of this ran until it died.
 
 ### Result
 
-Difficulty is **non-decreasing across all 120 levels**, from 10^-2.5 at level 1 to
-10^-16.6 at level 120, with no dip anywhere. Correlation with level number is
-0.96, and the shortfall from 1.0 is the curve being concave rather than straight,
-which is what a difficulty ramp should be.
+|  | shipped order | now |
+| --- | --- | --- |
+| correlation with level number | 0.15 | **0.96** |
+| steps that go down | 62 of 119 | **0 of 119** |
+| range | scattered | 10^-2.4 to 10^-16.2 |
+
+Difficulty is **non-decreasing across all 120 levels**, with no dip anywhere. The
+shortfall from a correlation of 1.0 is the curve being concave rather than
+straight, which is what a difficulty ramp should be.
 
 The measurement is committed to `docs/difficulty.json` and a test asserts it never
 goes down. Re-measuring in the test suite would take twenty minutes, so the
@@ -200,9 +220,9 @@ alternative was to eyeball it once and hope; a hand-edited order or a
 regeneration that quietly made the curve worse now fails a test instead of
 reaching a player.
 
-Every band chose a **two-empty** shape, so the colour count now runs
-4, 4, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 12 and then holds. The odd-colour
-three-empty shapes are no longer dealt at all.
+The colour count now runs 4, 4, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 12 and
+then holds, since every band chose a two-empty shape. The odd-colour three-empty
+shapes are no longer dealt.
 
 ### The cost of reordering
 
