@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="282f6810c3">
+<meta name="build" content="9ce5e8a10e">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -154,8 +154,13 @@ body[data-view="game"] #gameView{display:flex}
 .btn.priced small{pointer-events:none}
 .btn.primary.priced small{color:#5C3F14}
 
+/* The bottles sit above the HUD and the controls. A bottle that is lifted or
+   tipping reaches outside the board, and anything painting over it reads as the
+   bottle being clipped rather than as it passing behind something. The chips and
+   buttons use backdrop-filter, which puts them in the positioned layer, so the
+   board has to say so explicitly to stay on top of them. */
 .board{
-  position:relative; display:grid;
+  position:relative; z-index:2; display:grid;
   grid-template-columns:repeat(var(--cols), var(--bw));
   justify-content:center; align-content:center; place-items:center;
   flex:1; width:100%; min-height:0;

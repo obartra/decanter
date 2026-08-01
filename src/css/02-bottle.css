@@ -1,5 +1,10 @@
+/* The bottles sit above the HUD and the controls. A bottle that is lifted or
+   tipping reaches outside the board, and anything painting over it reads as the
+   bottle being clipped rather than as it passing behind something. The chips and
+   buttons use backdrop-filter, which puts them in the positioned layer, so the
+   board has to say so explicitly to stay on top of them. */
 .board{
-  position:relative; display:grid;
+  position:relative; z-index:2; display:grid;
   grid-template-columns:repeat(var(--cols), var(--bw));
   justify-content:center; align-content:center; place-items:center;
   flex:1; width:100%; min-height:0;
