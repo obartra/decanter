@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="888c41c686">
+<meta name="build" content="927c76d367">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -416,6 +416,22 @@ body[data-view="game"] #gameView{display:flex}
   0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 6px rgba(224,177,92,.16), 0 0 30px rgba(224,177,92,.4)}
   50%{box-shadow:0 8px 22px rgba(0,0,0,.55), 0 0 0 12px rgba(224,177,92,.05), 0 0 44px rgba(238,197,120,.65)}
 }
+/* Locked, but still on the shelf. These were faint enough to disappear into the
+   road, which loses the sense of a path carrying on past where you have got to.
+   They read as unplayable by being cold and flat rather than by being invisible:
+   the border stays well under the one an open level gets, the fill stays darker
+   than the warm brown, and nothing here glows.
+
+   Ordered before the buyable rules on purpose. A buyable node is a locked node
+   too, and at equal weight the later rule wins. */
+.node.locked{
+  cursor:default; font-size:15px; color:rgba(239,228,210,.52);
+  border-color:rgba(224,177,92,.24);
+  background:linear-gradient(180deg, rgba(48,35,21,.7), rgba(20,14,9,.64));
+  box-shadow:0 3px 10px rgba(0,0,0,.45);
+  opacity:.96;
+}
+
 /* The next one along can be bought rather than beaten, so it shows its price
    instead of just a padlock. One tap arms it and the second pays: a single tap
    on something you cannot play yet should never spend anything. */
@@ -436,14 +452,6 @@ body[data-view="game"] #gameView{display:flex}
   box-shadow:0 0 0 2px rgba(224,177,92,.5), 0 0 20px rgba(224,177,92,.35);
 }
 .node.armed .num{font-size:15px; opacity:1; color:var(--gold-lit)}
-
-.node.locked{
-  cursor:default; font-size:14px; color:rgba(239,228,210,.32);
-  border-color:rgba(224,177,92,.12);
-  background:linear-gradient(180deg, rgba(40,29,17,.55), rgba(16,11,7,.5));
-  box-shadow:none;
-}
-.node.locked:nth-of-type(n){opacity:.85}
 .mapRoad{position:absolute; left:0; bottom:0; pointer-events:none}
 </style>
 </head>
