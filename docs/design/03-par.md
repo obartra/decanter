@@ -28,6 +28,25 @@ the number of colours. See [02 Levels](02-levels.md).
 per move, so `h(n) ≤ 1 + h(n')` for every successor. With a consistent heuristic
 and a closed set, A\* returns a true minimum.
 
+**Why a shortage of empty bottles does not break it.** The Towers of Hanoi
+intuition, that a bound like this only holds while there is somewhere to put
+things, points the wrong way here. `h` must never *over*estimate. A cramped board
+is harder, so its true distance is larger, which leaves `h` further below the
+truth rather than above it. Constraints can only make an admissible heuristic
+more conservative.
+
+The direction that would matter is the opposite one, and it has a single known
+cause: the whole-bottle requirement above. If a colour ever spanned two bottles,
+`h` would overshoot at the goal and par could come back **too high** — a level
+easier than advertised, never one that cannot be finished.
+
+**Par is a path, not an estimate.** This is the part worth holding onto. A\*
+returns `g`, the length of a sequence of legal moves it actually walked, not `h`.
+So par is reachable by construction, provided the moves the search considers are
+moves the game allows, which is what the rules-versus-baseline test exists to
+guarantee. The only way to publish an unreachable par would be to search a
+different game than the one being played.
+
 **Why not IDA\*.** The first implementation used IDA\* with a transposition
 table. Pruning a node by returning a sentinel cost corrupts the next bound, which
 can overshoot the optimum and report a number that is too high. A\* with a bucket
@@ -53,6 +72,16 @@ number, and the search never competes with the animation for a frame.
 The table is regenerated with `npm run pars` after any change to the generator,
 the capacity, or the solver. A test re-solves a spread of levels and fails if the
 committed table disagrees, so a stale table cannot survive.
+
+That check re-solves with the **same** solver, so it catches a stale table and
+nothing else. A second test asks the harder question: for a spread of levels,
+does a sequence of exactly `par` legal moves exist under the **independent** rules
+in `baseline.mjs`, and does replaying it really finish the board? A par that
+cannot be played would fail every player on that level while looking entirely
+reasonable in the table.
+
+`tools/verify-pars.mjs` runs that check over the whole table rather than a sample.
+All 120 levels are reachable in exactly par, and none is solvable in fewer.
 
 ## The fallback, and why an estimate is never scored
 
