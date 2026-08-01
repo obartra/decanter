@@ -43,7 +43,8 @@ breadth-first search that applies no pruning at all.
 ## Where par actually comes from
 
 Not from the browser. `tools/pars.mjs` solves every level offline with a budget
-no page load could afford and writes `src/js/35-pars.js`, which is committed.
+no page load could afford and writes `src/js/35-pars.js`, which is committed. It
+currently holds 120 levels, solved in about twenty seconds.
 
 Levels are deterministic, so par is a fixed property of a level and there is
 nothing to rediscover on each visit. A slow phone and a fast laptop show the same
@@ -67,7 +68,12 @@ pours against a true minimum of 41.
 
 So an inexact par is shown with a `~`, is never cached as fact, and **never
 decides anything**. `rate()` takes an `exact` flag and treats an estimate as no
-par at all. This mattered when a bad estimate could cost a star; it matters much
-more now that it could **fail a run**, because an estimate is an upper bound and
-scoring one would punish someone for the search's shortcomings rather than their
-own. See [04 Economy](04-economy.md).
+par at all.
+
+An estimate is an **upper bound**: the search found a way through in that many
+pours and stopped looking, so a run that beats it has not been shown to match the
+minimum, and a run that misses it has not been shown to miss the minimum. It
+cannot honestly move a rating in either direction. This mattered when a bad
+estimate could cost a star. It matters far more now that it could **fail a run**,
+because scoring one would end somebody's level for the search's shortcomings
+rather than their own.

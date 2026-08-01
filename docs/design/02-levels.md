@@ -24,7 +24,9 @@ bottles = colours + empties
 
 Colours climb by one every two levels from 4 until they cap at 12, so difficulty
 rises for the first 17 levels and then plateaus. The empty count is chosen to
-keep the bottle count **even**, so the map grid never leaves an orphan in a row.
+keep the bottle count **even**, so the board can lay out in two equal rows: the
+layout only considers row counts that divide the bottles exactly, and an odd
+count collapses to a single row of very narrow bottles.
 
 Every colour is dealt **exactly `capacity` units**. This looks like an
 implementation detail and is not: the solver's heuristic is only admissible

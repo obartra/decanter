@@ -1,6 +1,7 @@
 /* Level definition. Deterministic in the level number, so level 12 is the same
    puzzle for everyone, forever. */
-/* Bottle count is always even so the map grid never leaves an orphan in a row. */
+/* Bottle count is always even so the board can lay out in two equal rows: the
+   layout only takes row counts that divide the bottles exactly. */
 function shape(level){
   const colors = Math.min(CONFIG.minColors + Math.floor((level - 1) / 2), CONFIG.maxColors);
   const empties = colors % 2 === 0 ? 2 : 3;

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="6124e65c99">
+<meta name="build" content="c16544c5de">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -758,7 +758,8 @@ globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,
 /* ---- 30-levels.js ---- */
 /* Level definition. Deterministic in the level number, so level 12 is the same
    puzzle for everyone, forever. */
-/* Bottle count is always even so the map grid never leaves an orphan in a row. */
+/* Bottle count is always even so the board can lay out in two equal rows: the
+   layout only takes row counts that divide the bottles exactly. */
 function shape(level){
   const colors = Math.min(CONFIG.minColors + Math.floor((level - 1) / 2), CONFIG.maxColors);
   const empties = colors % 2 === 0 ? 2 : 3;

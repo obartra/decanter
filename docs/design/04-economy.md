@@ -25,9 +25,9 @@ Two things can lower the ceiling:
 - **A bought vessel caps the run at two stars.** Par describes the bottles the
   level dealt. Put a seventh on the shelf and the board is easier than the number
   being scored against, so the third star would be measuring a different puzzle.
-- **An inexact par is not scored at all.** An estimate is an upper bound, so it
-  cannot show that a run matched the minimum and must never be the thing that
-  fails somebody.
+- **An inexact par is not scored at all**, and with a failing bracket in play
+  that guard matters more than it used to. Why an estimate can never be scored is
+  [03 Par](03-par.md).
 
 ## Failing
 

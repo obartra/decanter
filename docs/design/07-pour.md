@@ -71,6 +71,6 @@ timer for exactly the same reason.
 
 ## Reduced motion
 
-`prefers-reduced-motion` shortens every sleep to a floor of 60ms rather than
-removing the animation, so the sequence still reads but does not linger. The
-liquid renderer is unaffected: it is drawing, not motion.
+Under `prefers-reduced-motion` every sleep in the sequence drops to a 60ms floor,
+so the pour still reads but does not linger. The policy this follows, and why it
+shortens rather than removes, is [10 Visual system](10-visual-system.md).

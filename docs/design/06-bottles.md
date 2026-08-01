@@ -13,8 +13,10 @@ That order is the point: the glass and its highlights sit **over** the liquid, s
 reflections read across colour boundaries and the bottle feels like a container
 rather than a coloured rectangle.
 
-The DOM still contains the old colour bands, kept in the markup and rendered
-transparent, because they are what the layout is measured from.
+The DOM still contains the colour bands, rendered transparent whenever the canvas
+renderer is active. They are the **fallback**: if a canvas context cannot be had,
+the board is never marked as simulated, the bands stay visible, and they are the
+liquid. Geometry is measured from the glass element, not from them.
 
 ## The liquid is a mask, not a simulation
 

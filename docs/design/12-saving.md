@@ -9,6 +9,7 @@ numbers inside it mean is [04 Economy](04-economy.md).
 
 | | |
 | --- | --- |
+| `version` | the schema version, currently 1 and never yet needed |
 | `unlocked` | the highest level that may be played |
 | `stars` | best star count per level |
 | `best` | fewest pours per level |

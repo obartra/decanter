@@ -1,8 +1,8 @@
 # 01 · The puzzle
 
 The laws of the game. What a pour is, when one is legal, and when a level is
-over. Everything else in this codebase is downstream of these five rules, so they
-are kept in one small module with no dependencies of any kind.
+over. Everything else in this codebase is downstream of these five rules, so they are
+kept in one small module that reads nothing but `CONFIG`.
 
 ## The rules
 
@@ -19,7 +19,8 @@ them looks the way it does.
 
 ## Why the rules module is inert
 
-`src/js/20-rules.js` touches no DOM, no timers, and no state. It exports pure
+`src/js/20-rules.js` touches no DOM, no timers, and no state. It reads two pieces
+of configuration, the capacity and the star brackets, and otherwise exports pure
 functions over an array of arrays. That is not tidiness for its own sake: it is
 what makes the rules **testable against an independent implementation**.
 

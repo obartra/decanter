@@ -19,7 +19,7 @@ A test fails if a stylesheet defines a liquid colour again.
 
 ## Twelve colours that stay apart
 
-`maxColors` is 12 and levels past 17 deal all of them at once. A test asserts
+`maxColors` is 12, and from level 17 onward every level deals all of them at once. A test asserts
 every pair of palette entries is far enough apart in RGB to be told apart.
 
 It earns its place: it caught `#5B8FD6` and `#6E7FD6`, two blues 25 apart, which
