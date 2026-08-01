@@ -1,7 +1,7 @@
 import { describe, it, assert, equal, loadPure } from './helpers.mjs';
 import { loadSolver } from './helpers.mjs';
 
-const { Levels, Rules, CONFIG, RNG } = loadPure();
+const { Levels, Rules, CONFIG, RNG, ORDER, PARS } = loadPure();
 const solver = loadSolver();
 
 describe('levels', () => {
@@ -76,6 +76,41 @@ describe('levels', () => {
     assert(Levels.isSectionStart(21), 'level 21 opens a chapter');
     assert(!Levels.isSectionStart(22), 'level 22 does not');
     assert(Levels.sectionName(999).length > 0, 'chapters keep naming themselves past the list');
+  });
+});
+
+describe('order', () => {
+  it('deals a different board per level and never the same one twice', () => {
+    const seeds = Object.values(ORDER);
+    equal(seeds.length, new Set(seeds).size, 'two levels dealing the same board is a duplicate puzzle');
+  });
+  it('only moves the seed, never the shape', () => {
+    /* the colour count still has to climb with the level number, because the
+       par table, the layout and the section tints all read the shape */
+    for (const level of Object.keys(ORDER).map(Number)){
+      const { colors, empties, bottles } = Levels.shape(level);
+      const tubes = Levels.make(level);
+      equal(tubes.length, bottles, `level ${level} deals the wrong bottle count`);
+      equal(tubes.filter(t => t.length === 0).length, empties, `level ${level} deals the wrong empties`);
+      equal(new Set(tubes.flat()).size, colors, `level ${level} deals the wrong colour count`);
+    }
+  });
+  it('routes every ordered level through its seed', () => {
+    for (const [level, seed] of Object.entries(ORDER)){
+      equal(Levels.seedFor(Number(level)), seed, `level ${level} ignores its order entry`);
+      equal(Levels.make(Number(level)), Levels.make(Number(level), seed),
+        `level ${level} does not deal the board its order entry names`);
+    }
+  });
+  it('covers the levels par was computed for', () => {
+    /* a level with a par but no order entry, or the reverse, means the table and
+       the ordering were generated from different boards */
+    const ordered = Object.keys(ORDER).sort();
+    const parred = Object.keys(PARS).sort();
+    equal(ordered, parred, 'the order table and the par table disagree about which levels exist');
+  });
+  it('is stamped, so a save written against older boards can be spotted', () => {
+    assert(Number.isInteger(CONFIG.layout) && CONFIG.layout > 0, 'CONFIG.layout must be a whole generation number');
   });
 });
 

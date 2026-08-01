@@ -22,7 +22,7 @@ function safeStorage(){
 }
 function blank(){
   return {
-    version:1, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
+    version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
     gold: CONFIG.economy.startingGold,
     /* levels whose one-time first-clear bonus has already been paid */
     claimed:{},
@@ -44,6 +44,15 @@ function createProgress(storage){
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
+  /* The boards moved, so a rating recorded against a level number is a rating of
+     a board this save will never be dealt again, and a best move count could sit
+     below the new par and read as impossible. Those go. Gold, how far the player
+     got, and which first-clear bonuses were already paid all survive, because
+     none of them describes a particular board. */
+  if (state.layout !== CONFIG.layout){
+    state.layout = CONFIG.layout;
+    state.stars = {}; state.best = {}; state.pars = {};
+  }
 
   function save(){
     try { store.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}

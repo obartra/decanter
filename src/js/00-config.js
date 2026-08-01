@@ -3,6 +3,11 @@ const CONFIG = {
   capacity: 4,
   maxColors: 12,
   minColors: 4,
+  /* Bumped whenever a level number starts dealing a different board, which so
+     far means regenerating src/js/32-order.js. A save records stars and best
+     move counts against level numbers, so those records stop meaning anything
+     when the boards move; see 40-progress.js for what is kept and what is not. */
+  layout: 2,
   /* Liquid palette, index === colour id, and the only place a liquid colour is
      written down. The --cN custom properties the stylesheets use are published
      from here at boot, so the bands, the pour and the particle sim cannot drift

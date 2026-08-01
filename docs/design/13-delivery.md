@@ -59,8 +59,8 @@ nothing.
 once as its worker installs, and that claim is an install, not an update. The
 first version sampled `navigator.serviceWorker.controller` once at load to tell
 them apart, which looks right and is not: the flag stays false for the life of the
-tab, so a tab that started uncontrolled — every first visit, every visit after
-clearing site data — **never auto-updates again**. Tracking the controller rather
+tab, so a tab that started uncontrolled (every first visit, every visit after
+clearing site data) **never auto-updates again**. Tracking the controller rather
 than remembering a flag is the difference between this working and appearing to.
 
 ## The build stamp

@@ -1,7 +1,13 @@
 import { describe, it, assert, equal, loadPure } from './helpers.mjs';
 
-const { Progress } = loadPure();
+const { Progress, CONFIG } = loadPure();
 const fresh = () => Progress.createProgress(Progress.memoryStorage());
+/* a store already holding `save`, as a returning player's browser would */
+function stored(save){
+  const store = Progress.memoryStorage();
+  store.setItem(Progress.SAVE_KEY, JSON.stringify(save));
+  return Progress.createProgress(store);
+}
 
 describe('progress', () => {
   it('starts with only the first level open', () => {
@@ -28,6 +34,24 @@ describe('progress', () => {
     equal(p.starsFor(1), 3);
     equal(p.bestFor(1), 9);
     assert(res.improvedStars && res.improvedBest, 'the improvement should be reported');
+  });
+  it('a save from an older layout keeps its purse but not its board records', () => {
+    const p = stored({
+      layout: CONFIG.layout - 1, unlocked: 40, gold: 210,
+      stars: { 1: 3, 39: 2 }, best: { 1: 12, 39: 44 }, pars: { 1: 12 },
+      claimed: { 1: true, 39: true }, sound: false
+    });
+    equal(p.unlocked, 40, 'how far they got does not depend on which board it was');
+    equal(p.gold, 210, 'their purse is theirs');
+    equal(p.starsFor(1), 0, 'a rating of a board they will not be dealt again means nothing');
+    equal(p.bestFor(1), null, 'nor does a best that could now sit below par');
+    assert(p.raw.claimed[39], 'first-clear stays paid, so old levels cannot be farmed again');
+    equal(p.raw.layout, CONFIG.layout, 'and the save is stamped, so this happens once');
+  });
+  it('a save on the current layout is left alone', () => {
+    const p = stored({ layout: CONFIG.layout, unlocked: 5, stars: { 1: 3 }, best: { 1: 12 } });
+    equal(p.starsFor(1), 3);
+    equal(p.bestFor(1), 12);
   });
   it('replaying an old level does not roll the frontier back', () => {
     const p = fresh();

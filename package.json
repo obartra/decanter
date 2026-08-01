@@ -7,6 +7,8 @@
   "scripts": {
     "build": "node tools/build.mjs",
     "pars": "node tools/pars.mjs",
+    "order": "node tools/order.mjs",
+    "difficulty": "node tools/difficulty.mjs",
     "test": "node tests/run.mjs",
     "check": "npm run build && npm test",
     "serve": "npm run build && cd dist && python3 -m http.server 8080",

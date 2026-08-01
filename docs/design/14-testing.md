@@ -23,9 +23,9 @@ A test that compares two independent routes to the same answer does not.
 
 ## Properties, not coordinates
 
-Geometry is tested by the properties that matter — one node per level, climbing
+Geometry is tested by the properties that matter (one node per level, climbing
 steadily, staying inside the column, far enough apart to tap, the canvas tall
-enough to hold everything — rather than by pinning exact numbers. Pinned
+enough to hold everything) rather than by pinning exact numbers. Pinned
 coordinates fail on every layout tweak and prove nothing.
 
 The economy is tested the same way. Alongside the specific numbers, four

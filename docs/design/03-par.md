@@ -37,8 +37,8 @@ more conservative.
 
 The direction that would matter is the opposite one, and it has a single known
 cause: the whole-bottle requirement above. If a colour ever spanned two bottles,
-`h` would overshoot at the goal and par could come back **too high** — a level
-easier than advertised, never one that cannot be finished.
+`h` would overshoot at the goal and par could come back **too high**, giving a
+level easier than advertised, never one that cannot be finished.
 
 **Par is a path, not an estimate.** This is the part worth holding onto. A\*
 returns `g`, the length of a sequence of legal moves it actually walked, not `h`.
@@ -70,7 +70,9 @@ nothing to rediscover on each visit. A slow phone and a fast laptop show the sam
 number, and the search never competes with the animation for a frame.
 
 The table is regenerated with `npm run pars` after any change to the generator,
-the capacity, or the solver. A test re-solves a spread of levels and fails if the
+the capacity, the solver, or the level ordering in `32-order.js`. Reordering
+changes which board a level number deals, so every entry moves. See
+[02 Levels](02-levels.md). A test re-solves a spread of levels and fails if the
 committed table disagrees, so a stale table cannot survive.
 
 That check re-solves with the **same** solver, so it catches a stale table and
