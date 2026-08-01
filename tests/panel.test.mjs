@@ -47,7 +47,7 @@ describe('end of run panel', () => {
       broke, 'and when both ways out are unaffordable');
   });
   it('reports a new best, but not on a first clear', () => {
-    equal(decide({ improvedStars: true, hadStars: 2 }).hint, 'New best for this level.');
+    equal(decide({ improvedStars: true, hadStars: 2 }).hint, 'High score!');
     equal(decide({ improvedStars: true, hadStars: 0 }).hint, '',
       'a first clear is not an improvement on anything');
   });

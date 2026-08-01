@@ -40,6 +40,11 @@ const CONFIG = {
     vessel: 45,
     freeUndos: 3,
     undoCost: 8,
+    /* A hint names the move the solver would play, so it never costs a star: it
+       tells you the optimal move, and taking an optimal move is what earns the
+       stars in the first place. It is priced above an undo because it is worth
+       more than one: an undo takes back a mistake, a hint stops you making it. */
+    hint: 12,
     /* Every board dealt costs the same, whether it is a new level or another go
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough

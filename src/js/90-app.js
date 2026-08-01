@@ -5,7 +5,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false, over: false, reason: null
+    undosUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
 
@@ -86,6 +86,7 @@ const App = (() => {
     S.undosUsed = 0;
     S.over = false;
     S.reason = null;
+    S.hinting = false;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -160,6 +161,10 @@ const App = (() => {
     $('vessel').classList.toggle('spent', S.vesselUsed);
 
     $('restart').disabled = (!S.history.length && !S.moves) || busy;
+
+    $('hintCost').textContent = CONFIG.economy.hint;
+    $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(CONFIG.economy.hint);
+    $('hint').classList.toggle('spent', S.hinting);
   }
 
   /* ---------- input ---------- */
@@ -360,6 +365,27 @@ const App = (() => {
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
       attempt(S.level);
+    };
+    /* The search runs on the board as it stands, not on the level, so a hint is
+       still the best move after a run has gone wrong. Nothing is charged until
+       there is a move to show: a search that gives up owes the player nothing. */
+    $('hint').onclick = () => {
+      if (S.queue.length || S.running || S.over || S.hinting) return;
+      if (!progress.canAfford(CONFIG.economy.hint)){ Audio.deny(); return; }
+      Audio.unlock();
+      S.hinting = true;
+      paintHud();
+      const level = S.level, moves = S.moves;
+      SolverClient.solve(S.tubes, Levels.shape(level).colors, res => {
+        S.hinting = false;
+        /* the board moved on while the search ran, so the answer is about a
+           position that is no longer in front of anyone */
+        if (level !== S.level || moves !== S.moves){ paintHud(); return; }
+        if (!res.first || !progress.spend(CONFIG.economy.hint)){ Audio.deny(); paintHud(); return; }
+        Board.showHint(res.first[0], res.first[1]);
+        Audio.lift();
+        paintHud();
+      });
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
     const closePanel = () => {

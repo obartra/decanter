@@ -66,20 +66,24 @@ function doMove(s,m){ var i; for(i=0;i<m[2];i++) s[m[1]].push(s[m[0]].pop()); }
 function astar(start, colors, nodeCap, msCap){
   var t0 = Date.now();
   var buckets=[], gmap=Object.create(null), remaining=0, f=0, expanded=0;
-  function push(fv,st,g){
+  /* Each node carries the move that left the start, so the search can say what
+     to play next and not only how many pours are left. Nothing else is kept: a
+     hint needs one move, and parent pointers for a whole path would hold every
+     expanded board in memory for the sake of a step nobody asked for. */
+  function push(fv,st,g,m0){
     if(!buckets[fv]) buckets[fv]=[];
-    buckets[fv].push({s:st,g:g});
+    buckets[fv].push({s:st,g:g,m0:m0});
     remaining++;
   }
   gmap[keyOf(start)]=0;
-  push(segs(start)-colors, cl(start), 0);
+  push(segs(start)-colors, cl(start), 0, null);
   while(remaining>0){
     while(f<buckets.length && (!buckets[f] || !buckets[f].length)) f++;
     if(f>=buckets.length) break;
     var node=buckets[f].pop(); remaining--;
     var k=keyOf(node.s);
     if(gmap[k]!==undefined && gmap[k]<node.g) continue;
-    if(done(node.s)) return {par:node.g, exact:true, expanded:expanded};
+    if(done(node.s)) return {par:node.g, exact:true, expanded:expanded, first:node.m0};
     if(++expanded>nodeCap) return {par:null, exact:false, expanded:expanded};
     if((expanded & 1023)===0 && msCap && Date.now()-t0>msCap) return {par:null, exact:false, expanded:expanded};
     var ms=moveList(node.s), i;
@@ -88,7 +92,7 @@ function astar(start, colors, nodeCap, msCap){
       var nk=keyOf(nx), ng=node.g+1;
       if(gmap[nk]!==undefined && gmap[nk]<=ng) continue;
       gmap[nk]=ng;
-      push(ng + segs(nx) - colors, nx, ng);
+      push(ng + segs(nx) - colors, nx, ng, node.m0 || ms[i]);
     }
   }
   return {par:null, exact:false, expanded:expanded};
@@ -113,5 +117,5 @@ self.onmessage = function(e){
   CAP = d.cap;
   var r = astar(d.tubes, d.colors, d.nodeCap||400000, d.msCap||7000);
   if(r.par===null){ r = {par:anySolution(d.tubes), exact:false}; }
-  self.postMessage({id:d.id, par:r.par, exact:r.exact});
+  self.postMessage({id:d.id, par:r.par, exact:r.exact, first:r.first || null});
 };

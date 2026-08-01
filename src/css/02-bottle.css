@@ -21,6 +21,20 @@
 .bottle:focus-visible .glass{box-shadow:0 0 0 2px #fff, 0 0 26px rgba(232,190,110,.55)}
 .bottle.lifted{transform:translateY(-20px)}
 .bottle.pouring{z-index:60}
+/* A hint marks the pair rather than moving anything: it names where the pour
+   comes from and where it goes, and both have to be legible or the hint is only
+   half an answer. The source lights warm and first; the target answers a beat
+   later in a cooler light, so which is which is readable without a legend. */
+.bottle.hintFrom .glass{animation:hintFrom 1.25s ease-in-out 2}
+.bottle.hintTo .glass{animation:hintTo 1.25s ease-in-out 2}
+@keyframes hintFrom{
+  0%,100%{box-shadow:0 10px 24px rgba(0,0,0,.5)}
+  45%{box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 0 3.5px rgba(250,222,166,.92), 0 0 30px rgba(224,177,92,.7)}
+}
+@keyframes hintTo{
+  0%,100%{box-shadow:0 10px 24px rgba(0,0,0,.5)}
+  70%{box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 0 3.5px rgba(196,226,240,.85), 0 0 26px rgba(150,200,230,.5)}
+}
 .bottle.thunk{animation:thunk .5s cubic-bezier(.2,1.4,.4,1)}
 @keyframes thunk{0%{transform:translateY(-5px)}40%{transform:translateY(3px) scaleY(.98)}
   70%{transform:translateY(-1px)}100%{transform:translateY(0)}}

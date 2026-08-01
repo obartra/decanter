@@ -8,10 +8,15 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
+/* Nothing in the game scrolls the page. The map scrolls inside itself, and it
+   hides its own bar; everything else is sized to the viewport. A scrollbar
+   appearing anywhere is a layout that overflowed, not something to ride, so the
+   document refuses to scroll rather than offering a bar that leads nowhere. */
+html{overflow:hidden; overscroll-behavior:none}
 body{
   margin:0; font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
   color:var(--ink); background:#0B0805;
-  -webkit-font-smoothing:antialiased; overflow:hidden;
+  -webkit-font-smoothing:antialiased; overflow:hidden; overscroll-behavior:none;
 }
 /* The room is drawn to a canvas behind everything, so it can put its shelf
    exactly where the bottles stand at any size. See 65-backdrop.js. */
@@ -59,7 +64,13 @@ body[data-view="game"] #gameView{display:flex}
 .btn.primary{border-color:rgba(250,232,190,.5); color:#2A1B08;
   background:linear-gradient(180deg,#F6E0B0,var(--gold) 60%,#B8823A);
   box-shadow:0 6px 22px rgba(224,177,92,.35)}
-.controls{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+/* Five controls have to sit on one line on a narrow phone. They still wrap
+   rather than overflow, but they give up padding first: a row that wraps changes
+   the height the board is laid out into, and the board would resize under the
+   player to make room for it. */
+.controls{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
+.controls .btn{padding:9px 10px; letter-spacing:.10em}
+.controls .btn small{letter-spacing:.08em}
 
 #confetti{position:fixed; inset:0; z-index:95; pointer-events:none; overflow:hidden}
 .conf{position:absolute; border-radius:1px; will-change:transform}

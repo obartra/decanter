@@ -39,7 +39,7 @@ function decide(input){
       : reason === 'short' ? 'What is left needs more pours than the run had.'
       : par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
   }
-  if (!failed && improvedStars && hadStars > 0) hint = 'New best for this level.';
+  if (!failed && improvedStars && hadStars > 0) hint = 'High score!';
   if (atEnd && canPayFee){
     hint = failed
       ? 'The last one. Another go?'

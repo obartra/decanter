@@ -302,6 +302,19 @@ const Board = (() => {
     }
   }
 
+  /* Name the two bottles the move is between and let go. A hint says what to
+     play, it does not play it: the pour is still the player's to make. */
+  function showHint(from, to){
+    [[from, 'hintFrom'], [to, 'hintTo']].forEach(([i, cls]) => {
+      const n = el(i);
+      if (!n) return;
+      n.classList.remove(cls);
+      void n.offsetWidth;          /* so a second hint restarts the animation */
+      n.classList.add(cls);
+      setTimeout(() => n.classList.remove(cls), 2600);
+    });
+  }
+
   function seal(i){
     const b = el(i);
     if (!b) return;
@@ -345,7 +358,7 @@ const Board = (() => {
     /* lifting a bottle moves its glass, so the liquid has to be told to follow */
     set selected(v){ selected = v; if (fluidOn) Fluid.wake(); },
     set onTap(fn){ onTap = fn; },
-    el, render, animate, seal, nudge, reduce
+    el, render, animate, seal, nudge, showHint, reduce
   };
 })();
 globalThis.Board = Board;

@@ -1,9 +1,36 @@
-import { describe, it, assert, equal, loadSolver } from './helpers.mjs';
+import { describe, it, assert, equal, loadSolver, loadPure } from './helpers.mjs';
 import * as base from './baseline.mjs';
 
 const solver = loadSolver();
+const { Levels, Rules } = loadPure();
 
 describe('solver', () => {
+  it('names a move that is actually on a shortest line', () => {
+    /* A hint that is merely legal is worse than none: it is sold as the move the
+       solver would play, and a player following it expects to still be on par.
+       So the hint is followed all the way down, and every one of them has to cut
+       the true distance by exactly one. */
+    for (const level of [1, 3, 7]){
+      const colors = Levels.shape(level).colors;
+      let tubes = Levels.make(level);
+      let got = solver.solve(tubes, colors, {});
+      let distance = got.par;
+      const started = distance;
+      let played = 0;
+      while (distance > 0){
+        assert(got.first, `level ${level} had no move to suggest at distance ${distance}`);
+        const [from, to] = got.first;
+        assert(Rules.canPour(tubes, from, to), `level ${level} suggested a pour the rules refuse`);
+        Rules.applyMove(tubes, { from, to, n: Rules.pourAmount(tubes, from, to) });
+        played++;
+        got = solver.solve(tubes, colors, {});
+        equal(got.par, distance - 1, `level ${level} suggested a move that did not shorten the line`);
+        distance = got.par;
+      }
+      assert(Rules.isSolved(tubes), `level ${level} did not end solved`);
+      equal(played, started, `level ${level} took ${played} hints for a par of ${started}`);
+    }
+  });
   it('generates exactly the moves the game allows, before pruning', () => {
     let mismatches = 0, checked = 0;
     for (let trial = 0; trial < 600; trial++){

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="927c76d367">
+<meta name="build" content="81fdbe5cc8">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -30,10 +30,15 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
+/* Nothing in the game scrolls the page. The map scrolls inside itself, and it
+   hides its own bar; everything else is sized to the viewport. A scrollbar
+   appearing anywhere is a layout that overflowed, not something to ride, so the
+   document refuses to scroll rather than offering a bar that leads nowhere. */
+html{overflow:hidden; overscroll-behavior:none}
 body{
   margin:0; font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
   color:var(--ink); background:#0B0805;
-  -webkit-font-smoothing:antialiased; overflow:hidden;
+  -webkit-font-smoothing:antialiased; overflow:hidden; overscroll-behavior:none;
 }
 /* The room is drawn to a canvas behind everything, so it can put its shelf
    exactly where the bottles stand at any size. See 65-backdrop.js. */
@@ -81,7 +86,13 @@ body[data-view="game"] #gameView{display:flex}
 .btn.primary{border-color:rgba(250,232,190,.5); color:#2A1B08;
   background:linear-gradient(180deg,#F6E0B0,var(--gold) 60%,#B8823A);
   box-shadow:0 6px 22px rgba(224,177,92,.35)}
-.controls{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+/* Five controls have to sit on one line on a narrow phone. They still wrap
+   rather than overflow, but they give up padding first: a row that wraps changes
+   the height the board is laid out into, and the board would resize under the
+   player to make room for it. */
+.controls{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
+.controls .btn{padding:9px 10px; letter-spacing:.10em}
+.controls .btn small{letter-spacing:.08em}
 
 #confetti{position:fixed; inset:0; z-index:95; pointer-events:none; overflow:hidden}
 .conf{position:absolute; border-radius:1px; will-change:transform}
@@ -166,6 +177,20 @@ body[data-view="game"] #gameView{display:flex}
 .bottle:focus-visible .glass{box-shadow:0 0 0 2px #fff, 0 0 26px rgba(232,190,110,.55)}
 .bottle.lifted{transform:translateY(-20px)}
 .bottle.pouring{z-index:60}
+/* A hint marks the pair rather than moving anything: it names where the pour
+   comes from and where it goes, and both have to be legible or the hint is only
+   half an answer. The source lights warm and first; the target answers a beat
+   later in a cooler light, so which is which is readable without a legend. */
+.bottle.hintFrom .glass{animation:hintFrom 1.25s ease-in-out 2}
+.bottle.hintTo .glass{animation:hintTo 1.25s ease-in-out 2}
+@keyframes hintFrom{
+  0%,100%{box-shadow:0 10px 24px rgba(0,0,0,.5)}
+  45%{box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 0 3.5px rgba(250,222,166,.92), 0 0 30px rgba(224,177,92,.7)}
+}
+@keyframes hintTo{
+  0%,100%{box-shadow:0 10px 24px rgba(0,0,0,.5)}
+  70%{box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 0 3.5px rgba(196,226,240,.85), 0 0 26px rgba(150,200,230,.5)}
+}
 .bottle.thunk{animation:thunk .5s cubic-bezier(.2,1.4,.4,1)}
 @keyframes thunk{0%{transform:translateY(-5px)}40%{transform:translateY(3px) scaleY(.98)}
   70%{transform:translateY(-1px)}100%{transform:translateY(0)}}
@@ -354,6 +379,9 @@ body[data-view="game"] #gameView{display:flex}
   position:relative; flex:1; width:100%; max-width:520px; min-height:0;
   overflow-y:auto; overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
+  /* the webkit rule below only covers webkit; these are the other two engines */
+  scrollbar-width:none; -ms-overflow-style:none;
+  overscroll-behavior:contain;
   mask-image:linear-gradient(180deg, transparent 0, #000 64px, #000 calc(100% - 24px), transparent 100%);
 }
 .mapScroll::-webkit-scrollbar{width:0}
@@ -494,6 +522,7 @@ body[data-view="game"] #gameView{display:flex}
   <div class="board" id="board"></div>
   <div class="controls">
     <button class="btn priced" id="undo" type="button">Undo<small id="undoCost">3 free</small></button>
+    <button class="btn priced" id="hint" type="button">Hint<small id="hintCost">12</small></button>
     <button class="btn priced" id="vessel" type="button">Vessel<small id="vesselCost">45</small></button>
     <button class="btn" id="restart" type="button">Restart</button>
     <button class="btn js-sound" type="button">Sound on</button>
@@ -586,20 +615,24 @@ function doMove(s,m){ var i; for(i=0;i<m[2];i++) s[m[1]].push(s[m[0]].pop()); }
 function astar(start, colors, nodeCap, msCap){
   var t0 = Date.now();
   var buckets=[], gmap=Object.create(null), remaining=0, f=0, expanded=0;
-  function push(fv,st,g){
+  /* Each node carries the move that left the start, so the search can say what
+     to play next and not only how many pours are left. Nothing else is kept: a
+     hint needs one move, and parent pointers for a whole path would hold every
+     expanded board in memory for the sake of a step nobody asked for. */
+  function push(fv,st,g,m0){
     if(!buckets[fv]) buckets[fv]=[];
-    buckets[fv].push({s:st,g:g});
+    buckets[fv].push({s:st,g:g,m0:m0});
     remaining++;
   }
   gmap[keyOf(start)]=0;
-  push(segs(start)-colors, cl(start), 0);
+  push(segs(start)-colors, cl(start), 0, null);
   while(remaining>0){
     while(f<buckets.length && (!buckets[f] || !buckets[f].length)) f++;
     if(f>=buckets.length) break;
     var node=buckets[f].pop(); remaining--;
     var k=keyOf(node.s);
     if(gmap[k]!==undefined && gmap[k]<node.g) continue;
-    if(done(node.s)) return {par:node.g, exact:true, expanded:expanded};
+    if(done(node.s)) return {par:node.g, exact:true, expanded:expanded, first:node.m0};
     if(++expanded>nodeCap) return {par:null, exact:false, expanded:expanded};
     if((expanded & 1023)===0 && msCap && Date.now()-t0>msCap) return {par:null, exact:false, expanded:expanded};
     var ms=moveList(node.s), i;
@@ -608,7 +641,7 @@ function astar(start, colors, nodeCap, msCap){
       var nk=keyOf(nx), ng=node.g+1;
       if(gmap[nk]!==undefined && gmap[nk]<=ng) continue;
       gmap[nk]=ng;
-      push(ng + segs(nx) - colors, nx, ng);
+      push(ng + segs(nx) - colors, nx, ng, node.m0 || ms[i]);
     }
   }
   return {par:null, exact:false, expanded:expanded};
@@ -633,7 +666,7 @@ self.onmessage = function(e){
   CAP = d.cap;
   var r = astar(d.tubes, d.colors, d.nodeCap||400000, d.msCap||7000);
   if(r.par===null){ r = {par:anySolution(d.tubes), exact:false}; }
-  self.postMessage({id:d.id, par:r.par, exact:r.exact});
+  self.postMessage({id:d.id, par:r.par, exact:r.exact, first:r.first || null});
 };
 </script>
 <script>
@@ -680,6 +713,11 @@ const CONFIG = {
     vessel: 45,
     freeUndos: 3,
     undoCost: 8,
+    /* A hint names the move the solver would play, so it never costs a star: it
+       tells you the optimal move, and taking an optimal move is what earns the
+       stars in the first place. It is priced above an undo because it is worth
+       more than one: an undo takes back a mistake, a hint stops you making it. */
+    hint: 12,
     /* Every board dealt costs the same, whether it is a new level or another go
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough
@@ -1184,7 +1222,7 @@ function decide(input){
       : reason === 'short' ? 'What is left needs more pours than the run had.'
       : par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
   }
-  if (!failed && improvedStars && hadStars > 0) hint = 'New best for this level.';
+  if (!failed && improvedStars && hadStars > 0) hint = 'High score!';
   if (atEnd && canPayFee){
     hint = failed
       ? 'The last one. Another go?'
@@ -2119,6 +2157,19 @@ const Board = (() => {
     }
   }
 
+  /* Name the two bottles the move is between and let go. A hint says what to
+     play, it does not play it: the pour is still the player's to make. */
+  function showHint(from, to){
+    [[from, 'hintFrom'], [to, 'hintTo']].forEach(([i, cls]) => {
+      const n = el(i);
+      if (!n) return;
+      n.classList.remove(cls);
+      void n.offsetWidth;          /* so a second hint restarts the animation */
+      n.classList.add(cls);
+      setTimeout(() => n.classList.remove(cls), 2600);
+    });
+  }
+
   function seal(i){
     const b = el(i);
     if (!b) return;
@@ -2162,7 +2213,7 @@ const Board = (() => {
     /* lifting a bottle moves its glass, so the liquid has to be told to follow */
     set selected(v){ selected = v; if (fluidOn) Fluid.wake(); },
     set onTap(fn){ onTap = fn; },
-    el, render, animate, seal, nudge, reduce
+    el, render, animate, seal, nudge, showHint, reduce
   };
 })();
 globalThis.Board = Board;
@@ -2814,7 +2865,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false, over: false, reason: null
+    undosUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
 
@@ -2895,6 +2946,7 @@ const App = (() => {
     S.undosUsed = 0;
     S.over = false;
     S.reason = null;
+    S.hinting = false;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -2969,6 +3021,10 @@ const App = (() => {
     $('vessel').classList.toggle('spent', S.vesselUsed);
 
     $('restart').disabled = (!S.history.length && !S.moves) || busy;
+
+    $('hintCost').textContent = CONFIG.economy.hint;
+    $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(CONFIG.economy.hint);
+    $('hint').classList.toggle('spent', S.hinting);
   }
 
   /* ---------- input ---------- */
@@ -3169,6 +3225,27 @@ const App = (() => {
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
       attempt(S.level);
+    };
+    /* The search runs on the board as it stands, not on the level, so a hint is
+       still the best move after a run has gone wrong. Nothing is charged until
+       there is a move to show: a search that gives up owes the player nothing. */
+    $('hint').onclick = () => {
+      if (S.queue.length || S.running || S.over || S.hinting) return;
+      if (!progress.canAfford(CONFIG.economy.hint)){ Audio.deny(); return; }
+      Audio.unlock();
+      S.hinting = true;
+      paintHud();
+      const level = S.level, moves = S.moves;
+      SolverClient.solve(S.tubes, Levels.shape(level).colors, res => {
+        S.hinting = false;
+        /* the board moved on while the search ran, so the answer is about a
+           position that is no longer in front of anyone */
+        if (level !== S.level || moves !== S.moves){ paintHud(); return; }
+        if (!res.first || !progress.spend(CONFIG.economy.hint)){ Audio.deny(); paintHud(); return; }
+        Board.showHint(res.first[0], res.first[1]);
+        Audio.lift();
+        paintHud();
+      });
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
     const closePanel = () => {
