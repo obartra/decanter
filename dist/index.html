@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="83c00c1649">
+<meta name="build" content="d68ea4b37e">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -1294,6 +1294,49 @@ const Backdrop = (() => {
 
   const rand = seed => RNG.mulberry32(RNG.hashSeed(seed));
 
+  /* An offscreen canvas at the same pixel density, drawn in CSS pixels. Used
+     wherever a group of shapes has to be flattened before it is composited, so
+     that overlaps merge instead of stacking their alphas. */
+  function layer(w, h, draw){
+    const off = document.createElement('canvas');
+    off.width = Math.max(1, Math.ceil(w * dpr));
+    off.height = Math.max(1, Math.ceil(h * dpr));
+    const c = off.getContext('2d');
+    c.scale(dpr, dpr);
+    draw(c);
+    return off;
+  }
+
+  /* A bottle profile: body, shoulder, neck, lip. The silhouettes used to be a
+     rounded rectangle with a rectangular neck laid over the top, which is a
+     large part of why the room read as generated rather than furnished. */
+  function flask(c, x, y, bw, bh, squat){
+    const neck = bw * (squat ? 0.40 : 0.30);
+    const nx0 = x + (bw - neck) / 2, nx1 = nx0 + neck;
+    const bottom = y + bh;
+    const foot = Math.min(bw * 0.22, bh * 0.14);
+    const shoulder = y + bh * (squat ? 0.34 : 0.24);
+    const rise = bh * (squat ? 0.16 : 0.26);
+    const lipY = y - rise;
+    const flare = neck * 0.16;
+    c.beginPath();
+    c.moveTo(x, bottom - foot);
+    c.quadraticCurveTo(x, bottom, x + foot, bottom);
+    c.lineTo(x + bw - foot, bottom);
+    c.quadraticCurveTo(x + bw, bottom, x + bw, bottom - foot);
+    c.lineTo(x + bw, shoulder);
+    c.quadraticCurveTo(x + bw, y, nx1, y - rise * 0.25);
+    c.lineTo(nx1, lipY + flare);
+    c.lineTo(nx1 + flare, lipY + flare);
+    c.lineTo(nx1 + flare, lipY);
+    c.lineTo(nx0 - flare, lipY);
+    c.lineTo(nx0 - flare, lipY + flare);
+    c.lineTo(nx0, lipY + flare);
+    c.lineTo(nx0, y - rise * 0.25);
+    c.quadraticCurveTo(x, y, x, shoulder);
+    c.closePath();
+  }
+
   function sky(p){
     const g = ctx.createLinearGradient(0, 0, 0, H);
     p.sky.forEach((c, i) => g.addColorStop(i / (p.sky.length - 1), c));
@@ -1306,9 +1349,21 @@ const Backdrop = (() => {
     const r = rand('boards');
     const step = Math.max(46, W / 11);
     for (let x = step * r(); x < W; x += step * (0.7 + r() * 0.6)){
-      ctx.fillStyle = `rgba(0,0,0,${0.16 + r() * 0.2})`;
+      /* A seam of one flat alpha from ceiling to floor reads as a ruled line
+         rather than a join between boards, so it fades where the light does. */
+      const a = 0.16 + r() * 0.2;
+      const dark = ctx.createLinearGradient(0, 0, 0, H);
+      dark.addColorStop(0, `rgba(0,0,0,${a * 0.3})`);
+      dark.addColorStop(0.45, `rgba(0,0,0,${a})`);
+      dark.addColorStop(1, `rgba(0,0,0,${a * 0.45})`);
+      ctx.fillStyle = dark;
       ctx.fillRect(x, 0, 1.4, H);
-      ctx.fillStyle = `rgba(${p.rim},${0.02 + r() * 0.03})`;
+      const b = 0.02 + r() * 0.03;
+      const lit = ctx.createLinearGradient(0, 0, 0, H);
+      lit.addColorStop(0, `rgba(${p.rim},0)`);
+      lit.addColorStop(0.5, `rgba(${p.rim},${b})`);
+      lit.addColorStop(1, `rgba(${p.rim},0)`);
+      ctx.fillStyle = lit;
       ctx.fillRect(x + 1.4, 0, 1, H);
     }
   }
@@ -1322,29 +1377,53 @@ const Backdrop = (() => {
     ctx.fillRect(0, 0, W, H);
   }
 
-  /* jars and demijohns standing further back */
+  /* Jars and demijohns standing further back.
+
+     Each shape used to be drawn straight onto the room at its own alpha, so
+     where two overlapped you could read the outline of the one behind through
+     the one in front. Nothing in a dark room looks like that; it reads as glass
+     ghosts rather than as objects standing behind other objects. A pass is now
+     flattened opaque in its own layer and composited once, so overlaps merge
+     into a single mass, and the nearer shape simply covers what is behind it.
+
+     Two passes rather than one, so there is still depth: the far pass is smaller
+     and dimmer, and within a pass the taller shapes are drawn last so the bigger
+     thing is the one in front. */
   function clutter(p, baseY, seed){
-    const r = rand('clutter' + seed);
-    const n = Math.round(W / 70) + 5;
-    for (let i = 0; i < n; i++){
-      const squat = r() < 0.42;
-      const bw = W * (squat ? 0.035 + r() * 0.05 : 0.02 + r() * 0.032);
-      const bh = bw * (squat ? 0.9 + r() * 0.8 : 2.1 + r() * 2.6);
-      const x = r() * (W + bw) - bw / 2;
-      const y = baseY - bh;
-      const neck = bw * (0.2 + r() * 0.2);
-      ctx.globalAlpha = 0.34 + r() * 0.24;
-      ctx.fillStyle = p.silhouette;
-      ctx.beginPath();
-      const rad = squat ? bw * 0.48 : bw * 0.3;
-      if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, [rad, rad, bw * 0.16, bw * 0.16]);
-      else ctx.rect(x, y, bw, bh);
-      ctx.fill();
-      ctx.fillRect(x + (bw - neck) / 2, y - bh * 0.13, neck, bh * 0.15);
-      if (r() < 0.5) ctx.fillRect(x + (bw - neck * 1.5) / 2, y - bh * 0.17, neck * 1.5, bh * 0.05);
-      ctx.globalAlpha = 0.05 + r() * 0.07;             /* one lit edge */
-      ctx.fillStyle = `rgb(${p.rim})`;
-      ctx.fillRect(x + bw * 0.14, y + bh * 0.12, Math.max(1, bw * 0.045), bh * 0.72);
+    const passes = [{ tag: 'far', scale: 0.72, alpha: 0.34 },
+                    { tag: 'near', scale: 1.05, alpha: 0.55 }];
+    for (const pass of passes){
+      const r = rand('clutter' + seed + pass.tag);
+      const n = Math.round(W / 58) + 5;
+      const shapes = [];
+      for (let i = 0; i < n; i++){
+        const squat = r() < 0.42;
+        const bw = W * (squat ? 0.035 + r() * 0.05 : 0.02 + r() * 0.032) * pass.scale;
+        const bh = bw * (squat ? 0.9 + r() * 0.8 : 2.1 + r() * 2.6);
+        shapes.push({ squat, bw, bh, x: r() * (W + bw) - bw / 2, lit: 0.05 + r() * 0.07 });
+      }
+      shapes.sort((a, b) => a.bh - b.bh);
+      const h = baseY + 4;
+      if (h <= 0) continue;
+      const off = layer(W, h, c => {
+        for (const sh of shapes){
+          const y = baseY - sh.bh;
+          c.fillStyle = p.silhouette;
+          flask(c, sh.x, y, sh.bw, sh.bh, sh.squat);
+          c.fill();
+          /* the light catches one side, and the next shape along covers it if it
+             happens to stand in front, which is what makes the depth read */
+          c.save();
+          flask(c, sh.x, y, sh.bw, sh.bh, sh.squat);
+          c.clip();
+          c.globalAlpha = sh.lit;
+          c.fillStyle = `rgb(${p.rim})`;
+          c.fillRect(sh.x + sh.bw * 0.14, y, Math.max(1, sh.bw * 0.05), sh.bh);
+          c.restore();
+        }
+      });
+      ctx.globalAlpha = pass.alpha;
+      ctx.drawImage(off, 0, 0, W, h);
       ctx.globalAlpha = 1;
     }
   }
@@ -1356,12 +1435,34 @@ const Backdrop = (() => {
     const x0 = Math.min(...row.spots.map(s => s[0])) - 34;
     const x1 = Math.max(...row.spots.map(s => s[1])) + 34;
     const top = (row.top == null ? row.y - 150 : row.top) - 26;
-    const g = ctx.createLinearGradient(0, top, 0, row.y);
-    g.addColorStop(0, 'rgba(0,0,0,.10)');
-    g.addColorStop(0.5, 'rgba(0,0,0,.42)');
-    g.addColorStop(1, 'rgba(0,0,0,.54)');
-    ctx.fillStyle = g;
-    ctx.fillRect(x0, top, x1 - x0, row.y - top);
+    const w = x1 - x0, h = row.y - top;
+    if (w <= 0 || h <= 0) return;
+    /* A plain rectangle here put a hard vertical edge down each side of the
+       playing row, which read as a dark frame drawn around the bottles. The
+       recess has to have no edges of its own, so it is faded out at the sides
+       and along the top. */
+    const off = layer(w, h, c => {
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, 'rgba(0,0,0,.10)');
+      g.addColorStop(0.5, 'rgba(0,0,0,.42)');
+      g.addColorStop(1, 'rgba(0,0,0,.54)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, w, h);
+      c.globalCompositeOperation = 'destination-out';
+      const sides = c.createLinearGradient(0, 0, w, 0);
+      sides.addColorStop(0, 'rgba(0,0,0,1)');
+      sides.addColorStop(0.18, 'rgba(0,0,0,0)');
+      sides.addColorStop(0.82, 'rgba(0,0,0,0)');
+      sides.addColorStop(1, 'rgba(0,0,0,1)');
+      c.fillStyle = sides;
+      c.fillRect(0, 0, w, h);
+      const above = c.createLinearGradient(0, 0, 0, h * 0.24);
+      above.addColorStop(0, 'rgba(0,0,0,1)');
+      above.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = above;
+      c.fillRect(0, 0, w, h * 0.24);
+    });
+    ctx.drawImage(off, x0, top, w, h);
   }
 
   function cobweb(p, x, y, size, flip){
