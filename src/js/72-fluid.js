@@ -5,7 +5,7 @@
    done: the shape of the glass is the clip, and the surface is a line in world
    space. A tilting bottle turns its clip and leaves the line alone, so the
    liquid stays level while the glass rotates, without that having to be
-   arranged. See docs/DESIGN.md for what this replaced and why.
+   arranged. See docs/design/06-bottles.md for what this replaced and why.
 
    Everything follows from the clip. Liquid is only ever drawn through a glass,
    so liquid outside a glass is not a thing this code can express: it is not
