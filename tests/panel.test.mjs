@@ -70,26 +70,27 @@ describe('end of run panel', () => {
   it('names what actually ended the run', () => {
     /* "too many pours" is true of only one of the three ways to lose, and would
        read as plainly wrong to anyone looking at a board with no legal pour */
-    equal(decide({ failed: true, stars: 0, reason: 'stuck' }).title, 'Nowhere left to pour');
-    equal(decide({ failed: true, stars: 0, reason: 'short' }).title, 'Not enough pours left');
-    equal(decide({ failed: true, stars: 0, reason: 'over' }).title, 'Too many pours');
+    equal(decide({ failed: true, stars: 0, reason: 'stuck' }).title, 'Failed');
+    equal(decide({ failed: true, stars: 0, reason: 'stuck' }).line, 'You are out of valid moves.');
+    equal(decide({ failed: true, stars: 0, reason: 'short' }).line,
+      'What is left needs more pours than the run had.');
+    equal(decide({ failed: true, stars: 0, reason: 'over', moves: 42, par: 39 }).line,
+      'That is 42 pours against a minimum of 39.');
     equal(decide({ stars: 3 }).title, 'Poured clean');
     equal(decide({ stars: 2 }).title, 'Level cleared');
   });
-  it('explains a loss that is not about the count', () => {
-    equal(decide({ failed: true, stars: 0, reason: 'stuck' }).hint, 'No pour is legal from here.');
-    equal(decide({ failed: true, stars: 0, reason: 'short' }).hint,
-      'What is left needs more pours than the run had.');
-    equal(decide({ failed: true, stars: 0, reason: 'over', par: 20 }).hint,
-      `Clear it in ${20 + CONFIG.stars.one} or fewer.`);
+  it('says what it would take to clear it, whatever went wrong', () => {
+    for (const reason of ['stuck', 'short', 'over']){
+      equal(decide({ failed: true, stars: 0, reason, par: 20 }).hint,
+        `Clear it in ${20 + CONFIG.stars.one} or fewer.`);
+    }
   });
   it('does not claim a board was sorted when it was not', () => {
     /* a run can end nowhere near the finish, so the count it ended on says
        nothing about how well it went and must not be dressed up as a result */
-    equal(decide({ failed: true, stars: 0, moves: 6, par: 39, reason: 'stuck' }).line,
-      'Stopped after 6 pours.');
-    equal(decide({ failed: true, stars: 0, moves: 1, par: 39, reason: 'stuck' }).line,
-      'Stopped after 1 pour.');
+    const p = decide({ failed: true, stars: 0, moves: 6, par: 39, reason: 'stuck' });
+    assert(!/sorted/i.test(p.line), `a failed run must not claim it sorted anything: "${p.line}"`);
+    assert(!/sorted/i.test(p.title), `nor in the title: "${p.title}"`);
   });
   it('hides retry only on a perfect run', () => {
     equal(decide({ stars: 3 }).retryHidden, true);

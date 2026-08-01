@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="9d5f0eca98">
+<meta name="build" content="323e25d01c">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -91,6 +91,23 @@ body[data-view="game"] #gameView{display:flex}
    the height the board is laid out into, and the board would resize under the
    player to make room for it. */
 .controls{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
+.winFoot{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+
+/* Reading the board after the run is over. It is drained of colour so it plainly
+   is not in play, and it takes no input at all: the next touch anywhere puts the
+   panel back rather than pouring anything. */
+.peeking .board{filter:grayscale(.8) brightness(.72); pointer-events:none}
+.peeking .hud{opacity:.4; pointer-events:none}
+/* the controls go rather than dim: none of them can be used while the run is
+   over, and dimming them only leaves something for the prompt to collide with */
+.peeking .controls{opacity:0; pointer-events:none}
+.peeking .board, .peeking .hud, .peeking .controls{transition:filter .2s, opacity .2s}
+.peeking::after{
+  content:"Tap to go back"; position:fixed; left:50%; bottom:22px; z-index:70;
+  transform:translateX(-50%); pointer-events:none;
+  font-size:9px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--ink-dim); text-shadow:0 1px 6px rgba(0,0,0,.9);
+}
 .controls .btn{padding:9px 10px; letter-spacing:.10em}
 .controls .btn small{letter-spacing:.08em}
 
@@ -548,7 +565,10 @@ body[data-view="game"] #gameView{display:flex}
       <button class="btn priced" id="skip" type="button" hidden>Move on<small id="skipCost">10</small></button>
       <button class="btn primary" id="next" type="button">Next level</button>
     </div>
-    <button class="btn ghost" id="winMap" type="button">Back to map</button>
+    <div class="winFoot">
+      <button class="btn ghost" id="peek" type="button">View board</button>
+      <button class="btn ghost" id="winMap" type="button">Back to map</button>
+    </div>
   </div>
 </div>
 
@@ -1215,23 +1235,17 @@ function decide(input){
   const atEnd = level >= lastLevel;
   const stuck = !atEnd && failed && !nextUnlocked;
 
-  /* A lost run is told what ended it. "Too many pours" is only true of one of
-     the three ways to lose, and saying it for a board with nothing left to pour
-     would be plainly wrong to anyone looking at the board. */
-  const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared')
-    : reason === 'stuck' ? 'Nowhere left to pour'
-    : reason === 'short' ? 'Not enough pours left'
-    : 'Too many pours';
+  /* A lost run says so plainly and then says why. Leading with the reason alone
+     read as a remark about the board rather than as the run being over. */
+  const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared') : 'Failed';
+  const because = reason === 'stuck' ? 'You are out of valid moves.'
+    : reason === 'short' ? 'What is left needs more pours than the run had.'
+    : `That is ${moves} pours against a minimum of ${par}.`;
 
   /* Last writer wins, so the order is the priority order. Being told the game is
      over does not help someone who cannot afford another go, so an empty purse
      outranks it; a new best outranks the standing advice. */
-  let hint = '';
-  if (failed){
-    hint = reason === 'stuck' ? 'No pour is legal from here.'
-      : reason === 'short' ? 'What is left needs more pours than the run had.'
-      : par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
-  }
+  let hint = failed && par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
   if (!failed && improvedStars && hadStars > 0) hint = 'High score!';
   if (atEnd && canPayFee){
     hint = failed
@@ -1248,7 +1262,7 @@ function decide(input){
     : parExact ? ` The minimum is ${par}.`
     : ` The best found is about ${par}.`;
   const bestLine = !failed && best != null && best < moves ? ` Your best here is ${best}.` : '';
-  const line = failed ? `Stopped after ${moves} ${moves === 1 ? 'pour' : 'pours'}.`
+  const line = failed ? because
     : atPar ? 'Solved in the minimum moves.'
     : `Sorted in ${moves} pours.${parLine}${bestLine}`;
 
@@ -3260,6 +3274,23 @@ const App = (() => {
       showMap(true);
     };
     $('winMap').onclick = closePanel;
+    /* Look at the board the run ended on. Available however it ended, because
+       wanting to see what you were left with is not a thing only winners do.
+       The board is read only while it is being looked at: the run is over, and
+       a stray tap should not be able to pour into a finished level. */
+    $('peek').onclick = () => {
+      $('veil').classList.remove('show');
+      document.body.classList.add('peeking');
+      /* on the next tick, so the tap that opened this does not also close it */
+      setTimeout(() => {
+        const back = () => {
+          document.body.classList.remove('peeking');
+          $('veil').classList.add('show');
+        };
+        addEventListener('pointerdown', back, { once: true });
+        addEventListener('keydown', back, { once: true });
+      }, 0);
+    };
     /* Tapping the dark outside the panel does what the panel's own way out does.
        Only the backdrop itself counts, so a tap that lands on the panel or on a
        button inside it is not a tap outside. */

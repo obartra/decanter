@@ -400,6 +400,23 @@ const App = (() => {
       showMap(true);
     };
     $('winMap').onclick = closePanel;
+    /* Look at the board the run ended on. Available however it ended, because
+       wanting to see what you were left with is not a thing only winners do.
+       The board is read only while it is being looked at: the run is over, and
+       a stray tap should not be able to pour into a finished level. */
+    $('peek').onclick = () => {
+      $('veil').classList.remove('show');
+      document.body.classList.add('peeking');
+      /* on the next tick, so the tap that opened this does not also close it */
+      setTimeout(() => {
+        const back = () => {
+          document.body.classList.remove('peeking');
+          $('veil').classList.add('show');
+        };
+        addEventListener('pointerdown', back, { once: true });
+        addEventListener('keydown', back, { once: true });
+      }, 0);
+    };
     /* Tapping the dark outside the panel does what the panel's own way out does.
        Only the backdrop itself counts, so a tap that lands on the panel or on a
        button inside it is not a tap outside. */

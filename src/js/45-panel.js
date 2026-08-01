@@ -22,23 +22,17 @@ function decide(input){
   const atEnd = level >= lastLevel;
   const stuck = !atEnd && failed && !nextUnlocked;
 
-  /* A lost run is told what ended it. "Too many pours" is only true of one of
-     the three ways to lose, and saying it for a board with nothing left to pour
-     would be plainly wrong to anyone looking at the board. */
-  const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared')
-    : reason === 'stuck' ? 'Nowhere left to pour'
-    : reason === 'short' ? 'Not enough pours left'
-    : 'Too many pours';
+  /* A lost run says so plainly and then says why. Leading with the reason alone
+     read as a remark about the board rather than as the run being over. */
+  const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared') : 'Failed';
+  const because = reason === 'stuck' ? 'You are out of valid moves.'
+    : reason === 'short' ? 'What is left needs more pours than the run had.'
+    : `That is ${moves} pours against a minimum of ${par}.`;
 
   /* Last writer wins, so the order is the priority order. Being told the game is
      over does not help someone who cannot afford another go, so an empty purse
      outranks it; a new best outranks the standing advice. */
-  let hint = '';
-  if (failed){
-    hint = reason === 'stuck' ? 'No pour is legal from here.'
-      : reason === 'short' ? 'What is left needs more pours than the run had.'
-      : par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
-  }
+  let hint = failed && par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
   if (!failed && improvedStars && hadStars > 0) hint = 'High score!';
   if (atEnd && canPayFee){
     hint = failed
@@ -55,7 +49,7 @@ function decide(input){
     : parExact ? ` The minimum is ${par}.`
     : ` The best found is about ${par}.`;
   const bestLine = !failed && best != null && best < moves ? ` Your best here is ${best}.` : '';
-  const line = failed ? `Stopped after ${moves} ${moves === 1 ? 'pour' : 'pours'}.`
+  const line = failed ? because
     : atPar ? 'Solved in the minimum moves.'
     : `Sorted in ${moves} pours.${parLine}${bestLine}`;
 

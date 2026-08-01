@@ -69,6 +69,23 @@ body[data-view="game"] #gameView{display:flex}
    the height the board is laid out into, and the board would resize under the
    player to make room for it. */
 .controls{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
+.winFoot{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+
+/* Reading the board after the run is over. It is drained of colour so it plainly
+   is not in play, and it takes no input at all: the next touch anywhere puts the
+   panel back rather than pouring anything. */
+.peeking .board{filter:grayscale(.8) brightness(.72); pointer-events:none}
+.peeking .hud{opacity:.4; pointer-events:none}
+/* the controls go rather than dim: none of them can be used while the run is
+   over, and dimming them only leaves something for the prompt to collide with */
+.peeking .controls{opacity:0; pointer-events:none}
+.peeking .board, .peeking .hud, .peeking .controls{transition:filter .2s, opacity .2s}
+.peeking::after{
+  content:"Tap to go back"; position:fixed; left:50%; bottom:22px; z-index:70;
+  transform:translateX(-50%); pointer-events:none;
+  font-size:9px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--ink-dim); text-shadow:0 1px 6px rgba(0,0,0,.9);
+}
 .controls .btn{padding:9px 10px; letter-spacing:.10em}
 .controls .btn small{letter-spacing:.08em}
 

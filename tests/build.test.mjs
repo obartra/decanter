@@ -151,7 +151,9 @@ describe('build output', () => {
        liquid keeps the geometry it measured before, so the two come apart and
        stay apart until the next resize. */
     const app = read('src/js/90-app.js');
-    const held = app.slice(app.indexOf('const onResize ='), app.indexOf('addEventListener(\'keydown\''));
+    /* anchored on the resize plumbing itself, not on the next listener in the
+       file, which moves whenever anything else registers one */
+    const held = app.slice(app.indexOf('const onResize ='), app.indexOf('const scheduleResize'));
     assert(/missedResize = true/.test(held), 'a resize during a pour must be remembered, not dropped');
     const drain = app.slice(app.indexOf('async function drain('), app.indexOf('function finish('));
     assert(/missedResize/.test(drain) && /Board\.render\(\)/.test(drain),
