@@ -1,9 +1,20 @@
 /* One measurement, done in a child process so a machine's cores can be used.
 
-   Speaks over the fork IPC channel: receives {level, seed}, replies with the
-   measurement or null. Sending one job at a time rather than a fixed slice means
-   the pool balances itself, which matters because measurement cost varies by
-   orders of magnitude between boards of the same shape.
+   Speaks over the fork IPC channel: receives a job, replies with a result.
+   Sending one job at a time rather than a fixed slice means the pool balances
+   itself, which matters because cost varies by orders of magnitude between
+   boards of the same shape.
+
+   A job names a board outright, as colours, empties and seed, rather than a
+   level. Candidate boards are compared across shapes, so a level number would
+   only be a detour through a lookup that is itself what the caller is trying to
+   decide.
+
+   Every candidate is measured properly. An earlier version sifted a much wider
+   field on par first, on the theory that a shorter line multiplies fewer odds
+   together. Across shapes that is backwards: a board with three empties has a
+   shorter par than one with two, and a far narrower line, so sifting on par
+   reliably picked the hardest board in the band and called it the easiest.
 
    Driven by tools/order.mjs; not useful on its own. */
 import { loadPure, loadSolver } from '../tests/helpers.mjs';
@@ -13,23 +24,14 @@ const ctx = loadPure();
 const solver = loadSolver();
 const BUDGET = Number(process.env.ORDER_BUDGET) || DEFAULT_BUDGET;
 
-function measure(level, seed){
-  const tubes = ctx.Levels.make(level, seed);
+function measure({ colors, empties, seed }){
+  const tubes = ctx.Levels.deal(colors, empties, seed);
   if (!tubes) return null;
-  /* The committed table holds par for the board this level deals *now*, which is
-     only the requested board when the seed matches the current order. Comparing
-     against the level number instead would hand back the wrong par the moment an
-     order exists, which is every run after the first. */
-  let par = ctx.Levels.seedFor(level) === seed ? ctx.PARS[level] : null;
-  if (par == null){
-    const { colors } = ctx.Levels.shape(level);
-    const got = solver.solve(tubes, colors, { nodeCap: 3_000_000, msCap: 20_000 });
-    if (!got.exact || !Number.isInteger(got.par)) return null;
-    par = got.par;
-  }
+  const got = solver.solve(tubes, colors, { nodeCap: 3_000_000, msCap: 20_000 });
+  if (!got.exact || !Number.isInteger(got.par)) return null;
   try {
-    const a = analyse(tubes, par, BUDGET);
-    return a == null ? null : { seed, par, hard: -a.logOdds, tight: a.tight };
+    const a = analyse(tubes, got.par, BUDGET);
+    return a == null ? null : { par: got.par, hard: -a.logOdds, tight: a.tight };
   } catch (err) {
     if (err === TOO_DEAR) return null;
     throw err;
@@ -38,13 +40,12 @@ function measure(level, seed){
 
 process.on('message', job => {
   if (job === 'stop') return process.exit(0);
-  let result = null;
+  let result = null, error;
   try {
-    result = measure(job.level, job.seed);
+    result = measure(job);
   } catch (err) {
-    process.send({ level: job.level, seed: job.seed, result: null, error: String(err && err.message || err) });
-    return;
+    error = String(err && err.message || err);
   }
-  process.send({ level: job.level, seed: job.seed, result });
+  process.send({ job, result, error });
 });
 process.send('ready');

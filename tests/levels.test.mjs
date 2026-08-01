@@ -1,4 +1,4 @@
-import { describe, it, assert, equal, loadPure } from './helpers.mjs';
+import { describe, it, assert, equal, loadPure, read } from './helpers.mjs';
 import { loadSolver } from './helpers.mjs';
 
 const { Levels, Rules, CONFIG, RNG, ORDER, PARS } = loadPure();
@@ -80,34 +80,65 @@ describe('levels', () => {
 });
 
 describe('order', () => {
+  const levels = Object.keys(ORDER).map(Number).sort((a, b) => a - b);
+
   it('deals a different board per level and never the same one twice', () => {
-    const seeds = Object.values(ORDER);
-    equal(seeds.length, new Set(seeds).size, 'two levels dealing the same board is a duplicate puzzle');
+    const boards = Object.values(ORDER).map(e => e.join('/'));
+    equal(boards.length, new Set(boards).size, 'two levels dealing the same board is a duplicate puzzle');
   });
-  it('only moves the seed, never the shape', () => {
-    /* the colour count still has to climb with the level number, because the
-       par table, the layout and the section tints all read the shape */
-    for (const level of Object.keys(ORDER).map(Number)){
-      const { colors, empties, bottles } = Levels.shape(level);
-      const tubes = Levels.make(level);
-      equal(tubes.length, bottles, `level ${level} deals the wrong bottle count`);
-      equal(tubes.filter(t => t.length === 0).length, empties, `level ${level} deals the wrong empties`);
-      equal(new Set(tubes.flat()).size, colors, `level ${level} deals the wrong colour count`);
+  it('is a triple of whole numbers, since all three decide the board', () => {
+    for (const level of levels){
+      const e = ORDER[level];
+      assert(Array.isArray(e) && e.length === 3 && e.every(Number.isInteger),
+        `level ${level} has a malformed entry, and a malformed entry is silently ignored`);
     }
   });
-  it('routes every ordered level through its seed', () => {
-    for (const [level, seed] of Object.entries(ORDER)){
-      equal(Levels.seedFor(Number(level)), seed, `level ${level} ignores its order entry`);
-      equal(Levels.make(Number(level)), Levels.make(Number(level), seed),
-        `level ${level} does not deal the board its order entry names`);
+  it('leaves the bottle count welded to the level number', () => {
+    /* the board is free to change shape within a bottle count, but not to change
+       size: the layout, the shelving and the sense of progress all read the count */
+    for (const level of levels){
+      equal(Levels.shape(level).bottles, Levels.baseShape(level).bottles,
+        `level ${level} changed how big the board is, not just what is on it`);
+    }
+  });
+  it('never shrinks the board as levels go up', () => {
+    let seen = 0;
+    for (const level of levels){
+      const { bottles } = Levels.shape(level);
+      assert(bottles >= seen, `level ${level} has fewer bottles than the level before it`);
+      seen = bottles;
+    }
+  });
+  it('deals the board its entry names', () => {
+    for (const level of levels){
+      const [colors, empties, seed] = ORDER[level];
+      equal(Levels.seedFor(level), seed, `level ${level} ignores its seed`);
+      equal(Levels.shape(level), { colors, empties, bottles: colors + empties },
+        `level ${level} ignores its shape`);
+      equal(Levels.make(level), Levels.deal(colors, empties, seed),
+        `level ${level} does not deal the board its entry names`);
     }
   });
   it('covers the levels par was computed for', () => {
-    /* a level with a par but no order entry, or the reverse, means the table and
-       the ordering were generated from different boards */
-    const ordered = Object.keys(ORDER).sort();
-    const parred = Object.keys(PARS).sort();
-    equal(ordered, parred, 'the order table and the par table disagree about which levels exist');
+    /* a level with a par but no entry, or the reverse, means the table and the
+       ordering were generated from different boards */
+    equal(levels.map(String), Object.keys(PARS).sort((a, b) => Number(a) - Number(b)),
+      'the order table and the par table disagree about which levels exist');
+  });
+  it('gets harder, which is the only reason any of this exists', () => {
+    /* Re-measuring here would take twenty minutes, so the measurement is
+       committed and this pins it. A hand-edited order, or a regeneration that
+       quietly made the curve worse, fails here rather than in someone's game. */
+    const curve = JSON.parse(read('docs/difficulty.json')).levels;
+    equal(curve.map(r => r.level), levels, 'the measurement and the order cover different levels');
+    for (const r of curve){
+      equal([r.colors, r.empties, r.seed], ORDER[r.level],
+        `level ${r.level} was measured as a different board than it deals`);
+    }
+    for (let i = 1; i < curve.length; i++){
+      assert(curve[i].hard >= curve[i - 1].hard,
+        `level ${curve[i].level} is easier than level ${curve[i - 1].level} (10^-${curve[i].hard} vs 10^-${curve[i - 1].hard})`);
+    }
   });
   it('is stamped, so a save written against older boards can be spotted', () => {
     assert(Number.isInteger(CONFIG.layout) && CONFIG.layout > 0, 'CONFIG.layout must be a whole generation number');
