@@ -37,6 +37,12 @@ body[data-view="game"] #gameView{display:flex}
 }
 .wordmark.small{font-size:clamp(18px,4.6vw,24px)}
 
+/* The browser hides [hidden] with display:none, which any rule that sets display
+   outranks. .btn.priced does exactly that, so every priced button ignored its
+   own hidden attribute: Retry showed on a clean run and Move On showed on a run
+   that had not failed, both of them next to a Next Level that was correct. */
+[hidden]{display:none !important}
+
 .btn{
   font-family:inherit; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
   color:var(--ink); padding:10px 15px; border-radius:999px;

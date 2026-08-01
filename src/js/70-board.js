@@ -37,15 +37,20 @@ const Board = (() => {
   const el = i => root.querySelector(`.bottle[data-i="${i}"]`);
   const colorVar = c => `var(--c${c})`;
 
-  /* --- layout: pick the row count that divides the bottle count exactly and
-     yields the largest bottles for the space available --- */
+  /* --- layout: pick the row count that yields the largest bottles for the space
+     available. Rows no longer have to divide the bottle count exactly: buying a
+     vessel makes the count odd, and insisting on equal rows meant an eleven
+     bottle board became one row of eleven and every bottle shrank to fit. A
+     short last row is centred instead. --- */
   function layout(n){
     const W = root.clientWidth || window.innerWidth - 24;
     const H = root.clientHeight || 360;
     let best = null;
     for (let rows = 1; rows <= 4; rows++){
-      if (n % rows) continue;
-      const cols = n / rows;
+      if (rows > n) break;
+      const cols = Math.ceil(n / rows);
+      /* rows that would leave the last one nearly empty look like a mistake */
+      if (cols * (rows - 1) >= n) continue;
       const gx = cols > 6 ? 7 : 11, gy = rows > 2 ? 12 : 20;
       const bw = Math.min((W - (cols - 1) * gx) / cols, ((H - (rows - 1) * gy) / rows) / 3.62, 58);
       if (!best || bw > best.bw) best = { bw, rows, cols, gx, gy };
@@ -55,6 +60,7 @@ const Board = (() => {
     root.style.setProperty('--cols', best.cols);
     root.style.columnGap = best.gx + 'px';
     root.style.rowGap = best.gy + 'px';
+    return best;
   }
   /* contiguous runs of one color draw as a single band, so no seam shows
      between two units of the same liquid */
@@ -69,7 +75,12 @@ const Board = (() => {
   const bandHeight = n => `calc(var(--bh) / var(--units) * ${n})`;
 
   function render(){
-    layout(view.length);
+    const grid = layout(view.length);
+    /* a last row that does not fill the track set is centred under the rest,
+       rather than left hanging against the first column */
+    const spare = view.length % grid.cols;
+    const firstOfLast = spare ? view.length - spare : -1;
+    const indent = spare ? Math.floor((grid.cols - spare) / 2) + 1 : 1;
     root.innerHTML = '';
     view.forEach((tube, i) => {
       const b = document.createElement('button');
@@ -98,6 +109,7 @@ const Board = (() => {
       const gloss = document.createElement('div'); gloss.className = 'gloss'; glass.appendChild(gloss);
       b.appendChild(glass);
       if (full){ const c = document.createElement('div'); c.className = 'corktop'; b.appendChild(c); }
+      if (i === firstOfLast) b.style.gridColumnStart = indent;
       b.addEventListener('click', () => onTap(i));
       root.appendChild(b);
     });

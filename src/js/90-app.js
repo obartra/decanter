@@ -73,9 +73,11 @@ const App = (() => {
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
 
   /* ---------- a level ---------- */
-  /* Restarting keeps a vessel the player already paid for, so a restart cannot
-     be used to launder the purchase back into a three-star run. Leaving the
-     level and coming back deals a clean board, and costs the gold again. */
+  /* A restart deals the level from scratch, and that includes the extra bottle:
+     restarting is starting again, and a board that quietly keeps a vessel is not
+     the board the level is. The purchase is not refunded, because a restart is
+     not an undo. Nothing is laundered by this either, since a run that ever had
+     a vessel is capped at two stars whether or not it still has one. */
   function start(level, keepVessel){
     S.level = level;
     S.tubes = Levels.make(level);
@@ -91,6 +93,15 @@ const App = (() => {
     /* the baked table is exact, and so is anything progress kept */
     S.par = PARS[level] ?? progress.parFor(level);
     S.parExact = S.par != null;
+    /* A par belongs to a particular board. minPours can never overstate the work
+       a board has left, so a par below it cannot be this board's, and scoring
+       against it would hand out three stars and a payout for a run that never
+       happened. Refuse the number rather than the run: an unknown par shows a
+       tilde and decides nothing. */
+    if (S.parExact && S.par < Rules.minPours(S.tubes)){
+      S.par = null;
+      S.parExact = false;
+    }
     Board.view = Rules.clone(S.tubes);
     Board.selected = null;
     $('veil').classList.remove('show');
@@ -154,33 +165,43 @@ const App = (() => {
   /* ---------- input ---------- */
   /* Logic resolves on tap. Animation trails behind in a queue, so a player can
      keep pouring without waiting for the bottle to finish tipping. */
+  /* a bottle worth picking up: it has something in it and is not already done */
+  const canLift = i => S.tubes[i].length > 0 && !Rules.isFull(S.tubes[i]);
+
+  function lift(i){
+    Board.selected = i;
+    Board.el(i)?.classList.add('lifted');
+    Audio.lift();
+  }
+  function drop(){
+    if (Board.selected != null) Board.el(Board.selected)?.classList.remove('lifted');
+    Board.selected = null;
+  }
+
   function tap(i){
     if (S.over) return;                 /* the run is decided; stop taking pours */
     Audio.unlock();
     const sel = Board.selected;
     if (sel === null){
-      if (!S.tubes[i].length || Rules.isFull(S.tubes[i])){ Board.nudge(i); Audio.deny(); return; }
-      Board.selected = i;
-      Board.el(i)?.classList.add('lifted');
-      Audio.lift();
+      if (!canLift(i)){ Board.nudge(i); Audio.deny(); return; }
+      lift(i);
       return;
     }
-    if (sel === i){
-      Board.el(i)?.classList.remove('lifted');
-      Board.selected = null;
-      Audio.drop();
-      return;
-    }
+    if (sel === i){ drop(); Audio.drop(); return; }
     if (Rules.canPour(S.tubes, sel, i)){
-      Board.el(sel)?.classList.remove('lifted');
-      Board.selected = null;
+      drop();
       commit(sel, i);
-    } else {
-      Board.nudge(i);
-      Audio.deny();
-      Board.el(sel)?.classList.remove('lifted');
-      Board.selected = null;
+      return;
     }
+    /* The pour will not go: the target is full, or finished, or the colours do
+       not meet. Rather than making the player tap twice to put one bottle down
+       and pick the next one up, the tap is taken as picking that one up, which
+       is what someone reaching for it meant. Only if it is not worth picking up
+       does the selection simply end. */
+    drop();
+    if (canLift(i)){ lift(i); return; }
+    Board.nudge(i);
+    Audio.deny();
   }
   function commit(from, to){
     const move = { from, to, n: Rules.pourAmount(S.tubes, from, to), color: S.tubes[from][S.tubes[from].length - 1] };
@@ -338,7 +359,7 @@ const App = (() => {
     };
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
-      attempt(S.level, S.vesselUsed);
+      attempt(S.level);
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
     const closePanel = () => {

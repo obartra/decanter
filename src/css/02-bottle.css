@@ -114,11 +114,13 @@
 @keyframes ring{0%{transform:scale(.3);opacity:0}20%{opacity:1}100%{transform:scale(6);opacity:0}}
 
 .bead{
-  position:absolute; z-index:53; border-radius:52% 52% 46% 46%; pointer-events:none;
+  position:absolute; z-index:1; border-radius:52% 52% 46% 46%; pointer-events:none;
   box-shadow:inset -2px -2px 3px rgba(0,0,0,.25), inset 2px 2px 3px rgba(255,255,255,.45);
 }
+/* Splash and droplets belong with the stream, behind the liquid: what lands in
+   the bottle goes under what is already there, not over it. */
 .pool{
-  position:absolute; z-index:51; border-radius:50%; pointer-events:none;
+  position:absolute; z-index:1; border-radius:50%; pointer-events:none;
   height:7px; opacity:.7; animation:pool .55s ease-out infinite;
 }
 @keyframes pool{0%{transform:translateX(-50%) scale(.4,.6);opacity:.8}
