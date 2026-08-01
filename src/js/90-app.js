@@ -5,7 +5,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false, over: false
+    undosUsed: 0, vesselUsed: false, over: false, reason: null
   };
   const $ = id => document.getElementById(id);
 
@@ -83,6 +83,7 @@ const App = (() => {
     S.vesselUsed = !!keepVessel;
     S.undosUsed = 0;
     S.over = false;
+    S.reason = null;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -109,38 +110,33 @@ const App = (() => {
       paintHud();
     });
   }
-  /* how many more pours the current star tier can absorb */
-  function sparePours(stars){
-    if (S.par == null || !S.parExact || stars <= 0) return 0;
-    const over = stars === 3 ? CONFIG.stars.three
-               : stars === 2 ? CONFIG.stars.two
-               : CONFIG.stars.one;
-    return Math.max(0, S.par + over - S.moves);
-  }
+  const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
   const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
   const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
 
   function paintHud(){
     const busy = S.queue.length > 0 || S.running;
-    const par = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
     $('statLevel').textContent = S.level;
 
-    /* You start on three stars and spend them. Counting pours up tells you what
-       you have done; counting down to the next star tells you what it will cost,
-       which is the thing worth knowing while there is still a choice to make. */
+    /* You start on three stars and spend them, so the stars say what the run is
+       still worth while the count says how much of it is left. */
     const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
     $('statStars').innerHTML = [0,1,2]
       .map(i => (i < stars ? '★' : '<span class="dim">★</span>')).join('');
     $('movesStat').classList.toggle('over', stars <= 1);
     $('movesStat').classList.toggle('spent', stars === 0);
 
-    const spare = sparePours(stars);
+    /* One falling number rather than a count of what has been spent. It is the
+       number that ends the run, and past par it is also the star count, so the
+       two read as the same thing running out. */
+    const left = poursLeft();
+    $('statLeft').textContent = left == null ? S.moves : left;
     $('pourLabel').textContent =
-      S.par == null || !S.parExact ? `${S.moves} pours`
-      : stars === 0 ? 'Too many pours'
-      : spare > 0 ? `${spare} to spare`
-      : 'Next pour costs a star';
+      left == null ? 'pours made'
+      : left === 0 ? 'no pours left'
+      : left === 1 ? 'last pour'
+      : 'pours left';
     $('gold').textContent = progress.gold;
 
     const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
@@ -191,11 +187,11 @@ const App = (() => {
     S.history.push({ tubes: Rules.clone(S.tubes), moves: S.moves });
     Rules.applyMove(S.tubes, move);
     S.moves++;
-    /* Decide it here, not when the queue happens to empty. Pouring quickly keeps
+    /* Decided here, not when the queue happens to empty. Pouring quickly keeps
        the queue full, and a check that waits for it to drain lets the run carry
        on well past the pour that already lost it. */
-    if (!Rules.isSolved(S.tubes) &&
-        Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) === 0) S.over = true;
+    const why = Rules.lostBecause(S.tubes, S.moves, S.par, S.parExact);
+    if (why){ S.over = true; S.reason = why; }
     S.queue.push(move);
     paintHud();
     drain().catch(() => {});   /* drain's finally has already restored the state */
@@ -241,7 +237,6 @@ const App = (() => {
     const failed = stars === 0;
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
-    $('winTitle').textContent = failed ? 'Too many pours' : perfect ? 'Poured clean' : 'Level cleared';
 
     /* say where the gold came from, so the thin payouts read as earned */
     const parts = [`${stars}★`];
@@ -256,8 +251,9 @@ const App = (() => {
       canPayFee: progress.canAfford(fee), canPaySkip: progress.canAfford(skipCost()),
       improvedStars: result.improvedStars, hadStars: before,
       par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
-      totalStars: progress.totalStars()
+      totalStars: progress.totalStars(), reason: S.reason
     });
+    $('winTitle').textContent = panel.title;
     $('winLine').textContent = panel.line;
 
     $('veil').classList.toggle('failed', failed);

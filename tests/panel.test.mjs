@@ -67,6 +67,22 @@ describe('end of run panel', () => {
     equal(decide({ moves: 22, par: 20, best: 22 }).line,
       'Sorted in 22 pours. The minimum is 20.', 'matching your best is not beating it');
   });
+  it('names what actually ended the run', () => {
+    /* "too many pours" is true of only one of the three ways to lose, and would
+       read as plainly wrong to anyone looking at a board with no legal pour */
+    equal(decide({ failed: true, stars: 0, reason: 'stuck' }).title, 'Nowhere left to pour');
+    equal(decide({ failed: true, stars: 0, reason: 'short' }).title, 'Not enough pours left');
+    equal(decide({ failed: true, stars: 0, reason: 'over' }).title, 'Too many pours');
+    equal(decide({ stars: 3 }).title, 'Poured clean');
+    equal(decide({ stars: 2 }).title, 'Level cleared');
+  });
+  it('explains a loss that is not about the count', () => {
+    equal(decide({ failed: true, stars: 0, reason: 'stuck' }).hint, 'No pour is legal from here.');
+    equal(decide({ failed: true, stars: 0, reason: 'short' }).hint,
+      'What is left needs more pours than the run had.');
+    equal(decide({ failed: true, stars: 0, reason: 'over', par: 20 }).hint,
+      `Clear it in ${20 + CONFIG.stars.one} or fewer.`);
+  });
   it('hides retry only on a perfect run', () => {
     equal(decide({ stars: 3 }).retryHidden, true);
     equal(decide({ stars: 2 }).retryHidden, false);

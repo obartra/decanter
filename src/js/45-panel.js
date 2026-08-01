@@ -10,7 +10,8 @@
 function decide(input){
   const {
     level, lastLevel, failed, stars, nextUnlocked,
-    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars
+    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars,
+    reason
   } = input;
 
   const perfect = stars === 3;
@@ -21,10 +22,23 @@ function decide(input){
   const atEnd = level >= lastLevel;
   const stuck = !atEnd && failed && !nextUnlocked;
 
+  /* A lost run is told what ended it. "Too many pours" is only true of one of
+     the three ways to lose, and saying it for a board with nothing left to pour
+     would be plainly wrong to anyone looking at the board. */
+  const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared')
+    : reason === 'stuck' ? 'Nowhere left to pour'
+    : reason === 'short' ? 'Not enough pours left'
+    : 'Too many pours';
+
   /* Last writer wins, so the order is the priority order. Being told the game is
      over does not help someone who cannot afford another go, so an empty purse
      outranks it; a new best outranks the standing advice. */
-  let hint = failed && par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
+  let hint = '';
+  if (failed){
+    hint = reason === 'stuck' ? 'No pour is legal from here.'
+      : reason === 'short' ? 'What is left needs more pours than the run had.'
+      : par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
+  }
   if (!failed && improvedStars && hadStars > 0) hint = 'New best for this level.';
   if (atEnd && canPayFee){
     hint = failed
@@ -47,6 +61,7 @@ function decide(input){
 
   return {
     atEnd,
+    title,
     line,
     stuck,
     retryHidden: perfect,

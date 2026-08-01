@@ -41,6 +41,57 @@ function legalMoves(tubes){
   return out;
 }
 /* depth-first probe, used at generation time to reject dead boards cheaply */
+/* The fewest pours that could possibly finish this board: one per contiguous
+   run of colour, less the one run per colour that is allowed to remain. A pour
+   moves one maximal run and can close at most one, so this can never overstate
+   what is left to do. Understating it is fine and expected.
+
+   Being a lower bound is the whole point: if it exceeds the pours a run has
+   left, that run cannot be finished, and saying so is a fact rather than a
+   guess. isSolvable cannot be used for this, because it returns false when it
+   runs out of nodes and would accuse a player of losing a board they could
+   still have won. */
+function minPours(tubes){
+  let segments = 0;
+  const colours = new Set();
+  for (const t of tubes){
+    for (let i = 0; i < t.length; i++){
+      if (i === 0 || t[i] !== t[i - 1]) segments++;
+      colours.add(t[i]);
+    }
+  }
+  return segments - colours.size;
+}
+
+/* Pours left before the run is lost. A run fails one pour past the last one
+   that still scores, so this is the number that actually ends it, and from par
+   onwards it equals the star count: both reach nothing on the same pour. */
+function poursLeft(moves, par, exact){
+  if (par == null || !exact) return null;
+  return Math.max(0, par + CONFIG.stars.one + 1 - moves);
+}
+
+/* Why this run is over, or null while it is still alive.
+
+   Both answers are certain. No legal pour is a dead board, and a lower bound on
+   the work left that exceeds the pours left cannot be beaten. Neither can be
+   wrong, which matters: the cost of being wrong is ending somebody's run for
+   them. isSolvable is not used here for exactly that reason, since it returns
+   false when it runs out of nodes and cannot tell that apart from a board that
+   genuinely cannot be finished.
+
+   Said as soon as it is true, rather than when the count runs out. Making a
+   player keep pouring at a board that cannot be won is worse than losing. */
+function lostBecause(tubes, moves, par, exact){
+  if (isSolved(tubes)) return null;
+  if (!legalMoves(tubes).length) return 'stuck';
+  const left = poursLeft(moves, par, exact);
+  if (left == null) return null;
+  if (left <= 0) return 'over';
+  if (minPours(tubes) > left) return 'short';
+  return null;
+}
+
 function isSolvable(start, nodeCap = 40000){
   const seen = new Set();
   const stack = [clone(start)];
@@ -85,5 +136,6 @@ function rate(moves, par, exact = true, vesselUsed = false){
                : 0;
   return Math.min(earned, cap);
 }
-globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,
-                     canPour, pourAmount, applyMove, legalMoves, isSolvable, rate };
+globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength, minPours,
+                     canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
+                     poursLeft, lostBecause };

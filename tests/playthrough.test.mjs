@@ -113,6 +113,25 @@ describe('playing it', () => {
     assert(abandoned.over, 'and should know it is lost without waiting for the end');
   });
 
+  it('never claims more pours are needed than actually remain', () => {
+    /* This is the property the game ends runs on: if the bound exceeds the pours
+       left, the run is declared lost. Overstating it even once would end a run
+       that could still have been won, so it is checked at every step of a real
+       optimal line, where the true distance remaining is known exactly. */
+    for (const level of levels){
+      const line = optimalLine(base.clone(Levels.make(level)), PARS[level]);
+      let state = Levels.make(level);
+      let remaining = PARS[level];
+      for (const m of line){
+        assert(Rules.minPours(state) <= remaining,
+          `level ${level}: bound ${Rules.minPours(state)} exceeds the ${remaining} pours actually left`);
+        Rules.applyMove(state, { from: m[0], to: m[1], n: Rules.pourAmount(state, m[0], m[1]) });
+        remaining--;
+      }
+      equal(Rules.minPours(state), 0, `level ${level} should need nothing once solved`);
+    }
+  });
+
   it('pays and unlocks the way the economy says, level after level', () => {
     const p = Progress.createProgress(Progress.memoryStorage());
     const fee = CONFIG.economy.attempt;

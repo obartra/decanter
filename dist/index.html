@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="d68ea4b37e">
+<meta name="build" content="6bfea891a9">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -285,10 +285,19 @@ body[data-view="game"] #gameView{display:flex}
 .stat b{display:block; font-family:"Cinzel",serif; font-weight:600; font-size:17px; line-height:1.15; color:#fff}
 .stat span{color:var(--ink-dim); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase}
 .stat.over b{color:#F0894F}
-/* the stars are the counter now, so this chip carries the weight */
-.stat.wide{min-width:132px}
+/* the count is the counter now, so this chip carries the weight */
+.stat.wide{min-width:132px; padding-top:4px}
+/* One number, falling, ending at nothing. The stars underneath say what the
+   run is still worth; this says how much of it is left. */
+.hudCount{
+  font-family:"Cinzel",serif; font-size:27px; line-height:1.05;
+  color:#fff; text-shadow:0 1px 10px rgba(0,0,0,.5);
+  font-variant-numeric:tabular-nums;
+}
+.stat.over .hudCount{color:#F0894F}
+.stat.spent .hudCount{color:#E4778B}
 .hudStars{
-  font-family:"Cinzel",serif; font-size:19px; letter-spacing:4px;
+  font-family:"Cinzel",serif; font-size:13px; letter-spacing:3px;
   color:var(--gold-lit); line-height:1.15;
   text-shadow:0 1px 8px rgba(224,177,92,.35);
 }
@@ -436,6 +445,7 @@ body[data-view="game"] #gameView{display:flex}
   <div class="hud">
     <div class="stat"><b id="statLevel">1</b><span>Level</span></div>
     <div class="stat wide" id="movesStat">
+      <b id="statLeft" class="hudCount">&mdash;</b>
       <b id="statStars" class="hudStars">&#9733;&#9733;&#9733;</b>
       <span id="pourLabel">&mdash;</span>
     </div>
@@ -714,6 +724,57 @@ function legalMoves(tubes){
   return out;
 }
 /* depth-first probe, used at generation time to reject dead boards cheaply */
+/* The fewest pours that could possibly finish this board: one per contiguous
+   run of colour, less the one run per colour that is allowed to remain. A pour
+   moves one maximal run and can close at most one, so this can never overstate
+   what is left to do. Understating it is fine and expected.
+
+   Being a lower bound is the whole point: if it exceeds the pours a run has
+   left, that run cannot be finished, and saying so is a fact rather than a
+   guess. isSolvable cannot be used for this, because it returns false when it
+   runs out of nodes and would accuse a player of losing a board they could
+   still have won. */
+function minPours(tubes){
+  let segments = 0;
+  const colours = new Set();
+  for (const t of tubes){
+    for (let i = 0; i < t.length; i++){
+      if (i === 0 || t[i] !== t[i - 1]) segments++;
+      colours.add(t[i]);
+    }
+  }
+  return segments - colours.size;
+}
+
+/* Pours left before the run is lost. A run fails one pour past the last one
+   that still scores, so this is the number that actually ends it, and from par
+   onwards it equals the star count: both reach nothing on the same pour. */
+function poursLeft(moves, par, exact){
+  if (par == null || !exact) return null;
+  return Math.max(0, par + CONFIG.stars.one + 1 - moves);
+}
+
+/* Why this run is over, or null while it is still alive.
+
+   Both answers are certain. No legal pour is a dead board, and a lower bound on
+   the work left that exceeds the pours left cannot be beaten. Neither can be
+   wrong, which matters: the cost of being wrong is ending somebody's run for
+   them. isSolvable is not used here for exactly that reason, since it returns
+   false when it runs out of nodes and cannot tell that apart from a board that
+   genuinely cannot be finished.
+
+   Said as soon as it is true, rather than when the count runs out. Making a
+   player keep pouring at a board that cannot be won is worse than losing. */
+function lostBecause(tubes, moves, par, exact){
+  if (isSolved(tubes)) return null;
+  if (!legalMoves(tubes).length) return 'stuck';
+  const left = poursLeft(moves, par, exact);
+  if (left == null) return null;
+  if (left <= 0) return 'over';
+  if (minPours(tubes) > left) return 'short';
+  return null;
+}
+
 function isSolvable(start, nodeCap = 40000){
   const seen = new Set();
   const stack = [clone(start)];
@@ -758,8 +819,9 @@ function rate(moves, par, exact = true, vesselUsed = false){
                : 0;
   return Math.min(earned, cap);
 }
-globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength,
-                     canPour, pourAmount, applyMove, legalMoves, isSolvable, rate };
+globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength, minPours,
+                     canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
+                     poursLeft, lostBecause };
 
 
 /* ---- 30-levels.js ---- */
@@ -1036,7 +1098,8 @@ globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank };
 function decide(input){
   const {
     level, lastLevel, failed, stars, nextUnlocked,
-    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars
+    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars,
+    reason
   } = input;
 
   const perfect = stars === 3;
@@ -1047,10 +1110,23 @@ function decide(input){
   const atEnd = level >= lastLevel;
   const stuck = !atEnd && failed && !nextUnlocked;
 
+  /* A lost run is told what ended it. "Too many pours" is only true of one of
+     the three ways to lose, and saying it for a board with nothing left to pour
+     would be plainly wrong to anyone looking at the board. */
+  const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared')
+    : reason === 'stuck' ? 'Nowhere left to pour'
+    : reason === 'short' ? 'Not enough pours left'
+    : 'Too many pours';
+
   /* Last writer wins, so the order is the priority order. Being told the game is
      over does not help someone who cannot afford another go, so an empty purse
      outranks it; a new best outranks the standing advice. */
-  let hint = failed && par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
+  let hint = '';
+  if (failed){
+    hint = reason === 'stuck' ? 'No pour is legal from here.'
+      : reason === 'short' ? 'What is left needs more pours than the run had.'
+      : par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
+  }
   if (!failed && improvedStars && hadStars > 0) hint = 'New best for this level.';
   if (atEnd && canPayFee){
     hint = failed
@@ -1073,6 +1149,7 @@ function decide(input){
 
   return {
     atEnd,
+    title,
     line,
     stuck,
     retryHidden: perfect,
@@ -2624,7 +2701,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, vesselUsed: false, over: false
+    undosUsed: 0, vesselUsed: false, over: false, reason: null
   };
   const $ = id => document.getElementById(id);
 
@@ -2702,6 +2779,7 @@ const App = (() => {
     S.vesselUsed = !!keepVessel;
     S.undosUsed = 0;
     S.over = false;
+    S.reason = null;
     S.moves = 0;
     S.history = [];
     S.queue = [];
@@ -2728,38 +2806,33 @@ const App = (() => {
       paintHud();
     });
   }
-  /* how many more pours the current star tier can absorb */
-  function sparePours(stars){
-    if (S.par == null || !S.parExact || stars <= 0) return 0;
-    const over = stars === 3 ? CONFIG.stars.three
-               : stars === 2 ? CONFIG.stars.two
-               : CONFIG.stars.one;
-    return Math.max(0, S.par + over - S.moves);
-  }
+  const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
   const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
   const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
 
   function paintHud(){
     const busy = S.queue.length > 0 || S.running;
-    const par = S.par == null ? '—' : (S.parExact ? S.par : '~' + S.par);
     $('statLevel').textContent = S.level;
 
-    /* You start on three stars and spend them. Counting pours up tells you what
-       you have done; counting down to the next star tells you what it will cost,
-       which is the thing worth knowing while there is still a choice to make. */
+    /* You start on three stars and spend them, so the stars say what the run is
+       still worth while the count says how much of it is left. */
     const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
     $('statStars').innerHTML = [0,1,2]
       .map(i => (i < stars ? '★' : '<span class="dim">★</span>')).join('');
     $('movesStat').classList.toggle('over', stars <= 1);
     $('movesStat').classList.toggle('spent', stars === 0);
 
-    const spare = sparePours(stars);
+    /* One falling number rather than a count of what has been spent. It is the
+       number that ends the run, and past par it is also the star count, so the
+       two read as the same thing running out. */
+    const left = poursLeft();
+    $('statLeft').textContent = left == null ? S.moves : left;
     $('pourLabel').textContent =
-      S.par == null || !S.parExact ? `${S.moves} pours`
-      : stars === 0 ? 'Too many pours'
-      : spare > 0 ? `${spare} to spare`
-      : 'Next pour costs a star';
+      left == null ? 'pours made'
+      : left === 0 ? 'no pours left'
+      : left === 1 ? 'last pour'
+      : 'pours left';
     $('gold').textContent = progress.gold;
 
     const freeLeft = Math.max(0, CONFIG.economy.freeUndos - S.undosUsed);
@@ -2810,11 +2883,11 @@ const App = (() => {
     S.history.push({ tubes: Rules.clone(S.tubes), moves: S.moves });
     Rules.applyMove(S.tubes, move);
     S.moves++;
-    /* Decide it here, not when the queue happens to empty. Pouring quickly keeps
+    /* Decided here, not when the queue happens to empty. Pouring quickly keeps
        the queue full, and a check that waits for it to drain lets the run carry
        on well past the pour that already lost it. */
-    if (!Rules.isSolved(S.tubes) &&
-        Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) === 0) S.over = true;
+    const why = Rules.lostBecause(S.tubes, S.moves, S.par, S.parExact);
+    if (why){ S.over = true; S.reason = why; }
     S.queue.push(move);
     paintHud();
     drain().catch(() => {});   /* drain's finally has already restored the state */
@@ -2860,7 +2933,6 @@ const App = (() => {
     const failed = stars === 0;
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
-    $('winTitle').textContent = failed ? 'Too many pours' : perfect ? 'Poured clean' : 'Level cleared';
 
     /* say where the gold came from, so the thin payouts read as earned */
     const parts = [`${stars}★`];
@@ -2875,8 +2947,9 @@ const App = (() => {
       canPayFee: progress.canAfford(fee), canPaySkip: progress.canAfford(skipCost()),
       improvedStars: result.improvedStars, hadStars: before,
       par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
-      totalStars: progress.totalStars()
+      totalStars: progress.totalStars(), reason: S.reason
     });
+    $('winTitle').textContent = panel.title;
     $('winLine').textContent = panel.line;
 
     $('veil').classList.toggle('failed', failed);
