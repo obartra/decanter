@@ -1,0 +1,76 @@
+# Everything that has to hold before a change is allowed to land.
+#
+# Runs on every push and every pull request, not only on main. The deploy
+# workflow also runs the checks, but by then the change has already been merged;
+# this is the one that can still say no.
+#
+# Split into two jobs because they fail for different reasons and take very
+# different amounts of time. `checks` needs no browser and finishes in seconds,
+# so a typo does not wait behind a browser download.
+name: CI
+
+on:
+  push:
+    branches-ignore: []
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: lint, unit tests, invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # dist/ is committed, so a stale one is what a reviewer reads and what
+      # `npm run serve` shows. Also holds the page to a size budget.
+      - name: dist matches the sources
+        run: npm run verify:dist
+
+      - name: Unit tests
+        run: npm test
+
+      # Par is the number the whole scoring rests on. This replays every level
+      # against the independent rules and fails if any of them cannot be
+      # finished in exactly the par the game advertises.
+      - name: Every par is reachable
+        run: npm run verify:pars
+
+  e2e:
+    name: end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End to end
+        run: npm run test:e2e
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

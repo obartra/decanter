@@ -79,6 +79,9 @@ body[data-view="game"] #gameView{display:flex}
 /* the controls go rather than dim: none of them can be used while the run is
    over, and dimming them only leaves something for the prompt to collide with */
 .peeking .controls{opacity:0; pointer-events:none}
+/* the header goes quiet too: while the board is being read, a tap means "put the
+   panel back", and it should not also mean "leave the level" */
+.peeking .gameHeader{pointer-events:none}
 .peeking .board, .peeking .hud, .peeking .controls{transition:filter .2s, opacity .2s}
 .peeking::after{
   content:"Tap to go back"; position:fixed; left:50%; bottom:22px; z-index:70;

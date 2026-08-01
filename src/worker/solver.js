@@ -14,6 +14,10 @@ function done(s){ for(var i=0;i<s.length;i++) if(s[i].length && !full(s[i])) ret
 function segs(s){ var n=0,i,j; for(i=0;i<s.length;i++) for(j=0;j<s[i].length;j++) if(j===0||s[i][j]!==s[i][j-1]) n++; return n; }
 
 /* every move the game itself allows, with no pruning */
+/* Unpruned, and only ever called by the test that proves the pruning below
+   removes nothing the search needs. Kept here rather than duplicated in the test
+   so the two can never drift. */
+/* eslint-disable-next-line no-unused-vars */
 function rawMoves(s){
   var out=[],a,b,A,B,top,run,i;
   for(a=0;a<s.length;a++){

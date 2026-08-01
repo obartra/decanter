@@ -6,13 +6,25 @@
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
+    "lint": "eslint .",
+    "test": "node tests/run.mjs",
+    "test:e2e": "playwright test",
+    "verify:dist": "node tools/verify-dist.mjs",
+    "verify:pars": "node tools/verify-pars.mjs 120",
+    "check": "npm run lint && npm run build && npm test && npm run verify:dist",
+    "check:all": "npm run check && npm run verify:pars && npm run test:e2e",
     "pars": "node tools/pars.mjs",
     "order": "node tools/order.mjs",
     "difficulty": "node tools/difficulty.mjs",
-    "test": "node tests/run.mjs",
-    "check": "npm run build && npm test",
     "serve": "npm run build && cd dist && python3 -m http.server 8080",
     "icons": "python3 tools/make-icons.py"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "eslint": "^9.39.5",
+    "globals": "^17.8.0"
+  }
 }

@@ -31,9 +31,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      # no dependencies to install, so this is build plus the full test suite
+      - run: npm ci
+
+      # the same gate CI applies, run again against what is about to go live
       - run: npm run check
 
       - uses: actions/configure-pages@v5

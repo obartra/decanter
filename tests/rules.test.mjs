@@ -70,7 +70,7 @@ describe('rules', () => {
     assert(Rules.canPour(t, 0, 1), 'the top unit still moves');
   });
   it('pouring conserves every unit of liquid', () => {
-    let t = base.randomBoard(5, 2);
+    const t = base.randomBoard(5, 2);
     const count = tubes => tubes.flat().sort().join(',');
     const before = count(t);
     for (let i = 0; i < 40; i++){

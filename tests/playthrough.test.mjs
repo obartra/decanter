@@ -120,7 +120,7 @@ describe('playing it', () => {
        optimal line, where the true distance remaining is known exactly. */
     for (const level of levels){
       const line = optimalLine(base.clone(Levels.make(level)), PARS[level]);
-      let state = Levels.make(level);
+      const state = Levels.make(level);
       let remaining = PARS[level];
       for (const m of line){
         assert(Rules.minPours(state) <= remaining,

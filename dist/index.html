@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="338c5a8ac7">
+<meta name="build" content="37b768c682">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -101,6 +101,9 @@ body[data-view="game"] #gameView{display:flex}
 /* the controls go rather than dim: none of them can be used while the run is
    over, and dimming them only leaves something for the prompt to collide with */
 .peeking .controls{opacity:0; pointer-events:none}
+/* the header goes quiet too: while the board is being read, a tap means "put the
+   panel back", and it should not also mean "leave the level" */
+.peeking .gameHeader{pointer-events:none}
 .peeking .board, .peeking .hud, .peeking .controls{transition:filter .2s, opacity .2s}
 .peeking::after{
   content:"Tap to go back"; position:fixed; left:50%; bottom:22px; z-index:70;
@@ -599,6 +602,10 @@ function done(s){ for(var i=0;i<s.length;i++) if(s[i].length && !full(s[i])) ret
 function segs(s){ var n=0,i,j; for(i=0;i<s.length;i++) for(j=0;j<s[i].length;j++) if(j===0||s[i][j]!==s[i][j-1]) n++; return n; }
 
 /* every move the game itself allows, with no pruning */
+/* Unpruned, and only ever called by the test that proves the pruning below
+   removes nothing the search needs. Kept here rather than duplicated in the test
+   so the two can never drift. */
+/* eslint-disable-next-line no-unused-vars */
 function rawMoves(s){
   var out=[],a,b,A,B,top,run,i;
   for(a=0;a<s.length;a++){
@@ -3037,7 +3044,6 @@ const App = (() => {
   const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
   const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
-  const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
 
   function paintHud(){
     const busy = S.queue.length > 0 || S.running;
@@ -3177,7 +3183,6 @@ const App = (() => {
     const stars = solved ? Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) : 0;
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
-    const perfect = stars === 3;
     const failed = stars === 0;
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');

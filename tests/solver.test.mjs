@@ -12,7 +12,7 @@ describe('solver', () => {
        the true distance by exactly one. */
     for (const level of [1, 3, 7]){
       const colors = Levels.shape(level).colors;
-      let tubes = Levels.make(level);
+      const tubes = Levels.make(level);
       let got = solver.solve(tubes, colors, {});
       let distance = got.par;
       const started = distance;

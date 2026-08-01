@@ -125,7 +125,6 @@ const App = (() => {
   const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
   const undoIsFree = () => S.undosUsed < CONFIG.economy.freeUndos;
-  const undoPrice = () => (undoIsFree() ? 0 : CONFIG.economy.undoCost);
 
   function paintHud(){
     const busy = S.queue.length > 0 || S.running;
@@ -265,7 +264,6 @@ const App = (() => {
     const stars = solved ? Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) : 0;
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
-    const perfect = stars === 3;
     const failed = stars === 0;
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
