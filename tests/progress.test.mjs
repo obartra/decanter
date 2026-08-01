@@ -48,6 +48,18 @@ describe('progress', () => {
     assert(p.raw.claimed[39], 'first-clear stays paid, so old levels cannot be farmed again');
     equal(p.raw.layout, CONFIG.layout, 'and the save is stamped, so this happens once');
   });
+  it('treats a save with no layout stamp as an old one', () => {
+    /* the stamp was added after the game was already being played, so the very
+       saves most likely to hold ratings for boards that have since moved are
+       exactly the ones with no stamp to compare */
+    const p = stored({ unlocked: 12, gold: 140, stars: { 1: 3, 5: 2 }, best: { 1: 12 }, claimed: { 1: true } });
+    equal(p.starsFor(1), 0, 'a rating from before the stamp is a rating of another board');
+    equal(p.bestFor(1), null);
+    equal(p.unlocked, 12, 'but how far they got still stands');
+    equal(p.gold, 140, 'and so does the purse');
+    assert(p.raw.claimed[1], 'and first-clear stays paid');
+    equal(p.raw.layout, CONFIG.layout, 'and it is stamped now, so this happens once');
+  });
   it('a save on the current layout is left alone', () => {
     const p = stored({ layout: CONFIG.layout, unlocked: 5, stars: { 1: 3 }, best: { 1: 12 } });
     equal(p.starsFor(1), 3);

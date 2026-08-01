@@ -45,7 +45,14 @@ function createProgress(storage){
     const raw = store.getItem(SAVE_KEY);
     if (raw){
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') state = Object.assign(blank(), parsed);
+      if (parsed && typeof parsed === 'object'){
+        state = Object.assign(blank(), parsed);
+        /* A save written before the stamp existed cannot be taken as current.
+           blank() carries today's stamp, so merging over it would let a save
+           that never had one inherit it and skip the migration below, keeping
+           ratings for boards it will never be dealt again. */
+        if (!Number.isInteger(parsed.layout)) state.layout = 0;
+      }
     }
   } catch (e) { state = blank(); }
   if (!Number.isInteger(state.unlocked) || state.unlocked < 1) state.unlocked = 1;
