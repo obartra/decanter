@@ -73,6 +73,27 @@ function makeSolvableIn(budget){
   };
 }
 
+/* One optimal line, as moves. Same idea as the walk below: from a state whose
+   true distance is d, any move whose result is still solvable in d-1 is on an
+   optimal line. Breadth-first search finds the same thing and runs out of memory
+   on anything past a handful of colours. */
+export function lineToPar(tubes, par, budget = DEFAULT_BUDGET){
+  const solvableIn = makeSolvableIn(budget);
+  let state = base.clone(tubes);
+  const line = [];
+  for (let dist = par; dist > 0; dist--){
+    let took = null;
+    for (const m of base.legalMoves(state)){
+      const next = base.apply(base.clone(state), m);
+      if (solvableIn(next, dist - 1)){ took = { m, next }; break; }
+    }
+    if (!took) return null;                     /* par is not reachable from here */
+    line.push(took.m);
+    state = took.next;
+  }
+  return base.solved(state) ? line : null;
+}
+
 /* Walk one optimal line, counting how many of the moves available at each step
    would have kept par alive. Walking every optimal line is exact but explodes on
    twelve-colour boards; one line is cheap and orders levels the same way.

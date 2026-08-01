@@ -5,7 +5,7 @@ const { Panel, CONFIG } = loadPure();
 const base = {
   level: 10, lastLevel: 120, failed: false, stars: 3, nextUnlocked: true,
   canPayFee: true, canPaySkip: true, improvedStars: false, hadStars: 0,
-  par: 20, totalStars: 24
+  par: 20, parExact: true, moves: 20, best: null, totalStars: 24
 };
 const decide = over => Panel.decide({ ...base, ...over });
 
@@ -50,6 +50,22 @@ describe('end of run panel', () => {
     equal(decide({ improvedStars: true, hadStars: 2 }).hint, 'New best for this level.');
     equal(decide({ improvedStars: true, hadStars: 0 }).hint, '',
       'a first clear is not an improvement on anything');
+  });
+  it('says the run matched the minimum, without making you check', () => {
+    /* quoting the count twice, "sorted in 20 pours, the minimum is 20", makes the
+       reader do the comparison the sentence exists to make for them */
+    equal(decide({ moves: 20, par: 20 }).line, 'Solved in the minimum moves.');
+    equal(decide({ moves: 22, par: 20 }).line, 'Sorted in 22 pours. The minimum is 20.');
+  });
+  it('does not claim a minimum it only estimated', () => {
+    equal(decide({ moves: 20, par: 20, parExact: false }).line,
+      'Sorted in 20 pours. The best found is about 20.');
+  });
+  it('mentions an earlier better run, but only when it was better', () => {
+    equal(decide({ moves: 22, par: 20, best: 21 }).line,
+      'Sorted in 22 pours. The minimum is 20. Your best here is 21.');
+    equal(decide({ moves: 22, par: 20, best: 22 }).line,
+      'Sorted in 22 pours. The minimum is 20.', 'matching your best is not beating it');
   });
   it('hides retry only on a perfect run', () => {
     equal(decide({ stars: 3 }).retryHidden, true);

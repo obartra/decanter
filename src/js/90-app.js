@@ -235,12 +235,6 @@ const App = (() => {
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
     $('winTitle').textContent = failed ? 'Too many pours' : perfect ? 'Poured clean' : 'Level cleared';
-    const parLine = S.par == null
-      ? ''
-      : ` ${S.parExact ? 'The minimum is' : 'The best found is about'} ${S.par}.`;
-    const bestLine = !failed && progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
-      ? ` Your best here is ${progress.bestFor(S.level)}.` : '';
-    $('winLine').textContent = `Sorted in ${S.moves} pours.${parLine}${bestLine}`;
 
     /* say where the gold came from, so the thin payouts read as earned */
     const parts = [`${stars}★`];
@@ -254,8 +248,10 @@ const App = (() => {
       nextUnlocked: progress.isUnlocked(S.level + 1),
       canPayFee: progress.canAfford(fee), canPaySkip: progress.canAfford(skipCost()),
       improvedStars: result.improvedStars, hadStars: before,
-      par: S.par, totalStars: progress.totalStars()
+      par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
+      totalStars: progress.totalStars()
     });
+    $('winLine').textContent = panel.line;
 
     $('veil').classList.toggle('failed', failed);
     $('retry').hidden = panel.retryHidden;
@@ -332,11 +328,18 @@ const App = (() => {
       attempt(S.level, S.vesselUsed);
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
-    $('winMap').onclick = () => {
+    const closePanel = () => {
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       showMap(true);
     };
+    $('winMap').onclick = closePanel;
+    /* Tapping the dark outside the panel does what the panel's own way out does.
+       Only the backdrop itself counts, so a tap that lands on the panel or on a
+       button inside it is not a tap outside. */
+    $('veil').addEventListener('click', e => {
+      if (e.target === $('veil')) closePanel();
+    });
     $('retry').onclick = () => {
       if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
       $('veil').classList.remove('show');

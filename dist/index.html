@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="8617694f2a">
+<meta name="build" content="60208f008f">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -197,14 +197,16 @@ body[data-view="game"] #gameView{display:flex}
 .sheen.run{animation:sheen .8s cubic-bezier(.4,0,.2,1) forwards}
 @keyframes sheen{to{left:135%}}
 
-/* cork: the plug is inside the neck, clipped by the glass */
+/* cork: the plug is inside the neck, clipped by the glass. It is deliberately
+   short. At half the bottle's width it hung well down past the neck and read as
+   a long stopper sitting in the wine rather than a cork seated in the mouth. */
 .bottle.done .glass{
   box-shadow:inset 0 0 0 1.5px rgba(252,238,208,.8), inset 0 6px 14px rgba(255,226,170,.18),
              0 10px 24px rgba(0,0,0,.5), 0 0 32px rgba(232,190,110,.45);
 }
 .plug{
   position:absolute; left:50%; top:0; z-index:5;
-  width:46%; height:calc(var(--bw)*.52);
+  width:46%; height:calc(var(--bw)*.30);
   transform:translateX(-50%);
   clip-path:polygon(3% 0, 97% 0, 86% 82%, 78% 100%, 22% 100%, 14% 82%);
   background:
@@ -1034,7 +1036,7 @@ globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank };
 function decide(input){
   const {
     level, lastLevel, failed, stars, nextUnlocked,
-    canPayFee, canPaySkip, improvedStars, hadStars, par, totalStars
+    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars
   } = input;
 
   const perfect = stars === 3;
@@ -1057,8 +1059,21 @@ function decide(input){
   }
   if (!canPayFee || (stuck && !canPaySkip)) hint = 'Not enough gold. The daily draught is on the map.';
 
+  /* Matching the minimum is the whole point of the scoring, so say that and stop.
+     Quoting the count twice ("sorted in 12 pours, the minimum is 12") makes the
+     reader do the comparison the sentence was supposed to make for them. */
+  const atPar = !failed && parExact && par != null && moves === par;
+  const parLine = par == null ? ''
+    : parExact ? ` The minimum is ${par}.`
+    : ` The best found is about ${par}.`;
+  const bestLine = !failed && best != null && best < moves ? ` Your best here is ${best}.` : '';
+  const line = atPar
+    ? 'Solved in the minimum moves.'
+    : `Sorted in ${moves} pours.${parLine}${bestLine}`;
+
   return {
     atEnd,
+    line,
     stuck,
     retryHidden: perfect,
     retryPrimary: !perfect,
@@ -2738,12 +2753,6 @@ const App = (() => {
 
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
     $('winTitle').textContent = failed ? 'Too many pours' : perfect ? 'Poured clean' : 'Level cleared';
-    const parLine = S.par == null
-      ? ''
-      : ` ${S.parExact ? 'The minimum is' : 'The best found is about'} ${S.par}.`;
-    const bestLine = !failed && progress.bestFor(S.level) != null && progress.bestFor(S.level) < S.moves
-      ? ` Your best here is ${progress.bestFor(S.level)}.` : '';
-    $('winLine').textContent = `Sorted in ${S.moves} pours.${parLine}${bestLine}`;
 
     /* say where the gold came from, so the thin payouts read as earned */
     const parts = [`${stars}★`];
@@ -2757,8 +2766,10 @@ const App = (() => {
       nextUnlocked: progress.isUnlocked(S.level + 1),
       canPayFee: progress.canAfford(fee), canPaySkip: progress.canAfford(skipCost()),
       improvedStars: result.improvedStars, hadStars: before,
-      par: S.par, totalStars: progress.totalStars()
+      par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
+      totalStars: progress.totalStars()
     });
+    $('winLine').textContent = panel.line;
 
     $('veil').classList.toggle('failed', failed);
     $('retry').hidden = panel.retryHidden;
@@ -2835,11 +2846,18 @@ const App = (() => {
       attempt(S.level, S.vesselUsed);
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
-    $('winMap').onclick = () => {
+    const closePanel = () => {
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       showMap(true);
     };
+    $('winMap').onclick = closePanel;
+    /* Tapping the dark outside the panel does what the panel's own way out does.
+       Only the backdrop itself counts, so a tap that lands on the panel or on a
+       button inside it is not a tap outside. */
+    $('veil').addEventListener('click', e => {
+      if (e.target === $('veil')) closePanel();
+    });
     $('retry').onclick = () => {
       if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
       $('veil').classList.remove('show');

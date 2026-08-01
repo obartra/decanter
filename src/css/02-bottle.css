@@ -58,14 +58,16 @@
 .sheen.run{animation:sheen .8s cubic-bezier(.4,0,.2,1) forwards}
 @keyframes sheen{to{left:135%}}
 
-/* cork: the plug is inside the neck, clipped by the glass */
+/* cork: the plug is inside the neck, clipped by the glass. It is deliberately
+   short. At half the bottle's width it hung well down past the neck and read as
+   a long stopper sitting in the wine rather than a cork seated in the mouth. */
 .bottle.done .glass{
   box-shadow:inset 0 0 0 1.5px rgba(252,238,208,.8), inset 0 6px 14px rgba(255,226,170,.18),
              0 10px 24px rgba(0,0,0,.5), 0 0 32px rgba(232,190,110,.45);
 }
 .plug{
   position:absolute; left:50%; top:0; z-index:5;
-  width:46%; height:calc(var(--bw)*.52);
+  width:46%; height:calc(var(--bw)*.30);
   transform:translateX(-50%);
   clip-path:polygon(3% 0, 97% 0, 86% 82%, 78% 100%, 22% 100%, 14% 82%);
   background:

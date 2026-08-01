@@ -10,7 +10,7 @@
 function decide(input){
   const {
     level, lastLevel, failed, stars, nextUnlocked,
-    canPayFee, canPaySkip, improvedStars, hadStars, par, totalStars
+    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars
   } = input;
 
   const perfect = stars === 3;
@@ -33,8 +33,21 @@ function decide(input){
   }
   if (!canPayFee || (stuck && !canPaySkip)) hint = 'Not enough gold. The daily draught is on the map.';
 
+  /* Matching the minimum is the whole point of the scoring, so say that and stop.
+     Quoting the count twice ("sorted in 12 pours, the minimum is 12") makes the
+     reader do the comparison the sentence was supposed to make for them. */
+  const atPar = !failed && parExact && par != null && moves === par;
+  const parLine = par == null ? ''
+    : parExact ? ` The minimum is ${par}.`
+    : ` The best found is about ${par}.`;
+  const bestLine = !failed && best != null && best < moves ? ` Your best here is ${best}.` : '';
+  const line = atPar
+    ? 'Solved in the minimum moves.'
+    : `Sorted in ${moves} pours.${parLine}${bestLine}`;
+
   return {
     atEnd,
+    line,
     stuck,
     retryHidden: perfect,
     retryPrimary: !perfect,
