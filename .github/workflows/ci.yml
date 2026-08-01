@@ -1,17 +1,21 @@
 # Everything that has to hold before a change is allowed to land.
 #
-# Runs on every push and every pull request, not only on main. The deploy
-# workflow also runs the checks, but by then the change has already been merged;
-# this is the one that can still say no.
+# Runs on every pull request, and again on main once one lands. main is
+# protected and takes pull requests only, so this is the check that can still say
+# no while saying no is still useful. The deploy workflow runs the same gate
+# again, by which point the change has already been merged.
 #
 # Split into two jobs because they fail for different reasons and take very
 # different amounts of time. `checks` needs no browser and finishes in seconds,
 # so a typo does not wait behind a browser download.
 name: CI
 
+# A pull request branch used to match both triggers, so every commit on one ran
+# the whole suite twice. Pull requests are the only way in now, so the push
+# trigger only has to cover main, where it is the record of what actually landed.
 on:
   push:
-    branches-ignore: []
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
