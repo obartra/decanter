@@ -256,7 +256,13 @@ const App = (() => {
 
   /* ---------- finishing ---------- */
   function finish(){
-    const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
+    /* Nothing scores unless the board is actually finished. rate() answers "how
+       well was this played", counting pours against par, and it has no idea
+       whether the bottles are sorted. A run that ends because it was lost ends
+       on a low pour count by definition, so asking rate() about it gets three
+       stars for a board that was nowhere near done. */
+    const solved = Rules.isSolved(S.tubes);
+    const stars = solved ? Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) : 0;
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const perfect = stars === 3;

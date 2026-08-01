@@ -55,8 +55,8 @@ function decide(input){
     : parExact ? ` The minimum is ${par}.`
     : ` The best found is about ${par}.`;
   const bestLine = !failed && best != null && best < moves ? ` Your best here is ${best}.` : '';
-  const line = atPar
-    ? 'Solved in the minimum moves.'
+  const line = failed ? `Stopped after ${moves} ${moves === 1 ? 'pour' : 'pours'}.`
+    : atPar ? 'Solved in the minimum moves.'
     : `Sorted in ${moves} pours.${parLine}${bestLine}`;
 
   return {

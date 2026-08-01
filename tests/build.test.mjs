@@ -131,6 +131,19 @@ describe('build output', () => {
     assert(/App\.updateReady\(\)/.test(pwa), 'the app is never told an update is ready');
   });
 
+  it('scores nothing for a board that was not finished', () => {
+    /* The run ends either because the board is done or because it is lost, and
+       both land in finish(). rate() only counts pours against par and cannot
+       tell the two apart, so a run lost after six pours on a par of thirty nine
+       came out as three stars and a payout. Stars have to be gated on the board
+       actually being solved. */
+    const app = read('src/js/90-app.js');
+    const fn = app.slice(app.indexOf('function finish(){'), app.indexOf('function skipCost'));
+    assert(/const solved = Rules\.isSolved\(S\.tubes\)/.test(fn),
+      'finish() must ask whether the board is actually solved');
+    assert(/solved \? Rules\.rate\(/.test(fn),
+      'and must only rate a run that finished the board');
+  });
   it('never drops a resize taken during a pour', () => {
     /* Rebuilding the board mid pour would strand the animation, so the resize is
        held back. Held back is only safe if something applies it afterwards:

@@ -83,6 +83,14 @@ describe('end of run panel', () => {
     equal(decide({ failed: true, stars: 0, reason: 'over', par: 20 }).hint,
       `Clear it in ${20 + CONFIG.stars.one} or fewer.`);
   });
+  it('does not claim a board was sorted when it was not', () => {
+    /* a run can end nowhere near the finish, so the count it ended on says
+       nothing about how well it went and must not be dressed up as a result */
+    equal(decide({ failed: true, stars: 0, moves: 6, par: 39, reason: 'stuck' }).line,
+      'Stopped after 6 pours.');
+    equal(decide({ failed: true, stars: 0, moves: 1, par: 39, reason: 'stuck' }).line,
+      'Stopped after 1 pour.');
+  });
   it('hides retry only on a perfect run', () => {
     equal(decide({ stars: 3 }).retryHidden, true);
     equal(decide({ stars: 2 }).retryHidden, false);
