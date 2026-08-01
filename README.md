@@ -32,6 +32,27 @@ option, to add it to a home screen or dock.
 | `tests/` | 94 tests, no dependencies |
 | `dist/` | build output, committed so it can be deployed as is |
 
+## How a change lands
+
+`main` is protected: it takes pull requests only, and a pull request cannot
+merge until both CI jobs pass. That holds for everyone, including the repository
+owner, so the way to get something in is the same regardless of who you are.
+
+```bash
+git switch -c what-you-are-doing
+npm run check          # lint, build, unit tests, dist freshness
+npm run check:all      # the above plus par verification and the browser suite
+gh pr create --fill
+```
+
+The two required checks are `lint, unit tests, invariants` and `end to end`. What
+each of them is for, and what none of them can tell you, is
+[docs/design/14b-ci.md](docs/design/14b-ci.md).
+
+Merging to `main` publishes: the Pages workflow rebuilds from source and deploys,
+so what goes live is built from the merge commit rather than from whatever `dist/`
+happened to be committed.
+
 ## Deploying
 
 `dist/` is a static folder using only relative paths. Drop it on GitHub Pages,
