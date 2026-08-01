@@ -179,43 +179,6 @@ const Backdrop = (() => {
     }
   }
 
-  /* Directly behind the bottles being played the room steps back, so nothing
-     behind them shows through the glass and competes for the same plane. */
-  function pocket(row){
-    if (!row.spots || !row.spots.length) return;
-    const x0 = Math.min(...row.spots.map(s => s[0])) - 34;
-    const x1 = Math.max(...row.spots.map(s => s[1])) + 34;
-    const top = (row.top == null ? row.y - 150 : row.top) - 26;
-    const w = x1 - x0, h = row.y - top;
-    if (w <= 0 || h <= 0) return;
-    /* A plain rectangle here put a hard vertical edge down each side of the
-       playing row, which read as a dark frame drawn around the bottles. The
-       recess has to have no edges of its own, so it is faded out at the sides
-       and along the top. */
-    const off = layer(w, h, c => {
-      const g = c.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, 'rgba(0,0,0,.10)');
-      g.addColorStop(0.5, 'rgba(0,0,0,.42)');
-      g.addColorStop(1, 'rgba(0,0,0,.54)');
-      c.fillStyle = g;
-      c.fillRect(0, 0, w, h);
-      c.globalCompositeOperation = 'destination-out';
-      const sides = c.createLinearGradient(0, 0, w, 0);
-      sides.addColorStop(0, 'rgba(0,0,0,1)');
-      sides.addColorStop(0.18, 'rgba(0,0,0,0)');
-      sides.addColorStop(0.82, 'rgba(0,0,0,0)');
-      sides.addColorStop(1, 'rgba(0,0,0,1)');
-      c.fillStyle = sides;
-      c.fillRect(0, 0, w, h);
-      const above = c.createLinearGradient(0, 0, 0, h * 0.24);
-      above.addColorStop(0, 'rgba(0,0,0,1)');
-      above.addColorStop(1, 'rgba(0,0,0,0)');
-      c.fillStyle = above;
-      c.fillRect(0, 0, w, h * 0.24);
-    });
-    ctx.drawImage(off, x0, top, w, h);
-  }
-
   function cobweb(p, x, y, size, flip){
     ctx.save();
     ctx.translate(x, y);
@@ -400,7 +363,6 @@ const Backdrop = (() => {
     if (rows.length){
       rows.forEach((row, i) => {
         clutter(p, row.y + 2, i);
-        pocket(row);
         shelfUnit(p, row, i, i === rows.length - 1);
       });
       motes(p);

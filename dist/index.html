@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="81fdbe5cc8">
+<meta name="build" content="282f6810c3">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -715,9 +715,14 @@ const CONFIG = {
     undoCost: 8,
     /* A hint names the move the solver would play, so it never costs a star: it
        tells you the optimal move, and taking an optimal move is what earns the
-       stars in the first place. It is priced above an undo because it is worth
-       more than one: an undo takes back a mistake, a hint stops you making it. */
-    hint: 12,
+       stars in the first place.
+
+       Which is exactly why it has to be dear. An undo takes back one mistake; a
+       hint stops you making it, and a player who can afford them freely is being
+       handed a three star run a move at a time. At this price it is worth about
+       four clean clears, so it is a way out of a board you cannot read rather
+       than a way to play the game. */
+    hint: 25,
     /* Every board dealt costs the same, whether it is a new level or another go
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough
@@ -1600,43 +1605,6 @@ const Backdrop = (() => {
     }
   }
 
-  /* Directly behind the bottles being played the room steps back, so nothing
-     behind them shows through the glass and competes for the same plane. */
-  function pocket(row){
-    if (!row.spots || !row.spots.length) return;
-    const x0 = Math.min(...row.spots.map(s => s[0])) - 34;
-    const x1 = Math.max(...row.spots.map(s => s[1])) + 34;
-    const top = (row.top == null ? row.y - 150 : row.top) - 26;
-    const w = x1 - x0, h = row.y - top;
-    if (w <= 0 || h <= 0) return;
-    /* A plain rectangle here put a hard vertical edge down each side of the
-       playing row, which read as a dark frame drawn around the bottles. The
-       recess has to have no edges of its own, so it is faded out at the sides
-       and along the top. */
-    const off = layer(w, h, c => {
-      const g = c.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, 'rgba(0,0,0,.10)');
-      g.addColorStop(0.5, 'rgba(0,0,0,.42)');
-      g.addColorStop(1, 'rgba(0,0,0,.54)');
-      c.fillStyle = g;
-      c.fillRect(0, 0, w, h);
-      c.globalCompositeOperation = 'destination-out';
-      const sides = c.createLinearGradient(0, 0, w, 0);
-      sides.addColorStop(0, 'rgba(0,0,0,1)');
-      sides.addColorStop(0.18, 'rgba(0,0,0,0)');
-      sides.addColorStop(0.82, 'rgba(0,0,0,0)');
-      sides.addColorStop(1, 'rgba(0,0,0,1)');
-      c.fillStyle = sides;
-      c.fillRect(0, 0, w, h);
-      const above = c.createLinearGradient(0, 0, 0, h * 0.24);
-      above.addColorStop(0, 'rgba(0,0,0,1)');
-      above.addColorStop(1, 'rgba(0,0,0,0)');
-      c.fillStyle = above;
-      c.fillRect(0, 0, w, h * 0.24);
-    });
-    ctx.drawImage(off, x0, top, w, h);
-  }
-
   function cobweb(p, x, y, size, flip){
     ctx.save();
     ctx.translate(x, y);
@@ -1821,7 +1789,6 @@ const Backdrop = (() => {
     if (rows.length){
       rows.forEach((row, i) => {
         clutter(p, row.y + 2, i);
-        pocket(row);
         shelfUnit(p, row, i, i === rows.length - 1);
       });
       motes(p);
@@ -1893,25 +1860,53 @@ const Board = (() => {
   const colorVar = c => `var(--c${c})`;
 
   /* --- layout: pick the row count that yields the largest bottles for the space
-     available. Rows no longer have to divide the bottle count exactly: buying a
-     vessel makes the count odd, and insisting on equal rows meant an eleven
-     bottle board became one row of eleven and every bottle shrank to fit. A
-     short last row is centred instead. --- */
+     available. Rows do not have to divide the bottle count exactly: buying a
+     vessel makes the count odd, and insisting on equal rows meant eleven bottles
+     became one row of eleven and every bottle shrank to fit. A short last row is
+     laid out under the others.
+
+     Whatever is chosen has to *fit*. There used to be a floor under the bottle
+     width, applied after the row count was picked, so a row that was already too
+     tight was widened past the space it had. The glass is DOM and drew anyway;
+     the liquid is canvas and is sized to the board, so it was cut off at both
+     edges. Bottles smaller than the floor are worse than bottles that fit, but
+     bottles with their contents sliced off are worse than both. --- */
+  const MIN_BW = 22;
   function layout(n){
     const W = root.clientWidth || window.innerWidth - 24;
     const H = root.clientHeight || 360;
-    let best = null;
+    let best = null, tightest = null;
     for (let rows = 1; rows <= 4; rows++){
       if (rows > n) break;
       const cols = Math.ceil(n / rows);
-      /* rows that would leave the last one nearly empty look like a mistake */
+      /* rows that would leave the last one empty are not really that many rows */
       if (cols * (rows - 1) >= n) continue;
       const gx = cols > 6 ? 7 : 11, gy = rows > 2 ? 12 : 20;
-      const bw = Math.min((W - (cols - 1) * gx) / cols, ((H - (rows - 1) * gy) / rows) / 3.62, 58);
-      if (!best || bw > best.bw) best = { bw, rows, cols, gx, gy };
+      const room = Math.min((W - (cols - 1) * gx) / cols, ((H - (rows - 1) * gy) / rows) / 3.62, 58);
+      const bw = Math.max(MIN_BW, room);
+      const span = bw * cols + (cols - 1) * gx;
+      /* A bottle is 3.56 times as tall as it is wide, cap included. The fit has
+         to be checked both ways: checking only the width let a short viewport
+         push the bottles down over the buttons instead of off the sides. */
+      const tall = bw * 3.56 * rows + (rows - 1) * gy;
+      const cand = { bw, rows, cols, gx, gy, span, tall, room };
+      if (span <= W + 0.5 && tall <= H + 0.5){
+        if (!best || cand.bw > best.bw) best = cand;
+      } else if (!tightest || cand.room > tightest.room){
+        tightest = cand;
+      }
     }
-    if (!best) best = { bw:30, rows:1, cols:n, gx:8, gy:14 };
-    document.documentElement.style.setProperty('--bw', Math.max(22, best.bw).toFixed(1) + 'px');
+    /* Nothing fits even at the smallest size worth tapping. Take the row count
+       with the most room and let the bottles be small: too small to tap
+       comfortably is a poor board, while one that spills over the buttons or has
+       its contents sliced off is a broken one. */
+    if (!best && tightest){
+      const byWidth = (W - (tightest.cols - 1) * tightest.gx) / tightest.cols;
+      const byHeight = (H - (tightest.rows - 1) * tightest.gy) / (tightest.rows * 3.56);
+      best = { ...tightest, bw: Math.max(10, Math.min(byWidth, byHeight)) };
+    }
+    if (!best) best = { bw: MIN_BW, rows: 1, cols: n, gx: 8, gy: 14 };
+    document.documentElement.style.setProperty('--bw', best.bw.toFixed(1) + 'px');
     root.style.setProperty('--cols', best.cols);
     root.style.columnGap = best.gx + 'px';
     root.style.rowGap = best.gy + 'px';

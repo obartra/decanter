@@ -42,9 +42,14 @@ const CONFIG = {
     undoCost: 8,
     /* A hint names the move the solver would play, so it never costs a star: it
        tells you the optimal move, and taking an optimal move is what earns the
-       stars in the first place. It is priced above an undo because it is worth
-       more than one: an undo takes back a mistake, a hint stops you making it. */
-    hint: 12,
+       stars in the first place.
+
+       Which is exactly why it has to be dear. An undo takes back one mistake; a
+       hint stops you making it, and a player who can afford them freely is being
+       handed a three star run a move at a time. At this price it is worth about
+       four clean clears, so it is a way out of a board you cannot read rather
+       than a way to play the game. */
+    hint: 25,
     /* Every board dealt costs the same, whether it is a new level or another go
        at one you just lost. It is the entry fee that gives a failed run a price:
        without it, failing costs nothing but the time already spent. Small enough

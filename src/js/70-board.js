@@ -38,25 +38,53 @@ const Board = (() => {
   const colorVar = c => `var(--c${c})`;
 
   /* --- layout: pick the row count that yields the largest bottles for the space
-     available. Rows no longer have to divide the bottle count exactly: buying a
-     vessel makes the count odd, and insisting on equal rows meant an eleven
-     bottle board became one row of eleven and every bottle shrank to fit. A
-     short last row is centred instead. --- */
+     available. Rows do not have to divide the bottle count exactly: buying a
+     vessel makes the count odd, and insisting on equal rows meant eleven bottles
+     became one row of eleven and every bottle shrank to fit. A short last row is
+     laid out under the others.
+
+     Whatever is chosen has to *fit*. There used to be a floor under the bottle
+     width, applied after the row count was picked, so a row that was already too
+     tight was widened past the space it had. The glass is DOM and drew anyway;
+     the liquid is canvas and is sized to the board, so it was cut off at both
+     edges. Bottles smaller than the floor are worse than bottles that fit, but
+     bottles with their contents sliced off are worse than both. --- */
+  const MIN_BW = 22;
   function layout(n){
     const W = root.clientWidth || window.innerWidth - 24;
     const H = root.clientHeight || 360;
-    let best = null;
+    let best = null, tightest = null;
     for (let rows = 1; rows <= 4; rows++){
       if (rows > n) break;
       const cols = Math.ceil(n / rows);
-      /* rows that would leave the last one nearly empty look like a mistake */
+      /* rows that would leave the last one empty are not really that many rows */
       if (cols * (rows - 1) >= n) continue;
       const gx = cols > 6 ? 7 : 11, gy = rows > 2 ? 12 : 20;
-      const bw = Math.min((W - (cols - 1) * gx) / cols, ((H - (rows - 1) * gy) / rows) / 3.62, 58);
-      if (!best || bw > best.bw) best = { bw, rows, cols, gx, gy };
+      const room = Math.min((W - (cols - 1) * gx) / cols, ((H - (rows - 1) * gy) / rows) / 3.62, 58);
+      const bw = Math.max(MIN_BW, room);
+      const span = bw * cols + (cols - 1) * gx;
+      /* A bottle is 3.56 times as tall as it is wide, cap included. The fit has
+         to be checked both ways: checking only the width let a short viewport
+         push the bottles down over the buttons instead of off the sides. */
+      const tall = bw * 3.56 * rows + (rows - 1) * gy;
+      const cand = { bw, rows, cols, gx, gy, span, tall, room };
+      if (span <= W + 0.5 && tall <= H + 0.5){
+        if (!best || cand.bw > best.bw) best = cand;
+      } else if (!tightest || cand.room > tightest.room){
+        tightest = cand;
+      }
     }
-    if (!best) best = { bw:30, rows:1, cols:n, gx:8, gy:14 };
-    document.documentElement.style.setProperty('--bw', Math.max(22, best.bw).toFixed(1) + 'px');
+    /* Nothing fits even at the smallest size worth tapping. Take the row count
+       with the most room and let the bottles be small: too small to tap
+       comfortably is a poor board, while one that spills over the buttons or has
+       its contents sliced off is a broken one. */
+    if (!best && tightest){
+      const byWidth = (W - (tightest.cols - 1) * tightest.gx) / tightest.cols;
+      const byHeight = (H - (tightest.rows - 1) * tightest.gy) / (tightest.rows * 3.56);
+      best = { ...tightest, bw: Math.max(10, Math.min(byWidth, byHeight)) };
+    }
+    if (!best) best = { bw: MIN_BW, rows: 1, cols: n, gx: 8, gy: 14 };
+    document.documentElement.style.setProperty('--bw', best.bw.toFixed(1) + 'px');
     root.style.setProperty('--cols', best.cols);
     root.style.columnGap = best.gx + 'px';
     root.style.rowGap = best.gy + 'px';
