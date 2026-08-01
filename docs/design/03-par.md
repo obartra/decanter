@@ -85,6 +85,26 @@ reasonable in the table.
 `tools/verify-pars.mjs` runs that check over the whole table rather than a sample.
 All 120 levels are reachable in exactly par, and none is solvable in fewer.
 
+## Where the graded game ends
+
+`tools/pars.mjs` publishes `LAST_LEVEL` alongside the table, and progression stops
+there. This is not a content decision, it is forced by the one below: without a
+known par there is no bar to measure a run against, so `rate()` awards full marks.
+
+A level past the table would therefore be a level that **cannot be failed and
+cannot be played badly**, paying three stars every time. With the current economy
+that is 6 gold for the stars plus 8 for the first clear against a 5 gold attempt
+fee, so every such level is a guaranteed +9 and there is no end to them. Unbounded
+gold is the one thing the economy is explicitly built to avoid, see
+[04 Economy](04-economy.md).
+
+So the frontier is clamped in `40-progress.js` (on load, on clear, and on
+purchase), the map's lookahead is clamped in `80-map.js`, and the end-of-run panel
+stops offering a next level. Solving in the browser stays as the fallback for a
+level whose par is missing; it is not a licence to ship one.
+
+Extending the game means extending the table, not lifting the cap.
+
 ## The fallback, and why an estimate is never scored
 
 For levels past the end of the table, the search runs in the browser: 400,000

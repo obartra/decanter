@@ -33,7 +33,13 @@ const MapGeom = (() => {
   }
   /* what the player is allowed to see: everything cleared, the frontier, and a
      short glimpse of what is coming */
-  const visibleCount = (unlocked, lookahead) => unlocked + (lookahead == null ? CONFIG.lookahead : lookahead);
+  /* The lookahead shows what is coming, so it must not show levels that are not
+     coming: past the graded range there is nothing to deal. */
+  const visibleCount = (unlocked, lookahead, last) => {
+    const ahead = unlocked + (lookahead == null ? CONFIG.lookahead : lookahead);
+    const cap = Number.isInteger(last) ? last : (Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity);
+    return Math.min(ahead, cap);
+  };
   return { nodes, height, pathThrough, visibleCount, STEP };
 })();
 globalThis.MapGeom = MapGeom;

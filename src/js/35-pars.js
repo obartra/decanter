@@ -2,6 +2,12 @@
 
    Par for every level, precomputed with an offline search budget. Levels are
    deterministic in the level number, so these values are stable: the same
-   puzzle, and the same true minimum, for everyone. A level past the end of this
-   table falls back to solving in the browser. */
+   puzzle, and the same true minimum, for everyone.
+
+   LAST_LEVEL is where the graded game ends, and progression stops there. Without
+   a known par a run cannot be scored: rate() has no bar to measure against, so it
+   awards full marks, which past the end of the table would mean a level that can
+   neither be failed nor played badly, paying out forever. Solving in the browser
+   is the fallback for a level whose par is missing, not a licence to ship one. */
 globalThis.PARS = Object.freeze({1:12,2:10,3:16,4:17,5:16,6:16,7:25,8:23,9:27,10:24,11:32,12:27,13:31,14:32,15:39,16:40,17:39,18:38,19:38,20:35,21:38,22:37,23:38,24:38,25:34,26:39,27:38,28:40,29:40,30:40,31:38,32:37,33:38,34:37,35:37,36:38,37:35,38:36,39:38,40:37,41:36,42:36,43:37,44:34,45:40,46:41,47:39,48:40,49:39,50:38,51:38,52:36,53:37,54:36,55:39,56:38,57:38,58:38,59:39,60:38,61:40,62:36,63:34,64:35,65:39,66:35,67:39,68:37,69:37,70:37,71:38,72:40,73:40,74:40,75:35,76:34,77:39,78:40,79:39,80:37,81:36,82:39,83:37,84:35,85:36,86:37,87:36,88:39,89:39,90:37,91:34,92:37,93:40,94:37,95:34,96:37,97:37,98:40,99:36,100:40,101:38,102:39,103:38,104:40,105:40,106:35,107:37,108:40,109:39,110:35,111:40,112:39,113:40,114:34,115:36,116:40,117:37,118:40,119:34,120:38});
+globalThis.LAST_LEVEL = 120;

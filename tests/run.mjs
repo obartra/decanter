@@ -4,6 +4,7 @@ import './solver.test.mjs';
 import './levels.test.mjs';
 import './pars.test.mjs';
 import './progress.test.mjs';
+import './panel.test.mjs';
 import './economy.test.mjs';
 import './palette.test.mjs';
 import './map.test.mjs';

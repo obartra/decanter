@@ -7,6 +7,12 @@ new Function('globalThis', 'CONFIG', 'Levels', geomSrc)(ctx, ctx.CONFIG, ctx.Lev
 const { MapGeom, CONFIG } = ctx;
 
 describe('map geometry', () => {
+  it('never looks ahead past the graded range', () => {
+    /* the lookahead shows what is coming; past the table nothing is */
+    equal(MapGeom.visibleCount(118, 5, 120), 120, 'the lookahead must stop at the last level');
+    equal(MapGeom.visibleCount(120, 5, 120), 120);
+    equal(MapGeom.visibleCount(10, 5, 120), 15, 'and must be untouched well inside the range');
+  });
   const W = 380;
   it('places one node per level, climbing steadily', () => {
     const pts = MapGeom.nodes(12, W, {});

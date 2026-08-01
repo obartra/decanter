@@ -20,6 +20,14 @@ function safeStorage(){
     return memoryStorage();
   }
 }
+/* Where the graded game ends. Published by the par table, because that is what
+   decides it: a level with no par cannot be scored, and rate() awards full marks
+   when it has no bar to measure against. Letting progression run past the table
+   would hand out a level that can neither be failed nor played badly, and pay for
+   it every time. Falls back to a huge number so a missing table cannot silently
+   lock the game to level one. */
+const lastLevel = () => (Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity);
+
 function blank(){
   return {
     version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
@@ -41,6 +49,7 @@ function createProgress(storage){
     }
   } catch (e) { state = blank(); }
   if (!Number.isInteger(state.unlocked) || state.unlocked < 1) state.unlocked = 1;
+  if (state.unlocked > lastLevel()) state.unlocked = lastLevel();
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
@@ -71,7 +80,10 @@ function createProgress(storage){
     totalStars(){
       return Object.values(state.stars).reduce((a, b) => a + b, 0);
     },
-    isUnlocked: level => level <= state.unlocked,
+    isUnlocked: level => level <= state.unlocked && level <= lastLevel(),
+    get lastLevel(){ return lastLevel(); },
+    /* the graded game is over, and there is nothing further to open */
+    get finished(){ return state.unlocked >= lastLevel() && (state.stars[lastLevel()] || 0) > 0; },
 
     /* ---- gold ---- */
     get gold(){ return state.gold; },
@@ -99,6 +111,7 @@ function createProgress(storage){
        best, and the first-clear bonus is left unclaimed, so coming back later
        and actually beating it still pays what it always would have. */
     buyUnlock(level, cost){
+      if (level >= lastLevel()) return false;         /* nothing past the last one to open */
       if (state.unlocked > level) return false;       /* already past it */
       if (!Number.isInteger(cost) || cost < 0 || state.gold < cost) return false;
       state.gold -= cost;
@@ -123,7 +136,7 @@ function createProgress(storage){
       if (stars > prevStars) state.stars[level] = stars;
       const prevBest = level in state.best ? state.best[level] : Infinity;
       if (moves < prevBest) state.best[level] = moves;
-      if (level >= state.unlocked) state.unlocked = level + 1;
+      if (level >= state.unlocked) state.unlocked = Math.min(level + 1, lastLevel());
 
       const firstClear = !state.claimed[level];
       const starGold = CONFIG.economy.starGold[stars] || 0;

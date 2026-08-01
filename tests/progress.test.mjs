@@ -53,6 +53,26 @@ describe('progress', () => {
     equal(p.starsFor(1), 3);
     equal(p.bestFor(1), 12);
   });
+  it('stops at the last graded level, because past it nothing can be scored', () => {
+    /* rate() awards full marks when it has no par to measure against, so a level
+       past the par table could be neither failed nor played badly, and would pay
+       out every time. The frontier must not reach one. */
+    const last = fresh().lastLevel;
+    assert(Number.isInteger(last) && last > 0, 'the graded range must be a real level number');
+    const p = stored({ layout: CONFIG.layout, unlocked: last, gold: 500 });
+    p.complete(last, 10, 3);
+    equal(p.unlocked, last, 'clearing the last level must not open one past it');
+    assert(!p.isUnlocked(last + 1), 'there is nothing past the last level to unlock');
+    equal(p.buyUnlock(last, 10), false, 'and it must not be purchasable either');
+    equal(p.gold, 500 + CONFIG.economy.starGold[3] + CONFIG.economy.firstClear,
+      'a refused purchase must not take the gold');
+  });
+  it('pulls a save from beyond the graded range back to it', () => {
+    /* a save written when the table was longer, or hand-edited */
+    const p = stored({ layout: CONFIG.layout, unlocked: 99999 });
+    equal(p.unlocked, p.lastLevel);
+    assert(!p.isUnlocked(p.lastLevel + 1));
+  });
   it('replaying an old level does not roll the frontier back', () => {
     const p = fresh();
     p.complete(1, 10, 3);

@@ -248,36 +248,31 @@ const App = (() => {
     $('goldEarned').textContent = `+${result.earned}`;
     $('goldWhy').textContent = failed ? 'No gold · run failed' : `Gold · ${parts.join(' + ')}`;
 
-    /* A failed run banks nothing and does not open the next level, so the panel
-       has to say so plainly and offer the only thing that helps: another go. */
-    $('winHint').textContent = failed
-      ? `Clear it in ${S.par + CONFIG.stars.one} or fewer.`
-      : '';
     const fee = CONFIG.economy.attempt;
-    const canPay = progress.canAfford(fee);
-    $('veil').classList.toggle('failed', failed);
-    $('retry').hidden = perfect;
-    $('retry').innerHTML = failed || !perfect
-      ? `Try again<small>${fee} &#9670;</small>` : 'Retry';
-    $('retry').classList.toggle('priced', true);
-    $('retry').classList.toggle('primary', !perfect);
-    $('retry').disabled = !canPay;
-    $('next').hidden = failed && !progress.isUnlocked(S.level + 1);
-    $('next').classList.toggle('primary', perfect);
-    $('next').disabled = !canPay;
+    const panel = Panel.decide({
+      level: S.level, lastLevel: progress.lastLevel, failed, stars,
+      nextUnlocked: progress.isUnlocked(S.level + 1),
+      canPayFee: progress.canAfford(fee), canPaySkip: progress.canAfford(skipCost()),
+      improvedStars: result.improvedStars, hadStars: before,
+      par: S.par, totalStars: progress.totalStars()
+    });
 
+    $('veil').classList.toggle('failed', failed);
+    $('retry').hidden = panel.retryHidden;
+    $('retry').innerHTML = panel.retryHidden ? 'Retry' : `Try again<small>${fee} &#9670;</small>`;
+    $('retry').classList.toggle('priced', true);
+    $('retry').classList.toggle('primary', panel.retryPrimary);
+    $('retry').disabled = panel.retryDisabled;
+    $('next').hidden = panel.nextHidden;
+    $('next').classList.toggle('primary', panel.nextPrimary);
+    $('next').disabled = panel.nextDisabled;
     /* Beaten by a board is not the same as stuck on it. Paying past it opens the
        next one and deals it, so a level nobody can crack is a decision with a
        price rather than a wall. */
-    const stuck = failed && !progress.isUnlocked(S.level + 1);
-    $('skip').hidden = !stuck;
+    $('skip').hidden = panel.skipHidden;
     $('skipCost').textContent = skipCost();
-    $('skip').disabled = !progress.canAfford(skipCost());
-    if (stuck && !canPay && !progress.canAfford(skipCost())){
-      $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
-    }
-    if (!canPay) $('winHint').textContent = 'Not enough gold. The daily draught is on the map.';
-    if (!failed && result.improvedStars && before > 0) $('winHint').textContent = 'New best for this level.';
+    $('skip').disabled = panel.skipDisabled;
+    $('winHint').textContent = panel.hint;
 
     setTimeout(() => {
       if (failed){
@@ -354,9 +349,10 @@ const App = (() => {
       /* the fee covered the board too, so this deals it without charging again */
       document.body.dataset.view = 'game';
       Backdrop.kind = 'cellar';
-      start(S.level + 1);
+      start(Math.min(S.level + 1, progress.lastLevel));
     };
     $('next').onclick = () => {
+      if (S.level >= progress.lastLevel){ Audio.deny(); return; }
       if (!progress.canAfford(CONFIG.economy.attempt)){ Audio.deny(); return; }
       $('veil').classList.remove('show');
       showGame(S.level + 1);
@@ -369,7 +365,7 @@ const App = (() => {
         if (Audio.enabled) Audio.lift();
       };
     });
-    $('mapPlay').onclick = () => { Audio.unlock(); showGame(progress.unlocked); };
+    $('mapPlay').onclick = () => { Audio.unlock(); showGame(Math.min(progress.unlocked, progress.lastLevel)); };
     $('daily').onclick = () => {
       Audio.unlock();
       if (!progress.claimDaily(today())){ Audio.deny(); return; }
