@@ -49,16 +49,22 @@ describe('levels', () => {
       assert(Rules.isSolvable(Levels.make(n)), `level ${n} is a dead end`);
     }
   });
-  it('difficulty rises and then holds at the cap', () => {
+  it('grows the board and then holds at the cap', () => {
+    /* The board is what a player watches grow, and it is the bottle count that
+       says how big it is. The colour count is free to move within a bottle
+       count, because the ordering picks whichever of that size's two shapes
+       measures closer to the curve, and five colours with three empties is the
+       same eight bottles as six with two. Asserting colours would be asserting
+       an implementation detail of the old shape formula. */
     let prev = 0;
     for (let n = 1; n <= 40; n++){
-      const c = Levels.shape(n).colors;
-      assert(c >= prev, `level ${n} got easier`);
-      assert(c <= CONFIG.maxColors, `level ${n} exceeds the palette`);
-      prev = c;
+      const { colors, bottles } = Levels.shape(n);
+      assert(bottles >= prev, `level ${n} deals a smaller board than the one before`);
+      assert(colors <= CONFIG.maxColors, `level ${n} exceeds the palette`);
+      prev = bottles;
     }
     equal(Levels.shape(1).colors, CONFIG.minColors, 'level 1 should be the gentlest');
-    equal(Levels.shape(60).colors, CONFIG.maxColors, 'late levels should be at the cap');
+    equal(Levels.shape(60).bottles, CONFIG.maxColors + 2, 'late levels should be at the cap');
   });
   it('par is reachable and worth earning', () => {
     for (const n of [1, 4, 9]){

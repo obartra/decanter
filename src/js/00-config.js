@@ -7,7 +7,7 @@ const CONFIG = {
      far means regenerating src/js/32-order.js. A save records stars and best
      move counts against level numbers, so those records stop meaning anything
      when the boards move; see 40-progress.js for what is kept and what is not. */
-  layout: 4,
+  layout: 5,
   /* Liquid palette, index === colour id, and the only place a liquid colour is
      written down. The --cN custom properties the stylesheets use are published
      from here at boot, so the bands, the pour and the particle sim cannot drift

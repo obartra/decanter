@@ -31,7 +31,9 @@ function measure({ colors, empties, seed }){
   if (!got.exact || !Number.isInteger(got.par)) return null;
   try {
     const a = analyse(tubes, got.par, BUDGET);
-    return a == null ? null : { par: got.par, hard: -a.logOdds, tight: a.tight };
+    /* `slips` rather than `logOdds`: a run's budget for wrong turns is fixed,
+       so what matters is how many it will take, not the odds of taking none */
+    return a == null ? null : { par: got.par, hard: a.slips, logOdds: -a.logOdds, tight: a.tight };
   } catch (err) {
     if (err === TOO_DEAR) return null;
     throw err;

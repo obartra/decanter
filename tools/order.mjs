@@ -1,5 +1,10 @@
 /* Choose which board each level deals, so that difficulty actually rises.
 
+   Difficulty here is `slips`: how many wrong turns uniformly random play is
+   expected to take along the line. A run is allowed a fixed number of wrong
+   turns whatever its length, so that is the number to compare against, and it is
+   the reason this is not the odds of playing a perfect line. See tools/measure.mjs.
+
    Measured difficulty and level number were uncorrelated (r = 0.05 over the
    first 120). Colour count climbs, which looks like a curve, but it is not one.
    Two separate problems sat underneath that:
@@ -224,7 +229,7 @@ for (const band of plan){
     continue;
   }
   console.log(`${band.bottles} bottles: `
-    + got.map(l => `${l}:${chosen.get(l).colors}c 10^-${chosen.get(l).hard.toFixed(1)}`).join(', ')
+    + got.map(l => `${l}:${chosen.get(l).colors}c ${chosen.get(l).hard.toFixed(1)} slips`).join(', ')
     + ` from ${band.pool.length} of ${band.field.length} measured`);
 }
 
@@ -253,7 +258,7 @@ for (const band of plan){
   });
   const lo = chosen.get(band.levels[0]), hi = chosen.get(band.levels[n - 1]);
   console.log(`${band.bottles} bottles: spread ${n} levels over ${usable.length} boards`
-    + `, 10^-${lo.hard.toFixed(1)} to 10^-${hi.hard.toFixed(1)}`
+    + `, ${lo.hard.toFixed(1)} to ${hi.hard.toFixed(1)} slips`
     + (missed ? `, ${missed} too expensive to measure` : ''));
 }
 

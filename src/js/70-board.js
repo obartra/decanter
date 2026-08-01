@@ -148,7 +148,7 @@ const Board = (() => {
     if (!fluidOn) return scripted(move);
     /* the level starts falling when the bottle has finished tipping and the
        stream actually leaves the lip, not while it is still on its way over */
-    const tilt = reduce ? 60 : 480;
+    const tilt = reduce ? 120 : 520;
     const moved = sleep(tilt).then(() => Fluid.transfer(move));
     await scripted(move);
     await moved;
@@ -162,7 +162,18 @@ const Board = (() => {
     const unitH = glassH / Rules.CAP, capH = h - glassH;
     const raw = CONFIG.palette[move.color];
     const dir = dst.offsetLeft > src.offsetLeft ? 1 : -1;
-    const ang = 72 * dir, rad = ang * Math.PI / 180;
+    /* A full bottle pours off the lip almost as soon as it leaves upright; an
+       almost empty one has to go right over before anything reaches the lip.
+       Tilting the same amount either way is what made the stream look like it
+       was leaving a bottle whose liquid was nowhere near the spout. */
+    const fill = Math.max(0, Math.min(1, view[move.from].length / Rules.CAP));
+    const ang = dir * (56 + 30 * (1 - fill)), rad = ang * Math.PI / 180;
+    /* The waits and the transitions have to be the same length. They were not:
+       the waits collapsed to 60ms under reduced motion while the transitions
+       stayed where they were, so the stream was drawn while the bottle was still
+       on its way over and appeared to pour out of thin air. */
+    const lean = reduce ? 60 : 220;
+    const tip = reduce ? 60 : 300;
 
     /* the lip stops beside the target, not over it, so liquid arcs across */
     const lipX = dst.offsetLeft + w/2 - dir * w * 0.82;
@@ -172,12 +183,12 @@ const Board = (() => {
 
     src.classList.add('pouring');
     src.classList.remove('lifted');
-    src.style.transition = 'transform .22s cubic-bezier(.3,0,.4,1)';
+    src.style.transition = `transform ${lean}ms cubic-bezier(.3,0,.4,1)`;
     src.style.transform = `translate(${dx*0.4}px, ${dy-16}px) rotate(${ang*0.22}deg)`;
-    await sleep(200);
-    src.style.transition = 'transform .3s cubic-bezier(.35,.05,.3,1)';
+    await sleep(lean);
+    src.style.transition = `transform ${tip}ms cubic-bezier(.35,.05,.3,1)`;
     src.style.transform = `translate(${dx}px, ${dy}px) rotate(${ang}deg)`;
-    await sleep(280);
+    await sleep(tip);
 
     const startFill = view[move.to].length;
     const impactX = dst.offsetLeft + w/2;
@@ -185,7 +196,10 @@ const Board = (() => {
     const P0 = { x: lipX, y: lipY };
     let P1 = { x: impactX, y: surfaceY(startFill) };
     const ctrl = () => ({ x: P0.x + (P1.x - P0.x) * 0.78, y: P0.y + (P1.y - P0.y) * 0.10 });
-    const w0 = w * 0.30, w1 = w * 0.15;
+    /* A falling stream narrows: it speeds up under gravity and the same liquid
+       per second has to fit through a smaller section. A ribbon of near constant
+       width reads as a painted stripe rather than as something pouring. */
+    const w0 = w * 0.19, w1 = w * 0.07;
 
     const body = document.createElementNS(NS, 'path'); body.setAttribute('fill', raw);
     const shine = document.createElementNS(NS, 'path');

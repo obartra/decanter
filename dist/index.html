@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="3bf7dfa291">
+<meta name="build" content="61b691c594">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -606,7 +606,7 @@ const CONFIG = {
      far means regenerating src/js/32-order.js. A save records stars and best
      move counts against level numbers, so those records stop meaning anything
      when the boards move; see 40-progress.js for what is kept and what is not. */
-  layout: 4,
+  layout: 5,
   /* Liquid palette, index === colour id, and the only place a liquid colour is
      written down. The --cN custom properties the stylesheets use are published
      from here at boot, so the bands, the pour and the particle sim cannot drift
@@ -909,7 +909,7 @@ globalThis.Levels = { shape, baseShape, deal, make, seedFor, sectionOf, sectionN
    follows the level number, so the board grows steadily; within a bottle count
    the shape and the board are chosen so that difficulty rises with the level
    instead of sawtoothing. See tools/order.mjs and tools/difficulty.mjs. */
-globalThis.ORDER = Object.freeze({1:[4,2,47514],2:[4,2,57284],3:[6,2,69345],4:[6,2,68368],5:[6,2,70322],6:[6,2,79115],7:[8,2,95930],8:[8,2,91045],9:[8,2,90068],10:[8,2,89091],11:[10,2,100044],12:[10,2,101998],13:[10,2,117630],14:[10,2,99067],15:[12,2,243738],16:[12,2,136268],17:[12,2,301381],18:[12,2,322875],19:[12,2,204658],20:[12,2,218336],21:[12,2,182187],22:[12,2,308220],23:[12,2,205635],24:[12,2,155808],25:[12,2,187072],26:[12,2,275979],27:[12,2,335576],28:[12,2,264255],29:[12,2,260347],30:[12,2,313105],31:[12,2,312128],32:[12,2,283795],33:[12,2,163624],34:[12,2,281841],35:[12,2,171440],36:[12,2,268163],37:[12,2,255462],38:[12,2,325806],39:[12,2,193911],40:[12,2,329714],41:[12,2,142130],42:[12,2,122590],43:[12,2,327760],44:[12,2,288680],45:[12,2,267186],46:[12,2,209543],47:[12,2,216382],48:[12,2,266209],49:[12,2,147992],50:[12,2,258393],51:[12,2,305289],52:[12,2,245692],53:[12,2,213451],54:[12,2,137245],55:[12,2,274025],56:[12,2,215405],57:[12,2,160693],58:[12,2,118682],59:[12,2,316036],60:[12,2,202704],61:[12,2,277933],62:[12,2,125521],63:[12,2,232014],64:[12,2,203681],65:[12,2,120636],66:[12,2,317013],67:[12,2,117705],68:[12,2,251554],69:[12,2,247646],70:[12,2,176325],71:[12,2,141153],72:[12,2,278910],73:[12,2,238853],74:[12,2,284772],75:[12,2,254485],76:[12,2,164601],77:[12,2,174371],78:[12,2,311151],79:[12,2,232991],80:[12,2,296496],81:[12,2,208566],82:[12,2,230060],83:[12,2,302358],84:[12,2,139199],85:[12,2,289657],86:[12,2,197819],87:[12,2,119659],88:[12,2,132360],89:[12,2,237876],90:[12,2,198796],91:[12,2,144084],92:[12,2,207589],93:[12,2,319944],94:[12,2,286726],95:[12,2,190003],96:[12,2,162647],97:[12,2,143107],98:[12,2,240807],99:[12,2,285749],100:[12,2,110866],101:[12,2,189026],102:[12,2,114774],103:[12,2,262301],104:[12,2,183164],105:[12,2,328737],106:[12,2,265232],107:[12,2,170463],108:[12,2,130406],109:[12,2,242761],110:[12,2,300404],111:[12,2,168509],112:[12,2,121613],113:[12,2,320921],114:[12,2,217359],115:[12,2,228106],116:[12,2,287703],117:[12,2,324829],118:[12,2,233968],119:[12,2,188049],120:[12,2,148969]});
+globalThis.ORDER = Object.freeze({1:[4,2,63146],2:[4,2,56307],3:[6,2,85954],4:[6,2,70322],5:[6,2,69345],6:[6,2,68368],7:[8,2,95930],8:[8,2,91045],9:[8,2,81275],10:[8,2,90068],11:[10,2,113722],12:[10,2,100044],13:[9,3,116522],14:[10,2,99067],15:[12,2,294542],16:[12,2,179256],17:[12,2,301381],18:[12,2,165578],19:[12,2,182187],20:[12,2,275979],21:[12,2,270117],22:[12,2,239830],23:[12,2,175348],24:[12,2,205635],25:[12,2,306266],26:[12,2,173394],27:[12,2,150923],28:[12,2,142130],29:[12,2,313105],30:[12,2,246669],31:[12,2,155808],32:[12,2,290634],33:[12,2,337530],34:[12,2,184141],35:[12,2,312128],36:[12,2,193911],37:[12,2,327760],38:[12,2,281841],39:[12,2,194888],40:[12,2,288680],41:[12,2,192934],42:[12,2,149946],43:[12,2,118682],44:[12,2,186095],45:[12,2,128452],46:[12,2,116728],47:[12,2,220290],48:[12,2,219313],49:[12,2,275002],50:[12,2,164601],51:[12,2,269140],52:[12,2,305289],53:[12,2,120636],54:[12,2,147992],55:[12,2,216382],56:[12,2,161670],57:[12,2,251554],58:[12,2,263278],59:[12,2,122590],60:[12,2,137245],61:[12,2,315059],62:[12,2,190980],63:[12,2,209543],64:[12,2,176325],65:[12,2,160693],66:[12,2,208566],67:[12,2,172417],68:[12,2,119659],69:[12,2,145061],70:[12,2,302358],71:[12,2,125521],72:[12,2,278910],73:[12,2,235922],74:[12,2,247646],75:[12,2,178279],76:[12,2,238853],77:[12,2,282818],78:[12,2,157762],79:[12,2,198796],80:[12,2,259370],81:[12,2,254485],82:[12,2,249600],83:[12,2,214428],84:[12,2,174371],85:[12,2,197819],86:[12,2,237876],87:[12,2,284772],88:[12,2,331668],89:[12,2,152877],90:[12,2,261324],91:[12,2,241784],92:[12,2,332645],93:[12,2,296496],94:[12,2,170463],95:[12,2,114774],96:[12,2,291611],97:[12,2,110866],98:[12,2,285749],99:[12,2,138222],100:[12,2,252531],101:[12,2,338507],102:[12,2,166555],103:[12,2,168509],104:[12,2,130406],105:[12,2,207589],106:[12,2,217359],107:[12,2,151900],108:[12,2,134314],109:[12,2,183164],110:[12,2,135291],111:[12,2,121613],112:[12,2,124544],113:[12,2,185118],114:[12,2,257416],115:[12,2,131383],116:[12,2,256439],117:[12,2,320921],118:[12,2,287703],119:[12,2,195865],120:[12,2,321898]});
 
 
 /* ---- 35-pars.js ---- */
@@ -924,7 +924,7 @@ globalThis.ORDER = Object.freeze({1:[4,2,47514],2:[4,2,57284],3:[6,2,69345],4:[6
    awards full marks, which past the end of the table would mean a level that can
    neither be failed nor played badly, paying out forever. Solving in the browser
    is the fallback for a level whose par is missing, not a licence to ship one. */
-globalThis.PARS = Object.freeze({1:12,2:10,3:16,4:17,5:16,6:16,7:25,8:23,9:27,10:24,11:32,12:27,13:31,14:32,15:39,16:40,17:39,18:38,19:38,20:35,21:38,22:37,23:38,24:38,25:34,26:39,27:38,28:40,29:40,30:40,31:38,32:37,33:38,34:37,35:37,36:38,37:35,38:36,39:38,40:37,41:36,42:36,43:37,44:34,45:40,46:41,47:39,48:40,49:39,50:38,51:38,52:36,53:37,54:36,55:39,56:38,57:38,58:38,59:39,60:38,61:40,62:36,63:34,64:35,65:39,66:35,67:39,68:37,69:37,70:37,71:38,72:40,73:40,74:40,75:35,76:34,77:39,78:40,79:39,80:37,81:36,82:39,83:37,84:35,85:36,86:37,87:36,88:39,89:39,90:37,91:34,92:37,93:40,94:37,95:34,96:37,97:37,98:40,99:36,100:40,101:38,102:39,103:38,104:40,105:40,106:35,107:37,108:40,109:39,110:35,111:40,112:39,113:40,114:34,115:36,116:40,117:37,118:40,119:34,120:38});
+globalThis.PARS = Object.freeze({1:12,2:12,3:18,4:16,5:16,6:17,7:25,8:23,9:24,10:27,11:30,12:32,13:28,14:32,15:32,16:36,17:39,18:37,19:38,20:39,21:39,22:35,23:37,24:38,25:38,26:37,27:39,28:36,29:40,30:36,31:38,32:38,33:36,34:37,35:38,36:38,37:37,38:37,39:38,40:34,41:38,42:38,43:38,44:37,45:38,46:39,47:37,48:41,49:36,50:34,51:40,52:38,53:39,54:39,55:39,56:37,57:37,58:38,59:36,60:36,61:39,62:40,63:41,64:37,65:38,66:36,67:38,68:36,69:38,70:37,71:36,72:40,73:41,74:37,75:37,76:40,77:38,78:39,79:37,80:37,81:35,82:38,83:36,84:39,85:37,86:39,87:40,88:39,89:39,90:40,91:38,92:39,93:37,94:37,95:39,96:39,97:40,98:36,99:41,100:37,101:39,102:42,103:40,104:40,105:37,106:34,107:39,108:38,109:40,110:40,111:39,112:38,113:40,114:38,115:38,116:38,117:40,118:40,119:38,120:38});
 globalThis.LAST_LEVEL = 120;
 
 
@@ -1915,7 +1915,7 @@ const Board = (() => {
     if (!fluidOn) return scripted(move);
     /* the level starts falling when the bottle has finished tipping and the
        stream actually leaves the lip, not while it is still on its way over */
-    const tilt = reduce ? 60 : 480;
+    const tilt = reduce ? 120 : 520;
     const moved = sleep(tilt).then(() => Fluid.transfer(move));
     await scripted(move);
     await moved;
@@ -1929,7 +1929,18 @@ const Board = (() => {
     const unitH = glassH / Rules.CAP, capH = h - glassH;
     const raw = CONFIG.palette[move.color];
     const dir = dst.offsetLeft > src.offsetLeft ? 1 : -1;
-    const ang = 72 * dir, rad = ang * Math.PI / 180;
+    /* A full bottle pours off the lip almost as soon as it leaves upright; an
+       almost empty one has to go right over before anything reaches the lip.
+       Tilting the same amount either way is what made the stream look like it
+       was leaving a bottle whose liquid was nowhere near the spout. */
+    const fill = Math.max(0, Math.min(1, view[move.from].length / Rules.CAP));
+    const ang = dir * (56 + 30 * (1 - fill)), rad = ang * Math.PI / 180;
+    /* The waits and the transitions have to be the same length. They were not:
+       the waits collapsed to 60ms under reduced motion while the transitions
+       stayed where they were, so the stream was drawn while the bottle was still
+       on its way over and appeared to pour out of thin air. */
+    const lean = reduce ? 60 : 220;
+    const tip = reduce ? 60 : 300;
 
     /* the lip stops beside the target, not over it, so liquid arcs across */
     const lipX = dst.offsetLeft + w/2 - dir * w * 0.82;
@@ -1939,12 +1950,12 @@ const Board = (() => {
 
     src.classList.add('pouring');
     src.classList.remove('lifted');
-    src.style.transition = 'transform .22s cubic-bezier(.3,0,.4,1)';
+    src.style.transition = `transform ${lean}ms cubic-bezier(.3,0,.4,1)`;
     src.style.transform = `translate(${dx*0.4}px, ${dy-16}px) rotate(${ang*0.22}deg)`;
-    await sleep(200);
-    src.style.transition = 'transform .3s cubic-bezier(.35,.05,.3,1)';
+    await sleep(lean);
+    src.style.transition = `transform ${tip}ms cubic-bezier(.35,.05,.3,1)`;
     src.style.transform = `translate(${dx}px, ${dy}px) rotate(${ang}deg)`;
-    await sleep(280);
+    await sleep(tip);
 
     const startFill = view[move.to].length;
     const impactX = dst.offsetLeft + w/2;
@@ -1952,7 +1963,10 @@ const Board = (() => {
     const P0 = { x: lipX, y: lipY };
     let P1 = { x: impactX, y: surfaceY(startFill) };
     const ctrl = () => ({ x: P0.x + (P1.x - P0.x) * 0.78, y: P0.y + (P1.y - P0.y) * 0.10 });
-    const w0 = w * 0.30, w1 = w * 0.15;
+    /* A falling stream narrows: it speeds up under gravity and the same liquid
+       per second has to fit through a smaller section. A ribbon of near constant
+       width reads as a painted stripe rather than as something pouring. */
+    const w0 = w * 0.19, w1 = w * 0.07;
 
     const body = document.createElementNS(NS, 'path'); body.setAttribute('fill', raw);
     const shine = document.createElementNS(NS, 'path');

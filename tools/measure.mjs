@@ -103,17 +103,25 @@ export function lineToPar(tubes, par, budget = DEFAULT_BUDGET){
 
      tight    the fraction of distinct decisions that are right at an average
               step, so how narrow the line is regardless of how long it is
-     logOdds  log10 of the chance of walking the whole thing correctly, which
-              folds in length as well as narrowness
+     logOdds  log10 of the chance of walking the whole thing correctly
+     slips    how many wrong turns random play is expected to take, summed over
+              the line, which is the one to compare against a run's budget
 
-   `tight` is the better measure of how demanding a single decision is; `logOdds`
-   is the better measure of a whole level. They disagree about long easy boards,
-   which is exactly the case worth being able to tell apart. */
+   `tight` is the better measure of how demanding a single decision is.
+
+   `slips` is the better measure of a whole level, and is what the ordering uses.
+   `logOdds` multiplies the odds along the line, so a board that grows longer but
+   whose steps grow correspondingly wider comes out unchanged: the two cancel
+   exactly. That is arithmetically true and wrong about the experience, because a
+   run is allowed a fixed number of wrong turns whatever its length. Level 7's par
+   jumped from 16 to 25 and `logOdds` moved from 3.84 to 3.95, while the slack it
+   left the player fell from 19% of par to 12%. `slips` adds rather than
+   multiplies, so length counts. */
 export function analyse(tubes, par, budget = DEFAULT_BUDGET){
   const solvableIn = makeSolvableIn(budget);
   let state = base.clone(tubes);
   let dist = par;
-  let logOdds = 0, steps = 0, goodSum = 0, legalSum = 0, worst = 1;
+  let logOdds = 0, slips = 0, steps = 0, goodSum = 0, legalSum = 0, worst = 1;
 
   while (dist > 0){
     /* one entry per distinct board reachable in one pour, not one per legal pour */
@@ -130,6 +138,7 @@ export function analyse(tubes, par, budget = DEFAULT_BUDGET){
     if (!good.length) return null;             /* par is not reachable from here */
     const odds = good.length / outcomes.size;
     logOdds += Math.log10(odds);
+    slips += 1 - odds;
     worst = Math.min(worst, odds);
     goodSum += good.length; legalSum += outcomes.size; steps++;
     /* follow the middle option, so the line taken is not systematically the
@@ -139,6 +148,7 @@ export function analyse(tubes, par, budget = DEFAULT_BUDGET){
   }
   return {
     logOdds,
+    slips,
     tight: Math.pow(10, logOdds / steps),
     width: goodSum / steps,
     branching: legalSum / steps,
