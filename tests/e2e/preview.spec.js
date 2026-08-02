@@ -198,3 +198,60 @@ test('a bubble level shows the board its run opens on', async ({ page }) => {
   }, level);
   expect(agrees, 'the still showed a bubble board the run did not open on').toBe(true);
 });
+
+/* Every card waits on a bundle now, and a wait is a window.
+
+   `previewRequest` already covered the obvious thing to do in it, tapping a
+   second cleared level. What it did not cover is the other thing a map offers:
+   a level never cleared is dealt on the tap rather than carded, so the board is
+   up and paid for by the time the bundle lands, and the card then covers it.
+   That card is about a different level entirely, its stars and its price and
+   its board, and its Play charges again for a board the player is already on.
+
+   Asked of a pour level rather than one of the other game's, because the card
+   moved into a bundle of its own and every tap on a cleared level waits on it.
+   Before that only the levels that are the other game could reach this.
+
+   This is the same stale answer the pour queue and that game's frame loop
+   arrive with, so it is checked against the same run number. */
+test.describe('a card left behind on the map', () => {
+  /* Two things have to be true for the window to exist at all, and neither is
+     the default. The worker precaches the bundle, so it is blocked or the delay
+     below never reaches the network. And the card's own scripts hold back the
+     `load` event, which `start` waits for, so the last navigation is taken only
+     as far as DOMContentLoaded: that is where a player is too, with the map
+     drawn and interactive and the bundle still on its way. */
+  test.use({ serviceWorkers: 'block' });
+
+  test('does not land on the board dealt while it was waiting', async ({ page }) => {
+    await start(page, played);
+    await page.route('**/assets/preview-*.js', async route => {
+      await new Promise(r => setTimeout(r, 4000));
+      await route.continue();
+    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!globalThis.App);
+    await page.locator('[data-level="5"]').waitFor({ state: 'visible' });
+
+    await page.locator('[data-level="5"]').click();
+    /* the window this is about: asked for, still waiting */
+    expect(await page.evaluate(() => typeof globalThis.Preview !== 'undefined'),
+      'the bundle landed before the tap, so this tested nothing').toBe(false);
+    expect(await shown(page)).toBe(false);
+
+    /* the player gives up on it and deals the level they are actually on */
+    await page.locator('.node.current').click();
+    await page.waitForFunction(() => globalThis.App._state.level === 18
+      && globalThis.App._state.tubes.length > 0);
+    const paid = await page.evaluate(() => globalThis.App._progress.gold);
+
+    await page.waitForFunction(() => typeof globalThis.Preview !== 'undefined');
+    await page.waitForTimeout(500);
+
+    expect(await shown(page), 'a card for a level left behind covered the board').toBe(false);
+    expect(await page.evaluate(() => document.body.dataset.view)).toBe('game');
+    expect(await page.evaluate(() => globalThis.App._state.level)).toBe(18);
+    expect(await page.evaluate(() => globalThis.App._progress.gold),
+      'and charged for a board nobody asked for').toBe(paid);
+  });
+});
