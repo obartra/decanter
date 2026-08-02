@@ -148,13 +148,29 @@ const Board = (() => {
     if (fluidOn) Fluid.sync(view);
     /* Every row, with the footprint of each bottle on it, so the shelving can be
        built underneath and each bottle given a shadow where it meets the wood. */
+    /* Measured from the laid-out box rather than the painted one.
+
+       getBoundingClientRect reports where a thing is drawn, transforms and all,
+       and bottles are transformed constantly: lifted twenty pixels while
+       selected, thunking when they seal, tipping while they pour. Keyed on that,
+       a selected bottle claimed to be standing twenty pixels above the shelf it
+       is actually on, and the room believed it — building a whole extra shelf up
+       there, plank, brackets and the dark band beneath, which then moved about
+       after whichever bottle was in hand.
+
+       offsetTop and offsetHeight are the layout box and ignore transforms, so a
+       bottle reports where it stands rather than where it happens to be drawn.
+       The board itself is never transformed, so its own rect is the honest
+       origin to add them to. */
+    const origin = root.getBoundingClientRect();
     const byRow = new Map();
     root.querySelectorAll('.bottle').forEach(b => {
       const g = b.querySelector('.glass'); if (!g) return;
-      const r = g.getBoundingClientRect();
-      const y = Math.round(r.bottom);
-      if (!byRow.has(y)) byRow.set(y, { y, top: Math.round(r.top), spots: [] });
-      byRow.get(y).spots.push([Math.round(r.left), Math.round(r.right)]);
+      const top = origin.top + b.offsetTop + g.offsetTop;
+      const left = origin.left + b.offsetLeft + g.offsetLeft;
+      const y = Math.round(top + g.offsetHeight);
+      if (!byRow.has(y)) byRow.set(y, { y, top: Math.round(top), spots: [] });
+      byRow.get(y).spots.push([Math.round(left), Math.round(left + g.offsetWidth)]);
     });
     Backdrop.setShelf([...byRow.values()]);
   }
