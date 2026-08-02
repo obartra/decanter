@@ -57,6 +57,24 @@ export default [
     rules: { ...shared, 'no-redeclare': 'off' }
   },
 
+  /* The bubble game. Its own globals map rather than a wider `files` on the
+     block above, so a reference from one game to the other is a lint error
+     rather than something that happens to work because both were in scope. */
+  {
+    files: ['src/bubble/js/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+        BubbleConfig: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
+        BubbleRules: 'writable', BubbleView: 'writable', BubbleRender: 'writable',
+        BubbleApp: 'writable'
+      }
+    },
+    rules: { ...shared, 'no-redeclare': 'off' }
+  },
+
   /* the solver runs in a worker, and is written to survive being loaded as one */
   {
     files: ['src/worker/**/*.js'],

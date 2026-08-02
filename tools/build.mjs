@@ -11,13 +11,22 @@ const dist = join(root, 'dist');
 const read = p => readFileSync(join(root, p), 'utf8');
 const sorted = dir => readdirSync(join(root, dir)).filter(f => !f.startsWith('.')).sort();
 
-const css = sorted('src/css').map(f => read(`src/css/${f}`)).join('\n');
-const js  = sorted('src/js').map(f => `\n/* ---- ${f} ---- */\n${read(`src/js/${f}`)}`).join('\n');
-const solver = read('src/worker/solver.js');
+/* Gathers one game's sources. Factored out so a second game can be built the
+   same way; called with 'src' it produces character for character what this
+   used to compute inline, so the existing build id does not move. */
+function bundle(dir, { worker } = {}){
+  const css = sorted(`${dir}/css`).map(f => read(`${dir}/css/${f}`)).join('\n');
+  const js  = sorted(`${dir}/js`).map(f => `\n/* ---- ${f} ---- */\n${read(`${dir}/js/${f}`)}`).join('\n');
+  const solver = worker ? read(worker) : '';
+  return { css, js, solver, id: createHash('sha256').update(css + js + solver).digest('hex').slice(0, 10) };
+}
+
+const main = bundle('src', { worker: 'src/worker/solver.js' });
+const { css, js, solver } = main;
 
 /* One id for the build, stamped into the page and used as the cache name, so
    "which version am I actually looking at" is a question with an answer. */
-const buildId = createHash('sha256').update(css + js + solver).digest('hex').slice(0, 10);
+const buildId = main.id;
 
 const fontFace = (cinzel, sans, sansBold) => `<style>
 @font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(${cinzel}) format('woff2')}
@@ -64,6 +73,20 @@ writeFileSync(join(dist, 'decanter-standalone.html'), compose({
   head: ''
 }));
 
+/* 3. the bubble game, at its own subpath. Its own sources, its own id and its
+   own service worker scope, so the two games cannot cache over each other. The
+   fonts are shared, reached with a relative path out of the subfolder, because
+   a second copy of the same three files is dead weight in the precache. */
+const bub = bundle('src/bubble');
+const bubblePage = read('src/bubble/index.html')
+  .replace('<!--BUILD-->', `<meta name="build" content="${bub.id}">`)
+  .replace('<!--FONTS-->', fontFace('../fonts/cinzel.woff2', '../fonts/alegreyasans.woff2',
+                                    '../fonts/alegreyasans-bold.woff2'))
+  .replace('<!--CSS-->', () => bub.css)
+  .replace('<!--JS-->', () => bub.js);
+mkdirSync(join(dist, 'bubble'), { recursive: true });
+writeFileSync(join(dist, 'bubble', 'index.html'), bubblePage);
+
 writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
   id: '/decanter/',
   name: 'Decanter',
@@ -90,7 +113,10 @@ const walk = (dir, base = '') => readdirSync(dir).flatMap(f => {
   return statSync(full).isDirectory() ? walk(full, `${base}${f}/`) : [`${base}${f}`];
 });
 const assets = walk(dist)
-  .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html')
+  /* The bubble game is deliberately left out. It is a separate page at a
+     separate path with its own build id, and precaching it here would mean this
+     worker holding a copy that only this build knows how to invalidate. */
+  .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html' && !f.startsWith('bubble/'))
   .map(f => `./${f}`);
 assets.unshift('./');
 
@@ -105,7 +131,11 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+      /* Only this game's old caches. There is a second game on this origin with
+         its own worker, and a filter of "everything that is not me" means
+         whichever activated last emptied the other's precache. The two would
+         take turns breaking each other, visible only offline. */
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('decanter-') && k !== VERSION).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -113,6 +143,14 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   if (req.mode === 'navigate'){
+    /* This worker's scope covers the whole origin, including the other game's
+       subpath. Falling back to this game's page for a navigation there would
+       serve Decanter at the Bubble URL, which looks like the wrong game loading
+       rather than like being offline. */
+    if (new URL(req.url).pathname.includes('/bubble/')){
+      e.respondWith(fetch(req).catch(() => Response.error()));
+      return;
+    }
     /* Revalidate the page every time. The whole app is inlined into index.html,
        so a cached page is cached *code*: with the host's max-age on HTML, a plain
        fetch() can serve a build that is minutes old and no reload will shift it.

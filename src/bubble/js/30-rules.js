@@ -1,0 +1,119 @@
+/* What happens to the board when a bubble lands.
+
+   Two flood fills that look similar and must never be merged into one function
+   with a flag. `matchFrom` walks bubbles of the same colour to find what pops.
+   `detach` walks bubbles of any colour to find what is still hanging from the
+   ceiling. They answer different questions and the day someone unifies them is
+   the day the second one starts caring about colour. */
+const BubbleRules = (() => {
+  const C = BubbleConfig;
+  const G = BubbleGrid;
+
+  const key = (j, c) => j * C.COLS + c;
+
+  /* Everything the same colour as the newly placed bubble and connected to it.
+
+     Seeded from the placed cell only, never a scan of the board: on a board that
+     was well formed before the shot, no cluster of three can already exist, so a
+     scan could only ever find what the seed finds, more slowly.
+
+     Cells are marked at the moment they are pushed, not when they are popped.
+     Marking at pop lets a cell enter the stack several times, which on a large
+     cluster is how this turns into a hang. */
+  function matchFrom(board, j0, c0){
+    const colour = G.at(board, j0, c0);
+    if (colour === G.EMPTY) return [];
+    const seen = new Set([key(j0, c0)]);
+    const stack = [[j0, c0]];
+    const out = [];
+    while (stack.length){
+      const [j, c] = stack.pop();
+      out.push([j, c]);
+      for (const [nj, nc] of G.neighbours(board, j, c)){
+        const k = key(nj, nc);
+        if (seen.has(k)) continue;
+        /* compared as integers against the seed's colour, never as a rendered
+           colour string, and never against the neighbour's neighbour */
+        if (G.at(board, nj, nc) !== colour) continue;
+        seen.add(k);
+        stack.push([nj, nc]);
+      }
+    }
+    return out;
+  }
+
+  /* Everything no longer hanging from the ceiling.
+
+     Anchoring is membership of row 0, not being near the top of the screen.
+     After a row is inserted the old row 0 is row 1 and has to earn its place by
+     touching something above it, which is exactly right and is why this is run
+     again after every advance. */
+  function detach(board){
+    const seen = new Set();
+    const stack = [];
+    for (let c = 0; c < C.COLS; c++){
+      if (G.at(board, 0, c) === G.EMPTY) continue;
+      seen.add(key(0, c));
+      stack.push([0, c]);
+    }
+    while (stack.length){
+      const [j, c] = stack.pop();
+      for (const [nj, nc] of G.neighbours(board, j, c)){
+        const k = key(nj, nc);
+        if (seen.has(k)) continue;
+        if (G.at(board, nj, nc) === G.EMPTY) continue;
+        seen.add(k);
+        stack.push([nj, nc]);
+      }
+    }
+    return G.occupied(board).filter(([j, c]) => !seen.has(key(j, c)));
+  }
+
+  const remove = (board, cells) => {
+    for (const [j, c] of cells) board.rows[j][c] = G.EMPTY;
+  };
+
+  /* Which colours are actually still on the board.
+
+     The shooter must only ever offer one of these. A game that deals from a
+     fixed palette regardless keeps handing out bubbles that cannot match
+     anything, each one lands and becomes a new colour with a count of one, and
+     the board fills faster than it can be cleared through no decision the player
+     made. */
+  function liveColours(board){
+    const seen = new Set();
+    for (const [j, c] of G.occupied(board)) seen.add(board.rows[j][c]);
+    return [...seen].sort((a, b) => a - b);
+  }
+
+  const isWon = board => G.occupied(board).length === 0;
+  const isLost = board => G.occupied(board).some(([j]) => j >= C.DEATH_ROW);
+
+  /* One strict order, and the grid reaches its final state before anything is
+     animated. The animator is handed the lists of what popped and what fell and
+     never reads the grid, so a slow animation cannot desynchronise the board. */
+  /* Cells are handed back with the colour they held, because by the time anyone
+     wants to draw them falling they are no longer on the board to ask. */
+  const withColour = (board, cells) => cells.map(([j, c]) => [j, c, board.rows[j][c]]);
+
+  function resolveTurn(board, landing, colour){
+    board.rows[landing.j][landing.c] = colour;
+
+    const cluster = matchFrom(board, landing.j, landing.c);
+    const popped = cluster.length >= C.MATCH_MIN ? withColour(board, cluster) : [];
+    if (popped.length) remove(board, popped);
+
+    const dropped = popped.length ? withColour(board, detach(board)) : [];
+    if (dropped.length) remove(board, dropped);
+
+    return {
+      popped,
+      dropped,
+      won: isWon(board),
+      lost: isLost(board)
+    };
+  }
+
+  return { matchFrom, detach, remove, liveColours, isWon, isLost, resolveTurn };
+})();
+globalThis.BubbleRules = BubbleRules;
