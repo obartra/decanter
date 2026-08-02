@@ -22,8 +22,17 @@ import { execFileSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-/* generous enough not to nag, tight enough to notice a mistake */
-const BUDGET = { 'index.html': 220_000, 'bubble/index.html': 140_000, total: 900_000 };
+/* Generous enough not to nag, tight enough to notice a mistake.
+
+   Raised deliberately when the app page started carrying both games. Some of its
+   levels are the bubble game, so its sources ship inside it: 198k to 285k, which
+   is the cost of the second game and is meant to be paid once rather than
+   discovered later. The numbers are set about ten percent above what the build
+   actually produces, so the next accidental forty kilobytes still fails.
+
+   `bubble/index.html` is the standalone page at /bubble/ and holds one game, so
+   it did not move. */
+const BUDGET = { 'index.html': 315_000, 'bubble/index.html': 140_000, total: 1_050_000 };
 
 /* Walks the whole tree, not just the top. It used to look only at the top level,
    which meant a page in a subfolder sailed past the budget entirely. Dotfiles

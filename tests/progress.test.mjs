@@ -1,6 +1,6 @@
 import { describe, it, assert, equal, loadPure } from './helpers.mjs';
 
-const { Progress, CONFIG } = loadPure();
+const { Progress, CONFIG, Levels } = loadPure();
 const fresh = () => Progress.createProgress(Progress.memoryStorage());
 /* a store already holding `save`, as a returning player's browser would */
 function stored(save){
@@ -139,5 +139,48 @@ describe('progress', () => {
     const p = Progress.createProgress(hostile);
     p.complete(1, 10, 3);
     equal(p.unlocked, 2, 'the session should still work in memory');
+  });
+});
+
+describe('best compares in the direction the level scores', () => {
+
+  it('keeps the fewest pours on a pour level', () => {
+    const p = fresh();
+    p.complete(aPourLevel, 30, 3);
+    equal(p.bestFor(aPourLevel), 30);
+    p.complete(aPourLevel, 22, 3);
+    equal(p.bestFor(aPourLevel), 22, 'a shorter run is the better one here');
+    const worse = p.complete(aPourLevel, 40, 3);
+    equal(p.bestFor(aPourLevel), 22, 'a longer run must not overwrite it');
+    equal(worse.improvedBest, false);
+  });
+
+  /* asked for rather than hardcoded, so moving which levels are bubble cannot
+     quietly turn this into a second test of the pour direction */
+  const aBubbleLevel = [...Array(120)].map((_, i) => i + 1).find(Levels.isBubble);
+  const aPourLevel = [...Array(120)].map((_, i) => i + 1).find(l => !Levels.isBubble(l) && l > 1);
+
+  it('keeps the longest run on a bubble level', () => {
+    /* The trap: both are called "best" and they compare opposite ways. Getting
+       this backwards records the worst run of every bubble level forever and
+       nothing about the save looks wrong. */
+    const p = fresh();
+    assert(aBubbleLevel, 'no bubble level exists, so this proves nothing');
+    p.complete(aBubbleLevel, 30, 1);
+    equal(p.bestFor(aBubbleLevel), 30);
+    const better = p.complete(aBubbleLevel, 88, 2);
+    equal(p.bestFor(aBubbleLevel), 88, 'a longer run is the better one here');
+    equal(better.improvedBest, true);
+    const worse = p.complete(aBubbleLevel, 40, 1);
+    equal(p.bestFor(aBubbleLevel), 88, 'a shorter run must not overwrite it');
+    equal(worse.improvedBest, false);
+  });
+
+  it('records a first run as the best either way', () => {
+    const p = fresh();
+    equal(p.complete(aPourLevel, 25, 3).improvedBest, true);
+    equal(p.complete(aBubbleLevel, 25, 3).improvedBest, true);
+    equal(p.bestFor(aPourLevel), 25);
+    equal(p.bestFor(aBubbleLevel), 25);
   });
 });

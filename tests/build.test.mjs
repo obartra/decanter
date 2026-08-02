@@ -223,11 +223,11 @@ describe('the two games do not collide', () => {
   it('styles nothing by the same class name in both stylesheets', () => {
     const mine = classesIn('src/css'), theirs = classesIn('src/bubble/css');
     const shared = [...mine].filter(c => theirs.has(c)).sort();
-    /* Known and deliberate today; the list is here so adding a third is a
-       failing test rather than a surprise. Merging the two pages means renaming
-       every one of these, because the other game has three elements on .veil. */
-    equal(shared, ['btn', 'hud', 'veil'],
-      'the two stylesheets share a class name that is not on the known list');
+    /* Zero, and it has to stay zero: both stylesheets are inlined into the same
+       page now, so a shared name is not a latent problem, it is one game
+       restyling the other. The bubble game carries a `bub` prefix on the three
+       that used to collide (btn, hud, veil) for exactly this reason. */
+    equal(shared, [], 'the two stylesheets share a class name, so one game will restyle the other');
   });
 
   it('gives every bubble global a name the other game cannot take', () => {

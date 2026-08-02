@@ -122,6 +122,7 @@ const BubbleApp = (() => {
 
   function undo(){
     if (st.mode !== S_AIM || !st.past.length) return false;
+    if (!allow.undo || !afford('undo')) return false;
     const was = st.past.pop();
     st.board.rows = was.rows.map(r => r.slice());
     st.board.parity = was.parity;
@@ -149,7 +150,7 @@ const BubbleApp = (() => {
      player was going to be handed anyway, so the board it produces is one the
      sequence could have produced on its own. */
   function swap(){
-    if (st.mode !== S_AIM || st.over) return false;
+    if (st.mode !== S_AIM || st.over || !allow.swap) return false;
     const was = st.loaded;
     st.loaded = st.next;
     st.next = was;
@@ -162,9 +163,12 @@ const BubbleApp = (() => {
   /* Point at the shot the game would take. Withheld when nothing clears, because
      a hint that names a bubble which merely lands somewhere is not advice. */
   function hint(){
-    if (st.mode !== S_AIM || st.over) return null;
+    if (st.mode !== S_AIM || st.over || !allow.hint) return null;
     const best = Adv.bestShot(st.board, st.loaded, S.resolveShot);
+    /* asked for before it is paid for, so a hint that has nothing to say is
+       never charged for */
     if (!best || !best.matched) return null;
+    if (!afford('hint')) return null;
     st.hint = best.landing;
     A.stick();
     paintHud();
@@ -177,9 +181,10 @@ const BubbleApp = (() => {
      board is easier than the thresholds the run is graded against, so the run is
      capped exactly the way a bought vessel caps one. */
   function pickColour(colour){
-    if (st.mode !== S_AIM || st.over) return false;
+    if (st.mode !== S_AIM || st.over || !allow.colour) return false;
     const live = R.liveColours(st.board);
     if (!live.includes(colour)) return false;
+    if (!afford('colour')) return false;
     st.loaded = colour;
     st.aided = true;
     st.hint = null;
@@ -326,12 +331,37 @@ const BubbleApp = (() => {
     const $ = id => document.getElementById(id);
     if (!$('bubbleUndo')) return;
     const live = st.mode === S_AIM && !st.over;
+    /* A tool the chapters have not handed over yet is not shown at all. A
+       disabled button says "not now"; this one means "not yet", and the other
+       game hides its ungranted tools for the same reason. */
+    $('bubbleUndo').hidden = !allow.undo;
+    $('bubbleHint').hidden = !allow.hint;
+    $('bubbleSwap').hidden = !allow.swap;
+    $('bubblePick').hidden = !allow.colour;
     $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length);
     $('bubbleSwap').disabled = !live || st.loaded === st.next;
     $('bubblePick').disabled = !live || R.liveColours(st.board).length < 2;
     $('bubbleHint').disabled = !live || !Adv.hasClearingShot(st.board, st.loaded, S.resolveShot);
     $('bubbleHint').classList.toggle('armed', !!st.hint);
   }
+
+  /* Set by a host page that wants to score the run itself. The bubble game does
+     not know about gold or levels and should not: it reports what happened and
+     the other game decides what that was worth. Left null on the standalone
+     page, where the run is its own reward. */
+  let onEnd = null;
+  /* the host game shows its own end of run panel, with the gold on it */
+  let quiet = false;
+  /* Which tools this run is allowed, and what they cost.
+
+     The other game hands its tools over a chapter at a time and charges for the
+     dear ones, and a bubble level sitting inside it has to obey the same rules
+     or the chapters mean nothing on one board in five. So the host says what is
+     allowed and takes the money; nothing here knows what gold is. `allow`
+     defaults to everything, which is what the standalone page wants. */
+  let allow = { undo: true, hint: true, swap: true, colour: true };
+  let charge = null;
+  const afford = what => !charge || charge(what);
 
   function finish(how){
     st.over = how;
@@ -348,6 +378,14 @@ const BubbleApp = (() => {
     show(how);
     paintHud();
   }
+
+  /* What the run was worth, in the bubble game's own terms. The host turns this
+     into stars and gold; nothing here knows what those are. */
+  const result = () => ({
+    how: st.over, cleared: st.over === 'won', shots: st.shots,
+    score: st.score, aided: st.aided,
+    stars: Sc.stars({ cleared: st.over === 'won', shots: st.shots, aided: st.aided })
+  });
 
   /* Everything still on the board, let go from the bottom up.
 
@@ -384,14 +422,22 @@ const BubbleApp = (() => {
 
   function show(how){
     const veil = document.getElementById('bubbleVeil');
-    if (!veil) return;
-    veil.classList.toggle('show', !!how);
-    veil.classList.toggle('lost', how === 'lost');
+    if (veil){
+      veil.classList.toggle('show', !!how && !quiet);
+      veil.classList.toggle('lost', how === 'lost');
+    }
     if (!how) return;
     /* Said here rather than in finish(), because a lost run does not reach this
        point until the board has finished falling: the sting belongs with the
        verdict, a beat after the crash, not on top of it. */
     if (how === 'won') A.won(); else A.lost();
+    /* after the board has finished falling, so a host that replaces this panel
+       with its own does not put one up over a board still coming down */
+    if (onEnd) onEnd(result());
+    /* A host showing its own result has no panel of ours on the page to fill in,
+       and reaching for its parts would throw here, one line after handing the
+       run over and with the run already banked. */
+    if (!veil || quiet) return;
     const stars = starsNow();
     document.getElementById('bubbleResult').textContent = how === 'won' ? 'Board cleared' : 'Game over';
     document.getElementById('bubbleWhy').textContent = how === 'won'
@@ -545,25 +591,34 @@ const BubbleApp = (() => {
     });
     addEventListener('resize', () => V.resize());
 
-    document.getElementById('bubbleAgain').onclick = () => { A.unlock(); newBoard(st.seed + 1); };
-    document.getElementById('bubbleRetry').onclick = () => { A.unlock(); newBoard(st.seed + 1); };
+    /* Only the page that is nothing but this game has these. Inside the other
+       one, dealing another board and muting the sound are that game's controls
+       and a finished run goes back to its map. Reaching for them unguarded
+       threw here, one line before the frame loop was started, so the board was
+       dealt and then never drawn: no error visible on screen, just a game that
+       does nothing. */
+    const onClick = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    onClick('bubbleAgain', () => { A.unlock(); newBoard(st.seed + 1); });
+    onClick('bubbleRetry', () => { A.unlock(); newBoard(st.seed + 1); });
 
     wireTools();
 
     const sound = document.getElementById('bubbleSound');
-    const paintSound = () => {
-      sound.textContent = A.enabled ? 'Sound' : 'Muted';
-      sound.setAttribute('aria-pressed', String(A.enabled));
-      sound.classList.toggle('off', !A.enabled);
-    };
-    sound.onclick = () => {
-      A.unlock();
-      A.setEnabled(!A.enabled);
+    if (sound){
+      const paintSound = () => {
+        sound.textContent = A.enabled ? 'Sound' : 'Muted';
+        sound.setAttribute('aria-pressed', String(A.enabled));
+        sound.classList.toggle('off', !A.enabled);
+      };
+      sound.onclick = () => {
+        A.unlock();
+        A.setEnabled(!A.enabled);
+        paintSound();
+        /* say so, so the button proves itself the moment it is pressed */
+        if (A.enabled) A.matched(3);
+      };
       paintSound();
-      /* say so, so the button proves itself the moment it is pressed */
-      if (A.enabled) A.matched(3);
-    };
-    paintSound();
+    }
 
     let last = performance.now();
     const loop = now => {
@@ -576,10 +631,22 @@ const BubbleApp = (() => {
     requestAnimationFrame(loop);
   }
 
-  return { boot, _state: st, newBoard, fire, step, land, canPlay, finish,
-           undo, hint, swap, pickColour, paintHud, paintTools };
+  return { boot, _state: st, newBoard, fire, step, land, canPlay, finish, result,
+           undo, hint, swap, pickColour, paintHud, paintTools,
+           set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
+           set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, ...v }; },
+           get allow(){ return allow; },
+           set charge(fn){ charge = fn; }, get charge(){ return charge; },
+           /* the host hides this game's own panel and shows its own */
+           set panelHidden(v){ quiet = !!v; }, get panelHidden(){ return quiet; } };
 })();
 globalThis.BubbleApp = BubbleApp;
 
-if (document.readyState === 'loading') addEventListener('DOMContentLoaded', BubbleApp.boot);
-else BubbleApp.boot();
+/* Booted on sight only on the page that is nothing but this game. Inside the
+   other one these modules are loaded on every page view and the board is dealt
+   when a bubble level is actually opened, so booting here would mount a canvas
+   nobody asked for and deal a board behind the map. */
+if (document.body.dataset.only === 'bubble'){
+  if (document.readyState === 'loading') addEventListener('DOMContentLoaded', BubbleApp.boot);
+  else BubbleApp.boot();
+}

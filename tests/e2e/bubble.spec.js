@@ -529,14 +529,32 @@ test('a lost board goes over before the result is read out', async ({ page }) =>
   expect(standing).toBeGreaterThan(30);
 
   await watchDrops(page);
-  await page.evaluate(() => globalThis.BubbleApp.finish('lost'));
 
-  /* the whole board is in the air and the verdict is still withheld */
-  await page.waitForFunction(() => globalThis.BubbleApp._state.collapsing, null, { timeout: 5_000 });
-  await expect(page.locator('#bubbleVeil')).not.toHaveClass(/show/);
+  /* Sampled every frame from inside the page rather than asserted between two
+     round trips. The collapse lasts about a second and a half, so a runner under
+     load can miss the whole of it and read the state afterwards, which fails
+     describing a panel that was withheld exactly as it should have been. */
+  const held = await page.evaluate(() => new Promise(res => {
+    const veil = document.getElementById('bubbleVeil');
+    const out = { collapsed: false, shownDuringCollapse: false, shownAfter: false };
+    globalThis.BubbleApp.finish('lost');
+    const tick = () => {
+      const st = globalThis.BubbleApp._state;
+      const shown = veil.classList.contains('show');
+      if (st.collapsing){
+        out.collapsed = true;
+        if (shown) out.shownDuringCollapse = true;
+        return requestAnimationFrame(tick);
+      }
+      if (out.collapsed){ out.shownAfter = shown; return res(out); }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
 
-  await page.waitForFunction(() => !globalThis.BubbleApp._state.collapsing, null, { timeout: 15_000 });
-  await expect(page.locator('#bubbleVeil')).toHaveClass(/show/);
+  expect(held.collapsed, 'the board never came down').toBe(true);
+  expect(held.shownDuringCollapse, 'the verdict was shown over a board still falling').toBe(false);
+  expect(held.shownAfter, 'the verdict never arrived').toBe(true);
 
   const seen = await page.evaluate(() => globalThis.__drops);
   expect(seen.max, 'the board did not come down, it just disappeared').toBeGreaterThanOrEqual(standing);

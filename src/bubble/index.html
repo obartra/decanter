@@ -11,17 +11,17 @@
 <!--FONTS-->
 <style><!--CSS--></style>
 </head>
-<body>
+<body data-only="bubble">
 <header class="bubbleBar">
   <span class="mark">Bubble</span>
-  <span class="hud">
+  <span class="bubHud">
     <b id="bubbleLive">0</b>
     <span class="runStars" id="bubbleRunStars"></span>
     <small id="bubbleDrop">drops in 10</small>
   </span>
   <span class="acts">
-    <button class="btn" id="bubbleSound" type="button" aria-pressed="true">Sound</button>
-    <button class="btn" id="bubbleAgain" type="button">New</button>
+    <button class="bubBtn" id="bubbleSound" type="button" aria-pressed="true">Sound</button>
+    <button class="bubBtn" id="bubbleAgain" type="button">New</button>
   </span>
 </header>
 <main class="stage">
@@ -31,20 +31,20 @@
 <!-- What the run is allowed to lean on. The first three leave it gradeable;
      picking a colour does not, and says so where it is pressed. -->
 <div class="tools">
-  <button class="btn tool" id="bubbleUndo" type="button">Undo</button>
-  <button class="btn tool" id="bubbleHint" type="button">Hint</button>
-  <button class="btn tool" id="bubbleSwap" type="button">Swap</button>
-  <button class="btn tool" id="bubblePick" type="button" aria-expanded="false">Colour</button>
+  <button class="bubBtn tool" id="bubbleUndo" type="button">Undo</button>
+  <button class="bubBtn tool" id="bubbleHint" type="button">Hint</button>
+  <button class="bubBtn tool" id="bubbleSwap" type="button">Swap</button>
+  <button class="bubBtn tool" id="bubblePick" type="button" aria-expanded="false">Colour</button>
 </div>
 <div class="palette" id="bubblePalette" hidden></div>
-<div class="veil" id="bubbleVeil">
+<div class="bubVeil" id="bubbleVeil">
   <div class="card">
     <h2 id="bubbleResult">Board cleared</h2>
     <p class="why" id="bubbleWhy"></p>
     <p class="stars" id="bubbleStars"></p>
     <p class="score"><b id="bubbleScore">0</b><span>points</span></p>
     <p class="note" id="bubbleNote"></p>
-    <button class="btn primary" id="bubbleRetry" type="button">Play again</button>
+    <button class="bubBtn primary" id="bubbleRetry" type="button">Play again</button>
   </div>
 </div>
 <script><!--JS--></script>

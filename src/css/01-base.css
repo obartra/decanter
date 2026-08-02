@@ -28,6 +28,7 @@ body{
   gap:clamp(8px,1.7vh,16px);
 }
 body[data-view="map"] #mapView,
+body[data-view="bubble"] #bubbleView,
 body[data-view="game"] #gameView{display:flex}
 
 .eyebrow{font-size:9px; letter-spacing:.34em; text-transform:uppercase; color:var(--ink-dim); margin:0 0 3px}

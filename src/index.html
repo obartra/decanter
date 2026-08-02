@@ -38,6 +38,33 @@
   </footer>
 </section>
 
+<!-- Some levels are the other game. Its own header rather than the pour game's,
+     because none of that header applies: there is no pour count and no par, and
+     the bubble game's own readouts are what the run is scored on. -->
+<section class="view" id="bubbleView">
+  <header class="gameHeader">
+    <button class="btn ghost" id="bubToMap" type="button">&larr; Map</button>
+    <h1 class="wordmark small">Bubble</h1>
+    <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="bubGold">0</b></div>
+  </header>
+  <div class="bubHud">
+    <b id="bubbleLive">0</b>
+    <span class="runStars" id="bubbleRunStars"></span>
+    <small id="bubbleDrop">drops in 10</small>
+  </div>
+  <main class="stage">
+    <canvas id="bubbleCanvas"></canvas>
+    <p class="rule" id="bubbleRule">Match three of a colour to bring them down.<br>Clear the board to win. If the bubbles reach the line, you lose.</p>
+  </main>
+  <div class="tools">
+    <button class="btn tool" id="bubbleUndo" type="button">Undo</button>
+    <button class="btn tool" id="bubbleHint" type="button">Hint</button>
+    <button class="btn tool" id="bubbleSwap" type="button">Swap</button>
+    <button class="btn tool" id="bubblePick" type="button" aria-expanded="false">Colour</button>
+  </div>
+  <div class="palette" id="bubblePalette" hidden></div>
+</section>
+
 <section class="view" id="gameView">
   <header class="gameHeader">
     <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
