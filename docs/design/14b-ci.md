@@ -27,15 +27,28 @@ scope, so the config declares what each file publishes and what it expects to
 find; a linter that assumes modules calls all of that undefined. It found two
 pieces of genuinely dead code the first time it ran.
 
-**Unit** (`npm test`). 296 tests, no dependencies, covering everything decidable
+**Unit** (`npm test`). 301 tests, no dependencies, covering everything decidable
 from numbers: rules, solver, levels, par, ordering, economy, progress, the
 end-of-run panel, and the same for each of the other games. This is the bulk of
 the game and the cheapest place to catch things.
 
-**Dead code** (`npm run verify:live`). Fails on an export nothing reads, a
-module-level helper nothing calls, a config key nothing tunes against, a style
-nothing wears, an id nothing reaches, and markup wearing a class no stylesheet
-defines.
+**Dead code** (`npm run verify:live`). Seven ways of being unused, each its own
+kind in the output:
+
+| kind | what it is |
+| --- | --- |
+| `export` | a key on a module's published object that nothing reads |
+| `helper` | a top-level function in a module that nothing in it calls |
+| `config` | a tunable that nothing tunes against |
+| `global` | a module published on `globalThis` that nothing names |
+| `css` | a class in a stylesheet that nothing wears |
+| `id` | an element id that nothing reaches |
+| `unstyled` | markup wearing a class no stylesheet defines |
+
+The last runs the other way round — everything above it finds something written
+and never reached, that one finds something reached and never written — and it
+is here because it fails for the same reason, a name on one side of a line and
+not the other.
 
 An uncalled function is not an error. It does not throw, it does not slow
 anything down, and it reads exactly like code that works, which is why it
@@ -58,10 +71,10 @@ a name built at runtime looks used. A detector that cries wolf gets switched off
 and one that is switched off finds nothing.
 
 **Size budget** (`npm run verify:budget`). Builds and fails if what matters has
-outgrown its budget. Three numbers rather than one, because the page stopped
+outgrown its budget. Four numbers rather than one, because the page stopped
 being the download when the code moved into hashed bundles: the shells, which
 every load revalidates forever; the critical path, which a first paint waits for
-on a cold cache; and each game, plus the whole build. See
+on a cold cache; each game on its own; and the whole build. See
 [13 Delivery](13-delivery.md).
 
 This used to also check that a committed `dist/` matched the sources. `dist/` is

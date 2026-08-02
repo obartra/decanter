@@ -466,3 +466,56 @@ describe('the games do not collide', () => {
     }
   });
 });
+
+/* Numbers the prose states about the repo itself.
+
+   Six of one review's findings were a figure in a comment or a doc that had
+   quietly stopped being true — a test count, a document count, a list of what a
+   tool checks. None of them break anything, which is exactly why they survive:
+   the only thing that reads them is the next person, and they read them as
+   fact. Three of these had already drifted twice on the branch that added them,
+   so they are checked rather than watched. */
+describe('what the docs claim about this repo', () => {
+  const testFiles = () => readdirSync(join(root, 'tests'))
+    .filter(n => n.endsWith('.test.mjs'));
+
+  it('states the number of unit tests there actually are', () => {
+    const real = testFiles()
+      .reduce((n, f) => n + [...read(`tests/${f}`).matchAll(/^\s*it\(/gm)].length, 0);
+    const said = Number((read('docs/design/14b-ci.md').match(/\*\*Unit\*\*[^.]*\.\s*(\d+) tests/) || [])[1]);
+    equal(said, real, `14b-ci.md says ${said} tests and there are ${real}`);
+  });
+
+  /* The list in the doc and the list in the tool's own header both went stale
+     when three checks were folded in from a second detector and neither was
+     updated. A detector whose description omits a check is one nobody thinks to
+     plant a corpse for. */
+  it('names every kind the dead code detector can report', () => {
+    const tool = read('tools/verify-live.mjs');
+    const kinds = [...new Set([...tool.matchAll(/\badd\('(\w+)'/g)].map(m => m[1]))];
+    assert(kinds.length > 4, `only found ${kinds.length} kinds, so the scan is wrong`);
+    const doc = read('docs/design/14b-ci.md');
+    /* the header's own list, indented under "things are checked" */
+    const listed = [...tool.matchAll(/^ {5}(\w+) {2,}\w/gm)].map(m => m[1]);
+    for (const kind of kinds){
+      assert(doc.includes(`\`${kind}\``), `14b-ci.md never mentions the ${kind} check`);
+      assert(listed.some(l => l.startsWith(kind)),
+        `verify-live.mjs reports ${kind} and its own header does not list it`);
+    }
+    equal(listed.length, kinds.length,
+      'the header lists a different number of checks than the tool reports');
+  });
+
+  it('counts the design documents the index actually holds', () => {
+    const docs = readdirSync(join(root, 'docs/design')).filter(n => n.endsWith('.md'));
+    const rows = [...read('docs/DESIGN.md').matchAll(/^\| \[[^\]]+\]\(design\/([\w.-]+)\)/gm)].map(m => m[1]);
+    equal(rows.length, docs.length, 'DESIGN.md lists a different number of documents than exist');
+    for (const f of docs) assert(rows.includes(f), `docs/design/${f} is in no index`);
+
+    const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
+      'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+      'seventeen', 'eighteen', 'nineteen', 'twenty'];
+    const said = (read('README.md').match(/an index over (\w+) documents/) || [])[1];
+    equal(said, WORDS[docs.length], `the README says ${said} documents and there are ${docs.length}`);
+  });
+});
