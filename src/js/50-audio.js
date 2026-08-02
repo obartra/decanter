@@ -43,6 +43,11 @@ const Audio = (() => {
   }
   return {
     get enabled(){ return on; },
+    /* Whether a sound scheduled right now would actually be heard. A page that
+       has not been touched yet is not allowed to make one: the context starts
+       suspended and stays there until a gesture, so anything scheduled before
+       that is played to nobody. */
+    get ready(){ return !!ctx && ctx.state === 'running'; },
     unlock(){ try { init(); if (ctx.state === 'suspended') ctx.resume(); } catch(e){} },
     setEnabled(v){ on = !!v; if (!on) this.pourEnd(); return on; },
     toggle(){ return this.setEnabled(!on); },
@@ -97,7 +102,21 @@ const Audio = (() => {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
         tone({ f, type:'triangle', dur:0.45, gain:0.15, delay:i * 0.11 }));
     },
-    unlock2(){ [659.25, 987.77].forEach((f,i) => tone({ f, type:'triangle', dur:0.5, gain:0.13, delay:i*0.13 })); }
+    unlock2(){ [659.25, 987.77].forEach((f,i) => tone({ f, type:'triangle', dur:0.5, gain:0.13, delay:i*0.13 })); },
+    /* An explosion. Nothing in the puzzle makes this noise, and nothing should:
+       it belongs to the one thing here that is not part of the game.
+
+       A bang is three sounds arriving together, and dropping any of them leaves
+       it sounding like a door. The crack is the front of it, a hiss of high
+       noise with no body. The body is a sine falling off the bottom of hearing,
+       which is what makes it felt rather than heard. The tail is low noise
+       decaying slowly underneath, the debris still coming down. */
+    boom(delay = 0){
+      burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay });
+      tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay });
+      burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass' });
+      burst({ freq:950, q:0.5, dur:0.5, gain:0.13, delay:delay + 0.05 });
+    }
   };
 })();
 globalThis.Audio = Audio;

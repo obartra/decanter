@@ -119,11 +119,69 @@ test('the beta word tops the purse up, once, and leaves the url clean', async ({
   await expect(page.locator('[data-level="15"]')).toBeEnabled();
 });
 
+test('the beta word goes off with a bang, and clears itself away', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+
+  await page.goto(`/?${word}`);
+  /* caught while it is up: it is on screen for about two seconds by design */
+  await page.waitForFunction(() => {
+    const el = document.getElementById('jabari');
+    return el && !el.hidden && el.classList.contains('go');
+  });
+  const mid = await page.evaluate(() => {
+    const el = document.getElementById('jabari');
+    const w = el.querySelector('.jabariWord');
+    const r = w.getBoundingClientRect();
+    return {
+      says: w.textContent,
+      shouts: el.querySelector('.jabariGold').textContent,
+      /* it lands over everything without being able to eat a tap on its way to
+         something else */
+      pointers: getComputedStyle(el).pointerEvents,
+      /* and it says it at a size worth saying it at, inside the screen */
+      fontPx: parseFloat(getComputedStyle(w).fontSize),
+      overflows: r.left < -0.5 || r.right > innerWidth + 0.5,
+      confetti: document.querySelectorAll('#confetti .conf').length
+    };
+  });
+  expect(mid.says.replace(/\s+/g, '')).toBe('JabariMode');
+  expect(mid.shouts).toBe('+9,999,999');
+  expect(mid.pointers).toBe('none');
+  expect(mid.fontPx).toBeGreaterThan(30);
+  expect(mid.overflows, 'the word must fit the screen it is shouted on').toBe(false);
+  expect(mid.confetti).toBeGreaterThan(50);
+
+  /* nothing to dismiss: it takes itself away and leaves the map alone */
+  await page.waitForFunction(() => document.getElementById('jabari').hidden, null, { timeout: 6000 });
+  await expect(page.locator('#mapGold'))
+    .toHaveText(String(await page.evaluate(() => globalThis.CONFIG.beta.gold)));
+  await expect(page.locator('[data-level="15"]')).toBeEnabled();
+});
+
 test('an ordinary load tops up nothing', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 7, seen: { 0: true, 1: true } });
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(7);
   expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(undefined);
 });
+
+/* The beta word hands out seven figures, and the purse is a number in a header
+   that has a chapter name beside it. Nothing else in the game can produce one
+   this long, so nothing else would catch it getting too wide. */
+for (const [w, h] of [[375, 812], [380, 300], [320, 700]]) {
+  test(`a seven figure purse still fits the headers at ${w}x${h}`, async ({ page }) => {
+    await start(page, { unlocked: 15, gold: 9999999, seen: { 0: true, 1: true } });
+    await page.setViewportSize({ width: w, height: h });
+    const sideways = () => page.evaluate(() => {
+      const de = document.documentElement;
+      return de.scrollWidth - de.clientWidth;
+    });
+    await expect.poll(sideways, { message: 'the map header pushes the page sideways' })
+      .toBeLessThanOrEqual(0);
+    await openLevel(page, 15);
+    expect(await sideways(), 'the game header pushes the page sideways').toBeLessThanOrEqual(0);
+  });
+}
 
 /* a cleared board is free, so an empty purse must never stand in the way of one */
 test('an empty purse still opens a level already beaten', async ({ page }) => {

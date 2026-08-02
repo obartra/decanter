@@ -35,7 +35,7 @@ const CONFIG = {
      with a password-shaped hole in it, not a lock. It is written down here in
      plain sight for the same reason: pretending otherwise would only make the
      next person think it was load-bearing. It comes out with the beta. */
-  beta: { word: 'jabarimoneeey', gold: 1000 },
+  beta: { word: 'jabarimoneeey', gold: 9999999 },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile
