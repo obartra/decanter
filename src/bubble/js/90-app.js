@@ -152,6 +152,8 @@ const BubbleApp = (() => {
 
   function undo(){
     if (st.mode !== S_AIM || !st.past.length) return false;
+    /* the same rule as the button, because a disabled button is not a guard */
+    if (quiet && st.over) return false;
     if (!allow.undo || !afford('undo')) return false;
     const was = st.past.pop();
     st.board.rows = was.rows.map(r => r.slice());
@@ -431,7 +433,12 @@ const BubbleApp = (() => {
       say('bubblePickCost', p.colour);
       say('bubbleBombCost', p.bomb);
     }
-    $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length);
+    /* Taking back the shot that ended the run is the whole point of undo, so a
+       run being over does not disable it here. It does when a host is scoring,
+       because the host banks on the ending and the panel only covers the board a
+       moment later: a tap in between would put a run that has already paid out
+       back on the board to be played on and paid out again. */
+    $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length && !(quiet && st.over));
     $('bubbleSwap').disabled = !live || loadedBomb || st.loaded === st.next;
     $('bubblePick').disabled = !live || loadedBomb || R.liveColours(st.board).length < 2;
     /* asking the advice sweep about a bomb is 161 aims spent proving a sentinel
@@ -830,7 +837,11 @@ const BubbleApp = (() => {
               Here rather than reaching for `BubbleAudio` from over there, which
               would widen the coupling between the two games from one object to
               two for the sake of a boolean. */
-           set sound(on){ A.setEnabled(on); }, get sound(){ return A.enabled; } };
+           /* The host sets this and this obeys, without writing it down: the
+              standalone page has its own button and its own stored preference,
+              and the host boots often enough that persisting here would quietly
+              overwrite it. */
+           set sound(on){ A.setEnabled(on, false); }, get sound(){ return A.enabled; } };
 })();
 globalThis.BubbleApp = BubbleApp;
 

@@ -69,6 +69,27 @@ const App = (() => {
   let updatePending = false;
   /* a resize that arrived while the board was mid pour, applied once it lands */
   let missedResize = false;
+  /* The end of run panel arrives a moment after the run does, so the last pour
+     or the last shot is seen before the result covers it. Held so that leaving a
+     board which has already finished can cancel it. */
+  let reveal = 0;
+  /* Which run is on screen, and which one the other game is playing.
+
+     A board does not stop when the player walks away from it. The pour queue
+     drains on its own promise chain and the other game's frame loop keeps
+     stepping whatever view is up, so both can arrive at a result a second or
+     more after the map replaced the board they belonged to. Banking it then
+     credits whatever level is current by now, and revealing it puts a priced
+     panel over the map.
+
+     So a run carries the number it was dealt with and banks nothing if that is
+     no longer the number on screen. Leaving a live board has always abandoned
+     the run; this only makes a board that happened to be one animation from
+     finishing behave the same way rather than differently by accident. */
+  let runId = 0;
+  let bubbleRun = 0;
+  /* who owns S.running; see drain() for why that is a different question */
+  let drainId = 0;
   function takeUpdate(){
     if (!updatePending) return;
     if (document.body.dataset.view !== 'map') return;
@@ -119,6 +140,8 @@ const App = (() => {
   }
   function showMap(scrollSmooth){
     Trace.note('to the map');
+    clearTimeout(reveal);
+    runId++;
     document.body.dataset.view = 'map';
     Backdrop.kind = 'moss';
     Backdrop.setShelf(null);
@@ -163,6 +186,8 @@ const App = (() => {
      progress.complete, which reads Levels.isBubble to decide which direction
      better is and would have filed a twelve pour clear as a twelve shot run. */
   function deal(level){
+    clearTimeout(reveal);
+    runId++;
     if (Levels.isBubble(level)){
       startBubble(level);
     } else {
@@ -304,6 +329,7 @@ const App = (() => {
      everyone the same way every pour level is. */
   let bubbleReady = false;
   function startBubble(level){
+    bubbleRun = runId;
     newRun(level);
     /* The view goes up before the game is booted, because booting measures the
        canvas to work out how the world maps onto it, and a canvas inside a
@@ -393,6 +419,10 @@ const App = (() => {
      shortest there. Nothing else about the economy changes: the same star gold,
      the same one-off first clear, the same fee already paid to deal it. */
   function finishBubble(run){
+    /* The other game's frame loop does not stop when the view changes, so a
+       board left mid collapse still reaches its ending a second later. Banking
+       it then would credit whatever level is current by now. */
+    if (bubbleRun !== runId) return;
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, run.shots, run.stars);
     S.over = true;
@@ -490,6 +520,7 @@ const App = (() => {
   function askPar(){
     const id = ++S.parRequest;
     const level = S.level;
+    const mine = runId;
     $('pourLabel').textContent = 'Reading the board…';
     SolverClient.solve(S.tubes, Levels.shape(level).colors, res => {
       if (id !== S.parRequest) return;
@@ -500,7 +531,7 @@ const App = (() => {
          that is already over; nothing else will notice if it is */
       const ended = checkLost();
       paintHud();
-      if (ended && !S.running && !S.queue.length) finish();
+      if (ended && mine === runId && !S.running && !S.queue.length) finish();
     });
   }
   /* Is this run over, and if so why.
@@ -654,30 +685,48 @@ const App = (() => {
      so a drain that dies halfway strands the level with no way out but a reload. */
   async function drain(){
     if (S.running) return;
+    /* `mine` is the board this queue belongs to. Checked around the await as
+       well as at the end, because nothing cancels an animation and start()
+       re-points Board.view, so a drain left behind by a board the player walked
+       away from would apply its move to whatever is on screen now. That desync
+       is permanent for the level: taps are read off S.tubes and the drawing off
+       Board.view, so a bottle ends up drawn short, or past the cap.
+
+       `me` answers a different question: who owns S.running. Returning early
+       still runs the finally, and by then the flag belongs to the drain
+       animating the new board; clearing it there re-enables undo and restart
+       over a live pour. It cannot key on `mine`, because leaving for the map
+       moves runId without dealing anything, and then nothing would ever clear
+       the flag that takeUpdate() waits on. */
+    const mine = runId;
+    const me = ++drainId;
     S.running = true;
     try {
       while (S.queue.length){
+        if (mine !== runId) return;
         const move = S.queue.shift();
         try {
           await Board.animate(move);
         } catch {
           /* a dropped animation still owes the board its result */
         }
+        if (mine !== runId) return;
         Rules.applyMove(Board.view, move);
         Board.render();
         if (Rules.isFull(Board.view[move.to])) Board.seal(move.to);
       }
     } finally {
-      S.running = false;
-      paintHud();
+      /* whoever bumped drainId last is still running and will clear it */
+      if (drainId === me){ S.running = false; paintHud(); }
     }
     /* the pours have landed, so a resize held back during them can be applied */
     if (missedResize){
       missedResize = false;
       try { Board.render(); } catch { /* a failed redraw must not eat the result */ }
     }
-    /* the board has stopped moving, so whatever was decided can now be shown */
-    if (Rules.isSolved(S.tubes, spilled()) || S.over) finish();
+    /* the board has stopped moving, so whatever was decided can now be shown,
+       unless it stopped moving somewhere the player is no longer looking */
+    if (mine === runId && (Rules.isSolved(S.tubes, spilled()) || S.over)) finish();
   }
 
   /* ---------- finishing ---------- */
@@ -890,7 +939,8 @@ const App = (() => {
     $('winHint').textContent = panel.hint;
 
     const bubble = Levels.isBubble(S.level);
-    setTimeout(() => {
+    clearTimeout(reveal);
+    reveal = setTimeout(() => {
       if (failed){
         /* the shelf takes it too, but only when there is a shelf */
         Sound.deny();
@@ -972,6 +1022,7 @@ const App = (() => {
     MapView.mount($('mapScroll'));
     /* the map shows what a board costs, and this is where that is decided */
     MapView.feeFor = costOf;
+    MapView.unlockFeeOf = skipCost;
     /* A level with a record behind it gets the card; one without has nothing to
        put on a card, so the tap still deals the board. */
     MapView.onPick = level => {
@@ -990,6 +1041,14 @@ const App = (() => {
       }
       Sound.tick();
       goldChanged();
+      /* The fee covered the board too, which is what makes it twice an attempt,
+         and is what the panel's own Move on has always done with it. Charging the
+         same amount here and dealing nothing meant the same ten gold bought two
+         different things depending on which screen it was spent from, and a purse
+         between the two prices came away holding a level it had paid for and
+         could not afford to enter until the next day's draught. */
+      Trace.note(`dealt level ${level}`, `paid past ${level - 1} for ${skipCost()}, purse now ${progress.gold}`);
+      deal(level);
     };
 
     $('undo').onclick = () => {

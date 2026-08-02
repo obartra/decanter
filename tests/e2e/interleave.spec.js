@@ -327,3 +327,85 @@ test('paying past a board deals the game the next level actually is', async ({ p
   expect(await page.evaluate(() => globalThis.BubbleApp._state.board !== null),
     'and it must actually have been dealt a bubble board').toBe(true);
 });
+
+test('a bubble run left mid collapse does not follow you to the map', async ({ page }) => {
+  /* The other game's frame loop does not stop when the view changes. A lost
+     board takes about a second to fall, and the ending is read out at the end of
+     that fall wherever the player happens to be by then: on the map, with the
+     failed panel fading in over it and a priced Try again on it. */
+  await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
+  const { bubble } = await kinds(page);
+  await open(page, bubble[0]);
+  const before = await purse(page);
+
+  const after = await page.evaluate(() => new Promise(res => {
+    const A = globalThis.BubbleApp;
+    A._state.shots = 40;
+    A.finish('lost');
+    const tick = () => {
+      if (!A._state.collapsing) return requestAnimationFrame(tick);
+      document.getElementById('bubToMap').click();
+      setTimeout(() => res({
+        view: document.body.dataset.view,
+        shown: document.getElementById('veil').classList.contains('show'),
+        gold: globalThis.App._progress.gold
+      }), 2500);
+    };
+    requestAnimationFrame(tick);
+  }));
+
+  expect(after.view).toBe('map');
+  expect(after.shown, 'the abandoned run put its panel over the map').toBe(false);
+  expect(after.gold, 'and paid out for a run nobody was watching').toBe(before);
+});
+
+test('opening the game does not overwrite what the standalone page remembers', async ({ page }) => {
+  /* The other game keeps its own preference under its own key, which is right on
+     the page that is nothing but that game. The host has to push the save's
+     value in on every boot, and if that wrote through, simply opening the game
+     once, before pressing anything, would silently undo a mute chosen at
+     /bubble/. The value applies; it just does not get written down. */
+  await start(page, { unlocked: 120, gold: 400, sound: true, seen: { 0: true, 1: true, 2: true } });
+  await page.evaluate(() => localStorage.setItem('bubble.sound', 'off'));
+  await page.reload();
+  await page.waitForFunction(() => !!globalThis.App && !!globalThis.BubbleAudio);
+
+  expect(await page.evaluate(() => globalThis.BubbleAudio.enabled),
+    'the save decides while the game is up').toBe(true);
+  expect(await page.evaluate(() => localStorage.getItem('bubble.sound')),
+    'and booting the game rewrote the standalone page’s own preference').toBe('off');
+});
+
+test('undo cannot take back a bubble run the game has already paid for', async ({ page }) => {
+  /* Taking back the shot that ended the run is the whole point of undo on the
+     standalone page, where a run is its own reward. Inside the game it is not:
+     the ending banks first and the panel only covers the board a moment later,
+     so a tap in between would put a paid run back on the board to be played on
+     and paid out again. */
+  await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
+  const { bubble } = await kinds(page);
+  await open(page, bubble[0]);
+
+  await page.evaluate(() => new Promise(res => {
+    const A = globalThis.BubbleApp;
+    A.fire();
+    const tick = () => (A._state.past.length ? res() : requestAnimationFrame(tick));
+    requestAnimationFrame(tick);
+  }));
+  const before = await purse(page);
+
+  await page.evaluate(() => { globalThis.BubbleApp._state.shots = 40; globalThis.BubbleApp.finish('lost'); });
+  const state = await page.evaluate(() => ({
+    over: globalThis.BubbleApp._state.over,
+    disabled: document.getElementById('bubbleUndo').disabled,
+    took: globalThis.BubbleApp.undo(),
+    stillOver: globalThis.BubbleApp._state.over,
+    gold: globalThis.App._progress.gold
+  }));
+
+  expect(state.over).toBe('lost');
+  expect(state.disabled, 'undo was still offered on a run that had already paid out').toBe(true);
+  expect(state.took, 'and it was accepted').toBe(false);
+  expect(state.stillOver, 'a banked run was put back on the board').toBe('lost');
+  expect(state.gold, 'and undo charged for the privilege').toBe(before);
+});
