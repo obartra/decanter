@@ -27,7 +27,7 @@ scope, so the config declares what each file publishes and what it expects to
 find; a linter that assumes modules calls all of that undefined. It found two
 pieces of genuinely dead code the first time it ran.
 
-**Unit** (`npm test`). 291 tests, no dependencies, covering everything decidable
+**Unit** (`npm test`). 296 tests, no dependencies, covering everything decidable
 from numbers: rules, solver, levels, par, ordering, economy, progress, the
 end-of-run panel, and the same for each of the other games. This is the bulk of
 the game and the cheapest place to catch things.

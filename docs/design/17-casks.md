@@ -223,7 +223,7 @@ steps going down**:
 ```
 
 The tail is thin because the field is: there are three boards at par 25 and one
-at 42. That is why the last five levels are one board each rather than two, and
+at 42. That is why the last six levels are one board each rather than two, and
 why the jump from 33 to 42 is left in — it is the hardest floor the measurement
 found, and holding it back to keep the steps even would be holding back the best
 board in the cellar to flatter the shape of a graph.

@@ -358,16 +358,32 @@ describe('casks scoring', () => {
     equal(Sc.stars(10, 7, true), 0);
   });
 
-  it('counts down the moves that still score, and stops at nothing', () => {
+  it('counts down the moves before the run is worth nothing, and stops there', () => {
     equal(Sc.left(0, 5), 5 + C.STARS.one + 1, 'a fresh floor has par plus the brackets');
-    equal(Sc.left(7, 5), 1, 'one more move still scores');
-    equal(Sc.left(8, 5), 0, 'and then none do');
+    equal(Sc.left(7, 5), 1, 'move 8 is the one that stops it scoring');
+    equal(Sc.left(8, 5), 0, 'and it has');
     equal(Sc.left(80, 5), 0, 'which does not go negative');
     let was = Infinity;
     for (let m = 0; m < 40; m++){
       const now = Sc.left(m, 9);
       assert(now <= was, `the count went back up at ${m} moves`);
       was = now;
+    }
+  });
+
+  /* left() is INCLUSIVE of the move that kills the run, and the bar's tooltip
+     used to print it as the count of moves that still score — so at par + 2 it
+     promised a scoring move when the next one earned nothing. The prose in this
+     file said the same, which is what aimed the last reader at the module
+     instead of the string. This pins the two together so neither can drift. */
+  it('agrees with stars about which further moves are worth making', () => {
+    for (const par of [1, 5, 12, 30]){
+      for (let moves = 0; moves <= par + 6; moves++){
+        let scoring = 0;
+        for (let m = moves + 1; Sc.stars(m, par, false) > 0; m++) scoring++;
+        equal(Math.max(0, Sc.left(moves, par) - 1), scoring,
+          `at ${moves} of par ${par} the bar and the scorer disagree`);
+      }
     }
   });
 

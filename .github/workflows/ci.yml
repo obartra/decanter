@@ -39,9 +39,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # The whole game is one inlined page, so it is easy not to notice the
-      # download growing. This builds it and says if it has.
-      - name: the built page fits its budget
+      # Nothing about adding a module tells you what it cost, and the games are
+      # loaded separately now, so there is no single number to watch. This
+      # builds and measures four: the shells every visit revalidates, the
+      # critical path a first paint waits for, each game's own pair of bundles,
+      # and the whole install.
+      - name: the build fits its budget
         run: npm run verify:budget
 
       - name: Unit tests

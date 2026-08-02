@@ -416,9 +416,15 @@ const CasksApp = (() => {
     const held = st.rated ? Sc.stars(st.moves, st.par, st.aided) : 0;
     $('cskStars').innerHTML = [0, 1, 2]
       .map(i => (i < held ? '★' : '<span class="cskDim">★</span>')).join('');
-    const spare = Sc.left(st.moves, st.par);
+    /* left() counts the moves until the run is worth nothing, and the LAST of
+       those is the one that stops it scoring — so the number that still score is
+       one fewer. Printing left() itself here promised a scoring move at par + 2,
+       where the very next move earns nothing. */
+    const spare = st.rated ? Sc.left(st.moves, st.par) - 1 : 0;
     $('cskStars').title = st.rated
-      ? (spare ? `${spare} more moves still score` : 'past the last move that scores')
+      ? (spare > 0
+          ? `${spare} more ${spare === 1 ? 'move still scores' : 'moves still score'}`
+          : 'past the last move that scores')
       : 'this floor is not in the par table, so it cannot be rated';
 
     $('cskUndo').disabled = !st.past.length || !!st.sliding || !!st.escaping;

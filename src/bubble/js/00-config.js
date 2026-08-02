@@ -88,16 +88,22 @@ const BubbleConfig = {
   /* The board comes down harder the longer a run lasts, one shot off the cadence
      every RAMP_EVERY shots, never below ADVANCE_MIN.
 
-     Not there to make the game harder. Measured over 300 seeds, ramping barely
-     moves the median run (84 shots to 90) but pulls the longest from 417 down to
-     208, and the p90/p10 spread from 2.9x to 2.1x. A run that can occasionally
-     go four times longer than typical cannot be graded, because any threshold is
-     either trivial for the lucky or unreachable for everyone else. The ramp is
-     what makes "survived N shots" a number worth putting stars on.
+     Not there to make the game harder, and specifically not there to make a bad
+     run worse. Measured over 300 greedy seeds at this cadence, turning the ramp
+     on leaves the floor where it was — p10 70 shots to 68 — and pulls everything
+     above it in: the median 100 to 75, p90 196 to 127, the longest 501 to 238,
+     and the p90/p10 spread from 2.8x to 1.87x. It compresses the top of the
+     distribution, which is the half that cannot be graded: a run that
+     occasionally goes three times longer than typical makes any threshold either
+     trivial for the lucky or unreachable for everyone else. The ramp is what
+     makes "survived N shots" a number worth putting stars on.
 
-     ADVANCE_MIN exists because pressure past a point stops measuring the player:
-     at a cadence of three the spread collapses to 1.6x and the board wins
-     whatever the player does. See tools/bubble-survival.mjs. */
+     ADVANCE_MIN is where that descent stops, and it is low on purpose. Played
+     FLAT, a cadence of four is already past measuring anybody — spread 1.33x on
+     a median of 38 shots, and three is 1.22x on 30 — so this is not a cadence
+     anyone is meant to play at. It is the bottom of a ramp a run only reaches
+     after about 120 shots, by which point the stars are long since decided and
+     the only job left is ending the tail. See tools/bubble-survival.mjs. */
   RAMP_EVERY: 20,
   ADVANCE_MIN: 4,
 
@@ -105,7 +111,9 @@ const BubbleConfig = {
      pays three whatever else happened. Every other run is graded on how long it
      lasted, against the measured distribution of a competent run rather than
      against a number somebody liked the look of. These are p10, p50 and p90 of
-     the bot at this cadence and ramp. */
+     the bot at this cadence and ramp — 68, 75 and 127 over 300 seeds, rounded
+     off. tools/bubble-survival.mjs re-measures and says plainly whether they
+     still track. */
   STAR_SHOTS: { one: 65, two: 80, three: 130 },
 
   /* Scoring. A bubble cut loose is worth more than one you matched, because

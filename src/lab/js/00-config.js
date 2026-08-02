@@ -126,7 +126,7 @@ const LabConfig = {
         { key: 'RAMP_EVERY', min: 5, max: 80, step: 1,
           note: 'One shot comes off that cadence every this many shots. It is what pulls the longest runs in far enough for a threshold to mean anything.' },
         { key: 'ADVANCE_MIN', min: 2, max: 12, step: 1,
-          note: 'Floor on the cadence. Below about four the spread collapses and the board wins whatever the player does.' },
+          note: 'Floor the ramp descends to, not a cadence to play at: held flat, four already collapses the spread to 1.3x and the board wins whatever the player does.' },
         { key: 'SPEED', min: 5, max: 60, step: 1,
           note: 'Diameters a second. Feel only: the shot is resolved analytically at launch.' },
         { key: 'GUIDE_LEN', min: 0, max: 20, step: 1,

@@ -109,5 +109,5 @@ need HTTPS or localhost.
 - Bump nothing to release: the service worker's cache name is a hash of the
   built page, so a new build replaces the old cache on its own.
 
-Design notes: [docs/DESIGN.md](docs/DESIGN.md), an index over fourteen documents,
+Design notes: [docs/DESIGN.md](docs/DESIGN.md), an index over nineteen documents,
 one per decision domain.

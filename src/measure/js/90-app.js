@@ -339,9 +339,15 @@ const MeasureApp = (() => {
     const held = st.rated ? Sc.stars(st.moves, st.par, st.aided) : 0;
     $('msrStars').innerHTML = [0, 1, 2]
       .map(i => (i < held ? '★' : '<span class="msrDim">★</span>')).join('');
-    const spare = Sc.left(st.moves, st.par);
+    /* left() counts the pours until the run is worth nothing, and the LAST of
+       those is the one that stops it scoring — so the number that still score is
+       one fewer. Printing left() itself here promised a scoring pour at par + 2,
+       where the very next pour earns nothing. */
+    const spare = st.rated ? Sc.left(st.moves, st.par) - 1 : 0;
     $('msrStars').title = st.rated
-      ? (spare ? `${spare} more pours still score` : 'past the last pour that scores')
+      ? (spare > 0
+          ? `${spare} more ${spare === 1 ? 'pour still scores' : 'pours still score'}`
+          : 'past the last pour that scores')
       : 'this board is not in the par table, so it cannot be rated';
 
     $('msrUndo').disabled = !st.past.length || !!st.pouring;

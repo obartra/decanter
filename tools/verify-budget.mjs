@@ -29,12 +29,19 @@ import { execFileSync } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-/* Set about ten percent above what the build actually produces, so the next
-   accidental forty kilobytes still fails while ordinary work does not nag.
+/* Each cap sits above what the build actually produces by however much that
+   number is allowed to move without anyone thinking about it. That is not the
+   same margin for all four, and the differences are the point.
 
-   The shell cap is deliberately tight. Nothing but markup belongs in there —
-   the moment a stylesheet or a script gets inlined back into a page, this is
-   what says so. */
+   The shell cap has the most room in absolute terms and the least in meaning:
+   nothing but markup belongs in a shell, so the 12,000 is not a size limit at
+   all, it is what a stylesheet or a script getting inlined back into a page
+   would trip. Markup alone will never approach it.
+
+   The critical path is deliberately the tightest, at a few percent. It is what
+   a first paint waits for, so being told about every addition is the behaviour
+   wanted rather than a false alarm to be tuned away. Raising it should be a
+   decision someone makes, not a step they skip. */
 const BUDGET = {
   shell: 12_000,
   critical: 230_000,
@@ -42,18 +49,19 @@ const BUDGET = {
      leaving a number that looks like it drifted.
 
      This cap was originally about ten percent above the bubble game, which was
-     the only one there was. Two more have arrived since and each has been larger
-     than the last: bubble 84kb, the measure 94kb, the cellar door 99kb. The
+     the only one there was. Two more have arrived since and each is larger than
+     the last: bubble 83.4kb, the measure 97.4kb, the cellar door 103.0kb. The
      measure fitting inside a cap set from bubble was luck, not headroom.
 
      None of that growth is code. These bundles are unminified source and the
      bulk of every one of them is the prose above the code — which is the house
      style and is deliberate — so a per-game byte cap set from the smallest game
      is really a cap on how much a game is allowed to explain itself. That is not
-     what this check is for. It exists to notice a game DOUBLING, which at
-     110,000 it still does for all three, and the shell and critical-path
-     budgets above are the ones that actually protect a page load. */
-  game: 110_000,
+     what this check is for. It exists to notice a game DOUBLING, and at 120,000
+     it still does for all three: the smallest of them doubled is 166.8kb, well
+     past it. The shell and critical-path budgets above are the ones that
+     actually protect a page load. */
+  game: 120_000,
   total: 1_500_000
 };
 
