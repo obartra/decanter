@@ -46,6 +46,37 @@ test('a bubble level deals a bubble board, not a shelf', async ({ page }) => {
   expect(board.shots).toBe(0);
 });
 
+test('a bubble level carries nothing over from the pour level before it', async ({ page }) => {
+  /* Both games run out of one state object, because they share the purse, the
+     panel and the chapter card. Opening a bubble level used to clear the four
+     fields it obviously touched, so the panel went on building a par sentence
+     out of the last pour level's numbers and only escaped saying "Sorted in 37
+     pours" because the bubble path passes a line of its own. Nothing visible
+     failed, which is exactly why this is asserted on the state. */
+  await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
+  const { bubble, pour } = await kinds(page);
+
+  await open(page, pour[0]);
+  const dirtied = await page.evaluate(() => {
+    const S = globalThis.App._state;
+    S.moves = 37;
+    S.history = [{}, {}];
+    return { moves: S.moves, par: S.par };
+  });
+  expect(dirtied.moves, 'the pour level under test recorded no pours').toBe(37);
+
+  await page.locator('#toMap').click();
+  await open(page, bubble[0]);
+
+  const carried = await page.evaluate(() => {
+    const S = globalThis.App._state;
+    return { moves: S.moves, par: S.par, parExact: S.parExact,
+             history: S.history.length, tubes: S.tubes.length, finished: S.finished };
+  });
+  expect(carried).toEqual({ moves: 0, par: null, parExact: false,
+                            history: 0, tubes: 0, finished: false });
+});
+
 test('a pour level is still a pour level', async ({ page }) => {
   await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
   const { pour } = await kinds(page);
@@ -85,13 +116,13 @@ test('a bubble run banks through the same panel, at the same prices', async ({ p
   /* a run worth three stars, ended deliberately rather than played out */
   await page.evaluate(() => {
     const { BubbleApp: A, BubbleConfig: C } = globalThis;
-    A._state.shots = C.STAR_SHOTS.three + 5;
-    A.finish('lost');
+    A._state.shots = C.RUN_SHOTS;
+    A.finish('survived');
   });
 
   await expect(page.locator('#veil')).toHaveClass(/show/, { timeout: 15_000 });
   await expect(page.locator('#stars')).toHaveText('★★★');
-  await expect(page.locator('#winLine')).toContainText('Lasted');
+  await expect(page.locator('#winLine')).toContainText('Survived all');
   /* the bubble game's own panel is not on this page at all: inside the other
      game the result is shown once, on the panel that has the gold on it */
   await expect(page.locator('#bubbleVeil')).toHaveCount(0);

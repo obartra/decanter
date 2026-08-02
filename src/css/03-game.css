@@ -2,7 +2,6 @@
   display:flex; align-items:center; justify-content:space-between;
   width:100%; max-width:520px; gap:8px;
 }
-.gameHeader .spacer{width:72px}
 .hud{display:flex; gap:6px}
 .stat{
   min-width:62px; padding:6px 10px 7px; text-align:center;

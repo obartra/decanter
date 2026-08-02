@@ -51,6 +51,34 @@ files. They cover:
 - the worker revalidating navigations, and tracking the controller rather than
   sampling it once
 
+## Reachability
+
+Nothing is tree shaken, because there is no bundler. A member left on a module's
+public object, a class left in a stylesheet, or an id left in the markup ships to
+the player whether or not anything reaches it, and neither the linter nor the
+tests can see any of it: unused code is not an error, it is just quiet.
+
+`tools/dead-code.mjs` is the check for that, and it runs in `npm run check` and
+in CI. It is deliberately conservative, because a detector that cries wolf gets
+switched off: a member counts as dead only when its name appears **nowhere else
+in the repository**, not when it is missing a qualified `Module.member` call.
+Modules alias each other constantly, so a qualified search would call half the
+codebase dead. The cost is that a member sharing a name with an unrelated local
+stays invisible, which is the right way round for a check that gates a merge.
+
+It reports a second, softer category it will not fail on: members only the tests
+and tools reach. Sometimes that is exactly right and sometimes it is a hole poked
+in a module for one assertion, and that is a judgement, not a rule.
+
+The detector has its own suite, for the reason the section below is about. A
+checker is the one kind of tool that fails by succeeding: if its pattern stops
+matching, it reports a clean repository forever and the green tick means nothing.
+So `tests/dead-code.test.mjs` asserts what it *examined*, not only what it found,
+and pins the key extraction against the shapes these modules are really written
+in. That test earned its place immediately by catching a bug in the extractor:
+`count: CHAPTERS.length` was contributing a phantom member called `length`, which
+went unreported precisely because `length` is written everywhere.
+
 ## Mutation checks
 
 A test that cannot fail is worth nothing, so the important guards were checked by

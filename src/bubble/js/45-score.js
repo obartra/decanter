@@ -6,11 +6,26 @@
    information, and the aim discretises to about thirty landing cells across a
    run of thirty-odd shots. There is nothing to search.
 
-   What it has instead is a distribution. Play the board a few hundred times with
-   the same rule the hint uses and the run lengths spread out, so a threshold set
-   at a percentile of that spread means something exact: "longer than nine in ten
-   competent runs" is a real claim, where "par plus two" is a different kind of
-   real claim about a different kind of game.
+   What it has instead is a fixed length and a pass rate. Play the board a few
+   hundred times with the same rule the hint uses, missing some of them the way a
+   person does, and the share that reaches a given shot is a claim as exact as
+   par is: "three in four competent runs get this far" says something real, where
+   "par plus two" says a different real thing about a different kind of game.
+
+   Percentiles of a flawless bot are what this used to be graded on, and they are
+   the trap. A bot's p10 is not a person's p10, and the thresholds read off one
+   sat where a real player reached the first star barely half the time.
+
+   The second trap is subtler and cost these numbers a revision. What a bad shot
+   *is* decides everything: a slip modelled as a random angle mostly buries the
+   bubble in the first thing it meets, and measured against that every bar looked
+   far more earned than it was. Modelled as a bubble put in the wrong reachable
+   cell, which is what a person actually does, the same bars let a player aiming
+   at nothing in particular through a third of the time. They moved up.
+
+   Worth knowing before touching any of this: on about three turns in five the
+   colour in hand cannot clear anything at all, so most shots are placements
+   rather than decisions, and the run is graded on where the placements went.
 
    Kept separate from the app for the reason the other game's panel is: the
    interesting cases are the hard ones to reach by hand. A capped three star run,
@@ -20,6 +35,19 @@ const BubbleScore = (() => {
   const C = BubbleConfig;
 
   /* Stars for a finished run.
+
+     The third star is an ending, not a count. Finishing the run is what earns
+     it, and finishing means the board was emptied or RUN_SHOTS were taken and
+     none of them lost: `cleared` or `survived`, asked directly rather than
+     inferred from the number of shots.
+
+     Inferring it was the first version and it was wrong by exactly one shot. The
+     run stops at RUN_SHOTS and STAR_SHOTS.three is RUN_SHOTS, so `shots >=
+     three` looks like the same question, but the final shot can be the one that
+     loses the run: it happens, the count reads 35, and a player who watched the
+     bubbles cross the line is told they earned three stars for it. The first two
+     stars stay counts because they are counts, and a run that ended at 34 really
+     did get further than one that ended at 29.
 
      Clearing pays three outright. That is the equivalent of solving at par and
      it should not be reachable by outlasting the board, however long the player
@@ -32,9 +60,8 @@ const BubbleScore = (() => {
      neither be failed nor played badly, paying out forever. A bubble level has
      no par by construction, so it must never reach that path: it is graded here
      or not at all. */
-  function stars({ cleared, shots, aided }){
-    const earned = cleared ? 3
-      : shots >= C.STAR_SHOTS.three ? 3
+  function stars({ cleared, survived, shots, aided }){
+    const earned = cleared || survived ? 3
       : shots >= C.STAR_SHOTS.two ? 2
       : shots >= C.STAR_SHOTS.one ? 1
       : 0;
@@ -68,14 +95,10 @@ const BubbleScore = (() => {
   const better = (a, b) => (a == null ? b : b == null ? a : Math.max(a, b));
   const improved = (was, now) => was == null || now > was;
 
-  /* The cadence at a given point in a run: one shot faster every RAMP_EVERY,
-     never below the floor. Pure so the harness, the HUD and the turn all get
-     the same answer rather than three implementations of it. */
-  function cadenceAt(shots){
-    const off = Math.floor(shots / C.RAMP_EVERY);
-    return Math.max(C.ADVANCE_MIN, C.ADVANCE_EVERY - off);
-  }
-
-  return { stars, progress, nextStarAt, better, improved, cadenceAt };
+  /* There was a cadenceAt(shots) here, because the board used to come down
+     harder the longer a run went on. The cadence is a constant now and the
+     function would only be C.ADVANCE_EVERY wearing a hat, so the turn and the
+     HUD read the config directly. */
+  return { stars, progress, nextStarAt, better, improved };
 })();
 globalThis.BubbleScore = BubbleScore;

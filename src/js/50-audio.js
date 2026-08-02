@@ -1,7 +1,7 @@
 /* All sound is synthesised at runtime, so the app ships with no audio files.
    The pour is broadband noise shaped by two resonant peaks that rise in pitch
    as the receiving bottle fills, which is the cue an ear uses to hear "filling". */
-const Audio = (() => {
+const Sound = (() => {
   let ctx, master, noise, pourNode, on = true;
 
   function init(){
@@ -122,4 +122,4 @@ const Audio = (() => {
     }
   };
 })();
-globalThis.Audio = Audio;
+globalThis.Sound = Sound;
