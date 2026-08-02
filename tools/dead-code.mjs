@@ -239,6 +239,35 @@ for (const file of CONFIG_FILES){
   }
 }
 
+/* ---- names a module puts in the page's scope ----
+
+   Not deadness, collision, and the one check here that is not about anything
+   being unused. Every source file in both games is concatenated into a single
+   `<script>`, so the top level of a module is the top level of the page, and two
+   modules declaring one name is a defect rather than a smell. Which defect
+   depends on the keyword: `function` and `var` overwrite in silence, the later
+   definition winning for everybody, while `const` and `let` are a redeclaration
+   error, and a page that is one script failing to parse is a blank screen.
+
+   The suite already forbids the other game publishing an unprefixed `globalThis`
+   name for exactly this reason, which was watching one of the two doors. Six
+   modules declared their functions here and published a namespace afterwards,
+   putting `shape`, `deal`, `make`, `at` and `rate` into the same scope the other
+   game is parsed in. Nothing collided yet, which is the only reason it was
+   possible to keep not noticing.
+
+   So: one name per module, the one it publishes. Everything else goes inside the
+   IIFE, where a duplicate is somebody else's business. */
+for (const [file, src] of files){
+  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
+  const published = [...src.matchAll(/^globalThis\.(\w+)\s*=/gm)].map(m => m[1]);
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  for (const m of bare.matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
+    if (published.includes(m[1])) continue;
+    add('scope', file, m[1], "declared at the page's top level, where the other game's sources also live");
+  }
+}
+
 /* ---- stylesheets ----
 
    Class and id selectors only. Element and attribute selectors are shared with
@@ -326,10 +355,11 @@ if (AS_JSON){
     member: 'members no other file names',
     helper: 'functions their own module never calls',
     config: 'tunables nothing reads',
+    scope: "names loose in the page's top level",
     style: 'selectors and properties nothing uses',
     page: 'ids nothing reaches for'
   };
-  for (const kind of ['missing', 'global', 'member', 'helper', 'config', 'style', 'page']){
+  for (const kind of ['missing', 'global', 'member', 'helper', 'config', 'scope', 'style', 'page']){
     const mine = findings.filter(f => f.kind === kind);
     if (!mine.length) continue;
     console.log(`\n${titles[kind]}:`);

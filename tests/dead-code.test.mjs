@@ -171,6 +171,15 @@ describe('dead code detector, with something dead in front of it', () => {
       `a one-line block was read wrongly; found ${JSON.stringify(found)}`);
   });
 
+  it('finds a name loose in the page\'s top level', () => {
+    /* Not deadness, collision. Both games are concatenated into one script, so
+       a module declaring anything but the name it publishes puts that name in
+       the scope the other game is parsed in. */
+    const found = withPlant('src/js/05-trace.js', s => `const plantedLoose = 1;\n${s}`);
+    assert(found.some(f => f.kind === 'scope' && f.what === 'plantedLoose'),
+      `a loose top-level name went unnoticed; found ${JSON.stringify(found)}`);
+  });
+
   it('finds a class nothing wears', () => {
     const found = withPlant('src/css/01-base.css', s => `${s}\n.plantedClass{color:red}\n`);
     assert(found.some(f => f.kind === 'style' && /plantedClass/.test(f.what)),

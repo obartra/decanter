@@ -12,7 +12,7 @@
    candidates are converted from them, and the page is generated from the
    manifest below. Nothing in `audio/` is hand-made, which is why it is gitignored
    rather than committed: only the handful that survive the audition should reach
-   src/, and they should arrive one at a time with a reason.
+   `assets/audio/`, and they should arrive one at a time with a reason.
 
    Needs ffmpeg on PATH. Ogg is what the packs ship; mp3 is what gets written,
    because Safari only learned Ogg Vorbis in 17 and this game is played on
@@ -32,7 +32,10 @@ const FORCE = process.argv.includes('--force');
 const PACKS = {
   impact: 'https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip',
   interface: 'https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip',
-  rpg: 'https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip'
+  rpg: 'https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip',
+  /* Here for one cue. Nothing in a cellar explodes, so nothing in the other
+     three packs does either. */
+  scifi: 'https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip'
 };
 
 /* Already decided, so the lab shows them settled rather than asking twice, and
@@ -46,7 +49,10 @@ const CHOSEN = {
   'bubble.cut': 'glass_004',
   'bubble.advance': 'impactBell_heavy_002',
   'bubble.won': 'confirmation_002',
-  'bubble.lost': 'glitch_002'
+  'bubble.lost': 'glitch_002',
+  /* The only one of these that has actually shipped. It is in
+     assets/audio/boom.mp3 and Jabari mode plays it. */
+  'decanter.boom': 'explosionCrunch_001'
 };
 
 /* Which cue each candidate is auditioning for, and why the cue exists at all.
@@ -177,6 +183,20 @@ const DECANTER = [
       ['interface', 'confirmation_002'], ['interface', 'confirmation_003'],
       ['interface', 'confirmation_004']
     ]
+  },
+  {
+    key: 'boom',
+    title: 'Jabari',
+    why: 'Fired three times, 190ms apart, and it is the only cue here that is not part of the game. ' +
+      'It wants a transient in the first frame: anything that builds to its blast has been swallowed ' +
+      'by the next two before it arrives, which is what rules out the long ones however good they are alone. ' +
+      'The lowFrequency pair are body with no crack and belong under something rather than on their own.',
+    picks: [
+      ['scifi', 'explosionCrunch_000'], ['scifi', 'explosionCrunch_001'],
+      ['scifi', 'explosionCrunch_002'], ['scifi', 'explosionCrunch_003'],
+      ['scifi', 'explosionCrunch_004'],
+      ['scifi', 'lowFrequency_explosion_000'], ['scifi', 'lowFrequency_explosion_001']
+    ]
   }
 ];
 
@@ -186,8 +206,7 @@ const DECANTER = [
 const KEPT = [
   ['Pour', 'The pour is not a sound, it is a parameter. pourAt(p) ramps three filter frequencies as the receiving bottle fills, and that rising pitch is the cue an ear uses to hear "filling". A sample is fixed at the moment it was recorded, so this one cannot be bought.'],
   ['Glug', 'Pitched from the same fill level, for the same reason. It also plays on every step of every pour, so a fixed sample would loop audibly within one bottle.'],
-  ['Boom', 'Three layered voices tuned to arrive together, and nothing in the game is meant to make this noise anyway. Sampling it would cost bytes to sound worse.'],
-  ['Unlock2', 'Defined in 50-audio.js and called from nowhere. Wants deleting rather than replacing.']
+  ['Boom', 'Was here, on the grounds that sampling it would cost bytes to sound worse. Half of that was right and the half that mattered was not: the synthesised bang is a good imitation of an explosion and still sounds like an imitation, which is the one thing this cue cannot afford. It is a sample now, and the only one that ships. The bytes are paid by the people who type the word and nobody else.']
 ];
 
 function fetchPacks(){

@@ -15,14 +15,22 @@ build a single readable file and the test suite `node tests/run.mjs`.
 
 ## Two outputs
 
-- **`index.html`**, the installable app, with fonts as separate cacheable files.
-- **`decanter-standalone.html`**, one portable file with the fonts inlined as data
-  URIs. It opens straight off disk but cannot install, because service workers
-  need HTTPS or localhost.
+- **`index.html`**, the installable app, with the fonts and the one sound file as
+  separate cacheable files.
+- **`decanter-standalone.html`**, one portable file with the fonts and the sound
+  inlined as data URIs. It opens straight off disk but cannot install, because
+  service workers need HTTPS or localhost.
 
 Both are composed from the same source with different substitutions. There is no
-art to ship at all, since the room is drawn (see [08 The room](08-room.md)), which
-is what keeps the portable file small enough to be portable.
+art to ship at all, since the room is drawn (see [08 The room](08-room.md)), and
+the only recording is the 17KB bang behind the secret word
+(see [11 Sound](11-sound.md)), which is what keeps the portable file small enough
+to be portable.
+
+The sound has to be inlined in the portable file rather than pointed at: a
+`file://` page fetching a sibling path is a cross origin request, so a portable
+file that named `./audio/` would go quiet on the sound the moment it was moved
+out of the folder it was built in.
 
 Everything uses relative paths, so `dist/` works from any subdirectory.
 

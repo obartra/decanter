@@ -801,11 +801,31 @@ const App = (() => {
     install: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8.5 10.5L12 14l3.5-3.5"/><path d="M5 17.5h14"/></svg>'
   };
 
-  /* The same control in two shapes. In a level it sits in a row of priced
-     buttons and says what it is in words; on the map it is a glyph in the
-     header, where the words were costing the map a strip of its height. What a
-     screen reader is told is the same either way. */
-  function paintSound(on){
+  /* One preference, both games, one place that applies it.
+
+     There are two sound modules on this page, one per game, each with its own
+     idea of whether it is muted: this game's lives in the save, the other's in a
+     key of its own, because it also ships as a page of its own where there is no
+     save to read. On that page it is right. Here it meant a player who muted the
+     game still got noise out of the two boards a chapter that are the other one,
+     on a screen with no button to stop it, having already done the only thing
+     the game offers for stopping it.
+
+     So the save is the preference and this hands it to both. The other game's
+     own key still gets written, which is what its own page will read next time,
+     and nothing here reads it.
+
+     Through `BubbleApp` rather than its audio module directly. The coupling
+     between the two games is one object wide on purpose, and a boolean is not a
+     reason to make it two.
+
+     The button it repaints is the same control in two shapes. In a level it sits
+     in a row of priced buttons and says what it is in words; on the map it is a
+     glyph in the header, where the words were costing the map a strip of its
+     height. What a screen reader is told is the same either way. */
+  function applySound(on){
+    Sound.setEnabled(on);
+    BubbleApp.sound = on;
     document.querySelectorAll('.js-sound').forEach(b => {
       const glyph = b.classList.contains('icon');
       if (glyph){
@@ -816,6 +836,7 @@ const App = (() => {
       }
       b.classList.toggle('off', !on);
     });
+    return on;
   }
   function bind(){
     Board.mount($('board'));
@@ -1030,9 +1051,9 @@ const App = (() => {
     document.querySelectorAll('.js-sound').forEach(btn => {
       btn.onclick = () => {
         Sound.unlock();
-        paintSound(Sound.toggle());
-        progress.setSound(Sound.enabled);
-        if (Sound.enabled) Sound.lift();
+        const on = applySound(!Sound.enabled);
+        progress.setSound(on);
+        if (on) Sound.lift();
       };
     });
     $('daily').onclick = () => {
@@ -1092,8 +1113,7 @@ const App = (() => {
       bind();
       Diagnostics.source = () => ({ progress, state: S });
       Diagnostics.mount();
-      Sound.setEnabled(progress.sound);
-      paintSound(progress.sound);
+      applySound(progress.sound);
       showMap(false);
       Jabari.takeGift(progress, goldChanged);
       /* The wait on the draught has to run down on its own, or it is a stale

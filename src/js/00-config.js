@@ -22,6 +22,11 @@ const CONFIG = {
   palette: ['#E2546F','#B08016','#32D8B5','#95B9F6','#A36AC4','#36756F',
             '#F1B7D1','#FF9E75','#1A64A6','#629D38','#734555','#D3C9A0'],
   sectionSize: 10,
+  /* Which boards are the other game is not a setting and is not here. It is
+     `Levels.bubbleSlots`, which explains why. What belongs here is what turning
+     it on did not cost: ORDER is monotone in measured difficulty and a
+     subsequence of a sorted sequence is still sorted, so taking boards out
+     recomputes no par and regenerates no ordering. */
   sectionNames: ['The Cellar','The Apothecary','The Distillery',
                  'The Conservatory','The Vault','The Observatory','The Furnace'],
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8','#FF5A36'],

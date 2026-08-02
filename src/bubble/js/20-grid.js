@@ -57,8 +57,6 @@ const BubbleGrid = (() => {
     return { rows, parity };
   }
 
-  const clone = board => ({ rows: board.rows.map(r => r.slice()), parity: board.parity });
-
   /* Push a row in at the top. The parity flip and the insertion are one
      operation on purpose: either without the other leaves every bubble on the
      board half a diameter from where it is drawn. */
@@ -91,6 +89,6 @@ const BubbleGrid = (() => {
   };
 
   return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
-           create, clone, advance, hash, occupied, emptyRow };
+           create, advance, hash, occupied, emptyRow };
 })();
 globalThis.BubbleGrid = BubbleGrid;

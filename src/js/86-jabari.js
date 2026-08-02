@@ -54,23 +54,39 @@ const Jabari = (() => {
      the same timer that clears the message calls it.
 
      Three bangs rather than one, because one is a sound effect and three is a
-     point being made. */
+     point being made.
+
+     The recording is asked for here and waited on before anything fires, which
+     is the only way the three land on the sound they were written for: asking
+     and firing in the same breath would race the fetch, and the race would be
+     won by the fetch on a warm cache and lost on a cold one, so the same word
+     would open on a different explosion depending on whether it had been opened
+     before. The wait is over long before the touch that ends the other one. */
   function bang(){
     Sound.unlock();
-    const fire = () => { Sound.boom(); Sound.boom(0.19); Sound.boom(0.44); };
-    if (Sound.ready){ fire(); return () => {}; }
+    const loaded = Sound.loadBoom();
     let over = false;
-    const standDown = () => {
-      over = true;
+    /* `over` is read after the wait as well as before it, so a message that
+       takes itself away mid-fetch takes the bang with it. */
+    const fire = () => loaded.then(() => {
+      if (over) return;
+      Sound.boom(); Sound.boom(0.19); Sound.boom(0.44);
+    });
+    const deafen = () => {
       document.removeEventListener('pointerdown', go, true);
       document.removeEventListener('keydown', go, true);
     };
+    /* Calling off the bang and being done listening for it are two different
+       things now that firing takes a moment: the touch that fires it stops the
+       listening, and only the message going away calls it off. */
+    const standDown = () => { over = true; deafen(); };
     const go = () => {
       if (over) return;
-      standDown();
+      deafen();
       Sound.unlock();
       fire();
     };
+    if (Sound.ready){ fire(); return standDown; }
     document.addEventListener('pointerdown', go, true);
     document.addEventListener('keydown', go, true);
     return standDown;

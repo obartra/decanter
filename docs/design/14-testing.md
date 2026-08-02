@@ -66,6 +66,11 @@ Modules alias each other constantly, so a qualified search would call half the
 codebase dead. The cost is that a member sharing a name with an unrelated local
 stays invisible, which is the right way round for a check that gates a merge.
 
+That cost is real and worth knowing the size of. `BubbleGrid.clone` and
+`Fluid.resize` were both dead and both invisible to it, because `clone` and
+`resize` are written elsewhere as unrelated locals. They were found by hand and
+are gone.
+
 It reports a second, softer category it will not fail on: members only the tests
 and tools reach. Sometimes that is exactly right and sometimes it is a hole poked
 in a module for one assertion, and that is a judgement, not a rule.
@@ -79,6 +84,34 @@ in. That test earned its place immediately by catching a bug in the extractor:
 `count: CHAPTERS.length` was contributing a phantom member called `length`, which
 went unreported precisely because `length` is written everywhere.
 
+## One scope, shared by everything
+
+Both games are concatenated into a single `<script>`, so the top level of a
+module is the top level of the page. Two modules declaring one name either
+overwrite each other in silence, if they are functions, or fail to parse at all,
+if they are `const`, and a page that is one script failing to parse is a blank
+screen.
+
+The suite has long forbidden the other game publishing an unprefixed
+`globalThis` name for this reason, which was watching one of the two doors. Six
+modules declared their functions at the top level and published a namespace
+afterwards, putting `shape`, `deal`, `make`, `at`, `rate` and twenty-five more
+into that scope. They are IIFEs now, like every module in the other game already
+was, and `verify-live.mjs` checks the rule rather than leaving it to be
+remembered.
+
+## Checks on the repo rather than on the game
+
+For the things that rot while nobody is editing them:
+
+- **the documents**: every relative link resolves, `DESIGN.md` indexes every
+  design document and nothing else, every repo path named in backticks is on
+  disk. Written after a README row described a folder of painted backdrops that
+  does not exist and by these notes' own account never should
+- **the checks themselves**: every `verify:*` script is run by the CI workflow.
+  `verify:live` was in `npm run check` and in no CI step at all, so nothing it
+  found could fail a pull request
+
 ## Mutation checks
 
 A test that cannot fail is worth nothing, so the important guards were checked by
@@ -87,71 +120,36 @@ put back, the `finally` removed, the transform-following narrowed to the pouring
 bottle. That last one reproduced the original bug at 330 lit pixels outside the
 glass, against 0 with the fix.
 
-## Dead code, checked like anything else
+The same was done for the sound and repo checks, which need it more than most,
+because every one of them guards something whose failure is silent:
 
-`tools/dead-code.mjs` runs in `npm run check` as `verify:dead` and fails the build on anything
-written down and never used. This ships as plain scripts concatenated into one
-page, so there is no bundler to shake a tree and nothing that notices a function
-nobody calls: every dead byte is downloaded by every player and maintained by the
-next person as though it mattered.
+- the bang's recording pointed at a path that is not there. The synthesised
+  fallback took over, so the game still banged; the node count went from 3 to 9
+  and said which one had played
+- muting reverted to reaching one game's audio module. Both mute tests went red
+- a `verify:*` script replaced in the workflow with `echo skipped`
+- an export nothing reads, a stray top-level declaration, and a style rule no
+  element carries, each added in turn and each reported
 
-Five kinds, each a different way of being unused:
+## The tunable that lied
 
-| | |
-| --- | --- |
-| global | a whole module nothing outside its own file names |
-| member | a key on a module's published object that nothing reads |
-| helper | a top level function in a module that nothing in it calls |
-| config | a tunable in either `CONFIG` that nothing reads |
-| style | a selector or custom property nothing wears |
-| page | an element id that no script and no stylesheet mentions |
-| missing | an id a script reaches for that no page has |
+`CONFIG.bubblePerChapter` announced "two per ten" over a function that returned a
+pair by construction and never asked it anything: it could have been set to five
+and nothing would have moved. A stale tunable is the most convincing dead code
+there is, because everything else looks like what it is, while a tunable looks
+like the place to change the behaviour it claims to control and usually carries a
+paragraph explaining the decision.
 
-Most of it rests on one loose rule: a member is dead when its name appears
-**nowhere else in the repository**, not when it is missing a qualified
-`Module.member` call. Modules alias each other constantly, and a qualified search
-would call half the codebase dead.
-
-**Two checks cannot use that rule**, and say so where they are written. A module
-level function is private to its file, so "somebody somewhere writes that word"
-says nothing about whether it is reachable — only its own module's calls count.
-And a config key is a short common word: `blast`, `daily` and `attempt` are all
+So `verify-live` checks both `CONFIG` objects, one level of nesting deep, and
+asks for a qualified read rather than a name appearing somewhere. It has to: a
+config key is a short common word, and `blast`, `daily` and `attempt` are all
 written in prose and in other modules' variables, so a name-anywhere test calls
-every one of them alive whether or not a line ever reads `CONFIG.economy.blast`.
-Both are asked as qualified reads instead.
+every tunable alive whether or not a line ever reads `CONFIG.economy.blast`.
 
-There were briefly **two** of these tools, `verify-live` and `dead-code`, both
-gating `npm run check` with overlapping checks and different matching rules. They
-are one now: the second is the more careful reader — it brace-counts the module's
-published object rather than matching a pattern — and the first two checks it
-lacked were ported into it.
-
-The **config** check is the one worth explaining, because a stale tunable is the
-most convincing dead code there is. Everything else looks like what it is; a
-tunable looks like the place to change the behaviour it claims to control, and it
-usually has a paragraph above it explaining the decision. `bubblePerChapter` sat
-in `CONFIG` announcing "two per ten" over a function that returned a pair by
-construction and never asked it anything. The number could have been set to five
-and nothing would have moved.
-
-There is no allowlist, deliberately. One existed, covering two exports, about
-forty class names and two ids, and emptying it one entry at a time changed
-nothing: every entry was speculative. What it would have done is forgive the
-first genuinely dead rule for ever.
-
-A second, softer list is printed and does not fail: members reached only by a
-test or a tool. That is often exactly right, and demanding they be deleted would
-be asking for a worse test suite — but the other half of the time it is a hole
-poked in a module for one assertion the public path could have made instead.
-
-**Every check has a planted corpse in `tests/dead-code.test.mjs`**, because a checker
-that reports nothing is indistinguishable from one that does nothing, and the
-second is worse than none: it is a green light nobody should trust. That is not
-hypothetical — the helper check reported a clean repo with a dead function
-sitting in front of it, and the config check's first version answered one planted
-key with three accusations, because two of the nested blocks are written on one
-line and have no closing brace of their own to stop at. Only planting found
-either.
+That check answered its first planted corpse with three accusations, because two
+of the nested blocks are written on one line and have no closing brace of their
+own to stop at, so matching them against the multi-line shape ran them on to the
+next brace and swallowed a neighbour. Both shapes have a planted corpse now.
 
 ## What is not tested, and why
 
