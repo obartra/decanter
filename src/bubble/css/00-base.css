@@ -60,7 +60,12 @@ body{
   font-size:8px; letter-spacing:.14em; text-transform:uppercase;
   color:var(--ink-dim); transition:color .2s ease;
 }
+/* The two countdowns say opposite things and are coloured to match: the board
+   dropping is a warning, the run running out is the finish line coming. Sharing
+   one colour would have the HUD go orange to tell you that you are about to
+   win. */
 .bubHud small.soon{color:#FF9E75}
+.bubHud small.nearly{color:var(--gold-lit)}
 .runStars{font-size:9px; letter-spacing:.1em; color:var(--gold-lit); line-height:1}
 .runStars .dim{color:rgba(224,177,92,.22)}
 

@@ -132,11 +132,11 @@ test('the header controls are drawn, not typed, and still say what they are', as
      stays silent, so which way this starts is the harness's business, not this
      test's. What has to be true is that pressing it flips both the glyph's
      label and the audio itself, together. */
-  const was = await page.evaluate(() => globalThis.Audio.enabled);
+  const was = await page.evaluate(() => globalThis.Sound.enabled);
   await sound.click();
   await expect(sound).toHaveAttribute('aria-label', was ? /sound off/i : /sound on/i);
   await expect(sound.locator('svg'), 'the glyph went missing when it changed').toHaveCount(1);
-  expect(await page.evaluate(() => globalThis.Audio.enabled),
+  expect(await page.evaluate(() => globalThis.Sound.enabled),
     'the label moved but the sound did not').toBe(!was);
 
   /* the draught keeps its words, because it carries a number */

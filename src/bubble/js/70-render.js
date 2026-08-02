@@ -178,6 +178,6 @@ const BubbleRender = (() => {
     ctx.fill();
   }
 
-  return { bubble, board, guide, walls, muzzle, target, fuse, shade };
+  return { bubble, board, guide, walls, muzzle, target, fuse };
 })();
 globalThis.BubbleRender = BubbleRender;

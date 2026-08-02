@@ -56,9 +56,9 @@ const Jabari = (() => {
      Three bangs rather than one, because one is a sound effect and three is a
      point being made. */
   function bang(){
-    Audio.unlock();
-    const fire = () => { Audio.boom(); Audio.boom(0.19); Audio.boom(0.44); };
-    if (Audio.ready){ fire(); return () => {}; }
+    Sound.unlock();
+    const fire = () => { Sound.boom(); Sound.boom(0.19); Sound.boom(0.44); };
+    if (Sound.ready){ fire(); return () => {}; }
     let over = false;
     const standDown = () => {
       over = true;
@@ -68,7 +68,7 @@ const Jabari = (() => {
     const go = () => {
       if (over) return;
       standDown();
-      Audio.unlock();
+      Sound.unlock();
       fire();
     };
     document.addEventListener('pointerdown', go, true);

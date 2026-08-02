@@ -209,7 +209,7 @@ const BubbleRules = (() => {
     };
   }
 
-  return { matchFrom, detach, remove, liveColours, isWon, isLost, resolveTurn,
+  return { matchFrom, detach, remove, liveColours, isLost, resolveTurn,
            within, resolveBlast, dealBoard, freshRow, anyLanding };
 })();
 globalThis.BubbleRules = BubbleRules;

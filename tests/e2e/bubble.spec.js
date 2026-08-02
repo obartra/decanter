@@ -187,7 +187,12 @@ test('says how to win once, then gets out of the way', async ({ page }) => {
   await open(page);
   const rule = page.locator('#bubbleRule');
   await expect(rule).toBeVisible();
-  await expect(rule).toContainText('Clear the board to win');
+  /* and it says the actual length of a run, taken from the config rather than
+     written into the markup, because the rules describing a different game from
+     the one being played is a lie nothing else would catch */
+  await expect(rule).toContainText('Survive');
+  await expect(page.locator('#bubbleGoal')).toHaveText(
+    String(await page.evaluate(() => globalThis.BubbleConfig.RUN_SHOTS)));
   await expect(rule).toContainText('you lose');
   await expect(rule).not.toHaveClass(/gone/);
 
@@ -443,7 +448,7 @@ test('picking a colour loads it and caps the run', async ({ page }) => {
   /* and the cap is real, even on a run that would otherwise have earned three */
   const stars = await page.evaluate(() => {
     const { BubbleScore: Sc, BubbleConfig: C } = globalThis;
-    return Sc.stars({ cleared: true, shots: C.STAR_SHOTS.three * 2, aided: true });
+    return Sc.stars({ cleared: true, survived: false, shots: C.RUN_SHOTS, aided: true });
   });
   expect(stars).toBe(await page.evaluate(() => globalThis.BubbleConfig.AID_CAP));
 });
@@ -493,32 +498,68 @@ test('the run shows the stars it has earned so far', async ({ page }) => {
     A.paintHud();
   });
   expect(await lit(), 'two stars earned should leave one dim').toBe(1);
+
+  /* and the third never lights while the run is still going. It is paid for
+     finishing rather than for a count, so this row holds at two while the
+     shots-left readout counts down beside it. */
+  await page.evaluate(() => {
+    const { BubbleApp: A, BubbleConfig: C } = globalThis;
+    A._state.shots = C.RUN_SHOTS;
+    A.paintHud();
+  });
+  expect(await lit(), 'the third star lit before the run had finished').toBe(1);
 });
 
 test('the panel shows the stars and says when a run was capped', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {
     const { BubbleApp: A, BubbleConfig: C } = globalThis;
-    A._state.shots = C.STAR_SHOTS.three + 10;
+    A._state.shots = C.RUN_SHOTS;
     A._state.aided = true;
-    A.finish('lost');
+    A.finish('survived');
   });
   await expect(page.locator('#bubbleStars')).toHaveText('★★★');
   expect(await page.evaluate(() => document.querySelectorAll('#bubbleStars .dim').length)).toBe(1);
   await expect(page.locator('#bubbleNote')).toContainText('caps a run at two stars');
 });
 
-test('the board comes down harder as the run goes on', async ({ page }) => {
-  /* the ramp is what makes survival gradeable at all, so it has to actually
-     tighten rather than only exist in the config */
+test('the run ends itself, and says so as a win', async ({ page }) => {
+  /* The run has a length now, and reaching it is the ending most runs are
+     playing for. Nothing else on this page fails if the cap stops being applied:
+     the game just quietly goes back to being unbounded and only endable by
+     losing, which is the shape it was changed out of. */
   await open(page);
-  const cadences = await page.evaluate(() => {
-    const { BubbleScore: Sc, BubbleConfig: C } = globalThis;
-    return [0, C.RAMP_EVERY, C.RAMP_EVERY * 2, C.RAMP_EVERY * 50].map(s => Sc.cadenceAt(s));
+  await page.evaluate(() => {
+    const { BubbleApp: A, BubbleConfig: C } = globalThis;
+    A._state.shots = C.RUN_SHOTS - 1;
+    A._state.sinceDrop = 0;
+    /* the last shot of the run, landing nowhere, so what ends the run is the
+       length and nothing about where the bubble went */
+    A._state.path = { landing: null };
+    A.land();
   });
-  expect(cadences[0]).toBeGreaterThan(cadences[1]);
-  expect(cadences[1]).toBeGreaterThan(cadences[2]);
-  expect(cadences[3]).toBe(await page.evaluate(() => globalThis.BubbleConfig.ADVANCE_MIN));
+  expect(await page.evaluate(() => globalThis.BubbleApp._state.over)).toBe('survived');
+  await expect(page.locator('#bubbleResult')).toHaveText('You survived');
+  await expect(page.locator('#bubbleStars')).toHaveText('★★★');
+  expect(await page.evaluate(() => document.querySelectorAll('#bubbleStars .dim').length),
+    'surviving the run is worth all three').toBe(0);
+});
+
+test('the run counts down to its end on screen', async ({ page }) => {
+  /* A length the player cannot see is the same as no length at all: they are
+     back to hanging on until they lose, with no idea the end was coming. */
+  await open(page);
+  const left = page.locator('#bubbleLeft');
+  await expect(left).toHaveText(
+    `${await page.evaluate(() => globalThis.BubbleConfig.RUN_SHOTS)} shots left`);
+
+  await page.evaluate(() => {
+    const { BubbleApp: A, BubbleConfig: C } = globalThis;
+    A._state.shots = C.RUN_SHOTS - 1;
+    A.paintHud();
+  });
+  await expect(left).toHaveText('last shot');
+  await expect(left).toHaveClass(/nearly/);
 });
 
 test('a lost board goes over before the result is read out', async ({ page }) => {
