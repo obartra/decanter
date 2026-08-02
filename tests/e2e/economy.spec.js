@@ -155,9 +155,9 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
     return el && !el.hidden && el.classList.contains('go');
   });
   /* the picture is up before anything has been touched, which is the point */
-  expect(await page.evaluate(() => globalThis.Audio.ready),
+  expect(await page.evaluate(() => globalThis.Sound.ready),
     'a pasted link is not a gesture, so the context cannot be running yet').toBe(false);
-  expect(await page.evaluate(() => globalThis.Audio.enabled), 'and the game is muted').toBe(false);
+  expect(await page.evaluate(() => globalThis.Sound.enabled), 'and the game is muted').toBe(false);
 
   /* the first touch is the first moment a sound can be heard, so that is when
      it goes off — muted or not */

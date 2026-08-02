@@ -315,8 +315,7 @@ const Fluid = (() => {
 
   return {
     supported, mount, sync, transfer, draw, wake,
-    resize(){ if (root && bottles.length) measure(); },
-    get mounted(){ return !!root; }
+    resize(){ if (root && bottles.length) measure(); }
   };
 })();
 globalThis.Fluid = Fluid;

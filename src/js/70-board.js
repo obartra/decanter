@@ -289,7 +289,7 @@ const Board = (() => {
     };
     /* the leading edge falls, it does not appear all at once */
     await frames(reduce ? 40 : 190, p => { head = p; paint(); });
-    Audio.pourStart();
+    Sound.pourStart();
 
     const srcBand = src.querySelector('.fill').lastElementChild;
     const srcCount = srcBand ? +srcBand.dataset.n : 0;
@@ -315,13 +315,13 @@ const Board = (() => {
       P1 = { x: impactX, y: surfaceY(startFill + k + 1) };
       paint();
       const p = (startFill + k + 1) / Rules.CAP;
-      Audio.pourAt(p); Audio.glug(p);
+      Sound.pourAt(p); Sound.glug(p);
       if (!reduce) splash(impactX, P1.y, raw, w);
     }
     /* the tail lets go of the lip and falls away */
     bead.style.transition = 'opacity .18s'; bead.style.opacity = '0';
     await frames(reduce ? 40 : 240, p => { tail = p; paint(); });
-    Audio.pourEnd();
+    Sound.pourEnd();
     body.remove(); shine.remove(); bead.remove(); pool.remove();
     src.style.transition = 'transform .34s cubic-bezier(.3,.6,.3,1)';
     src.style.transform = '';
@@ -369,7 +369,7 @@ const Board = (() => {
     b.querySelector('.plug')?.classList.add('pop');
     b.querySelector('.corktop')?.classList.add('pop');
     setTimeout(() => {
-      Audio.cork();
+      Sound.cork();
       b.classList.add('thunk');
       if (fluidOn) Fluid.wake();   /* the bounce moves the glass; bring the liquid */
       b.querySelector('.sheen')?.classList.add('run');

@@ -15,4 +15,5 @@ import './queue.test.mjs';
 import './peek.test.mjs';
 import './bubble.test.mjs';
 import './build.test.mjs';
+import './dead-code.test.mjs';
 await run();

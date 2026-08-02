@@ -54,7 +54,10 @@
   </div>
   <main class="stage">
     <canvas id="bubbleCanvas"></canvas>
-    <p class="rule" id="bubbleRule">Match three of a colour to bring them down.<br>Clear the board to win. If the bubbles reach the line, you lose.</p>
+    <!-- The number comes from BubbleConfig.RUN_SHOTS, the same as the standalone
+         page. Two copies of the rules already exist; two copies of the number
+         inside them is how one of them ends up wrong. -->
+    <p class="rule" id="bubbleRule">Match three of a colour to bring them down.<br>Survive <span id="bubbleGoal">35</span> shots to win. If the bubbles reach the line, you lose.</p>
   </main>
   <div class="tools">
     <button class="btn tool" id="bubbleUndo" type="button">Undo</button>
