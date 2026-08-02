@@ -13,7 +13,8 @@ import globals from 'globals';
 
 /* what each browser source publishes for the ones loaded after it */
 const published = {
-  CONFIG: 'writable', RNG: 'writable', Rules: 'writable', Levels: 'writable',
+  CONFIG: 'writable', Trace: 'writable', RNG: 'writable', Rules: 'writable', Levels: 'writable',
+  Diagnostics: 'writable',
   ORDER: 'writable', PARS: 'writable', Chapters: 'writable', LAST_LEVEL: 'writable', Progress: 'writable',
   Panel: 'writable', Audio: 'writable', MapGeom: 'writable', MapView: 'writable',
   Backdrop: 'writable', Board: 'writable', Fluid: 'writable', Confetti: 'writable',

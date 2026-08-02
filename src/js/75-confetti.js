@@ -27,6 +27,31 @@ const Confetti = (() => {
         layer.appendChild(p);
       }
     },
+    /* Thrown in every direction rather than up. `burst` fires a cone, which is
+       what a cork does; an explosion has no up. Everything still falls at the
+       end, because paper does. */
+    blast(cx, cy, count, palette, power){
+      if (reduce || !ensure()) return;
+      for (let i = 0; i < count; i++){
+        const p = document.createElement('div');
+        p.className = 'conf';
+        const thin = Math.random() < 0.4;
+        p.style.width = (thin ? 3 : 7) + 'px';
+        p.style.height = (thin ? 10 : 7) + 'px';
+        p.style.background = palette[(Math.random() * palette.length) | 0];
+        p.style.left = cx + 'px'; p.style.top = cy + 'px';
+        const a = Math.random() * Math.PI * 2;
+        const v = power * (0.35 + Math.random() * 0.9);
+        const ux = Math.cos(a) * v, uy = Math.sin(a) * v;
+        p.animate([
+          { transform:'translate(0,0) rotate(0deg) scale(1.3)', opacity:1 },
+          { transform:`translate(${ux}px,${uy}px) rotate(${(Math.random()*720-360)|0}deg) scale(1)`, opacity:1, offset:0.35 },
+          { transform:`translate(${ux*1.15}px,${uy+220+Math.random()*160}px) rotate(${(Math.random()*1200-600)|0}deg) scale(.9)`, opacity:0 }
+        ], { duration: 1100 + Math.random()*900, easing:'cubic-bezier(.1,.7,.3,1)' })
+         .onfinish = () => p.remove();
+        layer.appendChild(p);
+      }
+    },
     rain(palette){
       if (reduce || !ensure()) return;
       const cols = palette.concat(['#F7DEB4', '#D8A76D', '#FFFFFF']);

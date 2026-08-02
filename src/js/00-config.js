@@ -27,6 +27,15 @@ const CONFIG = {
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
+  /* A word in the query string that tops the purse up, for handing to a beta
+     player who has run dry mid-report rather than making them wait out a day.
+
+     It guards nothing. The save is localStorage on the player's own device and
+     anyone who wants gold can type it into a console, so this is a convenience
+     with a password-shaped hole in it, not a lock. It is written down here in
+     plain sight for the same reason: pretending otherwise would only make the
+     next person think it was load-bearing. It comes out with the beta. */
+  beta: { word: 'jabarimoneeey', gold: 9999999 },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile
