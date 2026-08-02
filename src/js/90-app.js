@@ -50,6 +50,10 @@ const App = (() => {
     const fee = costOf(progress.unlocked);
     $('playCost').textContent = fee > 0 ? fee : 'free';
     $('mapPlay').disabled = !progress.canAfford(fee);
+    /* A purse that cannot deal the next board is not the end of the game, it is
+       a day's wait, and the draught is the only way through it. So when nothing
+       else on this screen can be pressed, it is the thing being offered. */
+    $('daily').classList.toggle('primary', ready && !progress.canAfford(fee));
   }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
@@ -360,6 +364,8 @@ const App = (() => {
     Board.mount($('board'));
     Board.onTap = tap;
     MapView.mount($('mapScroll'));
+    /* the map shows what a board costs, and this is where that is decided */
+    MapView.feeFor = costOf;
     MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
@@ -506,6 +512,10 @@ const App = (() => {
       if (!progress.claimDaily(today())){ Audio.deny(); return; }
       Audio.lift();
       paintMap();
+      /* the purse is what decides which boards can be dealt, so the medallions
+         are stale the moment it changes. Redrawn here for the same reason buying
+         a level redraws them: gold moved, and the map is showing what it buys. */
+      MapView.render(progress);
     };
 
     /* A resize while a pour is in flight cannot rebuild the board: render() wipes

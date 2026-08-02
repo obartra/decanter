@@ -38,6 +38,41 @@ test('a locked level nobody can afford refuses the tap', async ({ page }) => {
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(4);
 });
 
+/* The purse running dry on the level you are stuck on is a state the economy
+   plans for: the daily draught is the way back. The map used to keep offering
+   the board anyway, so the tap was taken, the fee refused, and nothing at all
+   happened, on a medallion that was still lit and still beaconing. */
+test('an open level nobody can afford refuses the tap, and says the price', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const fee = await page.evaluate(() => globalThis.CONFIG.economy.attempt);
+  const node = page.locator('[data-level="15"]');
+  await expect(node).toBeDisabled();
+  await expect(node.locator('.ns.buy')).toContainText(String(fee));
+  await expect(node).toHaveAttribute('aria-label', /not enough/);
+  /* and the way out of it is the thing being offered */
+  await expect(page.locator('#daily')).toHaveClass(/primary/);
+
+  await node.click({ force: true });
+  expect(await page.evaluate(() => document.body.dataset.view)).toBe('map');
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(0);
+
+  /* the draught pays for a board, and the map says so without being reloaded */
+  await page.locator('#daily').click();
+  await expect(node).toBeEnabled();
+  await expect(page.locator('#daily')).not.toHaveClass(/primary/);
+  await node.click();
+  await page.waitForFunction(() => globalThis.App._state.level === 15);
+});
+
+/* a cleared board is free, so an empty purse must never stand in the way of one */
+test('an empty purse still opens a level already beaten', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, stars: { 4: 3 }, seen: { 0: true, 1: true } });
+  const node = page.locator('[data-level="4"]');
+  await expect(node).toBeEnabled();
+  await node.click();
+  await page.waitForFunction(() => globalThis.App._state.level === 4);
+});
+
 test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
   /* hints are the apothecary's, so this has to be played somewhere it has them */
   await start(page, { unlocked: 11, gold: 400, seen: { 0: true, 1: true } });

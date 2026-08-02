@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="3372a3160f">
+<meta name="build" content="c064305c7b">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -526,6 +526,13 @@ body[data-view="game"] #gameView{display:flex}
   font-style:normal; opacity:.95;
 }
 .node.buyable:disabled{opacity:.5; cursor:default}
+
+/* Open, but the purse cannot deal it. It keeps its own colours, because it is
+   still the level it was and nothing about it has been lost; what goes is the
+   invitation. The beacon in particular has to stop: a medallion pulsing at
+   someone who cannot press it is the game asking for a tap it will refuse. */
+.node.short{cursor:default; animation:none; opacity:.62; box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.node.short .ns.buy{opacity:1}
 .node.armed{
   border-color:var(--gold-lit);
   background:linear-gradient(180deg,rgba(94,68,28,.85),rgba(38,26,12,.8));
@@ -2828,6 +2835,10 @@ const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
   let onBuy = () => {};
+  /* What dealing a given board costs. Asked for rather than worked out here: the
+     app is where a board is paid for, and a map that recomputed the fee from
+     CONFIG would be a second place for the price to be decided from. */
+  let feeFor = () => 0;
   /* Which locked level the player has tapped once. Paying is two taps, not one:
      a single tap on the thing you cannot play yet should not spend anything. */
   let armed = null;
@@ -2997,24 +3008,35 @@ const MapView = (() => {
       const cost = unlockCost();
       const affordable = progress.canAfford(cost);
       const isArmed = buyable && armed === level;
+      /* An open board still has to be paid for, and a purse that cannot cover the
+         fee is a state the game expects: the daily draught is the way back out of
+         it. What it must not do is leave a lit medallion that swallows the tap and
+         says nothing, which looks playable and behaves locked. So it refuses the
+         tap and shows the price it is refusing over, the way the next one along
+         shows the price of opening it. */
+      const fee = locked ? 0 : feeFor(level);
+      const short = !locked && fee > 0 && !progress.canAfford(fee);
 
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '')
-        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '');
+        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '')
+        + (short ? ' short' : '');
       b.style.left = p.x + 'px';
       b.style.bottom = p.y + 'px';
       b.style.setProperty('--tint', Levels.sectionTint(level));
       b.dataset.level = level;
-      b.disabled = locked && (!buyable || !affordable);
+      b.disabled = locked ? (!buyable || !affordable) : short;
       b.setAttribute('aria-label',
         buyable ? `Level ${level}, locked. Open it for ${cost} gold`
         : locked ? `Level ${level}, locked`
+        : short ? `Level ${level}. ${fee} gold to deal, and there is not enough`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
       b.innerHTML = isArmed
         ? `<span class="num">${cost}</span><span class="ns buy">Open?</span>`
         : buyable ? `<span class="num">&#128274;</span><span class="ns buy">${cost} &#9670;</span>`
         : locked ? '<span class="num">&#128274;</span>'
+        : short ? `<span class="num">${level}</span><span class="ns buy">${fee} &#9670;</span>`
         : `<span class="num">${level}</span>${cleared ? starRow(stars) : ''}`;
       if (buyable){
         b.addEventListener('click', () => {
@@ -3050,6 +3072,7 @@ const MapView = (() => {
     },
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
+    set feeFor(fn){ feeFor = fn; },
     render, scrollToCurrent
   };
 })();
@@ -3109,6 +3132,10 @@ const App = (() => {
     const fee = costOf(progress.unlocked);
     $('playCost').textContent = fee > 0 ? fee : 'free';
     $('mapPlay').disabled = !progress.canAfford(fee);
+    /* A purse that cannot deal the next board is not the end of the game, it is
+       a day's wait, and the draught is the only way through it. So when nothing
+       else on this screen can be pressed, it is the thing being offered. */
+    $('daily').classList.toggle('primary', ready && !progress.canAfford(fee));
   }
   function showMap(scrollSmooth){
     document.body.dataset.view = 'map';
@@ -3419,6 +3446,8 @@ const App = (() => {
     Board.mount($('board'));
     Board.onTap = tap;
     MapView.mount($('mapScroll'));
+    /* the map shows what a board costs, and this is where that is decided */
+    MapView.feeFor = costOf;
     MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
@@ -3565,6 +3594,10 @@ const App = (() => {
       if (!progress.claimDaily(today())){ Audio.deny(); return; }
       Audio.lift();
       paintMap();
+      /* the purse is what decides which boards can be dealt, so the medallions
+         are stale the moment it changes. Redrawn here for the same reason buying
+         a level redraws them: gold moved, and the map is showing what it buys. */
+      MapView.render(progress);
     };
 
     /* A resize while a pour is in flight cannot rebuild the board: render() wipes

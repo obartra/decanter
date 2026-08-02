@@ -49,6 +49,21 @@ A node per level: cleared ones tinted by their chapter and showing their stars,
 the current one a lit brass medallion with a slow beacon, locked ones dark. The
 current level is scrolled into view on entry.
 
+**A node that cannot be paid for refuses the tap and shows the price.** Every
+board dealt costs an attempt, and a purse too thin to cover one is a state the
+economy plans for rather than an error: the daily draught is the way back, and
+[04 Economy](04-economy.md) pins the draught at several attempts so it always
+is. What the map must not do is keep the medallion lit and beaconing and then
+quietly drop the tap, which is what it did — it looked playable and behaved
+locked, and the only screen that said why was the end-of-run panel the player
+had already left. So the node dims, stops pulsing, carries the fee the way a
+buyable one carries its price, and the draught below it goes primary.
+
+The map asks the app what a board costs rather than working it out from
+`CONFIG`. Prices are decided in one place, and a second copy on the map is how
+the two drift. For the same reason the medallions are redrawn whenever gold
+moves on this screen: it is the purse that decides which of them can be dealt.
+
 ## What is open
 
 `unlocked` is a single number: the highest level that may be played. It advances
