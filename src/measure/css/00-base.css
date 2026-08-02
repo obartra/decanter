@@ -75,9 +75,16 @@ body{
 .msrStars{font-size:10px; letter-spacing:.12em; color:var(--gold-lit); line-height:1}
 .msrDim{color:rgba(224,177,92,.22)}
 
+/* The bottom padding reserves the tool row, which is fixed to the bottom edge
+   and floats over this. Without it the canvas runs underneath the buttons, and
+   on a wide viewport -- where the board is limited by height rather than width
+   and so fills it -- whatever is drawn at the bottom of the world ends up behind
+   them. On this page that is the numeral under each vessel, which is read on
+   every single turn. It looked fine on a phone, where the board is width-limited
+   and centres with slack to spare, which is why it survived. */
 .msrStage{
   flex:1; min-height:0; display:flex; position:relative;
-  padding:0 6px calc(4px + env(safe-area-inset-bottom));
+  padding:0 6px calc(52px + env(safe-area-inset-bottom));
 }
 /* The canvas is the game, and the bench is drawn to fit whatever size the stage
    turns out to be. `touch-action:none` because every gesture here is a tap on a

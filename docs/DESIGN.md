@@ -31,6 +31,7 @@ it.
 | [15 Diagnostics](design/15-diagnostics.md) | Answering "it did nothing when I tapped it", offline |
 | [16 The Measure](design/16-measure.md) | The decanting puzzle at `/measure/`: its rules, its exact par, and why it grades the opposite way round |
 | [17 The Cellar Door](design/17-casks.md) | The sliding puzzle at `/casks/`: its rules, why its boards are generated backwards, and why they ship as a table |
+| [18 The lab](design/18-lab.md) | The workbench at `/lab/`: live parameters, level navigation, and the difficulty measurements |
 
 ## Where the seams are
 

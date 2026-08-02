@@ -16,6 +16,7 @@ import './peek.test.mjs';
 import './bubble.test.mjs';
 import './measure.test.mjs';
 import './casks.test.mjs';
+import './lab.test.mjs';
 import './build.test.mjs';
 import './live.test.mjs';
 await run();

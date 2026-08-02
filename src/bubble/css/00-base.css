@@ -95,9 +95,15 @@ body{
 }
 .swatch:active{transform:translateY(1px)}
 
+/* The bottom padding reserves the tool row, which is fixed to the bottom edge
+   and floats over this. Without it the canvas runs underneath the buttons, and
+   on a wide viewport -- where the board is limited by height rather than width
+   and so fills it -- whatever is drawn at the bottom of the world ends up behind
+   them. On this page that is the launch band the shooter sits in. It looked fine on a phone, where the board is width-limited
+   and centres with slack to spare, which is why it survived. */
 .stage{
   flex:1; min-height:0; display:flex; position:relative;
-  padding:0 8px calc(8px + env(safe-area-inset-bottom));
+  padding:0 8px calc(52px + env(safe-area-inset-bottom));
 }
 /* The canvas is the game. It takes the whole stage and the one transform inside
    it decides how the world maps onto whatever size that turns out to be. */

@@ -47,7 +47,14 @@ const hash = s => createHash('sha256').update(s).digest('hex').slice(0, 10);
 const GAMES = [
   { name: 'bubble',  path: 'bubble',  inApp: true },
   { name: 'measure', path: 'measure', inApp: false },
-  { name: 'casks',   path: 'casks',   inApp: false }
+  { name: 'casks',   path: 'casks',   inApp: false },
+  /* Not a game, and built exactly like one. The lab is a workbench that opens
+     the pages above in frames and reaches into them, so it needs precisely what
+     they need — its own bundle, its own shell, its own place in the precache —
+     and nothing they do not. Listing it here rather than teaching the build a
+     second kind of page is the cheaper honesty: "game" in this file has always
+     meant "a page with sources of its own", and now it says so out loud. */
+  { name: 'lab',     path: 'lab',     inApp: false }
 ].filter(g => existsSync(join(root, `src/${g.path}/index.html`))
            && existsSync(join(root, `src/${g.path}/js`))
            && existsSync(join(root, `src/${g.path}/css`)));

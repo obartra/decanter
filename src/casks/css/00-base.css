@@ -76,9 +76,15 @@ body{
 .cskStars{font-size:10px; letter-spacing:.12em; color:var(--gold-lit); line-height:1}
 .cskDim{color:rgba(224,177,92,.22)}
 
+/* The bottom padding reserves the tool row, which is fixed to the bottom edge
+   and floats over this. Without it the canvas runs underneath the buttons, and
+   on a wide viewport -- where the board is limited by height rather than width
+   and so fills it -- whatever is drawn at the bottom of the world ends up behind
+   them. On this page that is the bottom row of the floor. It looked fine on a phone, where the board is width-limited
+   and centres with slack to spare, which is why it survived. */
 .cskStage{
   flex:1; min-height:0; display:flex; position:relative;
-  padding:0 6px calc(4px + env(safe-area-inset-bottom));
+  padding:0 6px calc(52px + env(safe-area-inset-bottom));
 }
 /* The canvas is the room. `touch-action:none` is not optional here as it is on
    the other pages: every gesture is either a tap on a cask or a push along one,

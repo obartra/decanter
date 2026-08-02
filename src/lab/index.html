@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lab</title>
+<meta name="theme-color" content="#0B0805">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A workbench for the games: live parameters, level navigation and difficulty measurement.">
+<!--BUILD-->
+<!--HEAD-->
+<!--FONTS-->
+<!--CSS-->
+</head>
+<body data-only="lab">
+<header class="labBar">
+  <span class="labMark">Lab</span>
+  <div class="labTabs" id="labTabs" role="tablist"></div>
+</header>
+
+<div class="labBody">
+  <aside class="labPanel">
+    <section class="labGroup">
+      <p class="labGroupHead">Level</p>
+      <div class="labRow">
+        <button class="labStep" id="labPrev" type="button" aria-label="previous level">&minus;</button>
+        <input class="labNum" id="labLevel" type="number" min="1" value="1" aria-label="level number">
+        <button class="labStep" id="labNext" type="button" aria-label="next level">+</button>
+      </div>
+      <!-- par as the game reports it, and par as the search says it is when
+           asked again. They should agree; the interesting case is when a knob
+           has just made them disagree. -->
+      <p class="labNote" id="labNote"></p>
+    </section>
+
+    <section class="labGroup">
+      <p class="labGroupHead">Difficulty</p>
+      <div class="labRow">
+        <input class="labNum small" id="labFrom" type="number" min="1" value="1" aria-label="first level to measure">
+        <input class="labNum small" id="labTo" type="number" min="1" value="40" aria-label="last level to measure">
+        <input class="labNum small" id="labSeeds" type="number" min="5" max="400" value="60" aria-label="runs to play">
+        <button class="labBtn" id="labSweep" type="button">Measure</button>
+      </div>
+      <div id="labSweepOut"></div>
+    </section>
+
+    <section class="labGroup">
+      <p class="labGroupHead">Parameters</p>
+      <div id="labKnobs"></div>
+    </section>
+  </aside>
+
+  <!-- The real built page, in a frame on the same origin, so the lab reaches the
+       live modules rather than a second copy set up for it. -->
+  <main class="labStage">
+    <iframe id="labFrame" title="the game" src="about:blank"></iframe>
+  </main>
+</div>
+<!--JS-->
+</body>
+</html>
