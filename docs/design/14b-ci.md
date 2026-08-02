@@ -32,12 +32,17 @@ from numbers: rules, solver, levels, par, ordering, economy, progress, the
 end-of-run panel. This is the bulk of the game and the cheapest place to catch
 things.
 
-**dist freshness** (`npm run verify:dist`). `dist/` is committed. The deploy
-rebuilds from source so a stale one cannot reach players, but it is what a
-reviewer reads and what `npm run serve` shows. An hour was lost in one session to
-"I am not seeing your fix" that was exactly this. The same check holds the page
-to a size budget, since everything is inlined and a single download is easy to
-grow without noticing.
+**Size budget** (`npm run verify:budget`). Builds the page and fails if it has
+outgrown its budget. Everything is inlined so the whole game is a single download
+that works offline, which is the point of it — and which also makes it very easy
+not to notice that download growing, since nothing about adding a module tells
+you the page just got forty kilobytes heavier.
+
+This used to also check that a committed `dist/` matched the sources. `dist/` is
+no longer committed: the deploy has always rebuilt from source, so the copy in
+git was never what shipped, `npm run serve` rebuilds before serving so it was not
+what anyone was looking at either, and nobody reads a generated bundle in review.
+What it did reliably do was conflict on every branch that touched a source file.
 
 **Par reachability** (`npm run verify:pars`). Replays all 120 levels against the
 independent rules in `baseline.mjs` and fails if any cannot be finished in

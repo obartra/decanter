@@ -30,9 +30,13 @@ export default defineConfig({
     video: 'retain-on-failure'
   },
   /* Serves the built page, not the sources. The build is what ships, and the
-     one bug class this cannot afford to miss is one the build introduces. */
+     one bug class this cannot afford to miss is one the build introduces.
+
+     It builds first, because dist/ is not committed: on a fresh clone there is
+     nothing there to serve, and a suite that silently tested the last build
+     anyone happened to run is worse than one that fails. */
   webServer: {
-    command: `npx --yes http-server dist -p ${PORT} -c-1 --silent`,
+    command: `npm run build && npx --yes http-server dist -p ${PORT} -c-1 --silent`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000

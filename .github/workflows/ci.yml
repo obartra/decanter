@@ -39,10 +39,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # dist/ is committed, so a stale one is what a reviewer reads and what
-      # `npm run serve` shows. Also holds the page to a size budget.
-      - name: dist matches the sources
-        run: npm run verify:dist
+      # The whole game is one inlined page, so it is easy not to notice the
+      # download growing. This builds it and says if it has.
+      - name: the built page fits its budget
+        run: npm run verify:budget
 
       - name: Unit tests
         run: npm test

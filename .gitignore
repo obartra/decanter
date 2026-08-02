@@ -2,7 +2,10 @@ node_modules/
 .DS_Store
 *.log
 
-# dist/ is intentionally committed, see README, so it deploys as is
+# Build output. Not committed: the deploy rebuilds from source, so the copy in
+# git was never what shipped, and nobody reads a generated bundle in review.
+# `npm run build` puts it back.
+dist/
 
 # git worktrees created by tooling
 .claude/worktrees/
