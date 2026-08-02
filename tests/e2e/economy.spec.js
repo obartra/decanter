@@ -222,21 +222,44 @@ test('the message shows on every load, whatever the state behind it', async ({ p
   }
 });
 
+/* Everything read here is read off the layout rather than off the frame the
+   animation happens to be on, because the message is up for about three seconds
+   and every frame of it is different. Sampling the painted box was the whole
+   trouble: the word is flung out to twice its size on its way off, so a rect
+   measured in the last half second is wider than the screen and paper thrown at
+   the start of the three seconds is on the floor by the end of them. Both were
+   true readings of the wrong thing.
+
+   `offsetWidth` and `scrollWidth` are the box the word was laid out in, which is
+   what "does it fit" means and what a clamp() gone wrong would break. They do not
+   move while the message is up, so it does not matter which frame catches them. */
 test('the beta word goes off with a bang, and clears itself away', async ({ page }) => {
+  /* Paper counted as it is thrown, not as it lies. Each bit removes itself when
+     it lands, about a second and a half in, so the number on screen peaks and
+     then falls back to nothing while the message is still up.
+
+     Watched on the document rather than on the layer it lands in: this runs
+     before the page is parsed, so neither #confetti nor documentElement exists
+     to be handed to a watcher yet. */
+  await page.addInitScript(() => {
+    window.__paper = 0;
+    new MutationObserver(ms => {
+      for (const m of ms) for (const n of m.addedNodes) {
+        if (n.classList && n.classList.contains('conf')) window.__paper++;
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
   await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
   const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
   await page.goto(`/?${word}`);
-  /* caught while it is up: it is on screen for about three seconds by design */
-  await page.waitForFunction(() => {
+  /* Caught and read in the same frame, so the message cannot take itself away
+     between being found and being measured. */
+  const mid = await (await page.waitForFunction(() => {
     const el = document.getElementById('jabari');
-    return el && !el.hidden && el.classList.contains('go');
-  });
-  const mid = await page.evaluate(() => {
-    const el = document.getElementById('jabari');
+    if (!el || el.hidden || !el.classList.contains('go')) return null;
     const w = el.querySelector('.jabariWord');
-    const r = w.getBoundingClientRect();
     return {
       says: w.textContent,
       shouts: el.querySelector('.jabariGold').textContent,
@@ -245,16 +268,20 @@ test('the beta word goes off with a bang, and clears itself away', async ({ page
       pointers: getComputedStyle(el).pointerEvents,
       /* and it says it at a size worth saying it at, inside the screen */
       fontPx: parseFloat(getComputedStyle(w).fontSize),
-      overflows: r.left < -0.5 || r.right > innerWidth + 0.5,
-      confetti: document.querySelectorAll('#confetti .conf').length
+      /* the box it was given is on the screen */
+      tooWide: w.offsetWidth > innerWidth,
+      /* and the letters are inside the box, rather than hanging out of it */
+      clipped: w.scrollWidth > w.clientWidth
     };
-  });
+  })).jsonValue();
   expect(mid.says.replace(/\s+/g, '')).toBe('JabariMode');
   expect(mid.shouts).toBe('+9,999,999');
   expect(mid.pointers).toBe('none');
   expect(mid.fontPx).toBeGreaterThan(30);
-  expect(mid.overflows, 'the word must fit the screen it is shouted on').toBe(false);
-  expect(mid.confetti).toBeGreaterThan(50);
+  expect(mid.tooWide, 'the word must fit the screen it is shouted on').toBe(false);
+  expect(mid.clipped, 'the letters must fit the word').toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__paper),
+    { message: 'the bang should throw paper' }).toBeGreaterThan(50);
 
   /* nothing to dismiss: it takes itself away and leaves the map alone */
   await page.waitForFunction(() => document.getElementById('jabari').hidden, null, { timeout: 8000 });
@@ -435,6 +462,16 @@ test('a chapter introduces itself once', async ({ page }) => {
   await expect(page.locator('#chapterVeil')).not.toHaveClass(/show/);
 });
 
+/* The press that opens this must not also close it, and the way back is put on
+   during that very press. What keeps the two apart is that the way back is taken
+   on the click: by the time the button's own handler runs, the click is already
+   past the document, so the listener it adds there cannot be handed the press
+   that added it. The assertions between the press and the tap are that claim —
+   the board is grey and the panel is away, rather than back where it started.
+
+   It used to be kept apart by a tick instead, and that tick was the whole flake:
+   the tap below went in before the tick had come round, landed on nothing, and
+   the panel never came back. About one full suite run in three at two workers. */
 test('the board can be read after the run, and taps go back', async ({ page }) => {
   await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
   await openLevel(page, 4);
@@ -445,6 +482,10 @@ test('the board can be read after the run, and taps go back', async ({ page }) =
   /* the board takes no input while it is being read */
   expect(await page.evaluate(() => getComputedStyle(document.getElementById('board')).pointerEvents))
     .toBe('none');
+  /* and it says how to leave. The prompt is drawn by a rule rather than written
+     into the page, so a class it no longer matches takes it away in silence. */
+  expect(await page.evaluate(() => getComputedStyle(document.body, '::after').content),
+    'nothing on screen says how to get the panel back').toContain('Tap to go back');
   /* anywhere at all, because while the board is being read a tap means put the
      panel back and nothing else. A raw click at a point on the screen rather
      than at an element, since every element there ignores pointers. */
@@ -452,4 +493,24 @@ test('the board can be read after the run, and taps go back', async ({ page }) =
   await page.mouse.click(Math.round(box.width / 2), Math.round(box.height / 2));
   await expect(page.locator('#veil')).toHaveClass(/show/);
   await expect(page.locator('body')).not.toHaveClass(/peeking/);
+});
+
+/* The other way to press a button, and the one the way back could actually be
+   handed its own opening press through: a key that both activates the button and
+   is a keydown of its own. */
+test('a key that opens the board to be read does not close it again', async ({ page }) => {
+  await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
+  await openLevel(page, 4);
+  for (const key of ['Enter', 'Space']) {
+    await page.evaluate(() => document.getElementById('veil').classList.add('show'));
+    await page.locator('#peek').focus();
+    await page.keyboard.press(key);
+    await expect(page.locator('body'), `${key} opened the board and shut it again`)
+      .toHaveClass(/peeking/);
+    await expect(page.locator('#veil')).not.toHaveClass(/show/);
+    /* and the next key is the way back, however this one was pressed */
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#veil')).toHaveClass(/show/);
+    await expect(page.locator('body')).not.toHaveClass(/peeking/);
+  }
 });
