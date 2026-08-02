@@ -118,6 +118,28 @@ const App = (() => {
   /* Every board dealt is paid for, whether it is a new level or another go at
      one just lost. Charging here rather than inside start() keeps the internal
      re-deals free: only a deliberate attempt costs. */
+  /* Deal a board for a level, whichever game that level is.
+
+     Split out of attempt() because paying past a board takes a different route
+     to the same place: the fee it charges covers the next board too, so it must
+     not go through the charging path — and it used to set the view to the pour
+     game and call start() directly. Paying past the level before a bubble level
+     therefore dealt a shelf of bottles under a bubble level's number, scored it
+     against a par that level does not have, and banked the result. Every other
+     way into a level asked Levels.isBubble first. This is the only thing that
+     asks it now. */
+  function openBoard(level, keepVessel){
+    if (Levels.isBubble(level)){
+      startBubble(level);
+      openChapter(level);
+      return;
+    }
+    document.body.dataset.view = 'game';
+    Backdrop.kind = 'cellar';
+    start(level, keepVessel);
+    openChapter(level);
+  }
+
   function attempt(level, keepVessel){
     if (!progress.spend(costOf(level))){
       deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
@@ -125,15 +147,7 @@ const App = (() => {
       return false;
     }
     Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
-    if (Levels.isBubble(level)){
-      startBubble(level);
-      openChapter(level);
-      return true;
-    }
-    document.body.dataset.view = 'game';
-    Backdrop.kind = 'cellar';
-    start(level, keepVessel);
-    openChapter(level);
+    openBoard(level, keepVessel);
     return true;
   }
 
@@ -804,9 +818,7 @@ const App = (() => {
       }
       $('veil').classList.remove('show', 'failed');
       /* the fee covered the board too, so this deals it without charging again */
-      document.body.dataset.view = 'game';
-      Backdrop.kind = 'cellar';
-      start(Math.min(S.level + 1, progress.lastLevel));
+      openBoard(Math.min(S.level + 1, progress.lastLevel));
     };
     $('next').onclick = () => {
       if (S.level >= progress.lastLevel){ deny('next', 'that was the last graded level'); return; }
@@ -848,8 +860,14 @@ const App = (() => {
        apart and stay apart. So remember it and apply it once the pours land. */
     let rt;
     const relayout = () => {
-      if (document.body.dataset.view === 'map') MapView.render(progress);
-      else Board.render();
+      /* Three views now, not two. `else Board.render()` rebuilt the pour game's
+         shelf on any resize taken while a bubble level was up — a board that is
+         not on the screen, measured at zero height, which then handed Backdrop a
+         shelf line at the top of the window to draw the room against. The bubble
+         game has its own transform and re-fits itself. */
+      const view = document.body.dataset.view;
+      if (view === 'map') MapView.render(progress);
+      else if (view === 'game') Board.render();
     };
     const onResize = () => {
       if (document.body.dataset.view !== 'map' && (S.running || S.queue.length)){

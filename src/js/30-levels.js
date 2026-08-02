@@ -71,7 +71,7 @@ const sectionOf = level => Math.floor((level - 1) / CONFIG.sectionSize);
    number sat in the config with a paragraph explaining the choice, and this
    function returned two whatever it said — so the setting was a comment with a
    number in it, and moving it did nothing at all. A tool now looks for exactly
-   that (tools/dead-code.mjs) and this is the first thing it found.
+   that (tools/verify-live.mjs) and this is among the first things it found.
 
    Generalised without moving a single board: at two, the arithmetic below is
    character for character what it always was, the spacing guard cannot fire, and

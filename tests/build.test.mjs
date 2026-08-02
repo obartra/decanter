@@ -344,6 +344,34 @@ describe('build output', () => {
     assert(/App\.updateReady\(\)/.test(pwa), 'the app is never told an update is ready');
   });
 
+  /* Every way into a level has to ask which game that level is. There were two
+     ways in and only one asked: paying past a board set the view to the pour
+     game and called start() directly, so paying past the level before a bubble
+     level dealt a shelf of bottles under a bubble level's number and scored it
+     against a par that level does not have. */
+  it('deals every level through the one thing that knows which game it is', () => {
+    const app = read('src/js/90-app.js');
+    assert(/function openBoard\(/.test(app), 'there is no single place that deals a board');
+    const opener = app.slice(app.indexOf('function openBoard('), app.indexOf('function attempt('));
+    assert(/Levels\.isBubble\(level\)/.test(opener), 'the one dispatch does not ask which game');
+
+    /* nothing outside it may set the view and start a pour itself */
+    const skip = app.slice(app.indexOf("$('skip').onclick"), app.indexOf("$('next').onclick"));
+    assert(/openBoard\(/.test(skip), 'paying past a board does not go through the dispatch');
+    assert(!/\bstart\(/.test(skip), 'paying past a board still deals a pour board directly');
+    assert(!/dataset\.view = 'game'/.test(skip), 'paying past a board still forces the pour view');
+  });
+
+  /* Three views, and a resize used to lay out the pour board for any of them
+     that was not the map — rebuilding a shelf that is not on the screen, at zero
+     height, and handing the backdrop a shelf line at the top of the window. */
+  it('lays out the view that is actually up when the window changes', () => {
+    const app = read('src/js/90-app.js');
+    const fn = app.slice(app.indexOf('const relayout = ()'), app.indexOf('const onResize ='));
+    assert(/view === 'game'/.test(fn), 'a resize does not check whether the pour board is up');
+    assert(!/else Board\.render\(\);/.test(fn), 'a resize still renders the pour board unconditionally');
+  });
+
   it('scores nothing for a board that was not finished', () => {
     const app = read('src/js/90-app.js');
     const fn = app.slice(app.indexOf('function finish(){'), app.indexOf('function skipCost'));
