@@ -57,8 +57,6 @@ const BubbleGrid = (() => {
     return { rows, parity };
   }
 
-  const clone = board => ({ rows: board.rows.map(r => r.slice()), parity: board.parity });
-
   /* Push a row in at the top. The parity flip and the insertion are one
      operation on purpose: either without the other leaves every bubble on the
      board half a diameter from where it is drawn. */
@@ -67,27 +65,6 @@ const BubbleGrid = (() => {
     board.rows.unshift(row.slice());
     board.rows.length = C.ROWS;
     return board;
-  }
-
-  /* Which cell contains a point. Nothing in the turn loop needs this; it exists
-     for tests and tooling. Rounding x and y independently is wrong on a
-     staggered lattice, so the nearest row is checked along with the next nearest
-     and the closer of the two candidates wins. Two rows are provably enough:
-     the best candidate in the nearer row is at most 0.662 away and the row
-     beyond is at least 0.866. */
-  function cellAt(board, x, y){
-    const jf = (y - 0.5) / C.ROW_H;
-    const clampRow = j => Math.max(0, Math.min(C.ROWS - 1, j));
-    const j1 = clampRow(Math.round(jf));
-    const j2 = clampRow(j1 + (jf >= j1 ? 1 : -1));
-    let best = null;
-    for (const j of j1 === j2 ? [j1] : [j1, j2]){
-      const c = Math.max(0, Math.min(C.COLS - 1, Math.round(x - 0.5 - 0.5 * indent(board, j))));
-      const p = centreOf(board, j, c);
-      const d2 = (p.x - x) ** 2 + (p.y - y) ** 2;
-      if (!best || d2 < best.d2 - 1e-12) best = { j, c, d2 };
-    }
-    return { j: best.j, c: best.c };
   }
 
   /* A cheap stable summary of the board, for asserting that the same seed and
@@ -112,6 +89,6 @@ const BubbleGrid = (() => {
   };
 
   return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
-           create, clone, advance, cellAt, hash, occupied, emptyRow };
+           create, advance, hash, occupied, emptyRow };
 })();
 globalThis.BubbleGrid = BubbleGrid;

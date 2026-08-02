@@ -399,7 +399,6 @@ const Board = (() => {
       fluidOn = Fluid.supported();
       if (fluidOn){ Fluid.mount(root); root.classList.add('simulated'); }
     },
-    get fluid(){ return fluidOn; },
     get view(){ return view; },
     set view(v){ view = v; },
     get selected(){ return selected; },

@@ -65,7 +65,6 @@ const Trace = (() => {
       const msg = err && err.message ? err.message : String(err);
       return push('FAULT', where, msg);
     },
-    get entries(){ return ring.slice(); },
     get counts(){ return { ...tally, refusals: { ...refusals } }; },
     /* the log as plain text, oldest first, for a panel or a paste */
     lines(){

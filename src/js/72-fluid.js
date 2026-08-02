@@ -313,10 +313,6 @@ const Fluid = (() => {
   function start(){ if (running) return; running = true; last = performance.now(); loop(); }
   function stop(){ running = false; cancelAnimationFrame(raf); }
 
-  return {
-    supported, mount, sync, transfer, draw, wake,
-    resize(){ if (root && bottles.length) measure(); },
-    get mounted(){ return !!root; }
-  };
+  return { supported, mount, sync, transfer, draw, wake };
 })();
 globalThis.Fluid = Fluid;

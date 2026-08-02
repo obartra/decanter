@@ -485,18 +485,12 @@ describe('bubble scoring', () => {
       'the cap is a ceiling, not a penalty');
   });
 
-  it('treats a longer run as the better one, not a worse one', () => {
-    /* The other game's best is the fewest pours and compares the other way.
-       Getting this backwards would quietly record the worst run of every level
-       forever, and nothing about the save would look wrong. */
-    equal(Sc.better(40, 90), 90);
-    equal(Sc.better(90, 40), 90);
-    equal(Sc.better(null, 12), 12, 'a first run is always the best so far');
-    equal(Sc.better(12, null), 12);
-    equal(Sc.improved(40, 90), true);
-    equal(Sc.improved(90, 40), false, 'a shorter run must not overwrite a longer one');
-    equal(Sc.improved(null, 1), true);
-  });
+  /* "A longer run is the better one" was asserted here, against a `better`
+     pair this module kept for the purpose and nothing else called. The save is
+     what can actually get this wrong, and `40-progress.js` is what writes it, so
+     the assertion that matters is the one over there: progress.test.mjs, keeps
+     the longest run on a bubble level. This one was checking a second
+     implementation that no run ever reached. */
 
   it('tightens the cadence as the run goes on, and then stops', () => {
     equal(Sc.cadenceAt(0), C.ADVANCE_EVERY, 'the first shots are at the opening cadence');
@@ -517,14 +511,6 @@ describe('bubble scoring', () => {
     equal(Sc.nextStarAt(0), C.STAR_SHOTS.one);
     equal(Sc.nextStarAt(C.STAR_SHOTS.one), C.STAR_SHOTS.two);
     equal(Sc.nextStarAt(C.STAR_SHOTS.three), null, 'nothing left to reach for');
-    /* and the bar only ever fills */
-    let last = -1;
-    for (let s = 0; s <= C.STAR_SHOTS.three + 20; s++){
-      const p = Sc.progress(s);
-      assert(p >= last, `progress went backwards at ${s}`);
-      assert(p >= 0 && p <= 1, `progress left its range at ${s}`);
-      last = p;
-    }
   });
 });
 

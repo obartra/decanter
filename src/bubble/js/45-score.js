@@ -41,17 +41,6 @@ const BubbleScore = (() => {
     return aided ? Math.min(earned, C.AID_CAP) : earned;
   }
 
-  /* How far into the next star this run got, for a bar that means something
-     while the run is still going. Full once the third is earned. */
-  function progress(shots){
-    const { one, two, three } = C.STAR_SHOTS;
-    if (shots >= three) return 1;
-    const bands = [[0, one], [one, two], [two, three]];
-    const i = shots >= two ? 2 : shots >= one ? 1 : 0;
-    const [from, to] = bands[i];
-    return (i + (shots - from) / (to - from)) / 3;
-  }
-
   /* The shots still to go before the next star, or null once all three are in
      hand. What the run is playing for, in the only unit it can be played for. */
   function nextStarAt(shots){
@@ -60,15 +49,14 @@ const BubbleScore = (() => {
     return null;
   }
 
-  /* Best is the *longest* run here, where the other game's best is the *fewest*
-     pours. Both are "best" and they compare in opposite directions, which is the
-     kind of difference that survives a code review and then quietly records the
-     worst run of every bubble level forever. Anything comparing two results goes
-     through this. */
-  const better = (a, b) => (a == null ? b : b == null ? a : Math.max(a, b));
-  const improved = (was, now) => was == null || now > was;
+  /* Which direction "best" compares in is the same worry as ever and it is not
+     answered here. It is answered once, in `40-progress.js`, which is the only
+     thing that writes a best to the save and so the only place that can get it
+     wrong. This module had a `better`/`improved` pair of its own claiming
+     everything went through it; nothing did, in either game, and a second answer
+     to a question with one right answer is worse than none.
 
-  /* The cadence at a given point in a run: one shot faster every RAMP_EVERY,
+     The cadence at a given point in a run: one shot faster every RAMP_EVERY,
      never below the floor. Pure so the harness, the HUD and the turn all get
      the same answer rather than three implementations of it. */
   function cadenceAt(shots){
@@ -76,6 +64,6 @@ const BubbleScore = (() => {
     return Math.max(C.ADVANCE_MIN, C.ADVANCE_EVERY - off);
   }
 
-  return { stars, progress, nextStarAt, better, improved, cadenceAt };
+  return { stars, nextStarAt, cadenceAt };
 })();
 globalThis.BubbleScore = BubbleScore;
