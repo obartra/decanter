@@ -133,8 +133,29 @@ test('opens a shelf of real bottles, and charges nothing for looking', async ({ 
     .toBeGreaterThan(0);
   expect(await purse(page), 'opening the shelf is free').toBe(before);
 
-  /* and it closes again, so it cannot be left open over a different board */
+  /* and the same button is the way back out, saying so */
+  await expect(page.locator('#blast')).toHaveText(/Cancel/);
+  await expect(page.locator('#blast')).toHaveClass(/armed/);
   await page.locator('#blast').click();
+  await expect(page.locator('#blastPick')).toBeHidden();
+  await expect(page.locator('#blast')).toHaveText(/Blast/);
+  await expect(page.locator('#blast')).not.toHaveClass(/armed/);
+  expect(await purse(page), 'and backing out costs nothing').toBe(before);
+});
+
+test('cannot be armed at all without the gold for it', async ({ page }) => {
+  /* The mode is only enterable when it can be paid for, so nobody opens a shelf
+     of bottles they cannot buy and finds out at the last tap. */
+  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await openLevel(page, await blastLevel(page));
+  await page.evaluate(() => {
+    const p = globalThis.App._progress;
+    p.spend(p.gold - globalThis.CONFIG.economy.blast + 1);   /* one short */
+  });
+  await loseIt(page);
+
+  await expect(page.locator('#blast')).toBeVisible();
+  await expect(page.locator('#blast')).toBeDisabled();
   await expect(page.locator('#blastPick')).toBeHidden();
 });
 

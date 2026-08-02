@@ -528,11 +528,31 @@ const App = (() => {
     (Levels.isBubble(S.level) ? []
       : Rules.blastTargets(S.tubes, S.moves, S.par, S.parExact, spilled()));
 
+  /* One button doing both halves of the job.
+
+     Closed it offers the blast and shows what it would cost. Open it is the way
+     back out of the shelf, and says the thing worth saying at that moment:
+     nothing has been taken yet. A second button to put the first one away is a
+     row that grows every time something can be opened, and this row is on a
+     panel that already carries three.
+
+     The label and the price are written together, the way #retry writes its
+     two, because they are one statement about what pressing it does. The word
+     under Cancel is `free` rather than a struck out price for the same reason it
+     is `free` on Retry: this game says free when a press costs nothing. */
+  function paintBlast(armed){
+    const b = $('blast');
+    b.innerHTML = armed
+      ? 'Cancel<small>free</small>'
+      : `Blast<small id="blastCost">${CONFIG.economy.blast}</small>`;
+    b.classList.toggle('armed', armed);
+    b.setAttribute('aria-expanded', armed ? 'true' : 'false');
+  }
+
   function closeBlastPick(){
     $('blastPick').hidden = true;
     $('blastPick').innerHTML = '';
-    $('blast').setAttribute('aria-expanded', 'false');
-    $('blast').classList.remove('armed');
+    paintBlast(false);
   }
 
   /* The shelf, as the bottles the rules will actually allow, each drawn as the
@@ -560,8 +580,7 @@ const App = (() => {
       pick.appendChild(b);
     }
     pick.hidden = false;
-    $('blast').setAttribute('aria-expanded', 'true');
-    $('blast').classList.add('armed');
+    paintBlast(true);
   }
 
   /* Destroy a bottle and put the player back on the board.
@@ -678,7 +697,6 @@ const App = (() => {
        is no longer there. */
     closeBlastPick();
     $('blast').hidden = panel.blastHidden;
-    $('blastCost').textContent = CONFIG.economy.blast;
     $('blast').disabled = panel.blastDisabled;
     $('winHint').textContent = panel.hint;
 

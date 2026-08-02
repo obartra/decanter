@@ -290,6 +290,11 @@ body[data-view="game"] #gameView{display:flex}
    board nobody is playing, so a second line pushes nothing around. */
 .panelBtns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px}
 
+/* A button holding something open. The map has had this for two-tap arming
+   since it shipped, but on `.node`, so there was no rule for it on a `.btn` and
+   the blast's own toggle would have changed its word and nothing else. */
+.btn.armed{border-color:var(--gold-lit); color:var(--gold-lit)}
+
 /* Choosing which bottle to destroy. Each swatch is the bottle, drawn as the
    colours it holds stacked bottom to top, so the choice is made by looking at
    liquid rather than at a number naming a shelf position.

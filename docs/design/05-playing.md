@@ -51,11 +51,22 @@ The vessel's opposite in both directions at once: one more place to put liquid
 against one less, and work rearranged against work removed. That is what keeps
 the two from being the same purchase at two prices.
 
-Pressing it arms a **choice**, and the only bottles it will arm are the ones the
-rules allow — not empty, not finished, and not one whose removal would end the
-run. Everything else is left alone and cannot be picked, so the tool has no
-target that can only make things worse. Pressing it again puts it down. The gold
-is taken when a bottle is chosen, never when the tool is armed.
+Pressing it arms a **choice**, and the only bottles it will offer are the ones
+the rules allow — not empty, not finished, and not one whose removal would end
+the run. So the tool has no target that can only make things worse.
+
+Three things about the money, and they are one decision seen from three sides:
+
+- **The gold is taken when a bottle is chosen**, never when the tool is armed.
+  Opening the shelf to see what is on it costs nothing.
+- **The mode cannot be entered without the price.** The button is disabled rather
+  than hidden, because a purse that cannot cover it today means "not now" rather
+  than "not yet". Nobody opens a shelf of bottles they cannot buy and finds out
+  at the last tap.
+- **The same button is the way back out.** Armed, it reads Cancel and says free
+  underneath, which is the thing worth saying at that moment: nothing has been
+  taken. A second button to put the first one away is a row that grows every time
+  something can be opened, and this row already carries three.
 
 Both of the vessel's load-bearing details apply unchanged, for the same reasons:
 a blast survives a restart, and it clears the undo history.
