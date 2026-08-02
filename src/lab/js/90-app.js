@@ -38,6 +38,9 @@ const LabApp = (() => {
        longer being dealt, so the readout has to say that rather than reporting a
        disagreement as though something were broken. */
     moved: new Set(),
+    /* which named state the frame was last loaded into, or null for whatever
+       was already there */
+    state: null,
     sweeping: false
   };
 
@@ -58,6 +61,7 @@ const LabApp = (() => {
        another game's internals, and it only stays the one place if this does
        not quietly become a second. */
     for (const [as, name] of Object.entries(g.survivalMods || {})) out[as] = w[name];
+    for (const [as, name] of Object.entries(g.stateMods || {})) out[as] = w[name];
     return out;
   }
 
@@ -69,6 +73,7 @@ const LabApp = (() => {
     st.game = game;
     st.win = null;
     st.level = game.firstLevel;
+    st.state = null;
     st.defaults.clear();
     st.moved.clear();
 
@@ -98,12 +103,38 @@ const LabApp = (() => {
         el('p', 'labWait', 'That page loaded but did not publish what the lab expects.'));
       return;
     }
-    for (const k of st.game.knobs) st.defaults.set(k.key, clone(m.C[k.key]));
+    for (const k of st.game.knobs) st.defaults.set(k.key, clone(readKey(m.C, k.key)));
     drawKnobs();
+    drawStates();
     drawLevel();
   }
 
   const clone = v => (Array.isArray(v) ? v.slice() : (v && typeof v === 'object' ? { ...v } : v));
+
+  /* A knob key may be dotted. The graded game keeps almost all of its tunables
+     under `economy`, and a workbench that could only reach the top level would
+     have left the game with the most settings as the one whose settings could
+     not be moved. Undotted keys walk a one-element path, so there is one code
+     path rather than two. */
+  const pathOf = key => key.split('.');
+  function readKey(obj, key){
+    let at = obj;
+    for (const step of pathOf(key)){
+      if (at == null) return undefined;
+      at = at[step];
+    }
+    return at;
+  }
+  function writeKey(obj, key, value){
+    const path = pathOf(key);
+    let at = obj;
+    for (let i = 0; i < path.length - 1; i++){
+      if (at[path[i]] == null) return false;
+      at = at[path[i]];
+    }
+    at[path[path.length - 1]] = value;
+    return true;
+  }
 
   /* ---- knobs ---- */
 
@@ -115,14 +146,14 @@ const LabApp = (() => {
       const row = el('div', 'labKnob');
       const head = el('label', 'labKnobHead');
       head.append(el('span', 'labKnobName', knob.key));
-      const val = el('b', 'labKnobVal', String(m.C[knob.key]));
+      const val = el('b', 'labKnobVal', String(readKey(m.C, knob.key)));
       head.append(val);
       row.append(head);
 
       const input = el('input', 'labRange');
       input.type = 'range';
       input.min = knob.min; input.max = knob.max; input.step = knob.step;
-      input.value = m.C[knob.key];
+      input.value = readKey(m.C, knob.key);
       input.setAttribute('aria-label', knob.key);
       input.oninput = () => {
         const n = Number(input.value);
@@ -149,7 +180,7 @@ const LabApp = (() => {
   function setKnob(knob, value){
     const m = mods();
     if (!m) return;
-    m.C[knob.key] = value;
+    writeKey(m.C, knob.key, value);
     const shipped = st.defaults.get(knob.key);
     if (value === shipped) st.moved.delete(knob.key); else st.moved.add(knob.key);
     if (st.game.rederive) rederive(m.C);
@@ -169,7 +200,7 @@ const LabApp = (() => {
   function resetKnobs(){
     const m = mods();
     if (!m) return;
-    for (const [key, value] of st.defaults) m.C[key] = clone(value);
+    for (const [key, value] of st.defaults) writeKey(m.C, key, clone(value));
     st.moved.clear();
     if (st.game.rederive) rederive(m.C);
     if (typeof m.app.boot === 'function') m.app.boot();
@@ -177,13 +208,157 @@ const LabApp = (() => {
     deal();
   }
 
+  /* ---- states ----
+
+     The other three games are a config and a level table: everything worth
+     seeing follows from a constant and a number. The graded game is not. Its
+     screens follow from a SAVE — a stranded purse, a chapter about to open, a
+     board already beaten being replayed for nothing — and none of those is
+     reachable by turning a knob. They are reachable by playing for an hour, or
+     by writing the save.
+
+     Same origin, so `localStorage` here IS the game's. That is what makes this
+     possible and also what makes it dangerous, which is why parking comes
+     first. */
+
+  /* The player's own save, put somewhere safe before the lab writes over it.
+
+     Taken once and only once: taking it again after a state has been applied
+     would park a lab fixture as though it were somebody's progress, and the
+     real save would be gone with nothing saying so. */
+  const PARK = 'decanter.lab.parked';
+  function park(){
+    const m = mods();
+    if (!m || localStorage.getItem(PARK) != null) return;
+    localStorage.setItem(PARK, localStorage.getItem(m.progress.SAVE_KEY) ?? '');
+  }
+  function parked(){ return localStorage.getItem(PARK) != null; }
+  function unpark(){
+    const m = mods();
+    if (!m || !parked()) return;
+    const was = localStorage.getItem(PARK);
+    if (was) localStorage.setItem(m.progress.SAVE_KEY, was);
+    else localStorage.removeItem(m.progress.SAVE_KEY);
+    localStorage.removeItem(PARK);
+    st.state = null;
+    reloadFrame();
+  }
+
+  /* What a state is resolved against: the game's own modules, live out of the
+     frame, so a preset asking which level precedes a bubble board is asking the
+     game that is running rather than a copy of its answer. */
+  function stateEnv(){
+    const m = mods();
+    if (!m) return null;
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return {
+      CONFIG: m.C, Levels: m.levels, Chapters: m.chapters, LAST_LEVEL: m.lastLevel,
+      /* the same local calendar day the game computes, or the draught states
+         would describe a different day from the one the map is looking at */
+      today: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    };
+  }
+
+  function applyState(id){
+    const m = mods();
+    const env = stateEnv();
+    if (!m || !env) return;
+    park();
+    let save;
+    try { save = LabStates.make(id, env); }
+    catch (e) { $('labStateNote').textContent = 'That state would not build: ' + e.message; return; }
+
+    const entry = LabStates.list.find(s => s.id === id);
+    if (!Object.keys(save).length){
+      /* A new player has no save at all, which is not the same as a save full of
+         defaults: the difference is what the first boot writes. */
+      localStorage.removeItem(m.progress.SAVE_KEY);
+    } else if (entry.kind === LabStates.RECOVERY){
+      /* Written exactly as given. Stamping a version and a layout onto a save
+         whose whole point is being wrong would repair the thing being tested. */
+      localStorage.setItem(m.progress.SAVE_KEY, JSON.stringify(save));
+    } else {
+      localStorage.setItem(m.progress.SAVE_KEY,
+        JSON.stringify({ version: 1, layout: m.C.layout, ...save }));
+    }
+    st.state = id;
+    reloadFrame();
+  }
+
+  /* A state is read at boot, so it is applied by loading the page again rather
+     than by poking at a game that is already up. Which is also the honest test:
+     what a player gets is what the page makes of the save when it opens. */
+  function reloadFrame(){
+    $('labFrame').src = st.game.path + '?lab=' + Date.now();
+  }
+
+  function drawStates(){
+    const box = $('labStates');
+    box.replaceChildren();
+    if (!st.game.states){
+      $('labStateBox').hidden = true;
+      return;
+    }
+    $('labStateBox').hidden = false;
+    for (const entry of LabStates.list){
+      const row = el('button', 'labState' + (st.state === entry.id ? ' on' : ''));
+      row.type = 'button';
+      row.append(el('span', 'labStateName', entry.title));
+      if (entry.kind === LabStates.RECOVERY) row.append(el('span', 'labStateKind', 'recovery'));
+      row.append(el('p', 'labStateWhy', entry.why));
+      row.onclick = () => applyState(entry.id);
+      box.append(row);
+    }
+    const back = el('button', 'labBtn', 'Put my own save back');
+    back.type = 'button';
+    back.disabled = !parked();
+    back.onclick = unpark;
+    box.append(back);
+    $('labStateNote').textContent = parked()
+      ? 'Your save is parked. Nothing here has touched it.'
+      : 'Picking a state parks your own save first.';
+  }
+
   /* ---- levels ---- */
 
   function deal(){
     const m = mods();
     if (!m) return;
+    /* The graded game has no `newBoard`: a board is opened by tapping a
+       medallion, and the lab drives it the way a player does rather than
+       reaching past the map into the dealer. */
+    if (typeof m.app.newBoard !== 'function'){ openFromMap(); return; }
     try { m.app.newBoard(st.level); }
     catch (e) { $('labNote').textContent = 'That board would not deal: ' + e.message; return; }
+    drawLevel();
+  }
+
+  /* Open a board the way a player does: find its medallion and tap it.
+
+     Not `App`'s internals. The lab could reach past the map and call whatever
+     deals a board, and it would be one line — but every route into a level goes
+     through the map for a reason (it is where the fee is charged and where the
+     game decides which of the two games a level is), and a workbench that
+     skipped it would be testing a path nobody takes. If the medallion is not
+     there, that is the answer: this level is not open from this state. */
+  function openFromMap(){
+    const m = mods();
+    if (!m || !st.win) return;
+    const node = st.win.document.querySelector(`[data-level="${st.level}"]`);
+    if (!node){
+      $('labNote').textContent = `level ${st.level} has no medallion in this state`;
+      return;
+    }
+    if (node.disabled){
+      $('labNote').textContent = `level ${st.level} is refused here: ${node.getAttribute('aria-label') || 'locked'}`;
+      return;
+    }
+    /* Two taps, because a locked-but-affordable medallion arms before it buys.
+       An open one ignores the second. */
+    node.click();
+    const armed = st.win.document.querySelector('.node.armed');
+    if (armed) armed.click();
     drawLevel();
   }
 
@@ -193,6 +368,14 @@ const LabApp = (() => {
     $('labLevel').value = String(st.level);
     const state = m.app._state || {};
     const bits = [];
+    /* What the save says, for the game whose screens follow from one. Read off
+       the live progress object rather than the localStorage the lab wrote, so
+       this reports what the game made of it rather than what it was handed. */
+    if (st.game.states && m.app._progress){
+      const p = m.app._progress;
+      bits.push(`unlocked ${p.unlocked}`, `${p.gold} gold`);
+      if (st.state) bits.push('state: ' + st.state);
+    }
     if (state.par != null) bits.push('par ' + state.par);
     else if (st.game.sweep === 'par') bits.push('unrated');
     if (state.moves != null) bits.push(state.moves + ' played');
@@ -249,7 +432,9 @@ const LabApp = (() => {
     await new Promise(r => requestAnimationFrame(() => r()));
 
     try {
-      if (st.game.sweep === 'par'){
+      if (st.game.sweep === 'panel'){
+        showPanel(panelMatrix(m));
+      } else if (st.game.sweep === 'par'){
         const from = Math.max(1, Number($('labFrom').value) || 1);
         const to = Math.max(from, Number($('labTo').value) || from);
         showPars(S.pars(m, from, Math.min(to, from + 199)));
@@ -269,6 +454,149 @@ const LabApp = (() => {
       out.replaceChildren(el('p', 'labWait', 'The sweep threw: ' + e.message));
     }
     st.sweeping = false;
+  }
+
+  /* Every end-of-run panel the game can show.
+
+     `Panel.decide` takes about twenty inputs and returns which buttons are
+     drawn, which are dead, which one is primary and what the hint says. That is
+     the densest decision in the codebase and it is also the hardest to reach:
+     getting to one combination means playing a level to a particular ending
+     with a particular purse, and the pours are animated, so a run that ends the
+     way you wanted takes a minute of real time.
+
+     So the axes are enumerated and the real function is asked. Nothing here
+     re-implements a rule; the frame's own `Panel` decides, and what is drawn is
+     what it said. The value is in seeing them side by side — a button offered on
+     a screen it makes no sense on, or two states that should differ coming out
+     identical, is obvious in a column and invisible one run at a time. */
+  function panelMatrix(mods){
+    const { panel, lastLevel } = mods;
+    const rows = [];
+    /* The axes that change the answer, and only those. `moves` and `best` move
+       the sentence rather than the offer, so they are held still: a matrix with
+       a row for every pour count is one nobody reads. */
+    const endings = [
+      { as: 'cleared', failed: false, stars: 3, reason: null },
+      { as: 'cleared, one over', failed: false, stars: 2, reason: null },
+      { as: 'cleared, scraped', failed: false, stars: 1, reason: null },
+      { as: 'failed: out of pours', failed: true, stars: 0, reason: 'over' },
+      { as: 'failed: no legal move', failed: true, stars: 0, reason: 'stuck' },
+      { as: 'failed: short', failed: true, stars: 0, reason: 'short' }
+    ];
+    const purses = [
+      { as: 'rich', canPayFee: true, canPayNext: true, canPaySkip: true, canPayBlast: true },
+      { as: 'can retry, cannot go on', canPayFee: true, canPayNext: false, canPaySkip: false, canPayBlast: false },
+      { as: 'empty', canPayFee: false, canPayNext: false, canPaySkip: false, canPayBlast: false }
+    ];
+    const wheres = [
+      { as: 'mid run', level: 12, nextUnlocked: true },
+      { as: 'at the frontier', level: 12, nextUnlocked: false },
+      { as: 'the last board', level: lastLevel, nextUnlocked: false }
+    ];
+    const blasts = [
+      { as: 'no blast', blastGranted: false, blastUsed: false, blastTargets: 0 },
+      { as: 'blast, would help', blastGranted: true, blastUsed: false, blastTargets: 3 },
+      { as: 'blast, nothing to hit', blastGranted: true, blastUsed: false, blastTargets: 0 },
+      { as: 'blast, already spent', blastGranted: true, blastUsed: true, blastTargets: 3 }
+    ];
+
+    for (const where of wheres){
+      for (const ending of endings){
+        for (const purse of purses){
+          for (const blast of blasts){
+            /* A blast is only ever offered on a failed run, so every blast axis
+               on a cleared one is the same screen four times. */
+            if (!ending.failed && blast.as !== 'no blast') continue;
+            const input = {
+              level: where.level, lastLevel, nextUnlocked: where.nextUnlocked,
+              failed: ending.failed, stars: ending.stars, reason: ending.reason,
+              canPayFee: purse.canPayFee, canPayNext: purse.canPayNext,
+              canPaySkip: purse.canPaySkip, canPayBlast: purse.canPayBlast,
+              blastGranted: blast.blastGranted, blastUsed: blast.blastUsed,
+              blastTargets: blast.blastTargets,
+              improvedStars: false, hadStars: 0, totalStars: 210,
+              par: 14, parExact: true, moves: ending.failed ? 19 : 14 + (3 - ending.stars),
+              best: null
+            };
+            let out, threw = null;
+            try { out = panel.decide(input); }
+            catch (e) { threw = e.message; }
+            rows.push({
+              where: where.as, ending: ending.as, purse: purse.as, blast: blast.as,
+              out, threw
+            });
+          }
+        }
+      }
+    }
+
+    /* What the matrix is FOR, said as claims rather than left to the eye. Each
+       of these is something the panel must never do, and each is invisible in a
+       single run because a single run only ever shows one row. */
+    const faults = [];
+    for (const r of rows){
+      if (r.threw){ faults.push(`${r.ending} / ${r.purse}: decide() threw — ${r.threw}`); continue; }
+      const o = r.out;
+      const offers = [!o.retryHidden, !o.nextHidden, !o.skipHidden, !o.blastHidden];
+      if (!offers.some(Boolean) && !o.atEnd)
+        faults.push(`${r.where} / ${r.ending} / ${r.purse}: offers nothing at all`);
+      if (!o.blastHidden && !r.blast.startsWith('blast, would'))
+        faults.push(`${r.ending} / ${r.blast}: a blast is offered that cannot rescue anything`);
+      if (!o.nextHidden && o.atEnd)
+        faults.push(`${r.where}: a next board is offered past the end of the game`);
+      if (!o.skipHidden && !o.stuck)
+        faults.push(`${r.where} / ${r.ending}: Move on is offered to a run that is not stuck`);
+      if (o.retryPrimary && o.nextPrimary)
+        faults.push(`${r.ending}: two primary buttons`);
+      /* No check that a hint exists. An ordinary clean win has nothing to say
+         beyond the result, and demanding a line there would be asking the panel
+         to fill silence. What IS checked is the one case where silence is wrong:
+         a button offered and dead. */
+      /* A dead button with nothing saying why is the failure this panel was
+         split out of the app to prevent: the screen looks broken rather than
+         refused. `BROKE` is the module's own sentence, asked for by name rather
+         than matched on, so the two cannot part company. */
+      if (o.retryDisabled && !o.retryHidden && o.hint !== panel.BROKE)
+        faults.push(`${r.ending} / ${r.purse}: Retry is dead and the hint does not say why`);
+    }
+    return { kind: 'panel', rows, faults };
+  }
+
+  function showPanel(res){
+    const out = $('labSweepOut');
+    out.replaceChildren();
+    out.append(el('p', 'labStat', `${res.rows.length} panels · ${res.faults.length} faults`));
+    for (const f of res.faults.slice(0, 12)) out.append(el('p', 'labStat bad', f));
+
+    const table = el('table', 'labMatrix');
+    const head = el('tr');
+    for (const h of ['where', 'ending', 'purse', 'blast', 'offers', 'primary', 'hint']) head.append(el('th', null, h));
+    table.append(head);
+    for (const r of res.rows){
+      const tr = el('tr');
+      tr.append(el('td', null, r.where));
+      tr.append(el('td', null, r.ending));
+      tr.append(el('td', null, r.purse));
+      tr.append(el('td', null, r.blast));
+      if (r.threw){
+        const cell = el('td', 'bad', 'threw: ' + r.threw);
+        cell.colSpan = 3;
+        tr.append(cell);
+      } else {
+        const o = r.out;
+        const shown = [];
+        if (!o.retryHidden) shown.push('Retry' + (o.retryDisabled ? '·off' : ''));
+        if (!o.nextHidden) shown.push('Next' + (o.nextDisabled ? '·off' : ''));
+        if (!o.skipHidden) shown.push('Move on' + (o.skipDisabled ? '·off' : ''));
+        if (!o.blastHidden) shown.push('Blast' + (o.blastDisabled ? '·off' : ''));
+        tr.append(el('td', null, shown.join(' ') || '—'));
+        tr.append(el('td', null, o.nextPrimary ? 'Next' : o.retryPrimary ? 'Retry' : '—'));
+        tr.append(el('td', 'labHint', o.hint || '—'));
+      }
+      table.append(tr);
+    }
+    out.append(table);
   }
 
   function showPars(res){

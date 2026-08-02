@@ -8,10 +8,10 @@
    case under a name that says otherwise.
 
    So each claim is asked of the real modules rather than trusted. */
-import { describe, it, assert, equal, loadPure, loadFrom } from './helpers.mjs';
+import { describe, it, assert, equal, loadPure, loadGame } from './helpers.mjs';
 
 const { CONFIG, Levels, Chapters, Progress, LAST_LEVEL } = loadPure();
-const { LabStates } = loadFrom('src/lab/js', ['10-states.js']);
+const { LabStates } = loadGame('lab');
 
 /* The same environment the lab hands it, off the same modules the game runs. */
 const env = { CONFIG, Levels, Chapters, LAST_LEVEL, today: '2026-01-01' };

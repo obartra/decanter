@@ -10,6 +10,11 @@
    board that comes down every shot, which teaches nothing except that the game
    can be broken. The bounds are where the setting is still the setting.
 
+   A key may be dotted (`economy.attempt`). The graded game keeps almost all of
+   its tunables one level down, and the alternative was either flattening a
+   config to suit a workbench or leaving the game with the most settings as the
+   one game whose settings could not be moved.
+
    `apply` is how a game is put back together after a knob moves. Most take a
    fresh board; the ones that change the shape of the world have to rebuild the
    derived values first, because those were computed once when the config was
@@ -21,6 +26,63 @@
 const LabConfig = {
   /* Order is the order the tabs appear in. */
   games: [
+    {
+      /* The graded game. It is the reason the repo exists and it was the one
+         game the lab could not show, because everything here was built around
+         the three that are a page with a config and a level table. This one is a
+         page with a hundred and twenty levels, a purse, chapters, and a save
+         that decides which of those you are looking at — so its knobs are mostly
+         nested under `economy`, and its interesting axis is not a constant at
+         all but a STATE. See 10-states.js.
+
+         `dir` and `path` are written out because this game breaks the pattern
+         the other three share: it lives at `src/js` rather than `src/app/js`,
+         and it is served from the root rather than a subfolder. Deriving them
+         from the id would have meant inventing a folder that does not exist. */
+      id: 'app',
+      title: 'The Cellar',
+      path: '../',
+      dir: 'src/js',
+      config: 'CONFIG',
+      app: 'App',
+      levels: 'Levels',
+      /* Named here for the same reason survivalMods is: this file is the one
+         place allowed to know another game's internals, and it only stays the
+         one place if the app does not quietly become a second. */
+      stateMods: {
+        progress: 'Progress', chapters: 'Chapters', panel: 'Panel', lastLevel: 'LAST_LEVEL'
+      },
+      /* Not a par sweep. Par here is exact and already shipped, and the solver
+         is a worker rather than a function this page can call — `verify:pars`
+         re-solves all hundred and twenty offline, which is the right place for
+         it. What cannot be checked offline is what the end-of-run panel offers,
+         because that is decided from a run and a purse together. */
+      sweep: 'panel',
+      states: true,
+      firstLevel: 1,
+      knobs: [
+        { key: 'economy.attempt', min: 0, max: 60, step: 1,
+          note: 'What a board costs to deal. Every refusal on the map is this number against the purse.' },
+        { key: 'economy.daily', min: 0, max: 100, step: 1,
+          note: 'The daily draught: the only way back for a purse that has run dry, and the reason an empty one is not the end.' },
+        { key: 'economy.startingGold', min: 0, max: 400, step: 1,
+          note: 'What a new player opens with. Takes effect on a fresh save, so pick the fresh state after moving it.' },
+        { key: 'economy.firstClear', min: 0, max: 60, step: 1,
+          note: 'Paid once per level, the first time it is beaten. The reason a stockpile has to be earned on new boards.' },
+        { key: 'economy.hint', min: 0, max: 120, step: 1,
+          note: 'What the apothecary charges. Chapter five makes it cheaper and chapter six makes the first one free.' },
+        { key: 'economy.vessel', min: 0, max: 200, step: 1,
+          note: 'The extra bottle, at the cost of the third star. The most expensive thing a run can lean on.' },
+        { key: 'economy.blast', min: 0, max: 200, step: 1,
+          note: 'What the furnace charges to take a bottle off the shelf. Priced against a board that is already beating you.' },
+        { key: 'economy.undoCost', min: 0, max: 60, step: 1,
+          note: 'What a pour costs to take back once the free ones are gone.' },
+        { key: 'economy.freeUndos', min: 0, max: 20, step: 1,
+          note: 'How many come free every run before that. Chapter four adds two more.' },
+        { key: 'economy.skipMultiple', min: 1, max: 8, step: 1,
+          note: 'Paying past a board costs this many attempts. Low enough and the game can be bought rather than played.' }
+      ]
+    },
     {
       id: 'measure',
       title: 'The Measure',
