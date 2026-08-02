@@ -9,6 +9,7 @@ import './progress.test.mjs';
 import './panel.test.mjs';
 import './playthrough.test.mjs';
 import './economy.test.mjs';
+import './blast.test.mjs';
 import './palette.test.mjs';
 import './map.test.mjs';
 import './queue.test.mjs';

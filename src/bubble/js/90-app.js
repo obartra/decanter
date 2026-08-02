@@ -35,6 +35,9 @@ const BubbleApp = (() => {
        thresholds it is graded against. Only picking a colour sets it; see
        AID_CAP in the config for why undo, hint and swap do not. */
     aided: false,
+    /* how many bombs this run has fired, which is only ever asked for the
+       sentence at the end and for whether one is in the air right now */
+    bombs: 0,
     hint: null,          /* the landing the hint is pointing at, until the next shot */
     collapsing: false,   /* the lost board is on its way down, panel waiting on it */
     past: [],            /* what undo restores, newest last */
@@ -92,6 +95,7 @@ const BubbleApp = (() => {
     st.sinceDrop = 0;
     st.score = 0;
     st.aided = false;
+    st.bombs = 0;
     st.hint = null;
     st.collapsing = false;
     st.past = [];
@@ -151,6 +155,9 @@ const BubbleApp = (() => {
      sequence could have produced on its own. */
   function swap(){
     if (st.mode !== S_AIM || st.over || !allow.swap) return false;
+    /* A bomb swapped into `next` is reissued for free by land(), which sets
+       st.loaded from it on the turn after. One purchase, one shot. */
+    if (st.loaded === C.BOMB || st.next === C.BOMB) return false;
     const was = st.loaded;
     st.loaded = st.next;
     st.next = was;
@@ -164,6 +171,10 @@ const BubbleApp = (() => {
      a hint that names a bubble which merely lands somewhere is not advice. */
   function hint(){
     if (st.mode !== S_AIM || st.over || !allow.hint) return null;
+    /* bestShot works by writing the loaded value into a cell and flood filling
+       its colour, so with a bomb in hand it would sweep 161 aims to discover
+       that a sentinel matches nothing */
+    if (st.loaded === C.BOMB) return null;
     const best = Adv.bestShot(st.board, st.loaded, S.resolveShot);
     /* asked for before it is paid for, so a hint that has nothing to say is
        never charged for */
@@ -192,6 +203,30 @@ const BubbleApp = (() => {
     A.matched(3);
     return true;
   }
+
+  /* Load a bomb. The other aiding tool, and capped for the same reason: what it
+     clears is nothing the shot chooser could have cleared, so from here the
+     board is easier than the shot counts the run is graded against.
+
+     Refused before it is paid for, like everything else in this file. A bomb on
+     top of a bomb would be two purchases for one shot. */
+  function armBomb(){
+    if (st.mode !== S_AIM || st.over || !allow.bomb) return false;
+    if (st.loaded === C.BOMB) return false;
+    if (!afford('bomb')) return false;
+    st.loaded = C.BOMB;
+    st.aided = true;
+    /* a ring pointing at a landing worked out for a colour is not advice about
+       a bomb, and the same is true of the colour that was in hand */
+    st.hint = null;
+    paintHud();
+    A.crash();
+    return true;
+  }
+
+  /* Which aid this run leaned on, for the sentence at the end of it. Named
+     rather than counted: "an aid" tells a player nothing about what they did. */
+  const aidName = () => (st.bombs ? 'Using a bomb' : 'Picking a colour');
 
   /* ---- input. Aiming is never locked, even mid flight, so the guide always
      answers the pointer and the game never feels like it is ignoring you. ---- */
@@ -223,7 +258,11 @@ const BubbleApp = (() => {
     st.shots++;
 
     if (shot.landing){
-      const res = R.resolveTurn(st.board, shot.landing, st.loaded);
+      const bomb = st.loaded === C.BOMB;
+      if (bomb) st.bombs++;
+      const res = bomb
+        ? R.resolveBlast(st.board, shot.landing)
+        : R.resolveTurn(st.board, shot.landing, st.loaded);
       /* Nothing is deleted where it sat. The group you matched is knocked off
          the board and falls, and so does everything it was holding up, because
          a clear the player watches come down is worth more than a gap that
@@ -292,6 +331,7 @@ const BubbleApp = (() => {
     const $ = id => document.getElementById(id);
     const palette = $('bubblePalette');
     const pick = $('bubblePick');
+    const bombBtn = $('bubbleBomb');
 
     const closePalette = () => {
       palette.hidden = true;
@@ -302,6 +342,7 @@ const BubbleApp = (() => {
     $('bubbleUndo').onclick = () => { A.unlock(); undo(); closePalette(); paintTools(); };
     $('bubbleHint').onclick = () => { A.unlock(); hint(); closePalette(); paintTools(); };
     $('bubbleSwap').onclick = () => { A.unlock(); swap(); closePalette(); paintTools(); };
+    if (bombBtn) bombBtn.onclick = () => { A.unlock(); armBomb(); closePalette(); paintTools(); };
 
     pick.onclick = () => {
       A.unlock();
@@ -338,11 +379,21 @@ const BubbleApp = (() => {
     $('bubbleHint').hidden = !allow.hint;
     $('bubbleSwap').hidden = !allow.swap;
     $('bubblePick').hidden = !allow.colour;
+    const loadedBomb = st.loaded === C.BOMB;
     $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length);
-    $('bubbleSwap').disabled = !live || st.loaded === st.next;
-    $('bubblePick').disabled = !live || R.liveColours(st.board).length < 2;
-    $('bubbleHint').disabled = !live || !Adv.hasClearingShot(st.board, st.loaded, S.resolveShot);
+    $('bubbleSwap').disabled = !live || loadedBomb || st.loaded === st.next;
+    $('bubblePick').disabled = !live || loadedBomb || R.liveColours(st.board).length < 2;
+    /* asking the advice sweep about a bomb is 161 aims spent proving a sentinel
+       matches nothing, so the question is not asked */
+    $('bubbleHint').disabled = !live || loadedBomb
+      || !Adv.hasClearingShot(st.board, st.loaded, S.resolveShot);
     $('bubbleHint').classList.toggle('armed', !!st.hint);
+    const bomb = $('bubbleBomb');
+    if (bomb){
+      bomb.hidden = !allow.bomb;
+      bomb.disabled = !live || loadedBomb;
+      bomb.classList.toggle('armed', loadedBomb);
+    }
   }
 
   /* Set by a host page that wants to score the run itself. The bubble game does
@@ -359,7 +410,7 @@ const BubbleApp = (() => {
      or the chapters mean nothing on one board in five. So the host says what is
      allowed and takes the money; nothing here knows what gold is. `allow`
      defaults to everything, which is what the standalone page wants. */
-  let allow = { undo: true, hint: true, swap: true, colour: true };
+  let allow = { undo: true, hint: true, swap: true, colour: true, bomb: true };
   let charge = null;
   const afford = what => !charge || charge(what);
 
@@ -383,7 +434,7 @@ const BubbleApp = (() => {
      into stars and gold; nothing here knows what those are. */
   const result = () => ({
     how: st.over, cleared: st.over === 'won', shots: st.shots,
-    score: st.score, aided: st.aided,
+    score: st.score, aided: st.aided, aid: aidName(),
     stars: Sc.stars({ cleared: st.over === 'won', shots: st.shots, aided: st.aided })
   });
 
@@ -450,7 +501,7 @@ const BubbleApp = (() => {
        ending in two as the game losing count. */
     const note = document.getElementById('bubbleNote');
     note.textContent = st.aided && stars === C.AID_CAP
-      ? 'Picking a colour caps a run at two stars.'
+      ? `${aidName()} caps a run at two stars.`
       : how === 'lost' ? `Lasted ${st.shots} shots.` : '';
   }
 
@@ -537,6 +588,18 @@ const BubbleApp = (() => {
 
   const arrived = () => st.flown >= totalLen();
 
+  /* The colour of whatever is in hand, and the one place a sentinel is allowed
+     anywhere near the palette.
+
+     `C.PALETTE[C.BOMB % C.PALETTE.length]` is `PALETTE[-2]`, which is undefined,
+     and the renderer feeds what it is given straight to shade(), which slices
+     it. That throws inside draw(), the throw escapes before the next
+     requestAnimationFrame is asked for, and the game stops for good with
+     nothing on screen to say why. So the sentinel is turned into a colour here,
+     once, and never indexes anything. */
+  const BOMB_INK = '#1B1526';
+  const held = () => (st.loaded === C.BOMB ? BOMB_INK : C.PALETTE[st.loaded % C.PALETTE.length]);
+
   function draw(now){
     const ctx = V.frame();
     D.walls(ctx);
@@ -553,16 +616,18 @@ const BubbleApp = (() => {
       D.muzzle(ctx, null);
     } else if (st.mode === S_AIM){
       const preview = S.resolveShot(st.board, C.MUZZLE, st.aim);
-      D.guide(ctx, preview.points, C.PALETTE[st.loaded % C.PALETTE.length],
-        (now / 1000 * C.GUIDE_SPEED) % C.GUIDE_DOT_GAP);
+      D.guide(ctx, preview.points, held(), (now / 1000 * C.GUIDE_SPEED) % C.GUIDE_DOT_GAP);
       D.muzzle(ctx, st.aim);
-      D.bubble(ctx, C.MUZZLE.x, C.MUZZLE.y, C.PALETTE[st.loaded % C.PALETTE.length]);
+      D.bubble(ctx, C.MUZZLE.x, C.MUZZLE.y, held());
+      if (st.loaded === C.BOMB) D.fuse(ctx, C.MUZZLE.x, C.MUZZLE.y, now);
     } else {
       D.muzzle(ctx, null);
       const p = pointAt(st.flown);
-      D.bubble(ctx, p.x, p.y, C.PALETTE[st.loaded % C.PALETTE.length]);
+      D.bubble(ctx, p.x, p.y, held());
+      if (st.loaded === C.BOMB) D.fuse(ctx, p.x, p.y, now);
     }
-    /* what is coming, tucked beside the muzzle */
+    /* what is coming, tucked beside the muzzle. Never a bomb: one is bought for
+       one shot and goes straight into the hand. */
     if (!st.over){
       D.bubble(ctx, C.MUZZLE.x + 1.9, C.MUZZLE.y + 0.35,
         C.PALETTE[st.next % C.PALETTE.length], C.DRAW_R * 0.62, 0.75);
@@ -632,9 +697,9 @@ const BubbleApp = (() => {
   }
 
   return { boot, _state: st, newBoard, fire, step, land, canPlay, finish, result,
-           undo, hint, swap, pickColour, paintHud, paintTools,
+           undo, hint, swap, pickColour, armBomb, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
-           set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, ...v }; },
+           set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, bomb: true, ...v }; },
            get allow(){ return allow; },
            set charge(fn){ charge = fn; }, get charge(){ return charge; },
            /* the host hides this game's own panel and shows its own */

@@ -61,6 +61,7 @@
     <button class="btn tool" id="bubbleHint" type="button">Hint</button>
     <button class="btn tool" id="bubbleSwap" type="button">Swap</button>
     <button class="btn tool" id="bubblePick" type="button" aria-expanded="false">Colour</button>
+    <button class="btn tool" id="bubbleBomb" type="button">Bomb</button>
   </div>
   <div class="palette" id="bubblePalette" hidden></div>
 </section>
@@ -134,8 +135,13 @@
     <div class="panelBtns">
       <button class="btn" id="retry" type="button">Retry</button>
       <button class="btn priced" id="skip" type="button" hidden>Move on<small id="skipCost">10</small></button>
+      <button class="btn priced" id="blast" type="button" hidden aria-expanded="false">Blast<small id="blastCost">65</small></button>
       <button class="btn primary" id="next" type="button">Next level</button>
     </div>
+    <!-- Which bottle to destroy, built from the ones the rules will actually
+         allow. Empty until Blast is pressed, and never offering a target that
+         would leave the run worse off than not pressing it. -->
+    <div class="panelPick" id="blastPick" hidden></div>
     <div class="winFoot">
       <button class="btn ghost" id="peek" type="button">View board</button>
       <button class="btn ghost" id="winMap" type="button">Back to map</button>

@@ -31,8 +31,15 @@ const dist = join(root, 'dist');
    actually produces, so the next accidental forty kilobytes still fails.
 
    `bubble/index.html` is the standalone page at /bubble/ and holds one game, so
-   it did not move. */
-const BUDGET = { 'index.html': 315_000, 'bubble/index.html': 140_000, total: 1_050_000 };
+   it did not move.
+
+   Raised again for the blast. It is one tool but it lands in both games and on
+   the end-of-run panel, so it arrives as rules, economy, a chapter, markup and
+   styling in two stylesheets, and the prose explaining why the win condition
+   can move at all: 295k to 321k. Budgeting to 345k keeps the same seven percent
+   of slack the previous number had, which is what makes an accidental forty
+   kilobytes still fail. */
+const BUDGET = { 'index.html': 345_000, 'bubble/index.html': 140_000, total: 1_050_000 };
 
 /* Walks the whole tree, not just the top. It used to look only at the top level,
    which meant a page in a subfolder sailed past the budget entirely. Dotfiles

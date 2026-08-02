@@ -172,8 +172,17 @@ describe('build output', () => {
        came out as three stars and a payout. Stars have to be gated on the board
        actually being solved. */
     const app = read('src/js/90-app.js');
-    const fn = app.slice(app.indexOf('function finish(){'), app.indexOf('function skipCost'));
-    assert(/const solved = Rules\.isSolved\(S\.tubes\)/.test(fn),
+    /* Ends at the blast rather than running to the end of the file, which is
+       what `function skipCost` used to do by not matching anything: skipCost is
+       a const arrow and declared above this, so indexOf returned -1 and the
+       slice was everything after finish(). Any later call site could satisfy
+       these two on its behalf, and one now would. */
+    const fn = app.slice(app.indexOf('function finish(){'), app.indexOf('/* ---------- the blast'));
+    assert(fn.length > 100, 'the slice must actually contain finish()');
+    /* The second argument is the spilled set. Pinned loosely on purpose: what
+       matters is that finish() asks the rules whether this board is solved, not
+       how many arguments that question takes this month. */
+    assert(/const solved = Rules\.isSolved\(S\.tubes[,)]/.test(fn),
       'finish() must ask whether the board is actually solved');
     assert(/solved \? Rules\.rate\(/.test(fn),
       'and must only rate a run that finished the board');

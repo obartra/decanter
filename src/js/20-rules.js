@@ -2,8 +2,56 @@
 const CAP = CONFIG.capacity;
 
 const clone = tubes => tubes.map(t => t.slice());
-const isFull = t => t.length === CAP && t.every(c => c === t[0]);
-const isSolved = tubes => tubes.every(t => t.length === 0 || isFull(t));
+/* one colour all the way down. True of an empty bottle, which every caller
+   either wants or has already ruled out. */
+const uniform = t => t.every(c => c === t[0]);
+const isFull = t => t.length === CAP && uniform(t);
+
+/* When a bottle counts as finished, and the one place the blast reaches into
+   the laws of the game.
+
+   Four units of a colour is the win condition, not an incident of the deal. So
+   destroying part of a stack strands the rest of that colour forever: it can
+   never make four again, the board can never be solved, and nothing would say
+   so — an unwinnable board is neither stuck (there are still legal pours) nor
+   short (the lower bound on the work left is still a number the player is
+   under), so the run would carry on against a puzzle that cannot be finished
+   until the count ran out. A tool bought to rescue a run must not be able to
+   end it in silence.
+
+   So the requirement moves with the liquid. A colour the blast took units from
+   is spilled, and a spilled colour is finished once it is gathered rather than
+   once it reaches four. It still has to be gathered — that is what keeps the
+   blast from handing the level over rather than buying pours for it.
+
+   `spilled` is a Set of colour ids belonging to one run, passed in rather than
+   stored because this file holds no state.
+
+   Two branches, and they are the same rule said at two levels of detail. The
+   real condition has always been *every bottle holds one colour, and no colour
+   is in two bottles*. Without spilling those two clauses collapse into "four of
+   a colour in one bottle", because every deal makes exactly four of each and
+   four cannot fill two bottles — so the fast path is today's check, unchanged
+   and free, and it is what the generator, the solver and every board nobody has
+   blasted run through.
+
+   Spilling breaks the collapse: two units of a spilled red sitting in two
+   different bottles are each uniform and neither will ever be full, so a
+   per-bottle test alone would call that board sorted while the player is
+   plainly looking at red in two places. The gathering is the work a blast does
+   not do for you, and it has to be said out loud once four stops implying it. */
+function isSolved(tubes, spilled){
+  if (!spilled || !spilled.size) return tubes.every(t => t.length === 0 || isFull(t));
+  const held = new Set();
+  for (const t of tubes){
+    if (!t.length) continue;
+    if (!uniform(t)) return false;
+    if (!isFull(t) && !spilled.has(t[0])) return false;
+    if (held.has(t[0])) return false;
+    held.add(t[0]);
+  }
+  return true;
+}
 /* canonical key: bottle order does not matter, so sort before comparing */
 const keyOf = tubes => tubes.map(t => t.join(',')).sort().join('|');
 
@@ -82,14 +130,61 @@ function poursLeft(moves, par, exact){
 
    Said as soon as it is true, rather than when the count runs out. Making a
    player keep pouring at a board that cannot be won is worse than losing. */
-function lostBecause(tubes, moves, par, exact){
-  if (isSolved(tubes)) return null;
+function lostBecause(tubes, moves, par, exact, spilled){
+  if (isSolved(tubes, spilled)) return null;
   if (!legalMoves(tubes).length) return 'stuck';
   const left = poursLeft(moves, par, exact);
   if (left == null) return null;
   if (left <= 0) return 'over';
   if (minPours(tubes) > left) return 'short';
   return null;
+}
+
+/* ---- the blast ----
+
+   Destroy a bottle, and the shelf loses the glass as well as what was in it.
+   That is the vessel's opposite in both directions at once: one more place to
+   put liquid against one less, and work rearranged against work removed. It is
+   what keeps the two tools from being the same purchase at two prices.
+
+   Returned rather than applied, because every caller wants to ask what a blast
+   would do before doing it. */
+function blast(tubes, index){
+  const gone = tubes[index];
+  if (!gone) return null;
+  return {
+    tubes: tubes.filter((_, i) => i !== index).map(t => t.slice()),
+    spilled: [...new Set(gone)]
+  };
+}
+
+/* Which bottles may be blasted at all.
+
+   Three kinds are refused, and refusing them here rather than in the interface
+   is what stops the tool ever being a tap that costs sixty five gold and makes
+   things worse:
+
+   - An empty one. It spills nothing and takes a slot away, so it can only hurt.
+   - A finished one. Its colour is already gathered; destroying it undoes work
+     and takes the slot with it.
+   - Any whose removal ends the run. A blast can strand a board — take away the
+     last bottle anything could pour into and there are no legal moves left —
+     and being handed that outcome by the rescue you just paid for is the worst
+     version of this feature there is. So the question is asked in advance, on a
+     copy, with the same function that ends runs.
+
+   A target that leaves the board solved is kept: winning is not losing, and
+   blowing up the last mixed bottle is a legitimate way to finish. */
+function blastTargets(tubes, moves, par, exact, spilled){
+  const out = [];
+  for (let i = 0; i < tubes.length; i++){
+    if (!tubes[i].length || isFull(tubes[i])) continue;
+    const after = blast(tubes, i);
+    const next = new Set(spilled || []);
+    for (const c of after.spilled) next.add(c);
+    if (!lostBecause(after.tubes, moves, par, exact, next)) out.push(i);
+  }
+  return out;
 }
 
 function isSolvable(start, nodeCap = 40000){
@@ -105,10 +200,10 @@ function isSolvable(start, nodeCap = 40000){
     if (isSolved(cur)) return true;
     for (let a = 0; a < cur.length; a++){
       if (!cur[a].length || isFull(cur[a])) continue;
-      const uniform = cur[a].every(c => c === cur[a][0]);
+      const whole = uniform(cur[a]);
       for (let b = 0; b < cur.length; b++){
         if (!canPour(cur, a, b)) continue;
-        if (!cur[b].length && uniform) continue;   // relocating a uniform bottle changes nothing
+        if (!cur[b].length && whole) continue;     // relocating a uniform bottle changes nothing
         stack.push(applyMove(clone(cur), { from:a, to:b, n:pourAmount(cur, a, b) }));
       }
     }
@@ -122,12 +217,17 @@ function isSolvable(start, nodeCap = 40000){
    it cannot decide any bracket, least of all a failing one: it is treated the
    same as no par at all rather than scored as if it were real.
 
-   A bought vessel caps the run at two stars. Par is the minimum for the bottles
-   the level deals you, so once an extra one is on the shelf the board is easier
-   than the number being scored against, and the third star would be measuring a
-   different puzzle from the one par describes. */
-function rate(moves, par, exact = true, vesselUsed = false){
-  const cap = vesselUsed ? 2 : 3;
+   An eased board caps the run at two stars. Par is the minimum for the bottles
+   the level deals you, so once the shelf is not the one it describes the board
+   is easier than the number being scored against, and the third star would be
+   measuring a different puzzle from the one par describes.
+
+   One flag rather than one per tool, because the reason is the same either way
+   and the run is capped once however many of them were bought. A bought vessel
+   eases the board and so does a blast; the bubble game has called this `aided`
+   since it shipped, and the two games mean the same thing by it. */
+function rate(moves, par, exact = true, eased = false){
+  const cap = eased ? 2 : 3;
   if (par == null || !exact) return cap;
   const over = moves - par;
   const earned = over <= CONFIG.stars.three ? 3
@@ -136,6 +236,6 @@ function rate(moves, par, exact = true, vesselUsed = false){
                : 0;
   return Math.min(earned, cap);
 }
-globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength, minPours,
-                     canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
-                     poursLeft, lostBecause };
+globalThis.Rules = { CAP, clone, uniform, isFull, isSolved, keyOf, runLength,
+                     minPours, canPour, pourAmount, applyMove, legalMoves, isSolvable,
+                     rate, poursLeft, lostBecause, blast, blastTargets };

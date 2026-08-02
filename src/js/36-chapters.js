@@ -5,17 +5,25 @@
    tool at level one means the game is as open in the first minute as it will
    ever be. Handing them over a chapter at a time gives it somewhere to go.
 
-   Every grant here is deliberately outside the rules of the board. Nothing in
-   this file changes what a pour does, which boards are dealt, or how few pours
-   one can be finished in. That matters more than it looks: par is solved
+   Nothing here changes which boards are dealt. That is the line that matters,
+   and it is not the same line as "nothing here changes the board". Par is solved
    offline, the difficulty of all 120 levels is measured against it, and the
-   order they are played in is derived from that. A grant that changed the board
-   would invalidate every one of those and mean re-solving the game. A grant that
-   changes what the player can buy, or how much of it, costs nothing.
+   order they are played in is derived from that, so a grant that changed what
+   level 12 deals would invalidate every one of those and mean re-solving the
+   game. Every grant is free of that, because all of them are bought at run time
+   rather than at deal time.
 
-   So these are all economy and interface. The expensive kind of variety, a rule
-   that changes what a pour can do, is a separate decision with a much larger
-   bill attached. See docs/design/04-economy.md. */
+   Three layers, and it is worth naming them because the file used to claim only
+   the first two:
+
+   - A chapter grants access. Free, permanent, outside the rules.
+   - A purchase spends it, at the moment of use.
+   - A purchase that changes the board pays the third star, because par is the
+     minimum for the shelf the level dealt and a changed shelf is not it.
+
+   The vessel has always been the third kind and the blast is the second one.
+   Both are rescues, both are once a run, both are capped by the same flag in
+   rate(). What neither of them touches is the deal. See docs/design/04-economy.md. */
 const CHAPTERS = [
   {
     grant: 'undo',
@@ -40,6 +48,10 @@ const CHAPTERS = [
   {
     grant: 'foresight',
     blurb: 'From up here you can see one move ahead of yourself. The first hint of every run is free.'
+  },
+  {
+    grant: 'blast',
+    blurb: 'The furnace takes what the shelf cannot hold. Once a run, choose a bottle and lose it, glass and all — whatever it held stops being asked for, at the cost of the third star.'
   }
 ];
 
@@ -50,7 +62,8 @@ const GRANT_NAMES = {
   vessel: 'The vessel',
   undos: 'Two more free undos',
   thrift: 'Cheaper hints',
-  foresight: 'One free hint a run'
+  foresight: 'One free hint a run',
+  blast: 'The blast'
 };
 
 const at = section => CHAPTERS[section] || null;
@@ -65,6 +78,7 @@ function perksFor(section){
     undo: false,
     hint: false,
     vessel: false,
+    blast: false,
     freeUndos: CONFIG.economy.freeUndos,
     hintCost: CONFIG.economy.hint,
     freeHints: 0
@@ -77,6 +91,7 @@ function perksFor(section){
       case 'undos': perks.freeUndos += 2; break;
       case 'thrift': perks.hintCost = Math.round(CONFIG.economy.hint * 0.6); break;
       case 'foresight': perks.freeHints = 1; break;
+      case 'blast': perks.blast = true; break;
     }
   }
   return perks;

@@ -5,8 +5,22 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, finished: false, reason: null, hinting: false, saying: null
+    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, finished: false, reason: null, hinting: false, saying: null,
+    /* The blast, as two fields that always move together. `blownUp` is the once
+       a run gate and half of what caps the stars; `spilled` is which colours it
+       took units from, which every later judgement about this board has to be
+       told or the run is graded by a law it is no longer playing under.
+
+       A Set rather than a list because membership is the only question anyone
+       asks of it. It is deliberately not saved: a blast belongs to a run, and a
+       run does not outlive the page. */
+    blownUp: false, spilled: new Set()
   };
+  /* What the shelf is being judged by right now. Both games' scoring, the
+     ending, and the HUD go through these two rather than reading the flags, so
+     a new tool that eases the board is one call site rather than six. */
+  const eased = () => S.vesselUsed || S.blownUp;
+  const spilled = () => (S.spilled.size ? S.spilled : null);
   const $ = id => document.getElementById(id);
 
   /* Every refusal in this file goes through here.
@@ -154,6 +168,8 @@ const App = (() => {
     S.undosUsed = 0;
     S.hintsUsed = 0;
     S.vesselUsed = false;
+    S.blownUp = false;
+    S.spilled = new Set();
     /* The view goes up before the game is booted, because booting measures the
        canvas to work out how the world maps onto it, and a canvas inside a
        hidden section measures zero. Mounting into that produces a board scaled
@@ -172,7 +188,8 @@ const App = (() => {
        whichever board is in front of you. Picking a colour is the extra bottle,
        so it arrives with the vessel and costs what a vessel costs. */
     const perks = progress.perks();
-    BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel, swap: perks.undo };
+    BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel,
+                        swap: perks.undo, bomb: perks.blast };
     $('bubGold').textContent = progress.gold;
     BubbleApp.newBoard(level);
     Trace.note(`dealt level ${level}`, 'bubble board');
@@ -187,7 +204,16 @@ const App = (() => {
     const price = what === 'undo' ? (S.undosUsed < perks.freeUndos ? 0 : CONFIG.economy.undoCost)
       : what === 'hint' ? (S.hintsUsed < perks.freeHints ? 0 : perks.hintCost)
       : what === 'colour' ? CONFIG.economy.vessel
-      : 0;
+      : what === 'bomb' ? CONFIG.economy.blast
+      : null;
+    /* An unknown tool used to fall through to nought, which is not a price: it
+       is a free ride, granted silently, to whatever the other game asks for
+       next. Refusing by name is the only version of this that cannot be got
+       wrong by adding a button. */
+    if (price === null){
+      deny(what, 'no price for this tool');
+      return false;
+    }
     if (!progress.spend(price)){
       deny(what, `costs ${price}, purse holds ${progress.gold}`);
       return false;
@@ -216,7 +242,7 @@ const App = (() => {
       stars: run.stars, failed: run.stars <= 0, result, before,
       line: run.cleared
         ? `Every bubble gone, in ${run.shots} shots.`
-        : `Lasted ${run.shots} shots.` + (run.aided ? ' Picking a colour caps a run at two stars.' : '')
+        : `Lasted ${run.shots} shots.` + (run.aided ? ` ${run.aid} caps a run at two stars.` : '')
     });
   }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
@@ -237,6 +263,10 @@ const App = (() => {
     S.tubes = Levels.make(level);
     if (keepVessel) S.tubes.push([]);
     S.vesselUsed = !!keepVessel;
+    /* A blast is not kept the way a vessel is: a restart deals the shelf the
+       level deals, and the bottle it took off came back with the board. */
+    S.blownUp = false;
+    S.spilled = new Set();
     S.undosUsed = 0;
     S.hintsUsed = 0;
     S.over = false;
@@ -296,8 +326,8 @@ const App = (() => {
      So the question is asked wherever the answer can change, and answered in one
      place. */
   function checkLost(){
-    if (S.over || Rules.isSolved(S.tubes)) return false;
-    const why = Rules.lostBecause(S.tubes, S.moves, S.par, S.parExact);
+    if (S.over || Rules.isSolved(S.tubes, spilled())) return false;
+    const why = Rules.lostBecause(S.tubes, S.moves, S.par, S.parExact, spilled());
     if (!why) return false;
     S.over = true;
     S.reason = why;
@@ -326,7 +356,7 @@ const App = (() => {
 
     /* You start on three stars and spend them, so the stars say what the run is
        still worth while the count says how much of it is left. */
-    const stars = Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed);
+    const stars = Rules.rate(S.moves, S.par, S.parExact, eased());
     $('statStars').innerHTML = [0,1,2]
       .map(i => (i < stars ? '★' : '<span class="dim">★</span>')).join('');
     $('movesStat').classList.toggle('over', stars <= 1);
@@ -458,7 +488,7 @@ const App = (() => {
       try { Board.render(); } catch { /* a failed redraw must not eat the result */ }
     }
     /* the board has stopped moving, so whatever was decided can now be shown */
-    if (Rules.isSolved(S.tubes) || S.over) finish();
+    if (Rules.isSolved(S.tubes, spilled()) || S.over) finish();
   }
 
   /* ---------- finishing ---------- */
@@ -473,13 +503,116 @@ const App = (() => {
        whether the bottles are sorted. A run that ends because it was lost ends
        on a low pour count by definition, so asking rate() about it gets three
        stars for a board that was nowhere near done. */
-    const solved = Rules.isSolved(S.tubes);
-    const stars = solved ? Rules.rate(S.moves, S.par, S.parExact, S.vesselUsed) : 0;
+    const solved = Rules.isSolved(S.tubes, spilled());
+    const stars = solved ? Rules.rate(S.moves, S.par, S.parExact, eased()) : 0;
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const failed = stars === 0;
 
     showPanel({ stars, failed, result, before });
+  }
+
+  /* ---------- the blast ----------
+
+     Offered on the failure panel rather than in the tool row, and the reason is
+     when a run ends rather than where a button fits. A run stops the moment it
+     is lost and `S.over` is never unset, so a rescue living only in the tool row
+     can be pressed only before the game has said you need it. The vessel has
+     always had that problem. This one does not inherit it.
+
+     Which bottles may be destroyed is the rules' question, not this file's, and
+     it is answered on a copy by the same function that ended the run. A bubble
+     level is never offered one: it has a bomb of its own in its own tool row,
+     and `S.tubes` there is whatever the last pour level left behind. */
+  const blastTargets = () =>
+    (Levels.isBubble(S.level) ? []
+      : Rules.blastTargets(S.tubes, S.moves, S.par, S.parExact, spilled()));
+
+  function closeBlastPick(){
+    $('blastPick').hidden = true;
+    $('blastPick').innerHTML = '';
+    $('blast').setAttribute('aria-expanded', 'false');
+    $('blast').classList.remove('armed');
+  }
+
+  /* The shelf, as the bottles the rules will actually allow, each drawn as the
+     liquid it holds. Built fresh every time it is opened, because the board it
+     describes can have moved since the panel was written. Nothing is charged
+     for opening it: the gold goes when a bottle is chosen. */
+  function openBlastPick(){
+    const targets = blastTargets();
+    if (!targets.length) return closeBlastPick();
+    const pick = $('blastPick');
+    pick.innerHTML = '';
+    for (const i of targets){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = `destroy bottle ${i + 1}`;
+      b.setAttribute('aria-label', `Destroy bottle ${i + 1}`);
+      /* bottom of the stack first, and the column reverses in CSS, so what is
+         drawn is the bottle the right way up */
+      for (const colour of S.tubes[i]){
+        const band = document.createElement('i');
+        band.style.background = CONFIG.palette[colour % CONFIG.palette.length];
+        b.appendChild(band);
+      }
+      b.onclick = () => takeBlast(i);
+      pick.appendChild(b);
+    }
+    pick.hidden = false;
+    $('blast').setAttribute('aria-expanded', 'true');
+    $('blast').classList.add('armed');
+  }
+
+  /* Destroy a bottle and put the player back on the board.
+
+     Nothing is re-dealt and no attempt is charged. A failed run banked nothing —
+     `progress.complete` short circuits on nought stars and writes neither gold
+     nor unlock — so there is nothing to undo, and the fee for this board was
+     paid when it was dealt. What changes is the shelf and what the shelf is
+     judged by.
+
+     The history goes, for the reason the vessel's does: those snapshots describe
+     a shelf with a different number of bottles in it, and every queued or
+     remembered move is a pair of positions into an array that has just moved
+     underneath them. */
+  function takeBlast(index){
+    if (S.blownUp || !blastTargets().includes(index)) return;
+    if (!progress.spend(CONFIG.economy.blast)){
+      deny('blast', `costs ${CONFIG.economy.blast}, purse holds ${progress.gold}`);
+      return;
+    }
+    const after = Rules.blast(S.tubes, index);
+    S.tubes = after.tubes;
+    for (const colour of after.spilled) S.spilled.add(colour);
+    S.blownUp = true;
+    S.history = [];
+    closeBlastPick();
+    drop();
+    Board.view = Rules.clone(S.tubes);
+    Board.render();
+    Audio.smash();
+    Trace.note(`blast on level ${S.level}`,
+      `bottle ${index + 1}, spilled ${after.spilled.join(',')}, purse now ${progress.gold}`);
+
+    /* Blowing up the last bottle in the way is a legitimate way to finish, and
+       `blastTargets` deliberately keeps a target that solves the board. So the
+       question is asked before the run is handed back, or a finished board would
+       be handed to a player with nothing left to do on it. */
+    if (Rules.isSolved(S.tubes, spilled())){
+      $('veil').classList.remove('show', 'failed');
+      finish();
+      return;
+    }
+    /* All three have to go. `finished` alone left true makes finish() return
+       forever and the resumed run could never score; `over` alone left true
+       stops the board taking pours and disables the hint. */
+    S.over = false;
+    S.finished = false;
+    S.reason = null;
+    $('veil').classList.remove('show', 'failed');
+    paintHud();
+    say('One bottle gone. Two stars is the most this run can take.');
   }
 
   /* The end of a run, whichever game it was.
@@ -508,6 +641,14 @@ const App = (() => {
       canPayFee: progress.canAfford(fee),
       canPayNext: progress.canAfford(costOf(S.level + 1)),
       canPaySkip: progress.canAfford(skipCost()),
+      /* How many bottles could be destroyed without leaving the run worse off.
+         A count, because that is all the decision needs; which ones they were is
+         worked out again when the chooser is opened, on the board as it then
+         stands rather than as it was when this panel was written. */
+      canPayBlast: progress.canAfford(CONFIG.economy.blast),
+      blastGranted: progress.perks().blast,
+      blastUsed: S.blownUp,
+      blastTargets: failed ? blastTargets().length : 0,
       improvedStars: result.improvedStars, hadStars: before,
       par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
       totalStars: progress.totalStars(), reason: S.reason
@@ -532,6 +673,13 @@ const App = (() => {
     $('skip').hidden = panel.skipHidden;
     $('skipCost').textContent = skipCost();
     $('skip').disabled = panel.skipDisabled;
+    /* The chooser is closed every time the panel is written, so a run that ended
+       with it open cannot hand the next one a list of bottles from a board that
+       is no longer there. */
+    closeBlastPick();
+    $('blast').hidden = panel.blastHidden;
+    $('blastCost').textContent = CONFIG.economy.blast;
+    $('blast').disabled = panel.blastDisabled;
     $('winHint').textContent = panel.hint;
 
     const bubble = Levels.isBubble(S.level);
@@ -612,6 +760,14 @@ const App = (() => {
     $('restart').onclick = () => {
       if (S.queue.length || S.running) return;
       attempt(S.level);
+    };
+    /* Arming, not buying. Pressing this opens the shelf and pressing it again
+       puts it away; the gold moves only when a bottle is chosen, so a player who
+       opens it to see what is on offer is charged nothing for looking. */
+    $('blast').onclick = () => {
+      Audio.unlock();
+      Audio.tick();
+      if ($('blastPick').hidden) openBlastPick(); else closeBlastPick();
     };
     /* The search runs on the board as it stands, not on the level, so a hint is
        still the best move after a run has gone wrong. Nothing is charged until
@@ -935,7 +1091,16 @@ const App = (() => {
     /* a newer build has taken over the page */
     updateReady(){ updatePending = true; takeUpdate(); },
     /* exposed for debugging in the console */
-    _state: S, _progress: progress
+    _state: S, _progress: progress,
+    /* Ending a run without playing one out.
+
+       The interesting endings are the ones hardest to reach by hand — a board
+       that is short of pours rather than out of them, which is the only ending
+       a blast can answer — and reaching one in a browser means pouring badly
+       against a shelf the level chose. So a spec builds the shelf it wants and
+       asks for the ending, which then goes through the same finish() as every
+       real run: the same solved check, the same rating, the same panel. */
+    _end(){ checkLost(); finish(); }
   };
 })();
 globalThis.App = App;
