@@ -180,6 +180,14 @@ const CasksApp = (() => {
 
     if (i >= 0){
       const hadPicked = st.picked === i;
+      /* One cask at a time. A second finger landing while the first is still
+         dragging used to overwrite the grab outright, which left the first
+         cask's drawn offset frozen part-way across its cell -- nothing restored
+         it until that cask next moved -- and pointed the first finger's moves at
+         the second cask, so releasing it committed a move nobody asked for. The
+         pointercancel handler restores st.drawn for exactly this reason; this
+         path did not. */
+      if (st.grab) return false;
       st.grab = {
         cask: i, at: V.along(st.layout[i], p), from: st.pos[i],
         run: R.runOf(st.layout, st.pos, i), offset: 0, moved: false, hadPicked
@@ -236,8 +244,11 @@ const CasksApp = (() => {
                      dur: C.SLIDE_PER_CELL * 2, thud: false };
       return false;
     }
-    /* A tap on the cask that was already in hand puts it down. */
-    if (g.hadPicked) st.picked = -1;
+    /* A tap on the cask that was already in hand puts it down — and the advice
+       goes down with it. The advice belongs to a selection, and once nothing is
+       in hand there is no run drawn under it, so the gold outline was left
+       floating over a cask that was no longer picked. */
+    if (g.hadPicked){ st.picked = -1; st.advice = null; }
     paintHud();
     return true;
   }
@@ -302,6 +313,13 @@ const CasksApp = (() => {
         st.drawn[s.cask] = st.pos[s.cask];
         st.sliding = null;
         if (s.thud) A.thud();
+        /* The tools come back when the cask stops. paintHud() disables undo and
+           hint while something is travelling, and the flag it reads is cleared
+           here — in the frame loop, which does not paint the HUD. Without this
+           they go grey on the first slide and stay grey; undo() still worked, so
+           nothing threw, and the only route back to it was to tap a cask, which
+           happens to repaint. */
+        paintHud();
         /* The panel waits for the cask to stop, and for the gilt one to be gone.
            A verdict that arrives while something is still travelling is the game
            announcing a result over a board that has visibly not reached it. */
@@ -317,6 +335,7 @@ const CasksApp = (() => {
       st.escaping.t += dt / 0.8;
       if (st.escaping.t >= 1){
         st.escaping = null;
+        paintHud();
         show(st.over);
       }
     }

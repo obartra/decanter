@@ -185,6 +185,14 @@ const CasksRules = (() => {
       if (!C.LENGTHS.includes(cask.len)) return false;
       if (i > 0 && cask.horiz && cask.fixed === C.EXIT_ROW) return false;
       if (pos[i] < 0 || pos[i] > span(cask)) return false;
+      /* The axis a cask is pinned to has to be on the floor, and this is the one
+         invariant the check was missing. Without it a cask at row 9 indexes past
+         the end of `seen`, reads undefined, and collides with nothing — so a
+         board with a cask outside the cellar passes the very check whose stated
+         purpose is that a broken board would not quietly be a different game.
+         occupancy() does the same arithmetic with a live grid and silently paints
+         that cask onto some other row. */
+      if (cask.fixed < 0 || cask.fixed >= (cask.horiz ? C.H : C.W)) return false;
       const b = boxOf(cask, pos[i]);
       for (let r = b.r; r < b.r + b.h; r++){
         for (let c = b.c; c < b.c + b.w; c++){

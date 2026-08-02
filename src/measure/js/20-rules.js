@@ -68,7 +68,6 @@ const MeasureRules = (() => {
     return Math.min(amount[from], room);
   }
 
-  const canPour = (caps, amount, from, to) => amountPoured(caps, amount, from, to) > 0;
 
   /* Every pour that does something, as {from, to, n}.
 
@@ -153,6 +152,6 @@ const MeasureRules = (() => {
      allowed to appear. */
   const isSolved = (amount, target) => amount.some(v => v === target);
 
-  return { key, total, pours, apply, outcomes, canPour, amountPoured, isSolved };
+  return { key, total, pours, apply, outcomes, amountPoured, isSolved };
 })();
 globalThis.MeasureRules = MeasureRules;

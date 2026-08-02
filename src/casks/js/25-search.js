@@ -33,7 +33,7 @@
    enough, otherwise deal another" into one sweep per layout that returns the
    best board that layout contains. The first prototype did it the other way and
    spent about three seconds per board rejection-sampling its way to a ceiling of
-   par 19; sweeping backwards costs one search per layout and reaches par 35 on
+   par 19; sweeping backwards costs one search per layout and reaches par 42 on
    the same generator. See tools/casks-field.mjs.
 
    The cost is the sweep itself, which is why the boards are measured offline and

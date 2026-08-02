@@ -196,7 +196,10 @@ const MeasureRender = (() => {
     ctx.fillStyle = lit ? GOLD_LIT : (amount > 0 ? GOLD : 'rgba(162,144,122,.75)');
     ctx.font = '700 1.25px "Cinzel", Georgia, serif';
     ctx.textBaseline = 'top';
-    ctx.fillText(String(amount), mid, box.base + 0.42);
+    /* Rounded here, and only here. The amount arriving is a fraction while a
+       pour is in the air, because that is what draws the liquid moving; a
+       numeral cannot show a fraction of a unit and the rules never deal in one. */
+    ctx.fillText(String(Math.round(amount)), mid, box.base + 0.42);
 
     ctx.fillStyle = INK_DIM;
     ctx.font = '0.82px "Alegreya Sans", ui-sans-serif, sans-serif';

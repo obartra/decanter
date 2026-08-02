@@ -99,13 +99,20 @@ know.
 Not past the end of the table, as it would be over there. A bench past the table
 is still solved **exactly** in the browser, because the whole state space fits in
 a millisecond, and an exhaustive answer is the minimum whoever computed it. So it
-is graded normally. It is simply an unvetted bench: some are trivial, and their
-pars run 1 to 8 where the table ends at 20.
+is graded normally. It is simply an unvetted bench: some are trivial. Measured
+over the five hundred levels after the table, pars there run **1 to 15** with a
+median of 3, where the table ends at 20.
 
 Par is unknown in two cases, and the first is common:
 
-- **The target cannot be reached at all.** About one bench in six past the table
-  is like this, because nothing vetted it. The run scores nothing and the page
+- **The target cannot be reached at all.** This used to be about one bench in
+  eight past the table, because `fromSeed` picks a target from every amount below
+  the largest capacity and a good many of those cannot be poured to. Those benches
+  were dealt and then announced as unplayable the moment they appeared, which is a
+  strange thing to hand somebody who pressed Next. `make()` now walks the seed
+  until the bench is solvable — the search is exhaustive and costs under a
+  millisecond — so it is **0 of the 500** benches after the table, and reaching
+  this state at all means sixty seeds in a row failed. The run scores nothing and the page
   says *"No sequence of pours puts N in any of these vessels."* This is the
   concrete reason the inversion matters: with the pour game's default copied
   across, a bench that **cannot be finished by anybody** would pay three stars.

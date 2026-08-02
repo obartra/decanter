@@ -60,8 +60,14 @@ const CasksLevels = (() => {
     const layout = [];
     const start = [];
     for (let i = 0; i + 4 <= text.length; i += 4){
+      const axis = text[i];
+      /* Anything that is not 'h' is not automatically 'v'. Read as a boolean, a
+         corrupt character silently became a vertical cask and the board went on
+         to be a different, plausible-looking game — which is the failure this
+         format's whole four-characters-per-cask tidiness is meant to make loud. */
+      if (axis !== 'h' && axis !== 'v') return null;
       layout.push({
-        horiz: text[i] === 'h',
+        horiz: axis === 'h',
         len: Number(text[i + 1]),
         fixed: Number(text[i + 2])
       });
@@ -106,7 +112,7 @@ const CasksLevels = (() => {
      than the benefit of the doubt. */
   function par(level){
     const pars = globalThis.CasksPars;
-    const p = pars && pars.par[level];
+    const p = pars && pars.par && pars.par[level];
     return Number.isInteger(p) ? p : null;
   }
 

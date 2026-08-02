@@ -73,6 +73,10 @@ const MeasureApp = (() => {
     st.aided = false;
     st.past = [];
     st.over = null;
+    /* Whether the search reached the end of what this bench can do. True by
+       default because a par read off the table is a settled answer by
+       construction; only the in-page fallback can leave it unsettled. */
+    st.settled = true;
 
     /* The table first, the search only as a fallback.
 
@@ -87,18 +91,34 @@ const MeasureApp = (() => {
        a ~ and decides nothing. Here the search is exhaustive: it either walks
        every position this bench can reach, in which case the answer is the
        minimum, or it hits the tripwire and says nothing at all. */
-    const known = globalThis.MeasurePars && globalThis.MeasurePars.par[level];
+    const known = globalThis.MeasurePars && globalThis.MeasurePars.par
+      && globalThis.MeasurePars.par[level];
     if (Number.isInteger(known)){
       st.par = known;
     } else {
       const got = Se.solve(st.caps, st.amount, st.target);
       st.par = got.exact ? got.par : null;
+      /* Which of the two silences this is. `settled` means the search walked
+         every position the bench can reach and found no way to the target, so
+         "it cannot be done" is a fact. A tripwire means it walked as far as it
+         was allowed and stopped, which establishes nothing at all.
+
+         They were the same `null` here, and the page said the first sentence in
+         both cases — asserting unsolvability the search had never shown, which
+         is exactly the claim 45-score.js exists to refuse. */
+      st.settled = got.exact;
     }
     st.rated = Sc.rated(st.par);
-    /* An unmeasurable bench is not a failure state and the player has done
-       nothing wrong, so it is said at the deal rather than discovered forty
-       pours in. It can only happen past the end of the par table. */
-    if (!st.rated && st.par == null) st.over = 'nothing';
+    /* A bench with no reachable target is not a failure state and the player has
+       done nothing wrong, so it is said at the deal rather than discovered forty
+       pours in. Only when it is a fact, though: a search that gave up leaves the
+       bench playable and merely unrated, which is what the HUD already draws and
+       what 16-measure.md decides.
+
+       This is rare now rather than common. make() walks the seed past the table
+       until it finds a bench that can be finished, so reaching here at all means
+       sixty seeds in a row failed. */
+    if (!st.rated && st.par == null && st.settled !== false) st.over = 'nothing';
 
     V.fit(st.caps);
     show(st.over);
@@ -153,7 +173,11 @@ const MeasureApp = (() => {
      buzz, because the tap was not a wrong move, it was not a move. */
   function tap(i){
     if (st.over || st.pouring || i < 0) return false;
-    if (st.picked === i){ st.picked = -1; A.nudge(); paintHud(); return true; }
+    /* Putting the vessel down puts the advice down with it. The advice names a
+       pour FROM the vessel in hand, and with nothing in hand there is nothing for
+       the gold to be pointing out of — it was left lighting a rim and a target
+       for a move the player had just abandoned. */
+    if (st.picked === i){ st.picked = -1; st.advice = null; A.nudge(); paintHud(); return true; }
     if (st.picked < 0){
       if (st.amount[i] <= 0){ A.nudge(); return false; }
       st.picked = i;
@@ -226,6 +250,16 @@ const MeasureApp = (() => {
       if (st.pouring.t >= 1){
         st.pouring = null;
         st.drawn = st.amount.slice();
+        /* The tools come back when the pour lands. paintHud() disables undo and
+           hint for the length of a pour, because taking back a move that is
+           still in the air has nothing coherent to take back — but the flag it
+           reads is cleared here, in the frame loop, and the frame loop does not
+           paint the HUD. Without this the buttons go grey on the first move and
+           stay grey: undo() itself still worked, so nothing threw and nothing
+           looked broken, but the only way to reach it was to tap a vessel first,
+           which happens to repaint. The one recovery control in the game, gone
+           behind an accident of who repaints. */
+        paintHud();
         /* The panel waits for the wine to land. A verdict that arrives while the
            stream is still in the air is the game announcing a result over a
            board that has visibly not reached it yet. */
@@ -244,11 +278,17 @@ const MeasureApp = (() => {
     }
   }
 
-  /* The number under a vessel while its level is mid-slide. Rounded rather than
-     truncated so it reads the same as the liquid does: at the halfway point of a
-     pour the glass looks half moved and the numeral should agree. It is never a
-     number the rules use — those are integers and always were. */
-  const round = v => Math.round(v);
+  /* The drawn level is a fraction while a pour is in the air, and it goes to the
+     renderer as one. It used to be rounded here, which quantised the liquid to
+     whole units and threw the whole animation away: step() eased st.drawn every
+     frame, and the glass received 0, 0, 1, 1, 2 — so an n-unit pour was n snaps
+     however smooth the interpolation underneath was, and a one-unit pour did not
+     move at all until it was over. The comment above the rounding described a
+     glass that looked half moved, which was the one thing it prevented.
+
+     The numeral is the only thing that needs an integer, and 70-render.js rounds
+     it where it draws it. Nothing else reads the fractional part, which is why
+     losing it was invisible everywhere except on the screen. */
 
   function draw(now){
     const ctx = V.frame();
@@ -265,7 +305,7 @@ const MeasureApp = (() => {
       const lifting = st.pouring && st.pouring.from === i
         ? Math.sin(Math.min(1, st.pouring.t) * Math.PI) * C.LIFT
         : (st.picked === i ? C.LIFT * 0.45 : 0);
-      D.vessel(ctx, boxes[i], round(st.drawn[i]), {
+      D.vessel(ctx, boxes[i], st.drawn[i], {
         lift: lifting,
         lit: st.picked === i || (st.advice && st.advice.from === i)
       });
@@ -333,6 +373,10 @@ const MeasureApp = (() => {
        having lost count, and "unrated" with no reason attached reads as a fault. */
     const note = $('msrNote');
     if (how === 'nothing'){
+      /* Only ever said when the search settled and found no route, which
+         newBoard() now checks before it says it. Rare: make() walks the seed
+         past the table until it finds a solvable bench, so reaching this means
+         sixty in a row failed. */
       note.textContent = 'Nobody measured this bench, and it turns out it cannot be.';
     } else if (!st.rated){
       /* The tripwire in 25-search.js. Not "past the table": a bench past the
@@ -353,8 +397,9 @@ const MeasureApp = (() => {
     /* Where the measured game ends. Said once, on the way past it, because a
        player who has just finished the fortieth bench and is handed a three-pour
        one has been given no way to tell that from the game falling over. What is
-       past the table really is unmeasured: some of it is trivial and about a
-       quarter of it cannot be measured at all. */
+       past the table really is unvetted: pars there run 1 to 15 against a table
+       ending at 20, so some of it is trivial. All of it is solvable, because
+       make() will not deal a bench whose target cannot be reached. */
     const last = globalThis.MeasurePars && globalThis.MeasurePars.last;
     if (how === 'measured' && st.level === last){
       note.textContent += ' That is the last measured bench; past it they are unchecked.';
