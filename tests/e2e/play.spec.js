@@ -258,3 +258,68 @@ test('a pour left behind on one board does not land on the next one', async ({ p
   expect(after.view, 'the abandoned pour was applied to the board now on screen').toBe(after.tubes);
   expect(after.over, 'it pushed a bottle past the cap').toBe(false);
 });
+
+/* The other direction of the run token, which is the dangerous one.
+
+   Every spec around this one asks whether an abandoned run stays abandoned. The
+   failure that costs a player something is the opposite: a win that arrives
+   through the queue, on a board dealt by a button that bumped the token, and
+   banks nothing. `drain` finishes only if the number it started with is still
+   the number on screen, and Try again moves that number twice, once to deal the
+   failed board and once to deal this one.
+
+   Played rather than declared. `_end()` reaches finish() directly and would
+   step straight over the check this is about, so the win has to come off a real
+   pour going through commit and drain. The shelf is planted one pour from home
+   so that is one pour rather than a whole level: what is under test is the
+   handover, not the solving. */
+test('a board dealt by Try again still banks the run it is won with', async ({ page }) => {
+  await start(page, { unlocked: 3, gold: 400, seen: { 0: true } });
+  await openLevel(page, 3);
+
+  /* lose it, the ordinary way: one pour past the budget */
+  const lost = await page.evaluate(() => {
+    const S = globalThis.App._state;
+    S.moves = S.par + globalThis.CONFIG.stars.one;
+    const m = globalThis.Rules.legalMoves(S.tubes)[0];
+    return [m.from, m.to];
+  });
+  await pour(page, lost[0], lost[1]);
+  await settle(page);
+  await expect(page.locator('#veil')).toHaveClass(/show/);
+  expect(await page.evaluate(() => globalThis.App._progress.starsFor(3)),
+    'the lost run banked something').toBe(0);
+
+  await expect(page.locator('#retry')).toBeVisible();
+  await page.locator('#retry').click();
+  await page.waitForFunction(() => globalThis.App._state.moves === 0
+    && globalThis.App._state.tubes.length > 0);
+  const purse = await page.evaluate(() => globalThis.App._progress.gold);
+
+  /* a shelf one legal pour from solved, on the board Try again just dealt */
+  await page.evaluate(() => {
+    const S = globalThis.App._state;
+    S.tubes = [[0, 0, 0], [0], [1, 1, 1, 1]];
+    S.par = 1;
+    S.parExact = true;
+    globalThis.Board.view = globalThis.Rules.clone(S.tubes);
+    globalThis.Board.render();
+  });
+  await pour(page, 1, 0);
+  await settle(page);
+
+  await expect(page.locator('#veil')).toHaveClass(/show/);
+  await expect(page.locator('#stars')).toHaveText('★★★');
+  const banked = await page.evaluate(() => ({
+    stars: globalThis.App._progress.starsFor(3),
+    best: globalThis.App._progress.bestFor(3),
+    gold: globalThis.App._progress.gold,
+    unlocked: globalThis.App._progress.unlocked,
+    finished: globalThis.App._state.finished
+  }));
+  expect(banked.finished, 'the run never finished').toBe(true);
+  expect(banked.stars, 'a win on a re-dealt board banked no stars').toBe(3);
+  expect(banked.best, 'and no best').toBe(1);
+  expect(banked.gold, 'and no gold').toBeGreaterThan(purse);
+  expect(banked.unlocked).toBe(4);
+});
