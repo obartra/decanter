@@ -5,7 +5,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
+    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, finished: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
 
@@ -155,6 +155,7 @@ const App = (() => {
     S.undosUsed = 0;
     S.hintsUsed = 0;
     S.over = false;
+    S.finished = false;
     S.reason = null;
     S.hinting = false;
     S.moves = 0;
@@ -189,8 +190,32 @@ const App = (() => {
       S.par = res.par;
       S.parExact = !!res.exact;
       progress.rememberPar(level, res.par, res.exact);
+      /* the board moved while the search ran, so this answer can be about a run
+         that is already over; nothing else will notice if it is */
+      const ended = checkLost();
       paintHud();
+      if (ended && !S.running && !S.queue.length) finish();
     });
+  }
+  /* Is this run over, and if so why.
+
+     A run used to be able to end in one place only: on a pour. That is the
+     obvious moment and it is where most endings happen, but it is not the only
+     one. Par is not always known when a board is dealt — the baked one is
+     refused if it is below what the board plainly still needs — and the search
+     that answers it is allowed eight seconds. Pours made during those seconds
+     count, so par can arrive already spent, and nothing was asking. The counter
+     relabelled itself to no pours left and the run carried on underneath it.
+
+     So the question is asked wherever the answer can change, and answered in one
+     place. */
+  function checkLost(){
+    if (S.over || Rules.isSolved(S.tubes)) return false;
+    const why = Rules.lostBecause(S.tubes, S.moves, S.par, S.parExact);
+    if (!why) return false;
+    S.over = true;
+    S.reason = why;
+    return true;
   }
   const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
@@ -298,8 +323,8 @@ const App = (() => {
     /* Decided here, not when the queue happens to empty. Pouring quickly keeps
        the queue full, and a check that waits for it to drain lets the run carry
        on well past the pour that already lost it. */
-    const why = Rules.lostBecause(S.tubes, S.moves, S.par, S.parExact);
-    if (why){ S.over = true; S.reason = why; }
+    /* the panel follows once the queue has drained, in drain() */
+    checkLost();
     S.queue.push(move);
     paintHud();
     drain().catch(() => {});   /* drain's finally has already restored the state */
@@ -338,6 +363,11 @@ const App = (() => {
 
   /* ---------- finishing ---------- */
   function finish(){
+    /* Reachable from the queue draining and from a par that lands on a run
+       already over, and those can be the same run: a second pass would score
+       and pay for it twice. */
+    if (S.finished) return;
+    S.finished = true;
     /* Nothing scores unless the board is actually finished. rate() answers "how
        well was this played", counting pours against par, and it has no idea
        whether the bottles are sorted. A run that ends because it was lost ends
