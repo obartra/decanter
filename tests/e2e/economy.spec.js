@@ -167,6 +167,37 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
     .toBeGreaterThanOrEqual(9);
 });
 
+/* A bang belongs to something on the screen. The noise waits for a touch
+   because a pasted link is not one and the browser will not make a sound before
+   it — but once the message has taken itself away, a tap is a tap on the map,
+   and an explosion out of nowhere is not a celebration. */
+test('a tap after the message has gone is not answered with a bang', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, sound: false, seen: { 0: true, 1: true } });
+  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  await page.addInitScript(() => {
+    window.__srcs = 0;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const make = AC.prototype.createBufferSource;
+    AC.prototype.createBufferSource = function () { window.__srcs++; return make.apply(this, arguments); };
+  });
+
+  await page.goto(`/?${word}`);
+  await page.waitForFunction(() => {
+    const el = document.getElementById('jabari');
+    return el && !el.hidden && el.classList.contains('go');
+  });
+  /* nothing has been touched, so nothing has been played */
+  expect(await page.evaluate(() => window.__srcs)).toBe(0);
+
+  await page.waitForFunction(() => document.getElementById('jabari').hidden, null, { timeout: 8000 });
+  await page.mouse.click(200, 400);
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__srcs),
+    'the bang should have stood down with the message').toBe(0);
+  /* and the tap still reaches the game underneath it */
+  expect(await page.evaluate(() => document.body.dataset.view)).toBe('map');
+});
+
 /* The message is the thing the word is for, so nothing is allowed to hold it
    back — not a muted game, not an audio context that will not start, not a
    purse that is already full. It is on screen the moment the link opens. */

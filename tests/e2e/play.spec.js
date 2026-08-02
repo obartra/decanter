@@ -105,3 +105,42 @@ test('a board with no legal pour ends the run and says why', async ({ page }) =>
   const stars = await page.evaluate(() => globalThis.App._progress.starsFor(1));
   expect(stars).toBe(0);
 });
+
+/* A run could only ever end on a pour: `lostBecause` was consulted in exactly
+   one place, inside the code that commits a move. That is the obvious moment
+   and it is where most endings happen, but par is not always known when a board
+   is dealt — the baked one is refused if it is below what the board plainly
+   still needs — and the search that answers it is allowed eight seconds. Pours
+   made during those seconds count, so the answer can arrive already spent. The
+   counter relabelled itself to no pours left and the run carried on underneath
+   it. */
+test('a par that lands after its pours are spent ends the run', async ({ page }) => {
+  await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
+
+  /* Force the deal to refuse its baked par so the game has to ask for one, and
+     hold the answer so the run can be moved on underneath it. Both patches undo
+     themselves the moment the search starts, so only this deal is affected. */
+  await page.evaluate(() => {
+    const realMin = globalThis.Rules.minPours;
+    const realSolve = globalThis.SolverClient.solve;
+    globalThis.Rules.minPours = () => 9999;
+    globalThis.SolverClient.solve = (tubes, colors, cb) => {
+      globalThis.Rules.minPours = realMin;
+      globalThis.SolverClient.solve = realSolve;
+      realSolve(tubes, colors, res => { globalThis.__answer = () => cb(res); });
+    };
+  });
+  await openLevel(page, 4);
+  expect(await page.evaluate(() => globalThis.App._state.par), 'the deal should have no par')
+    .toBe(null);
+  await page.waitForFunction(() => !!globalThis.__answer);
+
+  /* the pours that were made while the search was running */
+  await page.evaluate(() => { globalThis.App._state.moves = 999; });
+  await page.evaluate(() => globalThis.__answer());
+
+  await expect(page.locator('#veil')).toHaveClass(/show/);
+  expect(await page.evaluate(() => globalThis.App._state.over)).toBe(true);
+  expect(await page.evaluate(() => globalThis.App._state.reason)).toBe('over');
+  await expect(page.locator('#winTitle')).toHaveText('Failed');
+});
