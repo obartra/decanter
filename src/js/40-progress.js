@@ -271,4 +271,4 @@ function createProgress(storage){
     reset(){ state = blank(); save(); }
   };
 }
-globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank, untilNextDay, briefly };
+globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, untilNextDay, briefly };

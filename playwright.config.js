@@ -46,7 +46,18 @@ export default defineConfig({
   webServer: {
     command: `npm run build && npx --yes http-server dist -p ${PORT} -c-1 --silent`,
     url: `http://127.0.0.1:${PORT}`,
-    reuseExistingServer: !process.env.CI,
+    /* Never reused, even locally.
+
+       The command builds and then serves, so reusing a server that is already
+       up means skipping the build: the suite runs against whatever bundle
+       happened to be on disk when that server started. Nothing errors, the page
+       loads, and assertions fail describing code that is not the code under
+       test. That has now cost hours twice, once to a second checkout holding the
+       port and once to a leftover server from an interrupted run.
+
+       Not reusing makes a busy port an immediate, legible failure instead. Set
+       PW_PORT to run two at once. */
+    reuseExistingServer: false,
     timeout: 60_000
   },
   /* One engine, two shapes. The iPhone preset would pull in WebKit, which is a

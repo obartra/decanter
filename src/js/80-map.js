@@ -48,6 +48,7 @@ const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
   let onBuy = () => {};
+  let onScroll = null;
   /* What dealing a given board costs. Asked for rather than worked out here: the
      app is where a board is paid for, and a map that recomputed the fee from
      CONFIG would be a second place for the price to be decided from. */
@@ -62,7 +63,12 @@ const MapView = (() => {
      sampled from the path itself rather than recomputed, so it cannot drift off
      the medallions, and it is drawn to a canvas inside the scrolling map so it
      travels with them. Strokes alone read as a ribbon; cobbles read as a road. */
-  function drawRoad(d, width, H, spacing){
+  /* How many points past the last real node the path is drawn for, so the road
+     has somewhere to fade out to. Named because both the fade and the erase have
+     to agree about where the road stops. */
+  const GHOSTS = 3;
+
+  function drawRoad(d, width, H, spacing, top){
     if (!road) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     road.width = Math.ceil(width * dpr); road.height = Math.ceil(H * dpr);
@@ -155,14 +161,24 @@ const MapView = (() => {
 
     /* Erase the far end so the bed goes with its stones. Fading the stones alone
        left the earth under them ending in a hard cap, which read as the road
-       having been cut off rather than running out of sight. */
+       having been cut off rather than running out of sight.
+
+       Measured from where the road actually ends, not as a fraction of the map.
+       A fraction is right on a short map and wrong on a long one: at a hundred
+       levels, `H * 0.34` is hundreds of pixels of gradient spread over a
+       terminus that occupies eighty, so the far end came out about three
+       quarters erased and the last quarter is a rounded cap sitting in the dark
+       with nothing around it. Keyed to the ghost points instead, it is gone by
+       the time it reaches the last node the player can actually see. */
     g.globalCompositeOperation = 'destination-out';
-    const out = g.createLinearGradient(0, 0, 0, H * 0.34);
+    const ghostSpan = spacing * GHOSTS;
+    const out = g.createLinearGradient(0, 0, 0, top + ghostSpan);
     out.addColorStop(0, 'rgba(0,0,0,1)');
-    out.addColorStop(0.55, 'rgba(0,0,0,.55)');
+    /* still fully erased where the road physically stops, so no cap survives */
+    out.addColorStop(Math.min(0.85, top / Math.max(1, top + ghostSpan)), 'rgba(0,0,0,1)');
     out.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = out;
-    g.fillRect(0, 0, width, H * 0.34);
+    g.fillRect(0, 0, width, top + ghostSpan);
     g.globalCompositeOperation = 'source-over';
   }
 
@@ -174,8 +190,8 @@ const MapView = (() => {
     const count = MapGeom.visibleCount(unlocked);
     const width = scroll.clientWidth || 360;
     const opts = { spacing: Math.min(104, Math.max(80, scroll.clientHeight / 5.4)) };
-    const pts = MapGeom.nodes(count + 3, width, opts);   // 3 ghost points continue the path
-    const H = MapGeom.height(count + 3, opts);
+    const pts = MapGeom.nodes(count + GHOSTS, width, opts);   /* ghosts continue the path */
+    const H = MapGeom.height(count + GHOSTS, opts);
     canvas.style.height = H + 'px';
 
     svg.setAttribute('width', width);
@@ -184,7 +200,7 @@ const MapView = (() => {
        off them the way a painted one did. Built up in strokes: a bed of earth,
        the stone surface, a lit crown, then dashes across it for cobbles. */
     const d = MapGeom.pathThrough(pts, H);
-    const fade = `${(count / (count + 3)).toFixed(2)}`;
+    const fade = `${(count / (count + GHOSTS)).toFixed(2)}`;
     svg.innerHTML = `
       <defs>
         <linearGradient id="pathFade" x1="0" y1="1" x2="0" y2="0">
@@ -196,7 +212,11 @@ const MapView = (() => {
       <path d="${d}" fill="none" stroke="url(#pathFade)"
             stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14"/>`;
 
-    drawRoad(d, width, H, opts.spacing);
+    /* where the last node a player can see sits, measured from the top of the
+       canvas, so the road's far end can be erased against it rather than against
+       the height of the whole map */
+    const lastVisibleTop = H - pts[count - 1].y;
+    drawRoad(d, width, H, opts.spacing, lastVisibleTop);
 
     canvas.querySelectorAll('.node,.chapter').forEach(n => n.remove());
 
@@ -241,12 +261,20 @@ const MapView = (() => {
       b.dataset.level = level;
       b.disabled = locked ? (!buyable || !affordable) : short;
       b.setAttribute('aria-label',
-        buyable ? `Level ${level}, locked. Open it for ${cost} gold`
+        isArmed ? `Open level ${level} for ${cost} gold?`
+        : buyable ? `Level ${level}, locked. Open it for ${cost} gold`
         : locked ? `Level ${level}, locked`
         : short ? `Level ${level}. ${fee} gold to deal, and there is not enough`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
+      /* The centre of a medallion is the level, never a price.
+
+         Arming one used to put the cost there instead, and the two are the same
+         kind of number in the same slot in the same face: a confirm on level 19
+         read "10", which is both a plausible price and a real level two rows
+         down. Whatever else is true, a number in the middle is which board this
+         is, and a number that is money carries the diamond. */
       b.innerHTML = isArmed
-        ? `<span class="num">${cost}</span><span class="ns buy">Open?</span>`
+        ? `<span class="num">${level}</span><span class="ns buy">Open &middot; ${cost} &#9670;</span>`
         : buyable ? `<span class="num">&#128274;</span><span class="ns buy">${cost} &#9670;</span>`
         : locked ? '<span class="num">&#128274;</span>'
         : short ? `<span class="num">${level}</span><span class="ns buy">${fee} &#9670;</span>`
@@ -272,6 +300,20 @@ const MapView = (() => {
     const target = node.offsetTop - scroll.clientHeight * 0.58 + node.offsetHeight;
     scroll.scrollTo({ top: Math.max(0, target), behavior: smooth ? 'smooth' : 'auto' });
   }
+
+  /* Is the level you are on actually on screen?
+
+     The map is several screens tall by the second chapter and only scrolls to
+     your level on entry, so scrolling away used to leave no way back except
+     leaving the map and coming in again. Asked of the real geometry rather than
+     of a scroll threshold, because what matters is whether the medallion can be
+     seen, not how far the list has moved. */
+  function currentIsVisible(){
+    const node = canvas.querySelector(`.node[data-level="${lastFocus}"]`);
+    if (!node) return true;
+    const top = node.offsetTop - scroll.scrollTop;
+    return top > -node.offsetHeight && top < scroll.clientHeight;
+  }
   return {
     mount(scrollEl){
       scroll = scrollEl;
@@ -286,7 +328,20 @@ const MapView = (() => {
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
     set feeFor(fn){ feeFor = fn; },
-    render, scrollToCurrent
+    render, scrollToCurrent, currentIsVisible,
+    /* which level the map considers "yours", so the way back can name it */
+    get currentLevel(){ return lastFocus; },
+    /* Told when the map is scrolled, so the way back can appear and go.
+
+       Replaces rather than adds, because the three setters beside it replace and
+       an assignment that quietly accumulates is a trap: setting it twice would
+       run the handler twice per scroll for ever, with nothing to unbind. */
+    set onScroll(fn){
+      if (!scroll) return;
+      if (onScroll) scroll.removeEventListener('scroll', onScroll);
+      onScroll = fn;
+      if (fn) scroll.addEventListener('scroll', fn, { passive: true });
+    }
   };
 })();
 globalThis.MapView = MapView;
