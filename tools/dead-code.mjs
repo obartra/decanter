@@ -8,6 +8,24 @@
    page ever grows that class. So dead code is not untidiness, it is bytes in the
    budget and a reader's time, and neither the linter nor the tests can see it.
 
+   Eight kinds, six of them ways of being unused and two the reverse:
+
+     global     a module on globalThis that no other file names
+     member     a key on a module's object that no other file names
+     helper     a top level function its own module never calls
+     config     a tunable nothing reads
+     style      a selector or custom property nothing uses
+     page       an element id nothing reaches for
+     missing    an id a script reaches for and no page has
+     scope      a name a module leaves in the page's own top level
+
+   `missing` runs the other way round from the rest: everything above it finds
+   something written and never reached, that one finds something reached and
+   never written, and it is worse — a silent null every time the line runs.
+   `scope` is not deadness at all but collision, and is explained where it is
+   checked. Both are here because they fail the same way, a name on one side of a
+   line and not the other, and both are checked from the same corpus.
+
    Deliberately conservative, because this runs in `npm run check` and a detector
    that cries wolf gets switched off. The rule is a name-based reachability test:
    a member is dead when its name appears *nowhere else in the repository*, not
@@ -316,6 +334,15 @@ for (const [file, src] of files){
 const idsInMarkup = new Map();
 for (const [file, src] of markup)
   for (const m of src.matchAll(/\bid="([^"]+)"/g)) idsInMarkup.set(m[1], file);
+
+/* The build writes markup too. A page's shell holds a slot and the build fills
+   it with a whole tag, so `#solverSrc` and `#deferredAssets` are on the page a
+   player gets and in no file this walk can see — `dist/` is skipped, and rightly,
+   or every finding would be reported twice. Ids the build emits are ids a page
+   has; leaving them out reported two live handles as reaching for nothing, which
+   is the loudest kind this tool has. */
+const emitted = files.get('tools/build.mjs') || '';
+for (const m of emitted.matchAll(/\bid="([^"]+)"/g)) idsInMarkup.set(m[1], 'tools/build.mjs');
 
 for (const [id, file] of idsInMarkup){
   if (namedIn(scripts, id)) continue;

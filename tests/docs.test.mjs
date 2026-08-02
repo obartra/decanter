@@ -9,7 +9,7 @@
    named in a table that is not on disk. Those are the ways a doc rots without
    anybody touching it, and they are exactly the ways a reader loses trust in
    the rest of it. */
-import { describe, it, assert, read, root } from './helpers.mjs';
+import { describe, it, assert, equal, read, root } from './helpers.mjs';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, dirname, normalize } from 'node:path';
 
@@ -84,5 +84,25 @@ describe('the documents', () => {
         assert(existsSync(join(root, p)), `${doc} names ${p}, which is not in the repo`);
       }
     }
+  });
+
+  /* The list in the doc and the list in the tool's own header both went stale
+     when three checks were folded in from a second detector and neither was
+     updated. A detector whose description omits a check is one nobody thinks to
+     plant a corpse for. */
+  it('names every kind the dead code detector can report', () => {
+    const tool = read('tools/dead-code.mjs');
+    const kinds = [...new Set([...tool.matchAll(/\badd\('(\w+)'/g)].map(m => m[1]))];
+    assert(kinds.length > 4, `only found ${kinds.length} kinds, so the scan is wrong`);
+    const doc = read('docs/design/14b-ci.md');
+    /* the header's own list, indented under "things are checked" */
+    const listed = [...tool.matchAll(/^ {5}(\w+) {2,}\w/gm)].map(m => m[1]);
+    for (const kind of kinds){
+      assert(doc.includes(`\`${kind}\``), `14b-ci.md never mentions the ${kind} check`);
+      assert(listed.some(l => l.startsWith(kind)),
+        `dead-code.mjs reports ${kind} and its own header does not list it`);
+    }
+    equal(listed.length, kinds.length,
+      'the header lists a different number of checks than the tool reports');
   });
 });

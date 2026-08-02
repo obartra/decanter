@@ -1,0 +1,135 @@
+/* The same room as the other game. This started as its own cold blue space,
+   which was right while the mechanic was being tried out at its own URL and
+   wrong once it became part of the same cellar: two games under one roof should
+   not disagree about what the light is like. The ink, the gold and the glass
+   line are that game's, verbatim, so the two cannot drift. */
+:root{
+  --ink:#EFE4D2; --ink-dim:#A2907A;
+  --gold:#E0B15C; --gold-lit:#F4D9A0;
+  --glass-line:rgba(246,234,212,.42);
+}
+/* The same reset the other game uses. Without it a padded box is its width plus
+   its padding, which is how the result card came out 366px wide inside a 327px
+   slot and hung off the right of a phone. */
+*{box-sizing:border-box}
+html,body{height:100%}
+html{overflow:hidden; overscroll-behavior:none}
+body{
+  margin:0; display:flex; flex-direction:column;
+  font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
+  color:var(--ink); overflow:hidden; overscroll-behavior:none;
+  -webkit-font-smoothing:antialiased;
+  /* This is the one page of the three whose room is drawn in full on its own
+     canvas: the floor, the walls and the door are the game, and every one of
+     them has to line up with the grid the player is reasoning about. So the
+     shared gradient is doing less work here than it does elsewhere — it is the
+     dark the room is cut out of, and its job is to make the canvas stop having a
+     visible edge rather than to be scenery. */
+  background:radial-gradient(125% 85% at 50% 0%, #2A1E13 0%, #150E08 52%, #0B0805 100%);
+}
+
+/* Every class here carries the csk prefix. An all-pairs test across every game's
+   stylesheet fails on a shared class name, because two games on one origin
+   sharing a name means one of them silently restyles the other. */
+.cskBar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px calc(10px + env(safe-area-inset-top));
+  padding-top:calc(10px + env(safe-area-inset-top));
+}
+/* Cinzel is inscriptional Roman caps, so it wants to be spaced out, and it is
+   the gilt of the other game's wordmark rather than a flat colour. */
+.cskMark{
+  font-family:"Cinzel",Georgia,serif; font-weight:700;
+  font-size:15px; letter-spacing:.2em; text-transform:uppercase;
+  background:linear-gradient(180deg,#FBEBC8 0%, var(--gold) 52%, #A9762F 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.cskBtn{
+  font-family:inherit; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink); padding:8px 12px; border-radius:999px; cursor:pointer;
+  border:1px solid rgba(224,177,92,.26);
+  background:linear-gradient(180deg,rgba(60,44,26,.62),rgba(24,17,10,.52));
+  backdrop-filter:blur(5px);
+  transition:transform .15s, border-color .2s, opacity .2s;
+}
+.cskBtn:hover{border-color:rgba(244,217,160,.55)}
+.cskBtn:active{transform:translateY(1px)}
+.cskBtn.cskOff{opacity:.5}
+.cskBtn:disabled{opacity:.28; cursor:default}
+.cskActs{display:flex; gap:6px}
+
+/* The readout: which floor, how many moves it has taken, and how many it should
+   have taken. The move count sits next to par rather than anywhere else on the
+   page, because the only question this game ever asks is the difference between
+   those two numbers, and making the eye travel between them is making the player
+   do the subtraction twice. */
+.cskHud{display:flex; flex-direction:column; align-items:center; line-height:1.2}
+.cskCount{display:flex; align-items:baseline; gap:5px}
+.cskCount b{font-family:"Cinzel",Georgia,serif; font-size:18px; color:var(--gold-lit)}
+.cskCount span{
+  font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-dim);
+}
+/* An unrated floor says so where par would have been. It is dimmer and it is
+   italic, because it is not a number and must not be mistaken for one. */
+.cskCount span.cskUnrated{font-style:italic; letter-spacing:.1em; color:#C08A6A}
+.cskWhich{font-size:8px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-dim)}
+.cskStars{font-size:10px; letter-spacing:.12em; color:var(--gold-lit); line-height:1}
+.cskDim{color:rgba(224,177,92,.22)}
+
+/* The bottom padding reserves the tool row, which is fixed to the bottom edge
+   and floats over this. Without it the canvas runs underneath the buttons, and
+   on a wide viewport -- where the board is limited by height rather than width
+   and so fills it -- whatever is drawn at the bottom of the world ends up behind
+   them. On this page that is the bottom row of the floor. It looked fine on a phone, where the board is width-limited
+   and centres with slack to spare, which is why it survived. */
+.cskStage{
+  flex:1; min-height:0; display:flex; position:relative;
+  padding:0 6px calc(52px + env(safe-area-inset-bottom));
+}
+/* The canvas is the room. `touch-action:none` is not optional here as it is on
+   the other pages: every gesture is either a tap on a cask or a push along one,
+   and letting the browser wait to see whether a downward drag was meant to
+   scroll would eat the first third of every vertical slide. */
+#cskCanvas{flex:1; width:100%; height:100%; display:block; touch-action:none}
+
+/* The tools, on the bottom edge where a thumb already is, under the floor rather
+   than in the bar: the bar is read and these are pressed. */
+.cskTools{
+  position:fixed; left:0; right:0; z-index:20;
+  bottom:calc(10px + env(safe-area-inset-bottom));
+  display:flex; justify-content:center; gap:8px; padding:0 12px;
+  pointer-events:none;
+}
+.cskTools .cskBtn{pointer-events:auto; padding:9px 13px}
+
+/* The result. There is only one ending here — the door opens or the board is
+   still being played — so unlike the other two this panel never has to be tinted
+   for a failure. A cellar floor cannot be lost, only taken the long way round. */
+.cskVeil{
+  position:fixed; inset:0; z-index:40; display:grid; place-items:center; padding:24px;
+  background:linear-gradient(180deg,rgba(14,9,5,.86),rgba(6,4,2,.94));
+  backdrop-filter:blur(6px);
+  opacity:0; pointer-events:none; transition:opacity .3s ease;
+}
+.cskVeil.cskShow{opacity:1; pointer-events:auto}
+.cskCard{
+  width:min(320px,86vw); padding:26px 22px; border-radius:18px; text-align:center;
+  border:1px solid rgba(224,177,92,.26);
+  background:linear-gradient(180deg,rgba(60,44,26,.72),rgba(24,17,10,.86));
+  box-shadow:0 10px 34px rgba(0,0,0,.55), 0 0 30px rgba(224,177,92,.10);
+  transform:translateY(10px); transition:transform .3s cubic-bezier(.2,1,.3,1);
+}
+.cskVeil.cskShow .cskCard{transform:none}
+.cskCard h2{
+  margin:0; font-family:"Cinzel",Georgia,serif; font-size:24px; letter-spacing:.05em;
+  color:var(--gold-lit);
+}
+.cskWhy{margin:8px 0 0; font-size:13px; color:var(--ink-dim)}
+.cskCard .cskStars{margin:14px 0 10px; font-size:19px; letter-spacing:.16em}
+.cskNote{margin:0 0 16px; font-size:11px; color:var(--ink-dim); min-height:2.4em}
+.cskBtn.cskPrimary{
+  border-color:rgba(250,232,190,.5);
+  background:linear-gradient(180deg,#F6E0B0,var(--gold) 60%,#B8823A);
+  color:#2A1B08; font-weight:600;
+  box-shadow:0 6px 22px rgba(224,177,92,.35);
+}

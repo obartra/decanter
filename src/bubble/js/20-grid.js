@@ -88,7 +88,7 @@ const BubbleGrid = (() => {
     return out;
   };
 
-  return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
+  return { EMPTY, centreOf, inBounds, at, isEmpty, neighbours,
            create, advance, hash, occupied, emptyRow };
 })();
 globalThis.BubbleGrid = BubbleGrid;

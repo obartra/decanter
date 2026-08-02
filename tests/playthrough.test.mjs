@@ -11,7 +11,7 @@
    bug shared between the solver and the game does not hide here. */
 import { describe, it, assert, equal, loadPure } from './helpers.mjs';
 import * as base from './baseline.mjs';
-import { lineToPar } from '../tools/measure.mjs';
+import { lineToPar } from '../tools/difficulty-core.mjs';
 
 const { Levels, Rules, Progress, Panel, CONFIG, PARS } = loadPure();
 

@@ -82,6 +82,9 @@ const BubbleAdvice = (() => {
     return !!best && best.matched > 0;
   };
 
+  /* AIMS is published for the harness, not for the game: tools/bubble-run.mjs
+     walks this fan rather than a copy of its own, so the runs it measures aim at
+     the same set of directions the hint button does. */
   return { bestShot, hasClearingShot, AIMS };
 })();
 globalThis.BubbleAdvice = BubbleAdvice;

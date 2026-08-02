@@ -97,7 +97,7 @@ The suite has long forbidden the other game publishing an unprefixed
 modules declared their functions at the top level and published a namespace
 afterwards, putting `shape`, `deal`, `make`, `at`, `rate` and twenty-five more
 into that scope. They are IIFEs now, like every module in the other game already
-was, and `verify-live.mjs` checks the rule rather than leaving it to be
+was, and `dead-code.mjs` checks the rule rather than leaving it to be
 remembered.
 
 ## Checks on the repo rather than on the game
@@ -109,8 +109,12 @@ For the things that rot while nobody is editing them:
   disk. Written after a README row described a folder of painted backdrops that
   does not exist and by these notes' own account never should
 - **the checks themselves**: every `verify:*` script is run by the CI workflow.
-  `verify:live` was in `npm run check` and in no CI step at all, so nothing it
-  found could fail a pull request
+  The dead-code check was in `npm run check` and in no CI step at all, so nothing
+  it found could fail a pull request
+- **what the checks say about themselves**: every kind `dead-code.mjs` can report
+  is named in its own header and in [14b CI](14b-ci.md). A detector whose
+  description omits a check is one nobody thinks to plant a corpse for, and the
+  `scope` check went missing from both the day it was folded in
 
 ## Mutation checks
 
@@ -140,7 +144,7 @@ there is, because everything else looks like what it is, while a tunable looks
 like the place to change the behaviour it claims to control and usually carries a
 paragraph explaining the decision.
 
-So `verify-live` checks both `CONFIG` objects, one level of nesting deep, and
+So `dead-code.mjs` checks both `CONFIG` objects, one level of nesting deep, and
 asks for a qualified read rather than a name appearing somewhere. It has to: a
 config key is a short common word, and `blast`, `daily` and `attempt` are all
 written in prose and in other modules' variables, so a name-anywhere test calls

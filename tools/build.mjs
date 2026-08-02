@@ -1,7 +1,28 @@
 #!/usr/bin/env node
-/* Build: inline every source file into dist/index.html, copy assets, emit the
-   manifest and a service worker whose cache name changes with the content. */
-import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, cpSync, statSync } from 'node:fs';
+/* Build: content-hashed bundles behind a small shell, plus one portable file.
+
+   This used to inline every byte of every game into index.html. That made the
+   page a single download, which was the point, but it also made the page
+   *code*: 288kb of it, revalidated on every navigation, because a cached page
+   would have pinned a stale build. Every load paid for the whole game again,
+   and a size budget had to sit on top of it to stop that quietly getting worse.
+
+   Now the code is hashed into its own files. A hashed file can be cached
+   forever, because a change to it is a change to its name, so the only thing
+   still revalidated is a shell of a few kilobytes. Two consequences worth
+   naming, because they paid for the change on their own:
+
+   - There is no longer a reason for the games to fight over cache space. Two
+     builds cannot collide when their filenames differ, so one worker can hold
+     every page on the origin, and the second game finally gets to work offline.
+   - The sound and the second game come out of the critical path entirely. They
+     are fetched after the page opens rather than as part of opening it. See
+     src/js/96-deferred.js for why eagerly rather than on demand.
+
+   The portable single file is unchanged in spirit: everything inlined, fonts as
+   data URIs, no worker, opens straight off disk. It is the one build where
+   splitting would be the wrong answer, so it does not split. */
+import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, cpSync, statSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,121 +31,201 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const read = p => readFileSync(join(root, p), 'utf8');
 const sorted = dir => readdirSync(join(root, dir)).filter(f => !f.startsWith('.')).sort();
+const hash = s => createHash('sha256').update(s).digest('hex').slice(0, 10);
 
-/* Gathers one game's sources. Factored out so a second game can be built the
-   same way; called with 'src' it produces character for character what this
-   used to compute inline, so the existing build id does not move. */
-function bundle(dir, { worker } = {}){
-  const css = sorted(`${dir}/css`).map(f => read(`${dir}/css/${f}`)).join('\n');
-  const js  = sorted(`${dir}/js`).map(f => `\n/* ---- ${f} ---- */\n${read(`${dir}/js/${f}`)}`).join('\n');
-  const solver = worker ? read(worker) : '';
-  return { css, js, solver, id: createHash('sha256').update(css + js + solver).digest('hex').slice(0, 10) };
+/* ---------- what there is to build ----------
+
+   The pour game is the app. Every other game is its own page at its own path,
+   which is how a mechanic gets worked on without playing ten levels to reach
+   one. `inApp` marks the ones the app page also carries, because some of its
+   levels are that game; the rest are standalone only, and stay that way until
+   somebody decides they belong in the graded run.
+
+   Filtered by what is actually on disk, so a game can be added by creating its
+   directory and a page template, and nothing here has to be edited in the same
+   commit as the sources it describes. */
+const GAMES = [
+  { name: 'bubble',  path: 'bubble',  inApp: true },
+  { name: 'measure', path: 'measure', inApp: false },
+  { name: 'casks',   path: 'casks',   inApp: false },
+  /* Not a game, and built exactly like one. The lab is a workbench that opens
+     the pages above in frames and reaches into them, so it needs precisely what
+     they need — its own bundle, its own shell, its own place in the precache —
+     and nothing they do not. Listing it here rather than teaching the build a
+     second kind of page is the cheaper honesty: "game" in this file has always
+     meant "a page with sources of its own", and now it says so out loud. */
+  { name: 'lab',     path: 'lab',     inApp: false }
+].filter(g => existsSync(join(root, `src/${g.path}/index.html`))
+           && existsSync(join(root, `src/${g.path}/js`))
+           && existsSync(join(root, `src/${g.path}/css`)));
+
+/* Modules the app does not need in order to open. Named here rather than by a
+   number range, because "critical" is a judgement about this file's contents
+   and not a property of where it sorts. */
+const DEFERRED = ['50-audio.js'];
+
+/* ---------- gathering sources ---------- */
+/* Concatenated in filename order with the same markers the single file has
+   always used, so a stack trace in the built page still names the module. */
+const concat = (dir, files) =>
+  files.map(f => `\n/* ---- ${f} ---- */\n${read(`${dir}/${f}`)}`).join('\n');
+
+const cssOf = dir => sorted(`${dir}/css`).map(f => read(`${dir}/css/${f}`)).join('\n');
+
+function sourcesOf(dir, { skip = [] } = {}){
+  const files = sorted(`${dir}/js`);
+  return {
+    css: cssOf(dir),
+    js: concat(`${dir}/js`, files.filter(f => !skip.includes(f))),
+    held: concat(`${dir}/js`, files.filter(f => skip.includes(f))),
+    all: concat(`${dir}/js`, files)
+  };
 }
 
-const main = bundle('src', { worker: 'src/worker/solver.js' });
-const bub = bundle('src/bubble');
-
-/* The only recording the game ships, and only Jabari mode plays it. Read here
-   rather than in `compose` because both pages want the same bytes and the build
-   id wants their hash. */
+const app = sourcesOf('src', { skip: DEFERRED });
+const solver = read('src/worker/solver.js');
+/* The only recording anything here ships, and only Jabari mode plays it. Read
+   once because both builds want the same bytes and the build id wants its
+   hash. */
 const boom = readFileSync(join(root, 'assets/audio/boom.mp3'));
+const games = GAMES.map(g => ({ ...g, src: sourcesOf(`src/${g.path}`) }));
 
-/* The app page carries both games, because some of its levels are the other
-   one. The bubble sources go in after, so the pour game's modules are all
-   defined by the time anything reads them, and nothing in this bundle touches
-   BubbleApp until a bubble level is actually opened.
+/* One id for the build, over every source that ships anywhere in dist.
 
-   They still build a separate page at /bubble/ from the same sources. That page
-   is the whole game on its own and is how the mechanic gets worked on without
-   playing ten levels to reach one. */
-const css = `${main.css}\n${bub.css}`;
-const js = `${main.js}\n${bub.js}`;
-const solver = main.solver;
+   Every game, not only the ones the app page carries. There is one cache now,
+   and activate() deletes every key that is not this version — so if a game
+   changed and the id did not, the worker would reopen the same cache, add the
+   newly named bundles beside the superseded ones, and never sweep them: the
+   install would grow a little every release, forever. The build stamp on that
+   game's own page would be wrong too, which is the one thing the stamp exists
+   to be right about. */
+const buildId = hash([app.all, solver, ...games.map(g => g.src.css + g.src.all)].join('\n')
+  + boom.toString('base64'));
 
-/* One id for the build, stamped into the page and used as the cache name, so
-   "which version am I actually looking at" is a question with an answer. It has
-   to cover the bubble sources too now that they ship inside this page, or a
-   change to them would leave every installed copy on the old worker. The same
-   goes for the boom: swapping the recording without touching a line of code
-   would otherwise leave every installed copy playing the old one forever. */
-const buildId = createHash('sha256').update(css + js + solver).update(boom).digest('hex').slice(0, 10);
+/* ---------- emitting ---------- */
+rmSync(dist, { recursive: true, force: true });
+mkdirSync(join(dist, 'assets'), { recursive: true });
+cpSync(join(root, 'assets/fonts'), join(dist, 'fonts'), { recursive: true });
+cpSync(join(root, 'assets/icons'), join(dist, 'icons'), { recursive: true });
+cpSync(join(root, 'assets/audio'), join(dist, 'audio'), { recursive: true });
+
+/* A hashed file, written once and referred to by name. The hash is of the
+   contents, so an unchanged file keeps its name across builds and stays in
+   everybody's cache. */
+function asset(name, ext, body){
+  const file = `assets/${name}-${hash(body)}.${ext}`;
+  writeFileSync(join(dist, file), body);
+  return file;
+}
+/* dist-root-relative to page-relative. Absolute paths work locally and 404 the
+   moment the whole thing is served from a project subdirectory. */
+const href = (depth, file) => (depth ? '../'.repeat(depth) : './') + file;
+
+const appCss = asset('app', 'css', app.css);
+const appJs = asset('app', 'js', app.js);
+const audioJs = asset('audio', 'js', app.held);
+const solverJs = asset('solver', 'js', solver);
+for (const g of games){
+  g.cssFile = asset(g.name, 'css', g.src.css);
+  g.jsFile = asset(g.name, 'js', g.src.js);
+}
 
 const fontFace = (cinzel, sans, sansBold) => `<style>
 @font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(${cinzel}) format('woff2')}
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(${sans}) format('woff2')}
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(${sansBold}) format('woff2')}
 </style>`;
+const fontFiles = d => fontFace(href(d, 'fonts/cinzel.woff2'), href(d, 'fonts/alegreyasans.woff2'),
+                                href(d, 'fonts/alegreyasans-bold.woff2'));
 
-/* The backdrops arrive as custom properties so the stylesheets never name a
-   path. The installable build points them at cacheable files; the portable one
-   inlines the bytes, which is the only way a single file can still be a cellar. */
 const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">`;
 
-/* Where the bang is. A tag rather than a fetch of a known path, so the two pages
-   can answer it differently: the installable build points at a cacheable file,
-   the portable one carries the bytes, and nothing in the audio module has to
-   know which kind of build it is running in. Not a preload: almost nobody ever
-   hears this, and it is fetched on demand. */
-function compose({ fonts, head, boomSrc }){
-  return read('src/index.html')
-    .replace('<!--BUILD-->', `<meta name="build" content="${buildId}">`)
-    .replace('<!--BOOM-->', () => `<meta name="boom" content="${boomSrc}">`)
-    .replace('<!--PWAHEAD-->', head)
-    .replace('<!--FONTS-->', fonts)
-    .replace('<!--CSS-->', () => css)
-    .replace('<!--SOLVER-->', () => solver)
-    .replace('<!--JS-->', () => js);
+/* An icon and nothing else. A page without one is not merely undecorated: the
+   browser goes and asks for /favicon.ico anyway and logs a 404 when there is
+   none, on every load, which is a real request and a real error in the console
+   of a game that otherwise makes neither.
+
+   No manifest, deliberately. These pages are where a mechanic gets worked on;
+   installing one as its own app would put a second Decanter on the home screen
+   that is a single game and cannot reach the map. */
+const gameHead = depth => `<link rel="icon" href="${href(depth, 'icons/favicon-32.png')}" sizes="32x32">
+<link rel="apple-touch-icon" href="${href(depth, 'icons/apple-touch-icon.png')}">`;
+
+/* Slots are filled with a function rather than a string throughout: a replacement
+   containing `$&` or `$1` is otherwise interpreted, and minified CSS is full of
+   dollar signs waiting to happen. */
+function page(tmpl, slots){
+  let out = read(tmpl);
+  for (const [slot, value] of Object.entries(slots)) out = out.replace(slot, () => value);
+  return out;
 }
 
-rmSync(dist, { recursive: true, force: true });
-mkdirSync(dist, { recursive: true });
-cpSync(join(root, 'assets/fonts'), join(dist, 'fonts'), { recursive: true });
-cpSync(join(root, 'assets/icons'), join(dist, 'icons'), { recursive: true });
-cpSync(join(root, 'assets/audio'), join(dist, 'audio'), { recursive: true });
-
-/* 1. the installable app, fonts and the boom as separate cacheable files. The
-   room is drawn at runtime, so there is no art to ship. */
-const app = compose({
-  fonts: fontFace('./fonts/cinzel.woff2', './fonts/alegreyasans.woff2', './fonts/alegreyasans-bold.woff2'),
-  head: pwaHead,
-  boomSrc: './audio/boom.mp3'
+/* 1. the app, as a shell over hashed bundles */
+const deferredFor = () => {
+  const groups = { audio: [href(0, audioJs)] };
+  for (const g of games.filter(x => x.inApp)) groups[g.name] = [href(0, g.cssFile), href(0, g.jsFile)];
+  return groups;
+};
+const appPage = page('src/index.html', {
+  '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
+  '<!--PWAHEAD-->': pwaHead,
+  /* Where the bang is. A tag rather than a fetch of a known path, so the two
+     builds can answer it differently and nothing in the audio module has to know
+     which kind of build it is running in. Not a preload: almost nobody ever
+     hears it, and it is fetched on demand. */
+  '<!--BOOM-->': `<meta name="boom" content="./audio/boom.mp3">`,
+  '<!--FONTS-->': fontFiles(0),
+  /* The worker is a file now rather than a script tag to be turned into a blob,
+     so it caches like everything else. The page names it here and
+     60-solver-client.js reads it, which keeps the URL out of the bundle and lets
+     the bundle stay identical between the two builds. */
+  '<!--SOLVER-->': `<meta name="solver" content="${href(0, solverJs)}">`,
+  '<!--CSS-->': `<link rel="stylesheet" href="${href(0, appCss)}">`,
+  '<!--DEFERRED-->': `<script type="application/json" id="deferredAssets">${JSON.stringify(deferredFor())}</script>`,
+  '<!--JS-->': `<script defer src="${href(0, appJs)}"></script>`
 });
-writeFileSync(join(dist, 'index.html'), app);
+writeFileSync(join(dist, 'index.html'), appPage);
 
-/* 2. one portable file, fonts and the boom inlined, opens straight off disk.
-   The bang has to be inlined for the same reason the fonts are: a file:// page
-   fetching a sibling path is a cross origin request to a browser, so a portable
-   file that pointed at ./audio/ would fall back to the synthesised bang the
-   moment it left the folder it was built in. */
-const font = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).toString('base64');
-writeFileSync(join(dist, 'decanter-standalone.html'), compose({
-  fonts: fontFace(font('assets/fonts/cinzel.woff2'),
-                  font('assets/fonts/alegreyasans.woff2'),
-                  font('assets/fonts/alegreyasans-bold.woff2')),
-  head: '',
-  boomSrc: 'data:audio/mpeg;base64,' + boom.toString('base64')
-}));
+/* 2. one portable file, everything inlined, opens straight off disk.
 
-/* 3. the bubble game, at its own subpath, with its own sources and its own id.
-   It registers no worker and is deliberately left out of the app's precache, so
-   it does not install and does not work offline. That is the trade for the two
-   games not being able to cache over each other: the app's worker controls this
-   whole origin, and a copy of this page inside its precache would be one only
-   the app's build id knew how to invalidate.
+   No hashing, no deferring and no worker file: there is nowhere to fetch from.
+   The sound module goes back in line with the rest, and an empty deferred slot
+   is how 96-deferred.js is told there is nothing to wait for. */
+const dataFont = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).toString('base64');
+const standalone = page('src/index.html', {
+  '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
+  '<!--PWAHEAD-->': '',
+  /* Inlined for the same reason the fonts are: to a browser, a file:// page
+     fetching a sibling path is a cross origin request, so a portable file that
+     pointed at ./audio/ would fall silently back to the synthesised bang the
+     moment it left the folder it was built in. */
+  '<!--BOOM-->': `<meta name="boom" content="data:audio/mpeg;base64,${boom.toString('base64')}">`,
+  '<!--FONTS-->': fontFace(dataFont('assets/fonts/cinzel.woff2'),
+                           dataFont('assets/fonts/alegreyasans.woff2'),
+                           dataFont('assets/fonts/alegreyasans-bold.woff2')),
+  '<!--SOLVER-->': `<script id="solverSrc" type="text/js-worker">${solver}</script>`,
+  '<!--CSS-->': `<style>${[app.css, ...games.filter(g => g.inApp).map(g => g.src.css)].join('\n')}</style>`,
+  '<!--DEFERRED-->': '',
+  '<!--JS-->': `<script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
+});
+writeFileSync(join(dist, 'decanter-standalone.html'), standalone);
 
-   The fonts are shared, reached with a relative path out of the subfolder,
-   because a second copy of the same three files is dead weight in the
-   precache. */
-const bubblePage = read('src/bubble/index.html')
-  .replace('<!--BUILD-->', `<meta name="build" content="${bub.id}">`)
-  .replace('<!--FONTS-->', fontFace('../fonts/cinzel.woff2', '../fonts/alegreyasans.woff2',
-                                    '../fonts/alegreyasans-bold.woff2'))
-  .replace('<!--CSS-->', () => bub.css)
-  .replace('<!--JS-->', () => bub.js);
-mkdirSync(join(dist, 'bubble'), { recursive: true });
-writeFileSync(join(dist, 'bubble', 'index.html'), bubblePage);
+/* 3. every game at its own path, from the same bundles the app uses.
+
+   The fonts are reached by climbing out of the subfolder rather than copied,
+   because a second set of the same three files is dead weight in the cache. */
+for (const g of games){
+  mkdirSync(join(dist, g.path), { recursive: true });
+  writeFileSync(join(dist, g.path, 'index.html'), page(`src/${g.path}/index.html`, {
+    '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
+    '<!--HEAD-->': gameHead(1),
+    '<!--FONTS-->': fontFiles(1),
+    '<!--CSS-->': `<link rel="stylesheet" href="${href(1, g.cssFile)}">`,
+    '<!--JS-->': `<script defer src="${href(1, g.jsFile)}"></script>`
+  }));
+}
 
 writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
   id: '/decanter/',
@@ -146,75 +247,49 @@ writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
   ]
 }, null, 2) + '\n');
 
-/* precache list is derived from what actually landed in dist */
+/* ---------- the worker ---------- */
+/* The precache is derived from what actually landed in dist, so nothing can be
+   built and then forgotten. The portable file is left out: it is a copy of the
+   app for carrying around, and precaching it would double the install. */
 const walk = (dir, base = '') => readdirSync(dir).flatMap(f => {
   const full = join(dir, f);
   return statSync(full).isDirectory() ? walk(full, `${base}${f}/`) : [`${base}${f}`];
 });
-const assets = walk(dist)
-  /* The bubble game is deliberately left out. It is a separate page at a
-     separate path with its own build id, and precaching it here would mean this
-     worker holding a copy that only this build knows how to invalidate. */
-  .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html' && !f.startsWith('bubble/'))
+const precache = walk(dist)
+  .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html')
   .map(f => `./${f}`);
-assets.unshift('./');
+precache.unshift('./');
+
+/* Every page on the origin, so a navigation offline can be answered with the
+   shell that belongs to it rather than with whichever one happens to be first.
+
+   The directory travels WITH the shell rather than being recovered from it. The
+   first version stored the paths alone and matched with `endsWith`, which is
+   true of './index.html' for every one of them — '/bubble/index.html' ends with
+   '/index.html' — so every page offline fell back to the pour game's shell.
+   That is precisely the failure the fallback exists to prevent, and it passed a
+   test that only ever checked the list. */
+const shells = games.map(g => [g.path, `./${g.path}/index.html`]);
 
 const version = 'decanter-' + buildId;
-writeFileSync(join(dist, 'sw.js'), `/* generated by tools/build.mjs, do not edit */
-const VERSION = '${version}';
-const ASSETS = ${JSON.stringify(assets, null, 2)};
+/* The worker is a source file now, stamped rather than assembled. Its three
+   constants are replaced; everything else ships exactly as it reads in
+   src/sw.js, which is what puts it under lint and under the dead-code check. */
+writeFileSync(join(dist, 'sw.js'), read('src/sw.js')
+  .replace("const VERSION = 'decanter-dev';", `const VERSION = '${version}';`)
+  .replace("const ASSETS = ['./'];", `const ASSETS = ${JSON.stringify(precache, null, 2)};`)
+  .replace('const SHELLS = [];', `const SHELLS = ${JSON.stringify(shells)};`));
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      /* Only caches this build named, rather than everything on the origin.
-         There is a second game here and one day it may want a worker of its own;
-         a filter of "everything that is not me" is the kind that works until
-         that day and then has the two taking turns emptying each other's
-         precache, visible only offline. Prefixing costs nothing now. */
-      .then(keys => Promise.all(keys.filter(k => k.startsWith('decanter-') && k !== VERSION).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-self.addEventListener('fetch', e => {
-  const req = e.request;
-  if (req.method !== 'GET') return;
-  if (req.mode === 'navigate'){
-    /* This worker's scope covers the whole origin, including the other game's
-       subpath. Falling back to this game's page for a navigation there would
-       serve Decanter at the Bubble URL, which looks like the wrong game loading
-       rather than like being offline. */
-    if (new URL(req.url).pathname.includes('/bubble/')){
-      e.respondWith(fetch(req).catch(() => Response.error()));
-      return;
-    }
-    /* Revalidate the page every time. The whole app is inlined into index.html,
-       so a cached page is cached *code*: with the host's max-age on HTML, a plain
-       fetch() can serve a build that is minutes old and no reload will shift it.
-       no-cache still sends the ETag, so an unchanged page costs a 304. */
-    e.respondWith(
-      fetch(req.url, { cache: 'no-cache' })
-        .catch(() => caches.match('./index.html', { ignoreSearch: true }))
-    );
-    return;
-  }
-  e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {
-      if (res && res.ok && new URL(req.url).origin === location.origin){
-        const copy = res.clone();
-        caches.open(VERSION).then(c => c.put(req, copy));
-      }
-      return res;
-    }).catch(() => hit))
-  );
-});
-`);
-
+/* ---------- what it came to ---------- */
+const size = f => readFileSync(join(dist, f)).length;
 const kb = n => (n / 1024).toFixed(1) + 'kb';
+const critical = size('index.html') + size(appCss) + size(appJs);
 console.log('built dist/');
-console.log('  index.html               ', kb(app.length));
-console.log('  decanter-standalone.html ', kb(readFileSync(join(dist, 'decanter-standalone.html')).length));
-console.log('  sw.js                    ', version, `(${assets.length} precached)`);
+console.log('  index.html                ', kb(size('index.html')), '(shell)');
+console.log('  critical path             ', kb(critical), '(shell + app css + app js)');
+console.log('  deferred                  ', kb(size(audioJs) + games.filter(g => g.inApp)
+  .reduce((n, g) => n + size(g.cssFile) + size(g.jsFile), 0)));
+for (const g of games) console.log(`  ${(g.path + '/index.html').padEnd(26)}`, kb(size(`${g.path}/index.html`)),
+  `(shell, ${kb(size(g.cssFile) + size(g.jsFile))} of game)`);
+console.log('  decanter-standalone.html  ', kb(size('decanter-standalone.html')));
+console.log('  sw.js                     ', version, `(${precache.length} precached)`);

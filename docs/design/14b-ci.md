@@ -14,7 +14,7 @@ amounts of time. A typo should not wait behind a browser download.
 
 | job | what it runs | roughly |
 | --- | --- | --- |
-| `checks` | lint, dist freshness and size, unit tests, par reachability | seconds |
+| `checks` | lint, size budget, unit tests, dead code, par reachability | seconds |
 | `e2e` | the browser suite, two viewports | a minute |
 
 `.github/workflows/pages.yml` runs `npm run check` again before publishing.
@@ -34,33 +34,66 @@ cheapest place to catch things. There is no count here on purpose: the one that
 used to be here said 139, and the README's said 203, and neither had been true
 for a long time.
 
-**Size budget** (`npm run verify:budget`). Builds the page and fails if it has
-outgrown its budget. Everything is inlined so the whole game is a single download
-that works offline, which is the point of it — and which also makes it very easy
-not to notice that download growing, since nothing about adding a module tells
-you the page just got forty kilobytes heavier.
+**Dead code** (`npm run verify:dead`). Eight kinds in the output, six of them
+ways of being unused:
+
+| kind | what it is |
+| --- | --- |
+| `global` | a module on `globalThis` that no other file names |
+| `member` | a key on a module's object that no other file names |
+| `helper` | a top-level function its own module never calls |
+| `config` | a tunable nothing reads |
+| `style` | a selector or custom property nothing uses |
+| `page` | an element id nothing reaches for |
+| `missing` | an id a script reaches for and no page has |
+| `scope` | a name a module leaves in the page's own top level |
+
+The last two run the other way round. `missing` finds something reached and never
+written where everything above it finds something written and never reached, and
+it is the worse failure: a silent null every time that line runs. `scope` is not
+deadness but collision — the app page is one script, so a module's top level is
+the page's, and the same name twice is either a silent overwrite, if they are
+functions, or a parse error, which on a page that is one script is a blank
+screen.
+
+There were briefly two tools asking this from opposite ends, one scanning the
+sources and one the build. They are one now, and it carries every check either
+had. A tool nobody runs is worse than none: the second one sat in `npm run check`
+and in no CI step at all, so nothing it found could fail a pull request.
+
+An uncalled function is not an error. It does not throw, it does not slow
+anything down, and it reads exactly like code that works, which is why it
+survives review and why it needs a machine. It is the reason `unlock2` sat in the
+audio module for months making a sound nobody could hear.
+
+**There is no allowlist**, and that is the interesting decision. There was one,
+covering two exports, forty-odd class names and two ids, all written defensively
+before anyone knew whether they were needed — and emptying it one entry at a time
+changed nothing. What it would have done is forgive the first genuinely dead
+`.armed` rule for ever, which is the opposite of the job. Something reached in a
+way a textual scan cannot see goes back in with the evidence that it is real.
+
+Test-only members are the one thing reported without failing. A member the suite
+reaches for directly is often exactly right, and a check demanding those be
+deleted would be asking for a worse suite — but the other half of the time it is
+a hole poked in a module for one assertion the public path could have made.
+
+Everything here is string matching, with no parser, so it errs toward silence —
+a name built at runtime looks used. A detector that cries wolf gets switched off,
+and one that is switched off finds nothing.
+
+**Size budget** (`npm run verify:budget`). Builds and fails if what matters has
+outgrown its budget. Four numbers rather than one, because the page stopped
+being the download when the code moved into hashed bundles: the shells, which
+every load revalidates forever; the critical path, which a first paint waits for
+on a cold cache; each game on its own; and the whole build. See
+[13 Delivery](13-delivery.md).
 
 This used to also check that a committed `dist/` matched the sources. `dist/` is
 no longer committed: the deploy has always rebuilt from source, so the copy in
 git was never what shipped, `npm run serve` rebuilds before serving so it was not
 what anyone was looking at either, and nobody reads a generated bundle in review.
 What it did reliably do was conflict on every branch that touched a source file.
-
-**Dead code** (`npm run verify:dead`). Three surfaces: an export nothing reads,
-a name declared at the page's top level, a style rule no element carries. Same
-motivation as the budget above, from the other end. Everything is inlined, so an
-unused function is bytes in that download, and it is read by the next person as
-if it still meant something.
-
-The export surface is read by running the modules in a sandbox rather than by
-matching their text, because a check that cannot parse something reports nothing
-and a check that reports nothing looks exactly like a clean repo.
-
-The top-level rule is the sharper one. Both games are concatenated into a single
-`<script>`, so a module's top level is the page's: two of them declaring one name
-either overwrite in silence, if they are functions, or fail to parse at all, if
-they are `const`, and a page that is one script failing to parse is a blank
-screen.
 
 **Par reachability** (`npm run verify:pars`). Replays all 120 levels against the
 independent rules in `baseline.mjs` and fails if any cannot be finished in

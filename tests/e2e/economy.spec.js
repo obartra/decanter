@@ -148,9 +148,22 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
   await page.addInitScript(() => {
     window.__srcs = 0;
+    window.__started = 0;
     const AC = window.AudioContext || window.webkitAudioContext;
     const make = AC.prototype.createBufferSource;
     AC.prototype.createBufferSource = function () { window.__srcs++; return make.apply(this, arguments); };
+    /* Anything that would be heard, whether it came from the recording or from
+       the synthesised fallback. Counting starts, not nodes: a node that is built
+       and never started makes no sound. */
+    for (const kind of ['createBufferSource', 'createOscillator']){
+      const build = AC.prototype[kind];
+      AC.prototype[kind] = function () {
+        const node = build.apply(this, arguments);
+        const start = node.start;
+        node.start = function () { window.__started++; return start.apply(this, arguments); };
+        return node;
+      };
+    }
   });
 
   await page.goto(`/?${word}`);
@@ -158,9 +171,21 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
     const el = document.getElementById('jabari');
     return el && !el.hidden && el.classList.contains('go');
   });
-  /* the picture is up before anything has been touched, which is the point */
-  expect(await page.evaluate(() => globalThis.Sound.ready),
-    'a pasted link is not a gesture, so the context cannot be running yet').toBe(false);
+  /* The picture is up before anything has been touched, which is the point:
+     nothing may have sounded yet.
+
+     This used to ask `Sound.ready`, which is a proxy — whether a context exists
+     and is running — and the proxy stopped tracking the claim. Chromium decides
+     that state when the context is CONSTRUCTED, and under the runner's tracing
+     the verdict differs either side of the `load` event: the sound module is
+     fetched after the page opens now, so its context is built a few tens of
+     milliseconds later than it used to be, and comes back running. Driven by
+     hand against both builds, with video recording on, the two are identical:
+     zero sounds started before the touch, three after, from the recording. So
+     the claim is asked directly instead. It is also the stronger question — a
+     running context that plays nothing is not a sound. */
+  expect(await page.evaluate(() => window.__started),
+    'a pasted link is not a gesture, so nothing may have sounded yet').toBe(0);
   expect(await page.evaluate(() => globalThis.Sound.enabled), 'and the game is muted').toBe(false);
 
   /* the first touch is the first moment a sound can be heard, so that is when

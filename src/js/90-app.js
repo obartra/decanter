@@ -224,24 +224,38 @@ const App = (() => {
        to nothing, which draws as an empty screen with no error to explain it. */
     document.body.dataset.view = 'bubble';
     Backdrop.kind = 'cellar';
-    if (!bubbleReady){
-      BubbleApp.boot();
-      BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
-      BubbleApp.onEnd = banked => finishBubble(banked);
-      BubbleApp.charge = what => payFor(what);
-      bubbleReady = true;
-    }
-    /* The chapters hand these over the same way they hand over the pour game's,
-       because they are the same grants: an undo is an undo and a hint is a hint
-       whichever board is in front of you. Picking a colour is the extra bottle,
-       so it arrives with the vessel and costs what a vessel costs. */
-    const perks = progress.perks();
-    BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel,
-                        swap: perks.undo, bomb: perks.blast };
-    BubbleApp.prices = () => bubblePrices();
-    $('bubGold').textContent = progress.gold;
-    BubbleApp.newBoard(level);
-    Trace.note(`dealt level ${level}`, 'bubble board');
+    /* This game is not in the critical bundle — it is fetched right after the
+       page opens, so by the time anybody reaches a bubble level it has been on
+       the device for minutes. `ready` resolves immediately once it has. On the
+       one load where it has not, this waits rather than throwing, and the view
+       is already up so the wait looks like the board being dealt. */
+    Deferred.ready('bubble').then(() => {
+      /* the player may have gone back to the map while that was in the air */
+      if (S.level !== level || document.body.dataset.view !== 'bubble') return;
+      if (typeof BubbleApp === 'undefined'){
+        deny('bubble', 'the bubble game could not be loaded');
+        showMap();
+        return;
+      }
+      if (!bubbleReady){
+        BubbleApp.boot();
+        BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
+        BubbleApp.onEnd = banked => finishBubble(banked);
+        BubbleApp.charge = what => payFor(what);
+        bubbleReady = true;
+      }
+      /* The chapters hand these over the same way they hand over the pour game's,
+         because they are the same grants: an undo is an undo and a hint is a hint
+         whichever board is in front of you. Picking a colour is the extra bottle,
+         so it arrives with the vessel and costs what a vessel costs. */
+      const perks = progress.perks();
+      BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel,
+                          swap: perks.undo, bomb: perks.blast };
+      BubbleApp.prices = () => bubblePrices();
+      $('bubGold').textContent = progress.gold;
+      BubbleApp.newBoard(level);
+      Trace.note(`dealt level ${level}`, 'bubble board');
+    });
   }
 
   /* What a bubble tool costs, taken from the purse the same way the pour game's
@@ -825,7 +839,19 @@ const App = (() => {
      height. What a screen reader is told is the same either way. */
   function applySound(on){
     Sound.setEnabled(on);
-    BubbleApp.sound = on;
+    /* The bubble game is fetched after the page opens, so during boot this name
+       does not exist yet: an unguarded assignment here is a ReferenceError in
+       boot(), which is a blank screen caused by the sound preference.
+
+       Guarding alone is not enough either. The setting has to actually arrive,
+       or a game muted in an earlier sitting comes back with the other half of it
+       unmuted and nothing says so. So if the bundle is not here, hand the
+       setting over the moment it is — reading the live value rather than the one
+       captured now, in case the button was pressed again in between. */
+    if (typeof BubbleApp !== 'undefined') BubbleApp.sound = on;
+    else Deferred.ready('bubble').then(() => {
+      if (typeof BubbleApp !== 'undefined') BubbleApp.sound = Sound.enabled;
+    });
     document.querySelectorAll('.js-sound').forEach(b => {
       const glyph = b.classList.contains('icon');
       if (glyph){
@@ -1070,8 +1096,14 @@ const App = (() => {
        apart and stay apart. So remember it and apply it once the pours land. */
     let rt;
     const relayout = () => {
-      if (document.body.dataset.view === 'map') MapView.render(progress);
-      else Board.render();
+      /* Three views now, not two. `else Board.render()` rebuilt the pour game's
+         shelf on any resize taken while a bubble level was up — a board that is
+         not on the screen, measured at zero height, which then handed Backdrop a
+         shelf line at the top of the window to draw the room against. The bubble
+         game has its own transform and re-fits itself. */
+      const view = document.body.dataset.view;
+      if (view === 'map') MapView.render(progress);
+      else if (view === 'game') Board.render();
     };
     const onResize = () => {
       if (document.body.dataset.view !== 'map' && (S.running || S.queue.length)){

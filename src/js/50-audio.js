@@ -187,4 +187,13 @@ const Sound = (() => {
     }
   };
 })();
+/* 49-audio.js has been taking every cue until now, and the app read the save and
+   set the sound preference on it during boot — before this file existed. So the
+   setting is read off the stand-in before the name is taken: without that, a
+   player who plays muted is un-muted a second or so after opening the game, by
+   their own preference arriving too late.
+
+   No local for the stand-in, because the top level of this file is the top level
+   of the page and one module may leave exactly one name there. */
+Sound.setEnabled(globalThis.Sound?.enabled ?? true);
 globalThis.Sound = Sound;
