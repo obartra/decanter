@@ -75,7 +75,13 @@ describe('build output', () => {
       const full = join(dir, f);
       return statSync(full).isDirectory() ? walk(full, `${base}${f}/`) : [`${base}${f}`];
     });
-    const actual = walk(dist).filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html').map(f => `./${f}`);
+    /* The bubble game is a separate page with its own build id, deliberately
+       left out of this worker's precache, so it is left out here too. */
+    const actual = walk(dist)
+      .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html' && !f.startsWith('bubble/'))
+      .map(f => `./${f}`);
+    for (const f of listed) assert(!f.startsWith('./bubble/'),
+      `${f} belongs to the other game and must not be in this worker's precache`);
     for (const f of actual) assert(listed.includes(f), `${f} was built but is not precached`);
     for (const f of listed) {
       if (f === './') continue;
@@ -102,9 +108,37 @@ describe('build output', () => {
        pin an old build in place and no amount of reloading dislodges it. */
     const sw = text('sw.js');
     assert(/mode === 'navigate'/.test(sw), 'no navigation branch in the worker');
-    const nav = sw.slice(sw.indexOf("mode === 'navigate'"), sw.indexOf("mode === 'navigate'") + 420);
+    /* Bounded by the end of the branch rather than by a character count. A
+       fixed window silently slides off the thing it is checking the moment a
+       comment above it grows, and fails describing a bug that is not there. */
+    const at = sw.indexOf("mode === 'navigate'");
+    const nav = sw.slice(at, sw.indexOf('e.respondWith(\n    caches.match(req', at));
     assert(/cache:\s*'no-cache'/.test(nav),
       'navigations must revalidate, or a cached index.html pins an old build');
+  });
+
+  it(`leaves the other game's caches alone`, () => {
+    /* Two workers on one origin. A filter of "everything that is not me" means
+       whichever activated last empties the other's precache, and the two take
+       turns breaking each other, visible only when offline. */
+    const sw = text('sw.js');
+    assert(/startsWith\('decanter-'\)/.test(sw),
+      'the worker must only delete its own caches, not every cache on the origin');
+    assert(/\/bubble\//.test(sw),
+      'navigations to the other game must not fall back to this game\'s page');
+  });
+
+  it('builds the bubble game at its own path with its own id', () => {
+    assert(has('bubble/index.html'), 'the bubble page was not built');
+    const page = text('bubble/index.html');
+    const mine = text('index.html').match(/name="build" content="([^"]+)"/)[1];
+    const theirs = page.match(/name="build" content="([^"]+)"/)[1];
+    assert(theirs && theirs !== mine, 'the two games must not share a build id');
+    assert(/BubbleApp/.test(page), 'the bubble sources were not inlined');
+    assert(!/Levels\.make/.test(page), 'the other game leaked into this page');
+    /* it sits one level down, so every path out of it has to climb */
+    assert(!/["'(]\/(bubble|fonts|icons)\//.test(page),
+      'an absolute path works locally and 404s under a project subpath');
   });
 
   it('registers the worker only where it can work', () => {

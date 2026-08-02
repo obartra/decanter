@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bubble</title>
+<meta name="theme-color" content="#0C1020">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A bubble shooter. Match three to clear the board.">
+<meta name="build" content="206f96878e">
+<style>
+@font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(../fonts/cinzel.woff2) format('woff2')}
+@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/alegreyasans.woff2) format('woff2')}
+@font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/alegreyasans-bold.woff2) format('woff2')}
+</style>
+<style>/* A different room from the other game on purpose: this one is meant to read as
+   its own thing while it is being tried out at its own URL. */
+:root{ --ink:#E6ECFF; --ink-dim:rgba(230,236,255,.55); }
+html,body{height:100%}
+html{overflow:hidden; overscroll-behavior:none}
+body{
+  margin:0; display:flex; flex-direction:column;
+  font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
+  color:var(--ink); overflow:hidden; overscroll-behavior:none;
+  background:radial-gradient(120% 80% at 50% 0%, #1B2547 0%, #0C1020 55%, #070A16 100%);
+}
+.bubbleBar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px calc(10px + env(safe-area-inset-top));
+  padding-top:calc(10px + env(safe-area-inset-top));
+}
+.mark{
+  font-family:"Cinzel",serif; font-size:15px; letter-spacing:.2em;
+  text-transform:uppercase; color:#9FB6FF;
+}
+.btn{
+  font-family:inherit; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink); padding:8px 12px; border-radius:999px; cursor:pointer;
+  border:1px solid rgba(159,182,255,.3);
+  background:linear-gradient(180deg,rgba(60,78,140,.5),rgba(20,28,58,.5));
+}
+.btn:active{transform:translateY(1px)}
+.stage{flex:1; min-height:0; display:flex; padding:0 8px calc(8px + env(safe-area-inset-bottom))}
+/* The canvas is the game. It takes the whole stage and the one transform inside
+   it decides how the world maps onto whatever size that turns out to be. */
+#bubbleCanvas{flex:1; width:100%; height:100%; display:block; touch-action:none}
+</style>
+</head>
+<body>
+<header class="bubbleBar">
+  <span class="mark">Bubble</span>
+  <button class="btn" id="bubbleAgain" type="button">New board</button>
+</header>
+<main class="stage">
+  <canvas id="bubbleCanvas"></canvas>
+</main>
+<script>
+/* ---- 00-config.js ---- */
+/* Tunables for the bubble game. Pure data, safe to load anywhere.
+
+   All geometry is in world units where the bubble diameter is 1 and y increases
+   downward from the top left of the playfield. Nothing in game state is ever a
+   pixel: there is exactly one transform, in 60-view.js, and everything else
+   works in world units. A game whose state is measured in pixels has to be
+   rewritten every time the window changes size. */
+const BubbleConfig = {
+  /* Every row holds the same number of cells, both parities. The alternative,
+     rows of COLS and COLS-1, cannot survive a parity flip on advance: a bubble
+     in the last column of a wide row has nowhere to go when that row becomes a
+     narrow one, and you end up writing an eviction rule for a situation that
+     should not be able to arise. The cost is a half bubble of wall gap that
+     alternates sides, which nobody has ever noticed in this genre. */
+  COLS: 10,
+  ROWS: 18,
+  /* A fixed row index, never a pixel line. Compared against the grid, so it
+     cannot drift with the viewport. */
+  DEATH_ROW: 15,
+
+  /* Rows of touching circles sit sqrt(3)/2 apart, not 1. This is derived, not
+     chosen: two touching unit circles offset by half a diameter differ by
+     sqrt(1 - 0.25). Getting it wrong is the classic bug of the genre, and it
+     shows up as bubbles that visibly touch refusing to pop together. */
+  ROW_H: Math.sqrt(3) / 2,
+
+  MATCH_MIN: 3,
+
+  /* Contact at 0.95 rather than a full diameter. A little forgiveness makes a
+     near miss land where the player expected, but the value cannot be chosen
+     freely: 0.866 is exactly the width of the gap a bubble can pass through
+     between two neighbours, so a contact distance near it makes two
+     indistinguishable shots behave differently. 0.95 sits clear of that
+     threshold on both sides. */
+  HIT_K: 0.95,
+  /* Drawn slightly over half, so neighbours overlap a little and the art never
+     shows a slit the physics will not let anything through. */
+  DRAW_R: 0.51,
+
+  /* Diameters per second. Feel only: the shot is resolved analytically at
+     launch, so speed cannot change where a bubble lands. */
+  SPEED: 20,
+
+  /* From vertical, so ten degrees above horizontal on each side. Flatter than
+     this and a shot skims the wall for the width of the board and lands
+     somewhere nobody could have predicted. */
+  AIM_CLAMP: 80 * Math.PI / 180,
+
+  /* Safety valves on the segment solver. Neither should ever fire; if one does
+     it is a geometry bug and the test suite should have caught it. */
+  MAX_SEGMENTS: 32,
+
+  /* The guide shows the first stretch of the path and one bounce. Showing the
+     landing cell turns aiming from a judgement into a readout, which is why the
+     games that have it sell it as a power up rather than giving it away. */
+  GUIDE_LEN: 5,
+  GUIDE_DOT_GAP: 0.7,
+  GUIDE_DOT_R: 0.08,
+  GUIDE_BOUNCES_DRAWN: 1,
+
+  /* Six liquids, the same palette discipline as the other game: chosen so the
+     closest pair is far enough apart in CIEDE2000 to be told apart on a dim
+     phone, and backed by a shape so the difference does not rest on hue alone. */
+  PALETTE: ['#DF4A63', '#F09A2E', '#EFE066', '#4CC46B', '#5AA9EE', '#B071D8'],
+
+  /* how many colours a level deals with */
+  COLOURS: 5
+};
+
+/* Derived, so the walls and the muzzle cannot drift apart from the grid. */
+BubbleConfig.WORLD_W = BubbleConfig.COLS + 0.5;
+BubbleConfig.LAUNCH_BAND = 3;
+BubbleConfig.WORLD_H = BubbleConfig.ROW_H * (BubbleConfig.ROWS - 1) + 1 + BubbleConfig.LAUNCH_BAND;
+BubbleConfig.MUZZLE = {
+  x: BubbleConfig.WORLD_W / 2,
+  y: BubbleConfig.WORLD_H - BubbleConfig.LAUNCH_BAND + 1.5
+};
+
+globalThis.BubbleConfig = BubbleConfig;
+
+
+/* ---- 20-grid.js ---- */
+/* The lattice, and the board that sits on it.
+
+   This file knows about cells, where they are, and which ones touch. It knows
+   nothing about colour, matching, shots or drawing. Everything above it depends
+   on the six-neighbour adjacency here being exactly right, so it is worth
+   keeping small enough to hold in your head.
+
+   Rows are staggered. A row is either flush against the left wall or indented by
+   half a bubble, and which one depends on the board's parity bit rather than on
+   the row index alone, because inserting a row at the top flips every row's
+   stagger at once. Writing `j % 2` anywhere outside `indent` is how that bug
+   gets in. */
+const BubbleGrid = (() => {
+  const C = BubbleConfig;
+  const EMPTY = -1;
+
+  /* 0 for a flush row, 1 for one indented by half a bubble. The board's parity
+     is folded in here so that an advance is a single flip rather than a rewrite
+     of every row. */
+  const indent = (board, j) => (j + board.parity) & 1;
+
+  /* Exact and total: computed from the indices every time, never accumulated by
+     stepping down the rows, which drifts. */
+  function centreOf(board, j, c){
+    return { x: 0.5 + c + 0.5 * indent(board, j), y: 0.5 + C.ROW_H * j };
+  }
+
+  const inBounds = (j, c) => j >= 0 && j < C.ROWS && c >= 0 && c < C.COLS;
+  const at = (board, j, c) => (inBounds(j, c) ? board.rows[j][c] : EMPTY);
+  const isEmpty = (board, j, c) => at(board, j, c) === EMPTY;
+
+  /* The six that touch, in a fixed order so that anything iterating them is
+     deterministic. West and east never depend on the stagger; the four
+     diagonals do, and getting that table wrong is the single most common bug in
+     this genre. It presents as bubbles that plainly touch not popping together,
+     or as a solid board raining down after the first row is inserted. */
+  const FLUSH = [[0, -1], [0, 1], [-1, -1], [-1, 0], [1, -1], [1, 0]];
+  const INDENTED = [[0, -1], [0, 1], [-1, 0], [-1, 1], [1, 0], [1, 1]];
+
+  function neighbours(board, j, c){
+    const table = indent(board, j) ? INDENTED : FLUSH;
+    const out = [];
+    for (const [dj, dc] of table){
+      const nj = j + dj, nc = c + dc;
+      /* filtered, never clamped: a clamped neighbour is a cell that is not
+         actually adjacent, and it will happily join a cluster it does not touch */
+      if (inBounds(nj, nc)) out.push([nj, nc]);
+    }
+    return out;
+  }
+
+  const emptyRow = () => new Array(C.COLS).fill(EMPTY);
+
+  function create(parity = 0){
+    const rows = [];
+    for (let j = 0; j < C.ROWS; j++) rows.push(emptyRow());
+    return { rows, parity };
+  }
+
+  const clone = board => ({ rows: board.rows.map(r => r.slice()), parity: board.parity });
+
+  /* Push a row in at the top. The parity flip and the insertion are one
+     operation on purpose: either without the other leaves every bubble on the
+     board half a diameter from where it is drawn. */
+  function advance(board, row){
+    board.parity ^= 1;
+    board.rows.unshift(row.slice());
+    board.rows.length = C.ROWS;
+    return board;
+  }
+
+  /* Which cell contains a point. Nothing in the turn loop needs this; it exists
+     for tests and tooling. Rounding x and y independently is wrong on a
+     staggered lattice, so the nearest row is checked along with the next nearest
+     and the closer of the two candidates wins. Two rows are provably enough:
+     the best candidate in the nearer row is at most 0.662 away and the row
+     beyond is at least 0.866. */
+  function cellAt(board, x, y){
+    const jf = (y - 0.5) / C.ROW_H;
+    const clampRow = j => Math.max(0, Math.min(C.ROWS - 1, j));
+    const j1 = clampRow(Math.round(jf));
+    const j2 = clampRow(j1 + (jf >= j1 ? 1 : -1));
+    let best = null;
+    for (const j of j1 === j2 ? [j1] : [j1, j2]){
+      const c = Math.max(0, Math.min(C.COLS - 1, Math.round(x - 0.5 - 0.5 * indent(board, j))));
+      const p = centreOf(board, j, c);
+      const d2 = (p.x - x) ** 2 + (p.y - y) ** 2;
+      if (!best || d2 < best.d2 - 1e-12) best = { j, c, d2 };
+    }
+    return { j: best.j, c: best.c };
+  }
+
+  /* A cheap stable summary of the board, for asserting that the same seed and
+     the same shots produce the same game twice. */
+  function hash(board){
+    let h = 2166136261 ^ board.parity;
+    for (let j = 0; j < C.ROWS; j++){
+      for (let c = 0; c < C.COLS; c++){
+        h ^= board.rows[j][c] + 2;
+        h = Math.imul(h, 16777619);
+      }
+    }
+    return h >>> 0;
+  }
+
+  const occupied = board => {
+    const out = [];
+    for (let j = 0; j < C.ROWS; j++){
+      for (let c = 0; c < C.COLS; c++) if (board.rows[j][c] !== EMPTY) out.push([j, c]);
+    }
+    return out;
+  };
+
+  return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
+           create, clone, advance, cellAt, hash, occupied, emptyRow };
+})();
+globalThis.BubbleGrid = BubbleGrid;
+
+
+/* ---- 25-shot.js ---- */
+/* Where a shot goes, worked out in full the moment it is fired.
+
+   This is the most important function in the game, and the reason it is shaped
+   this way is worth stating plainly. The aim guide and the flying bubble must
+   agree, always, and the way to guarantee that is not to write one routine and
+   call it twice. It is to have one call whose answer the guide draws and the
+   flight walks. The bubble in the air does no collision detection at all: it
+   interpolates along a path that was decided before it left the muzzle.
+
+   That buys three things. A dropped frame, a backgrounded tab or a garbage
+   collection pause cannot change where a bubble lands, only how smoothly it
+   gets there. Shot speed stops being a correctness concern and becomes a dial
+   you can turn on feel alone. And the guide cannot lie, because there is
+   nothing for it to disagree with.
+
+   Pure: no DOM, no clock, no randomness. Parameterised by distance along the
+   ray rather than by time, so speed cannot leak in. */
+const BubbleShot = (() => {
+  const C = BubbleConfig;
+  const G = BubbleGrid;
+
+  /* Walls constrain the centre of the bubble, not its edge, so they sit half a
+     diameter inside the world on each side. */
+  const LEFT = 0.5;
+  const RIGHT = C.WORLD_W - 0.5;
+  const CEIL = 0.5;
+
+  /* The earliest cell the ray touches, if any. Every occupied cell is tested:
+     there are at most a hundred and eighty of them, which is nothing, and a
+     broad phase would only be a second place for the geometry to be wrong. */
+  function firstContact(board, p, u){
+    let best = null;
+    const cells = G.occupied(board);
+    for (const [j, c] of cells){
+      const q = G.centreOf(board, j, c);
+      const dx = p.x - q.x, dy = p.y - q.y;
+      const b = u.x * dx + u.y * dy;
+      /* moving away from this one, or never close enough */
+      if (b >= 0) continue;
+      const cc = dx * dx + dy * dy - C.HIT_K * C.HIT_K;
+      const disc = b * b - cc;
+      if (disc < 0) continue;
+      const s = -b - Math.sqrt(disc);
+      if (s < 0) continue;
+      /* ties settled by position, never by iteration order, so the answer does
+         not depend on how the board happens to be stored */
+      if (!best || s < best.s - 1e-12 ||
+          (Math.abs(s - best.s) <= 1e-12 && (j < best.j || (j === best.j && c < best.c)))){
+        best = { s, j, c };
+      }
+    }
+    return best;
+  }
+
+  /* The cell a bubble takes when it stops.
+
+     For a ceiling hit it is the nearest empty cell of row 0, which always
+     exists: a full row 0 would have produced a bubble contact first. Otherwise
+     it is the nearest of the six neighbours of whatever was hit.
+
+     That cell is provably empty and provably in bounds rather than merely
+     usually so. At contact the centre lies 0.95 from the cell it hit, the six
+     neighbours lie at 1.0 sixty degrees apart, so the nearest is at most thirty
+     degrees away and therefore within 0.508 of the contact point. Anything
+     sitting in that cell would have been closer than 0.95 and would have been
+     hit first, contradicting the fact that this was the earliest contact. */
+  function snapCell(board, contact, centre){
+    if (contact.kind === 'ceiling'){
+      let best = null;
+      for (let c = 0; c < C.COLS; c++){
+        if (!G.isEmpty(board, 0, c)) continue;
+        const d = Math.abs(G.centreOf(board, 0, c).x - centre.x);
+        if (!best || d < best.d - 1e-12) best = { j: 0, c, d };
+      }
+      return best ? { j: best.j, c: best.c } : null;
+    }
+    let best = null;
+    for (const [j, c] of G.neighbours(board, contact.j, contact.c)){
+      if (!G.isEmpty(board, j, c)) continue;
+      const q = G.centreOf(board, j, c);
+      const d2 = (q.x - centre.x) ** 2 + (q.y - centre.y) ** 2;
+      if (!best || d2 < best.d2 - 1e-12 ||
+          (Math.abs(d2 - best.d2) <= 1e-12 && (j < best.j || (j === best.j && c < best.c)))){
+        best = { j, c, d2 };
+      }
+    }
+    return best ? { j: best.j, c: best.c } : null;
+  }
+
+  /* Returns the path as a list of points, what it hit, and where it lands.
+     `landing` is null only when the shot leaves through the floor, which a board
+     with a clear vertical channel makes possible and which the caller has to
+     handle or the turn never ends. */
+  function resolveShot(board, origin, dir){
+    const len = Math.hypot(dir.x, dir.y) || 1;
+    let u = { x: dir.x / len, y: dir.y / len };
+    let p = { x: origin.x, y: origin.y };
+    const points = [{ x: p.x, y: p.y }];
+
+    for (let step = 0; step < C.MAX_SEGMENTS; step++){
+      let sWall = Infinity, wall = 0;
+      if (u.x < 0) { sWall = (LEFT - p.x) / u.x; wall = -1; }
+      else if (u.x > 0) { sWall = (RIGHT - p.x) / u.x; wall = 1; }
+
+      const sCeil = u.y < 0 ? (CEIL - p.y) / u.y : Infinity;
+      const hit = firstContact(board, p, u);
+      const sHit = hit ? hit.s : Infinity;
+
+      const s = Math.min(sWall, sCeil, sHit);
+
+      if (!isFinite(s)){
+        /* nothing ahead at all, which only happens travelling straight down */
+        const far = { x: p.x, y: C.WORLD_H + 1 };
+        points.push(far);
+        return { points, contact: { kind: 'floor' }, landing: null };
+      }
+
+      const q = { x: p.x + u.x * s, y: p.y + u.y * s };
+
+      /* left through the bottom before anything stopped it */
+      if (q.y > C.WORLD_H){
+        const t = (C.WORLD_H - p.y) / u.y;
+        points.push({ x: p.x + u.x * t, y: C.WORLD_H });
+        return { points, contact: { kind: 'floor' }, landing: null };
+      }
+
+      if (sHit <= sWall && sHit <= sCeil){
+        points.push(q);
+        const contact = { kind: 'bubble', j: hit.j, c: hit.c, x: q.x, y: q.y };
+        return { points, contact, landing: snapCell(board, contact, q) };
+      }
+      if (sCeil <= sWall){
+        points.push(q);
+        const contact = { kind: 'ceiling', x: q.x, y: q.y };
+        return { points, contact, landing: snapCell(board, contact, q) };
+      }
+
+      /* A wall. Mirror exactly onto the wall plane and flip only the horizontal
+         component, with no damping and no renormalising: a bounce that loses a
+         little speed or drifts a little in angle turns a predictable board into
+         one where the same shot does something different each time. */
+      points.push(q);
+      p = { x: wall < 0 ? LEFT : RIGHT, y: q.y };
+      u = { x: -u.x, y: u.y };
+    }
+
+    /* Unreachable: every segment either ends the shot or reflects it toward the
+       opposite wall, so the cap is a tripwire rather than a limit. */
+    return { points, contact: { kind: 'floor' }, landing: null };
+  }
+
+  /* The aim direction for a pointer, clamped so a shot can never skim flat
+     along the board. Straight up is (0, -1). */
+  function aimFrom(origin, target){
+    const dx = target.x - origin.x;
+    let dy = target.y - origin.y;
+    if (dy > -1e-6) dy = -1e-6;                 /* never aim at or below the muzzle */
+    let a = Math.atan2(dx, -dy);                 /* angle from straight up */
+    a = Math.max(-C.AIM_CLAMP, Math.min(C.AIM_CLAMP, a));
+    return { x: Math.sin(a), y: -Math.cos(a) };
+  }
+
+  return { resolveShot, snapCell, aimFrom };
+})();
+globalThis.BubbleShot = BubbleShot;
+
+
+/* ---- 30-rules.js ---- */
+/* What happens to the board when a bubble lands.
+
+   Two flood fills that look similar and must never be merged into one function
+   with a flag. `matchFrom` walks bubbles of the same colour to find what pops.
+   `detach` walks bubbles of any colour to find what is still hanging from the
+   ceiling. They answer different questions and the day someone unifies them is
+   the day the second one starts caring about colour. */
+const BubbleRules = (() => {
+  const C = BubbleConfig;
+  const G = BubbleGrid;
+
+  const key = (j, c) => j * C.COLS + c;
+
+  /* Everything the same colour as the newly placed bubble and connected to it.
+
+     Seeded from the placed cell only, never a scan of the board: on a board that
+     was well formed before the shot, no cluster of three can already exist, so a
+     scan could only ever find what the seed finds, more slowly.
+
+     Cells are marked at the moment they are pushed, not when they are popped.
+     Marking at pop lets a cell enter the stack several times, which on a large
+     cluster is how this turns into a hang. */
+  function matchFrom(board, j0, c0){
+    const colour = G.at(board, j0, c0);
+    if (colour === G.EMPTY) return [];
+    const seen = new Set([key(j0, c0)]);
+    const stack = [[j0, c0]];
+    const out = [];
+    while (stack.length){
+      const [j, c] = stack.pop();
+      out.push([j, c]);
+      for (const [nj, nc] of G.neighbours(board, j, c)){
+        const k = key(nj, nc);
+        if (seen.has(k)) continue;
+        /* compared as integers against the seed's colour, never as a rendered
+           colour string, and never against the neighbour's neighbour */
+        if (G.at(board, nj, nc) !== colour) continue;
+        seen.add(k);
+        stack.push([nj, nc]);
+      }
+    }
+    return out;
+  }
+
+  /* Everything no longer hanging from the ceiling.
+
+     Anchoring is membership of row 0, not being near the top of the screen.
+     After a row is inserted the old row 0 is row 1 and has to earn its place by
+     touching something above it, which is exactly right and is why this is run
+     again after every advance. */
+  function detach(board){
+    const seen = new Set();
+    const stack = [];
+    for (let c = 0; c < C.COLS; c++){
+      if (G.at(board, 0, c) === G.EMPTY) continue;
+      seen.add(key(0, c));
+      stack.push([0, c]);
+    }
+    while (stack.length){
+      const [j, c] = stack.pop();
+      for (const [nj, nc] of G.neighbours(board, j, c)){
+        const k = key(nj, nc);
+        if (seen.has(k)) continue;
+        if (G.at(board, nj, nc) === G.EMPTY) continue;
+        seen.add(k);
+        stack.push([nj, nc]);
+      }
+    }
+    return G.occupied(board).filter(([j, c]) => !seen.has(key(j, c)));
+  }
+
+  const remove = (board, cells) => {
+    for (const [j, c] of cells) board.rows[j][c] = G.EMPTY;
+  };
+
+  /* Which colours are actually still on the board.
+
+     The shooter must only ever offer one of these. A game that deals from a
+     fixed palette regardless keeps handing out bubbles that cannot match
+     anything, each one lands and becomes a new colour with a count of one, and
+     the board fills faster than it can be cleared through no decision the player
+     made. */
+  function liveColours(board){
+    const seen = new Set();
+    for (const [j, c] of G.occupied(board)) seen.add(board.rows[j][c]);
+    return [...seen].sort((a, b) => a - b);
+  }
+
+  const isWon = board => G.occupied(board).length === 0;
+  const isLost = board => G.occupied(board).some(([j]) => j >= C.DEATH_ROW);
+
+  /* One strict order, and the grid reaches its final state before anything is
+     animated. The animator is handed the lists of what popped and what fell and
+     never reads the grid, so a slow animation cannot desynchronise the board. */
+  /* Cells are handed back with the colour they held, because by the time anyone
+     wants to draw them falling they are no longer on the board to ask. */
+  const withColour = (board, cells) => cells.map(([j, c]) => [j, c, board.rows[j][c]]);
+
+  function resolveTurn(board, landing, colour){
+    board.rows[landing.j][landing.c] = colour;
+
+    const cluster = matchFrom(board, landing.j, landing.c);
+    const popped = cluster.length >= C.MATCH_MIN ? withColour(board, cluster) : [];
+    if (popped.length) remove(board, popped);
+
+    const dropped = popped.length ? withColour(board, detach(board)) : [];
+    if (dropped.length) remove(board, dropped);
+
+    return {
+      popped,
+      dropped,
+      won: isWon(board),
+      lost: isLost(board)
+    };
+  }
+
+  return { matchFrom, detach, remove, liveColours, isWon, isLost, resolveTurn };
+})();
+globalThis.BubbleRules = BubbleRules;
+
+
+/* ---- 60-view.js ---- */
+/* The one place world units become pixels.
+
+   Everything else in this game works in world units where a bubble is 1 across.
+   That is not tidiness for its own sake: a game whose state is measured in
+   pixels has to be recomputed every time the window changes, and anything that
+   was mid-flight during the change lands somewhere else. Here the board is a
+   fixed size in world units and only this transform moves. */
+const BubbleView = (() => {
+  const C = BubbleConfig;
+  let cv = null, ctx = null, scale = 1, ox = 0, oy = 0, dpr = 1;
+
+  function mount(canvas){
+    cv = canvas;
+    ctx = cv.getContext('2d');
+    resize();
+    addEventListener('resize', resize);
+    addEventListener('orientationchange', resize);
+    return ctx;
+  }
+
+  function resize(){
+    if (!cv) return false;
+    const box = cv.getBoundingClientRect();
+    const w = Math.max(1, Math.round(box.width));
+    const h = Math.max(1, Math.round(box.height));
+    dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.ceil(w * dpr);
+    cv.height = Math.ceil(h * dpr);
+
+    /* fit the whole board, centred, never cropped: a bubble shooter where the
+       death row is off screen is a game that ends without warning */
+    scale = Math.min(w / C.WORLD_W, h / C.WORLD_H);
+    ox = (w - C.WORLD_W * scale) / 2;
+    oy = (h - C.WORLD_H * scale) / 2;
+    return true;
+  }
+
+  /* Applied fresh each frame rather than accumulated, so a dropped frame or a
+     resize mid animation cannot leave the transform half applied. */
+  function frame(){
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, ox * dpr, oy * dpr);
+    return ctx;
+  }
+
+  /* A pointer, in the same units the game thinks in. */
+  function screenToWorld(clientX, clientY){
+    const box = cv.getBoundingClientRect();
+    return { x: (clientX - box.left - ox) / scale, y: (clientY - box.top - oy) / scale };
+  }
+
+  return {
+    mount, resize, frame, screenToWorld,
+    get ctx(){ return ctx; },
+    get scale(){ return scale; }
+  };
+})();
+globalThis.BubbleView = BubbleView;
+
+
+/* ---- 70-render.js ---- */
+/* Drawing. Reads state, never changes it.
+
+   Bubbles are drawn a little over half a diameter so neighbours overlap
+   slightly. A bubble drawn at exactly half leaves a hairline between touching
+   cells, and the eye reads that hairline as a gap a shot could pass through,
+   which the physics will not allow. Better for the art to promise slightly less
+   than the rules deliver than slightly more. */
+const BubbleRender = (() => {
+  const C = BubbleConfig;
+  const G = BubbleGrid;
+
+  function bubble(ctx, x, y, colour, r = C.DRAW_R, alpha = 1){
+    ctx.globalAlpha = alpha;
+    const g = ctx.createRadialGradient(x - r * 0.32, y - r * 0.38, r * 0.05, x, y, r);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.22, colour);
+    g.addColorStop(1, shade(colour, -0.34));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    /* a rim, so a bubble against a bubble of a near colour still reads as two */
+    ctx.lineWidth = r * 0.09;
+    ctx.strokeStyle = shade(colour, -0.5);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function shade(hex, amount){
+    const n = parseInt(hex.slice(1), 16);
+    const f = c => Math.max(0, Math.min(255, Math.round(c + (amount < 0 ? c : 255 - c) * amount)));
+    return `rgb(${f(n >> 16 & 255)},${f(n >> 8 & 255)},${f(n & 255)})`;
+  }
+
+  function board(ctx, b){
+    for (const [j, c] of G.occupied(b)){
+      const p = G.centreOf(b, j, c);
+      bubble(ctx, p.x, p.y, C.PALETTE[b.rows[j][c] % C.PALETTE.length]);
+    }
+  }
+
+  /* The path, as far as the guide is allowed to show it. Dots rather than a
+     line, and stopping short, because a guide that draws the whole path to the
+     landing cell turns aiming into reading a readout. It fades along its length
+     so the end of it does not look like a promise. */
+  function guide(ctx, points, colour, phase){
+    let drawn = 0, bounces = 0;
+    for (let i = 1; i < points.length && drawn < C.GUIDE_LEN; i++){
+      const a = points[i - 1], b2 = points[i];
+      const len = Math.hypot(b2.x - a.x, b2.y - a.y);
+      if (len < 1e-6) continue;
+      const ux = (b2.x - a.x) / len, uy = (b2.y - a.y) / len;
+      /* Bounded by the guide's length as well as by the segment's. A segment can
+         be far longer than the guide is allowed to draw, and without the second
+         bound the taper runs past the end of its own scale and asks for a
+         negative radius, which throws and takes the frame loop with it. */
+      for (let s = (phase % C.GUIDE_DOT_GAP); s < len && drawn + s < C.GUIDE_LEN; s += C.GUIDE_DOT_GAP){
+        const t = Math.max(0, Math.min(1, (drawn + s) / C.GUIDE_LEN));
+        ctx.globalAlpha = 0.9 - 0.65 * t;
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        ctx.arc(a.x + ux * s, a.y + uy * s, C.GUIDE_DOT_R * (1 - 0.8 * t), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      drawn += len;
+      if (++bounces > C.GUIDE_BOUNCES_DRAWN) break;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function walls(ctx){
+    ctx.strokeStyle = 'rgba(255,255,255,.10)';
+    ctx.lineWidth = 0.04;
+    ctx.beginPath();
+    ctx.moveTo(0.02, 0); ctx.lineTo(0.02, C.WORLD_H);
+    ctx.moveTo(C.WORLD_W - 0.02, 0); ctx.lineTo(C.WORLD_W - 0.02, C.WORLD_H);
+    ctx.moveTo(0, 0.02); ctx.lineTo(C.WORLD_W, 0.02);
+    ctx.stroke();
+
+    /* the line the board must not reach, drawn where it actually is */
+    const y = 0.5 + C.ROW_H * C.DEATH_ROW;
+    ctx.strokeStyle = 'rgba(223,74,99,.35)';
+    ctx.lineWidth = 0.03;
+    ctx.setLineDash([0.22, 0.18]);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(C.WORLD_W, y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function muzzle(ctx, aim){
+    const m = C.MUZZLE;
+    ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    ctx.lineWidth = 0.07;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 0.78, 0, Math.PI * 2);
+    ctx.stroke();
+    if (!aim) return;
+    ctx.strokeStyle = 'rgba(255,255,255,.4)';
+    ctx.lineWidth = 0.09;
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y);
+    ctx.lineTo(m.x + aim.x * 0.95, m.y + aim.y * 0.95);
+    ctx.stroke();
+  }
+
+  return { bubble, board, guide, walls, muzzle, shade };
+})();
+globalThis.BubbleRender = BubbleRender;
+
+
+/* ---- 90-app.js ---- */
+/* The loop, the input, and the turn.
+
+   The state machine is deliberately small: aiming, flying, settling. The board
+   reaches its final state the instant a shot resolves, before anything is
+   animated, and the animation is handed lists of what popped and what fell. So
+   a slow frame, a backgrounded tab or a long pop cannot leave the board and the
+   screen disagreeing about what is on it. */
+const BubbleApp = (() => {
+  const C = BubbleConfig;
+  const G = BubbleGrid;
+  const R = BubbleRules;
+  const S = BubbleShot;
+  const V = BubbleView;
+  const D = BubbleRender;
+
+  const S_AIM = 'aim', S_FLY = 'fly';
+
+  const st = {
+    board: null,
+    mode: S_AIM,
+    aim: { x: 0, y: -1 },
+    pointing: false,
+    path: null,          /* the resolved shot, decided at launch and never revised */
+    flown: 0,            /* distance travelled along it */
+    loaded: 0,           /* the colour in hand */
+    next: 0,
+    pops: [],            /* what is popping, with the time each started */
+    drops: [],           /* what is falling, in world units, with velocity */
+    shots: 0,
+    seed: 1
+  };
+
+  const rand = (() => {
+    let s = 1;
+    return { seed(n){ s = n >>> 0 || 1; }, next(){
+      s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+      return s / 4294967296;
+    } };
+  })();
+
+  function deal(){
+    const live = R.liveColours(st.board);
+    if (!live.length) return 0;
+    return live[Math.floor(rand.next() * live.length) % live.length];
+  }
+
+  function newBoard(seed){
+    rand.seed(seed);
+    st.seed = seed;
+    const b = G.create(0);
+    for (let j = 0; j < 5; j++){
+      for (let c = 0; c < C.COLS; c++){
+        b.rows[j][c] = Math.floor(rand.next() * C.COLOURS);
+      }
+    }
+    st.board = b;
+    /* nothing should be loose on a board nobody has shot at yet */
+    R.remove(b, R.detach(b));
+    st.loaded = deal();
+    st.next = deal();
+    st.mode = S_AIM;
+    st.path = null;
+    st.pops = [];
+    st.drops = [];
+    st.shots = 0;
+  }
+
+  /* ---- input. Aiming is never locked, even mid flight, so the guide always
+     answers the pointer and the game never feels like it is ignoring you. ---- */
+  function point(e){
+    const p = V.screenToWorld(e.clientX, e.clientY);
+    st.aim = S.aimFrom(C.MUZZLE, p);
+  }
+
+  function fire(){
+    if (st.mode !== S_AIM) return;
+    const shot = S.resolveShot(st.board, C.MUZZLE, st.aim);
+    st.path = shot;
+    st.flown = 0;
+    st.mode = S_FLY;
+  }
+
+  /* ---- the turn, once the bubble has arrived ---- */
+  function land(){
+    const shot = st.path;
+    if (shot.landing){
+      const res = R.resolveTurn(st.board, shot.landing, st.loaded);
+      const now = performance.now();
+      st.pops = res.popped.map(([j, c, was], i) => ({ cell: [j, c], at: now + i * 25,
+        colour: C.PALETTE[was % C.PALETTE.length] }));
+      st.drops = res.dropped.map(([j, c, was]) => {
+        const p = G.centreOf(st.board, j, c);
+        return { x: p.x, y: p.y, vx: (rand.next() - 0.5) * 1.5, vy: -1 - rand.next(),
+                 colour: C.PALETTE[was % C.PALETTE.length] };
+      });
+      if (res.won) newBoard(st.seed + 1);
+    }
+    st.shots++;
+    st.path = null;
+    st.mode = S_AIM;
+    st.loaded = st.next;
+    st.next = deal();
+    /* a board with nothing left on it has no colour to deal, so start another */
+    if (!R.liveColours(st.board).length) newBoard(st.seed + 1);
+  }
+
+  function step(dt){
+    if (st.mode === S_FLY){
+      st.flown += C.SPEED * dt;
+      if (arrived()) land();
+    }
+    const now = performance.now();
+    st.pops = st.pops.filter(p => now - p.at < 160);
+    for (const d of st.drops){
+      d.vy += 55 * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+    }
+    st.drops = st.drops.filter(d => d.y < C.WORLD_H + 2);
+  }
+
+  /* how far along the resolved path the bubble has flown */
+  function pointAt(dist){
+    const pts = st.path.points;
+    let left = dist;
+    for (let i = 1; i < pts.length; i++){
+      const a = pts[i - 1], b = pts[i];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (left <= len){
+        const t = len ? left / len : 0;
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      }
+      left -= len;
+    }
+    return pts[pts.length - 1];
+  }
+
+  function totalLen(){
+    const pts = st.path.points;
+    let n = 0;
+    for (let i = 1; i < pts.length; i++) n += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    return n;
+  }
+
+  const arrived = () => st.flown >= totalLen();
+
+  function draw(now){
+    const ctx = V.frame();
+    D.walls(ctx);
+    D.board(ctx, st.board);
+
+    for (const d of st.drops) D.bubble(ctx, d.x, d.y, d.colour, C.DRAW_R, 0.9);
+
+    for (const p of st.pops){
+      const t = Math.max(0, Math.min(1, (now - p.at) / 110));
+      if (now < p.at) continue;
+      const q = G.centreOf(st.board, p.cell[0], p.cell[1]);
+      D.bubble(ctx, q.x, q.y, p.colour, C.DRAW_R * (1 + 0.35 * t), 1 - t);
+    }
+
+    if (st.mode === S_AIM){
+      const preview = S.resolveShot(st.board, C.MUZZLE, st.aim);
+      D.guide(ctx, preview.points, C.PALETTE[st.loaded % C.PALETTE.length], (now / 100) % C.GUIDE_DOT_GAP);
+      D.muzzle(ctx, st.aim);
+      D.bubble(ctx, C.MUZZLE.x, C.MUZZLE.y, C.PALETTE[st.loaded % C.PALETTE.length]);
+    } else {
+      D.muzzle(ctx, null);
+      const p = pointAt(st.flown);
+      D.bubble(ctx, p.x, p.y, C.PALETTE[st.loaded % C.PALETTE.length]);
+    }
+    /* what is coming, tucked beside the muzzle */
+    D.bubble(ctx, C.MUZZLE.x + 1.9, C.MUZZLE.y + 0.35,
+      C.PALETTE[st.next % C.PALETTE.length], C.DRAW_R * 0.62, 0.75);
+  }
+
+  function boot(){
+    const cv = document.getElementById('bubbleCanvas');
+    V.mount(cv);
+    newBoard(1);
+
+    cv.addEventListener('pointerdown', e => {
+      cv.setPointerCapture(e.pointerId);
+      st.pointing = true;
+      point(e);
+    });
+    cv.addEventListener('pointermove', e => { if (st.pointing) point(e); });
+    cv.addEventListener('pointerup', e => {
+      if (!st.pointing) return;
+      st.pointing = false;
+      point(e);
+      fire();
+    });
+    addEventListener('resize', () => V.resize());
+
+    document.getElementById('bubbleAgain').onclick = () => newBoard(st.seed + 1);
+
+    let last = performance.now();
+    const loop = now => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      step(dt);
+      draw(now);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  return { boot, _state: st, newBoard, fire, step, land };
+})();
+globalThis.BubbleApp = BubbleApp;
+
+if (document.readyState === 'loading') addEventListener('DOMContentLoaded', BubbleApp.boot);
+else BubbleApp.boot();
+</script>
+</body>
+</html>

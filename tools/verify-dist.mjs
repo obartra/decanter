@@ -18,13 +18,23 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
 /* generous enough not to nag, tight enough to notice a mistake */
-const BUDGET = { 'index.html': 220_000, total: 700_000 };
+const BUDGET = { 'index.html': 220_000, 'bubble/index.html': 140_000, total: 900_000 };
 
-const snapshot = () => {
+/* Walks the whole tree, not just the top. It used to look only at the top level,
+   which meant a stale page in a subfolder sailed through both the freshness
+   check and the budget. Dotfiles are skipped because the build does not produce
+   them and a stray .DS_Store would fail the check on a machine where nothing is
+   wrong. */
+const snapshot = (dir = dist, base = '') => {
   const out = new Map();
-  for (const name of readdirSync(dist)) {
-    const p = join(dist, name);
-    if (statSync(p).isFile()) out.set(name, readFileSync(p));
+  for (const name of readdirSync(dir)) {
+    if (name.startsWith('.')) continue;
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) {
+      for (const [k, v] of snapshot(p, `${base}${name}/`)) out.set(k, v);
+    } else {
+      out.set(`${base}${name}`, readFileSync(p));
+    }
   }
   return out;
 };

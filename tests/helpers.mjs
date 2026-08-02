@@ -12,9 +12,22 @@ export const read = p => readFileSync(join(root, p), 'utf8');
 const PURE = ['00-config.js', '10-rng.js', '20-rules.js', '30-levels.js', '32-order.js', '35-pars.js', '36-chapters.js', '40-progress.js', '45-panel.js'];
 
 export function loadPure(extra = []){
+  return loadFrom('src/js', PURE.concat(extra));
+}
+
+/* every module of the bubble game that touches neither document nor window */
+const BUBBLE_PURE = ['00-config.js', '20-grid.js', '25-shot.js', '30-rules.js'];
+export function loadBubble(extra = []){
+  return loadFrom('src/bubble/js', BUBBLE_PURE.concat(extra));
+}
+
+/* Runs a list of classic scripts into one sandbox, in order, the way the built
+   page does. Shared so a second game can be tested the same way as the first
+   without either of them learning about the other. */
+export function loadFrom(dir, files){
   const ctx = vm.createContext({ console, Math, Date, JSON, Set, Map, Object, Array, Number, String, Infinity });
   ctx.globalThis = ctx;
-  for (const f of PURE.concat(extra)) vm.runInContext(read(`src/js/${f}`), ctx, { filename: f });
+  for (const f of files) vm.runInContext(read(`${dir}/${f}`), ctx, { filename: f });
   return ctx;
 }
 /* the solver is written as a worker, so give it a stub `self` and call it directly */
