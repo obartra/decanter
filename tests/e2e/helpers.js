@@ -6,7 +6,44 @@
    boots into the state the spec asked for rather than booting, saving, and then
    being overwritten. */
 
+import { loadPure, loadFrom } from '../helpers.mjs';
+
 export const SAVE_KEY = 'decanter.save.v1';
+
+/* The named states, off the same module the lab offers as presets.
+
+   Loaded here rather than restated, which is the whole point: a spec asking for
+   `state('purseDry')` and a person clicking "Stranded with an empty purse" in
+   the lab are asking for the same save. Before this, "stranded" was the literal
+   `{ unlocked: 15, gold: 0, seen: { 0: true, 1: true } }` written out in four
+   specs, and the day the fee moved there were four of them to find.
+
+   The states are functions of the game's own modules — which level precedes a
+   bubble board, which chapter grants the blast — so they are resolved against
+   the pure modules in the sandbox, the same ones the unit suite uses. */
+const pure = loadPure();
+const { LabStates } = loadFrom('src/lab/js', ['10-states.js']);
+
+const stateEnv = () => {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return {
+    CONFIG: pure.CONFIG, Levels: pure.Levels, Chapters: pure.Chapters,
+    LAST_LEVEL: pure.LAST_LEVEL,
+    /* the local calendar day the game itself computes, or a draught state would
+       describe a different day from the one the map is looking at */
+    today: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  };
+};
+
+/* A named state, as save overrides `start()` accepts. Extra fields may be
+   layered on for the one thing a spec is about — the state is the setting, not
+   a straitjacket. */
+export const state = (id, extra = {}) => ({ ...LabStates.make(id, stateEnv()), ...extra });
+
+/* The whole list, for the specs that walk every one of them. */
+export const everyState = () => LabStates.list.map(s => ({ ...s, save: LabStates.make(s.id, stateEnv()) }));
+export const RECOVERY = LabStates.RECOVERY;
 
 /* A save the game will accept as current. The layout stamp has to match the
    build's, or the game will treat the save as one from older boards. */
@@ -55,6 +92,32 @@ export async function start(page, save = {}) {
      missing wait. Waiting once, here, is what keeps every spec about the game
      rather than about the network. */
   await page.waitForFunction(() => !!globalThis.Preview);
+}
+
+/* A save written down exactly as given, and opened once.
+
+   `start()` above is deliberate about the layout stamp: it corrects it to the
+   build's, because a spec that meant "level 15, four hundred gold" does not also
+   mean "and from an older set of boards", and every one of them would otherwise
+   have been silently testing the migration path.
+
+   That is right for a spec about the game and wrong for a spec about the save.
+   The three recovery states — an older layout, fields that did not exist yet,
+   types somebody's browser mangled — are saves whose whole point is being wrong,
+   and stamping a current layout onto one repairs the thing under test. This
+   found that the hard way: a stale-layout state seeded through `start()` arrived
+   with a current stamp and kept the bests it was supposed to lose.
+
+   So: written verbatim, once, before anything runs. No defaults filled in and no
+   second pass, because both of those are the game's job here rather than the
+   fixture's. */
+export async function startRaw(page, save) {
+  await page.addInitScript(([key, wanted]) => {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, JSON.stringify(wanted));
+  }, [SAVE_KEY, save]);
+  await page.goto('/');
+  await page.waitForFunction(() => !!globalThis.App && !!globalThis.Rules);
 }
 
 /* Open a level from the map. Waits for the board to be dealt rather than for a

@@ -15,7 +15,7 @@
    Levels are asked for rather than written down, so moving which boards are the
    other game cannot turn these into tests of something else. */
 import { test, expect } from '@playwright/test';
-import { start, openLevel, settle, dismissChapter, pour } from './helpers.js';
+import { start, openLevel, settle, dismissChapter, pour, state } from './helpers.js';
 
 const purse = page => page.evaluate(() => globalThis.App._progress.gold);
 const price = page => page.evaluate(() => globalThis.CONFIG.economy.blast);
@@ -70,10 +70,9 @@ async function loseShort(page, shelf = SHORT_SHELF){
 }
 const loseIt = loseShort;
 
-const seenAll = () => Object.fromEntries([...Array(12)].map((_, i) => [i, true]));
 
 test('a failed run is offered a blast, once the chapter has handed it over', async ({ page }) => {
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   const level = await blastLevel(page);
   expect(level, 'some chapter has to grant the blast').toBeTruthy();
 
@@ -88,7 +87,7 @@ test('a failed run is offered a blast, once the chapter has handed it over', asy
 test('is not offered on a board that was won', async ({ page }) => {
   /* There is nothing to rescue on a finished run, and a rescue offered there is
      a way to spend sixty five gold on nothing. */
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   const level = await blastLevel(page);
   await openLevel(page, level);
 
@@ -107,7 +106,7 @@ test('is not offered on a board that was won', async ({ page }) => {
 });
 
 test('is not offered before the chapter that grants it', async ({ page }) => {
-  await start(page, { unlocked: 3, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen', { unlocked: 3 }));
   await openLevel(page, 3);
   await loseIt(page);
 
@@ -116,7 +115,7 @@ test('is not offered before the chapter that grants it', async ({ page }) => {
 });
 
 test('opens a shelf of real bottles, and charges nothing for looking', async ({ page }) => {
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   await openLevel(page, await blastLevel(page));
   await loseIt(page);
 
@@ -158,7 +157,7 @@ test('opens a shelf of real bottles, and charges nothing for looking', async ({ 
 test('cannot be armed at all without the gold for it', async ({ page }) => {
   /* The mode is only enterable when it can be paid for, so nobody opens a shelf
      of bottles they cannot buy and finds out at the last tap. */
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   await openLevel(page, await blastLevel(page));
   await page.evaluate(() => {
     const p = globalThis.App._progress;
@@ -172,7 +171,7 @@ test('cannot be armed at all without the gold for it', async ({ page }) => {
 });
 
 test('takes the gold, takes the bottle, and hands the run back', async ({ page }) => {
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   await openLevel(page, await blastLevel(page));
   await loseIt(page);
 
@@ -206,7 +205,7 @@ test('takes the gold, takes the bottle, and hands the run back', async ({ page }
 });
 
 test('caps the resumed run at two stars, and only offers one', async ({ page }) => {
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   await openLevel(page, await blastLevel(page));
   await loseIt(page);
   await page.locator('#blast').click();
@@ -231,7 +230,7 @@ test('never offers a target that would end the run', async ({ page }) => {
   /* The worst version of this feature: sixty five gold for an outcome worse
      than not pressing it. Checked against the rules on the live board rather
      than on a shelf written down here. */
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   await openLevel(page, await blastLevel(page));
   await loseIt(page);
   await page.locator('#blast').click();
@@ -247,7 +246,7 @@ test('never offers a target that would end the run', async ({ page }) => {
 });
 
 test('the other game gets a bomb from the same chapter and the same purse', async ({ page }) => {
-  await start(page, { unlocked: 120, gold: 400, seen: seenAll() });
+  await start(page, state('everythingOpen'));
   const bubble = await page.evaluate(() =>
     [...Array(120)].map((_, i) => i + 1).find(globalThis.Levels.isBubble));
 
@@ -322,7 +321,7 @@ test('a restart deals the destroyed bottle back', async ({ page }) => {
      `keepVessel` nobody ever passed, so three signatures described a choice the
      game had already made. Pinned here so the words and the code cannot drift
      apart again. */
-  await start(page, { unlocked: 120, gold: 900, seen: seenAll() });
+  await start(page, state('everythingOpen', { gold: 900 }));
   const level = await blastLevel(page);
   await openLevel(page, level);
   /* the shelf this level deals, before the fixture puts a losing one there */

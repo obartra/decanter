@@ -221,6 +221,13 @@ const LabStates = (() => {
       }
     },
     {
+      id: 'everythingOpen',
+      title: 'The whole run open, nothing beaten',
+      kind: PLAY,
+      why: 'Every board reachable and every chapter already read, so a spec can open any level without playing to it or having a card land on top of what it came to look at. The workhorse rather than an edge case.',
+      make: env => ({ unlocked: env.LAST_LEVEL, gold: 400, seen: seenUpTo(env, env.Chapters.count - 1) })
+    },
+    {
       id: 'muted',
       title: 'Muted in an earlier sitting',
       kind: PLAY,
