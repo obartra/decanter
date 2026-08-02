@@ -11,6 +11,36 @@ const dist = join(root, 'dist');
 const has = f => existsSync(join(dist, f));
 const text = f => readFileSync(join(dist, f), 'utf8');
 
+describe('the workflow and the scripts it names', () => {
+  it('never asks npm for a script that does not exist', () => {
+    /* CI is the one file `npm run check` cannot check. Its steps are npm
+       scripts named as strings in yaml, so renaming or removing one leaves the
+       workflow calling a script that is gone — and everything passes locally
+       right up until the pull request goes red on `Missing script`. That is
+       exactly how this landed: a detector was folded into another, its script
+       came out of package.json, and the CI step naming it stayed. */
+    const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+    const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
+    const named = [...yml.matchAll(/npm run ([\w:]+)/g)].map(m => m[1]);
+    assert(named.length >= 5, `only found ${named.length} npm steps, so the scan has broken`);
+    for (const name of new Set(named)){
+      assert(scripts[name], `.github/workflows/ci.yml runs "npm run ${name}", which package.json does not define`);
+    }
+  });
+
+  it('runs every gate that npm run check runs', () => {
+    /* The other direction, and the reason it matters: a gate in `check` but in
+       no CI step is one nothing can fail a pull request with. */
+    const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+    const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
+    const inCheck = [...scripts.check.matchAll(/npm run ([\w:]+)/g)].map(m => m[1]);
+    for (const name of inCheck){
+      assert(new RegExp(`npm run ${name}\\b`).test(yml),
+        `npm run check runs "${name}" and no CI step does, so it cannot fail a pull request`);
+    }
+  });
+});
+
 describe('build output', () => {
   it('produces every file the app needs', () => {
     for (const f of ['index.html', 'sw.js', 'manifest.webmanifest',
