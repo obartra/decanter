@@ -42,7 +42,7 @@ const CasksApp = (() => {
     /* The layout never changes while a board is being played; the position is
        the only thing that does. Keeping them apart is what makes a board a small
        array of integers rather than a scene graph. */
-    layout: [], start: [], pos: [],
+    layout: [], pos: [],
     /* what is currently drawn, which chases the truth. Never read by the rules. */
     drawn: [],
     moves: 0,
@@ -89,7 +89,6 @@ const CasksApp = (() => {
 
     st.level = level;
     st.layout = board.layout;
-    st.start = board.start;
     st.pos = board.start.slice();
     st.drawn = board.start.slice();
     st.moves = 0;
@@ -332,9 +331,13 @@ const CasksApp = (() => {
   function draw(now){
     const ctx = V.frame();
     D.floor(ctx);
+    /* An empty room, which can only happen if the shipped tables are missing
+       entirely. The walls are still drawn, because a dark rectangle is a better
+       account of that than an exception thrown sixty times a second. */
+    if (!st.layout.length){ D.walls(ctx); return; }
 
     const gilt = st.layout[0];
-    const heat = st.over ? 1 : (gilt ? st.drawn[0] / Math.max(1, R.span(gilt)) : 0);
+    const heat = st.over ? 1 : st.drawn[0] / Math.max(1, R.span(gilt));
     D.door(ctx, heat, now);
 
     if (st.picked >= 0 && !st.sliding){

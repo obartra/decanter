@@ -81,11 +81,14 @@ const { CasksConfig: C, CasksRules: R, CasksSearch: S, CasksLevels: L } =
    An open floor can reach well over a hundred thousand positions, and those are
    the layouts least worth the seconds: everything has somewhere to go, so almost
    nothing blocks anything and par is small. A layout that trips this is dropped
-   rather than measured badly. At 40,000 half the draws tripped it and the run
-   spent most of its time reaching that conclusion; at 24,000 the field is
-   essentially the same shape and the whole measurement is about a third faster.
-   Boards above the cap are not lost so much as never looked at, and the sweep
-   only ever answers about layouts it walked in full. */
+   rather than measured badly — the sweep only ever answers about a component it
+   walked in full.
+
+   The number is a cost decision. At 40,000 about half the draws tripped it
+   anyway, at roughly 47ms a layout; at 24,000 rather more of them do, at roughly
+   33ms. Dropping a layout early is far cheaper than measuring it, so a lower cap
+   is paid for twice over — and what it loses is the open floors, which are the
+   ones with nothing in them. */
 const COMPONENT_CAP = 24000;
 
 /* Par 1 is kept. A board whose answer is "slide the gilt cask to the door" is

@@ -77,6 +77,11 @@ const CasksRules = (() => {
     return g;
   }
 
+  /* What is on a cell, treating anything off the floor as occupied by the wall.
+     The only caller already keeps itself inside the board, so the bounds test is
+     belt and braces — but it is the difference between a wall that stops a cask
+     and a wall that reads as empty space because the index wrapped onto the row
+     above, which is a bug that would look exactly like a rule. */
   const at = (g, r, c) => (r < 0 || r >= C.H || c < 0 || c >= C.W ? -2 : g[r * C.W + c]);
 
   /* How far a cask can go in each direction, as the inclusive range of positions

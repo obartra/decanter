@@ -29,7 +29,13 @@
    25-search.js is still in the bundle, because the hint needs it — but a hint is
    asked for, where a deal is not. */
 const CasksLevels = (() => {
-  const C = CasksConfig;
+  /* No config is read here, and that is worth noticing rather than fixing. Every
+     dimension of a board — the size of the floor, which row the door is in, how
+     long a cask may be — is already baked into the table by the tool that wrote
+     it. Reading CasksConfig here would be this module quietly asserting that the
+     committed boards still match a value somebody could change, which is exactly
+     the assertion CasksRules.wellFormed makes on purpose, in one place, with a
+     test behind it. */
 
   /* ---- the shipped format ----
 
@@ -104,16 +110,6 @@ const CasksLevels = (() => {
     return Number.isInteger(p) ? p : null;
   }
 
-  /* How many casks are on the floor, which is the one thing about a board worth
-     saying out loud before it is played: it is what the room looks like, and it
-     is roughly what the board costs to read. Not a difficulty measure — the
-     field has trivial thirteen-cask boards and vicious eight-cask ones — so the
-     page shows it as a fact about the room and never as a rating. */
-  const size = level => {
-    const board = make(level);
-    return board ? board.layout.length : 0;
-  };
-
-  return { parse, encode, make, last, par, size, EXIT_ROW: C.EXIT_ROW };
+  return { parse, encode, make, last, par };
 })();
 globalThis.CasksLevels = CasksLevels;

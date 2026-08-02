@@ -86,11 +86,13 @@ short casks is a different room from one with long obstructions in it.
 cask in from the far side, which does not make a board hard, it makes it
 unsolvable. `CasksRules.wellFormed` says so where a test can read it.
 
-**The component cap is what the run costs.** At 40,000 states half the draws
-tripped it and the measurement spent most of its time reaching that conclusion.
-At 24,000 the field is essentially the same shape and the whole thing is about a
-third faster. Layouts above the cap are not measured badly, they are dropped: the
-sweep only ever answers about a component it walked in full.
+**The component cap is what the run costs.** At 40,000 states about half the
+draws tripped it anyway, at roughly 47ms a layout; at 24,000 rather more do, at
+roughly 33ms. Dropping a layout early is far cheaper than measuring it, so the
+lower cap is paid for twice over, and what it gives up is the open floors — which
+are the ones with nothing in them. Layouts above the cap are not measured badly,
+they are dropped: the sweep only ever answers about a component it walked in
+full.
 
 ## The boards are a shipped table, not a seed
 
