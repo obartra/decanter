@@ -51,6 +51,21 @@ files. They cover:
 - the worker revalidating navigations, and tracking the controller rather than
   sampling it once
 
+## Checks on the repo rather than on the game
+
+A third kind, for the things that rot while nobody is editing them. They are in
+the unit suite because they need nothing but the files:
+
+- **`verify:dead`**, its own tool, described in [14b CI](14b-ci.md)
+- **the documents**: every relative link resolves, `DESIGN.md` indexes every
+  design document and nothing else, every repo path named in backticks is on
+  disk. Written after a README row described a folder of painted backdrops that
+  does not exist and by these notes' own account never should
+- **the checks themselves**: every `verify:*` script is run by the CI workflow.
+  `verify:dead` was written, wired into `npm run check`, and would have reached
+  main without CI running it once, because the workflow names its steps
+  individually rather than calling `check`
+
 ## Mutation checks
 
 A test that cannot fail is worth nothing, so the important guards were checked by
@@ -58,6 +73,17 @@ breaking them on purpose and confirming the suite went red: the bare frame loop
 put back, the `finally` removed, the transform-following narrowed to the pouring
 bottle. That last one reproduced the original bug at 330 lit pixels outside the
 glass, against 0 with the fix.
+
+The same was done for the sound and repo checks, which need it more than most,
+because every one of them guards something whose failure is silent:
+
+- the bang's recording pointed at a path that is not there. The synthesised
+  fallback took over, so the game still banged; the node count went from 3 to 9
+  and said which one had played
+- muting reverted to reaching one game's audio module. Both mute tests went red
+- a `verify:*` script replaced in the workflow with `echo skipped`
+- an export nothing reads, a stray top-level declaration, and a style rule no
+  element carries, each added in turn and each reported
 
 ## What is not tested, and why
 

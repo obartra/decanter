@@ -69,8 +69,41 @@ created lazily on the first tap. Every entry point calls `Audio.unlock()` before
 doing anything else, and the sound preference is persisted with the rest of the
 save.
 
-## Not tested
+## One preference, two modules
 
-There is no meaningful automated check here. Sound is judged by ear, and the
-suite does not pretend otherwise. See [14 Testing](14-testing.md) for what else
-falls in that category.
+There are two audio modules on the app page, one per game, and the other one
+remembers its own preference in a key of its own, because it also ships as a
+page of its own where there is no save to read. On the app page the save wins:
+`applySound` in `90-app.js` is the only thing that applies it, at boot and on
+every toggle, and it reaches the other game through `BubbleApp.sound` rather
+than its audio module, because the coupling between the two games is one object
+wide on purpose.
+
+That was a bug before it was a rule. Muting reached one module, so the two
+boards a chapter that are the other game stayed loud, on a screen with no sound
+button, for a player who had already done the only thing the game offers for
+making it stop.
+
+## What can be checked, and what cannot
+
+Whether it sounds good cannot be. Nothing here pretends otherwise, and the sound
+lab exists because that judgement is made by ear.
+
+Nearly everything around it can be, and the reason to bother is that this is the
+subsystem where failure is silent by construction: a sound that stops playing
+throws nothing, renders nothing, and fails no test that was not written for it.
+So the suites check that a cue actually reached the audio graph, by counting the
+nodes it built, which is the only thing a browser will tell you about whether a
+sound happened:
+
+- the bang plays the recording rather than the synthesised fallback, by node
+  count, because the fallback still sounds and would hide the difference forever
+- three of them overlapping neither clip nor come out quieter than the bang they
+  replaced, measured by rendering the actual mix
+- the portable file still has its bang when opened off disk
+- muting reaches both games, and a game muted in an earlier sitting comes back
+  muted in both
+- every cue a module defines is called by something
+
+See [14 Testing](14-testing.md) for what else is judged by eye rather than by
+the suite.

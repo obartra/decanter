@@ -48,6 +48,23 @@ describe('the documents', () => {
       assert(onDisk.includes(f), `DESIGN.md indexes ${f}, which is not in docs/design/`);
   });
 
+  it('runs every check it has in the workflow that gates a change', () => {
+    /* A check nobody runs is not a check. `npm run check` is the local gate and
+       CI is the one that can actually say no, and they are two lists that have
+       to be kept in step by hand: `verify:dead` was written, wired into `check`,
+       and would have gone to main without CI ever running it, because the
+       workflow names its steps one at a time rather than calling `check`.
+
+       Which it should keep doing: the split into two jobs is what stops a typo
+       waiting behind a browser download. This just says that nothing added to
+       one list can go missing from the other. */
+    const scripts = JSON.parse(read('package.json')).scripts;
+    const ci = read('.github/workflows/ci.yml');
+    for (const name of Object.keys(scripts).filter(n => n.startsWith('verify:')))
+      assert(ci.includes(`npm run ${name}`),
+        `${name} is a check nothing in CI runs, so it cannot fail a pull request`);
+  });
+
   it('names no path that is not on disk', () => {
     /* Every `backtick/path/` in a table cell across the docs. Only the ones that
        look like repo paths: a trailing slash, or a known source extension. That

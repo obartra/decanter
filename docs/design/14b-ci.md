@@ -27,10 +27,12 @@ scope, so the config declares what each file publishes and what it expects to
 find; a linter that assumes modules calls all of that undefined. It found two
 pieces of genuinely dead code the first time it ran.
 
-**Unit** (`npm test`). 139 tests, no dependencies, covering everything decidable
-from numbers: rules, solver, levels, par, ordering, economy, progress, the
-end-of-run panel. This is the bulk of the game and the cheapest place to catch
-things.
+**Unit** (`npm test`). No dependencies, covering everything decidable from
+numbers: rules, solver, levels, par, ordering, economy, progress, the end-of-run
+panel, and the repo's own invariants. This is the bulk of the game and the
+cheapest place to catch things. There is no count here on purpose: the one that
+used to be here said 139, and the README's said 203, and neither had been true
+for a long time.
 
 **Size budget** (`npm run verify:budget`). Builds the page and fails if it has
 outgrown its budget. Everything is inlined so the whole game is a single download
@@ -43,6 +45,22 @@ no longer committed: the deploy has always rebuilt from source, so the copy in
 git was never what shipped, `npm run serve` rebuilds before serving so it was not
 what anyone was looking at either, and nobody reads a generated bundle in review.
 What it did reliably do was conflict on every branch that touched a source file.
+
+**Dead code** (`npm run verify:dead`). Three surfaces: an export nothing reads,
+a name declared at the page's top level, a style rule no element carries. Same
+motivation as the budget above, from the other end. Everything is inlined, so an
+unused function is bytes in that download, and it is read by the next person as
+if it still meant something.
+
+The export surface is read by running the modules in a sandbox rather than by
+matching their text, because a check that cannot parse something reports nothing
+and a check that reports nothing looks exactly like a clean repo.
+
+The top-level rule is the sharper one. Both games are concatenated into a single
+`<script>`, so a module's top level is the page's: two of them declaring one name
+either overwrite in silence, if they are functions, or fail to parse at all, if
+they are `const`, and a page that is one script failing to parse is a blank
+screen.
 
 **Par reachability** (`npm run verify:pars`). Replays all 120 levels against the
 independent rules in `baseline.mjs` and fails if any cannot be finished in

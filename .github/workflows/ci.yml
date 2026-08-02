@@ -44,6 +44,12 @@ jobs:
       - name: the built page fits its budget
         run: npm run verify:budget
 
+      # Every module is inlined into one page, so an unused function is bytes in
+      # the download the budget above is defending, and a name declared at a
+      # module's top level is declared at the page's. This says so.
+      - name: Nothing dead, nothing sharing a scope
+        run: npm run verify:dead
+
       - name: Unit tests
         run: npm test
 
