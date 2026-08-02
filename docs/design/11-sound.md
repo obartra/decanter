@@ -1,7 +1,7 @@
 # 11 · Sound
 
-Every sound is synthesised at runtime with WebAudio. The app ships no audio
-files.
+Every sound the game makes is synthesised at runtime with WebAudio. The app
+ships exactly one audio file, and it is not one of the game's sounds.
 
 ## Why synthesised
 
@@ -29,6 +29,38 @@ sample triggered per move: the information is in the change, not in the timbre.
 Lift and drop for selection, a refusal for anything illegal, a cork for a sealed
 bottle, and a short flourish on a win. A failed run gets the refusal rather than
 the flourish, which is the whole audio treatment of failure and is enough.
+
+## The one recording
+
+`assets/audio/boom.mp3`, 17KB, played only by Jabari mode
+(see [04 Economy](04-economy.md)). It is `explosionCrunch_001` from Kenney's
+sci-fi pack, CC0, mono at 96k, and the argument above does not apply to it:
+
+- **It is not the game.** Nothing in the puzzle makes this noise, so the bytes
+  are only ever fetched by someone who typed the secret word. Everyone else
+  downloads a page that mentions it and no more.
+- **It is never pitched.** The pour and the glug are driven by the fill level,
+  which is why a fixed recording cannot play them. A bang is fired once at one
+  size.
+- **Its whole job is to be bigger than the game.** That is the one job a
+  synthesised imitation of an explosion cannot do, however carefully it is
+  tuned, and the synthesised one was tuned carefully.
+
+The synthesised bang is still in `50-audio.js` and still fires when the
+recording does not arrive, which is what a page served unbuilt does. It sounds
+like a bang, so nothing looks broken, and that is exactly why a test pins the
+recording as the thing that played rather than only checking that something did:
+the recording is one buffer source per bang and the fallback is three.
+
+To swap it, audition in the sound lab and copy the winner across:
+
+```bash
+node tools/sound-lab/make.mjs && cp tools/sound-lab/audio/<name>.mp3 assets/audio/boom.mp3
+```
+
+The shipped file is byte for byte what the lab produces, so that is a swap
+rather than a re-encode. The build id covers the recording, so installed copies
+pick up a new one without a code change.
 
 ## Unlocking
 

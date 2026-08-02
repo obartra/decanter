@@ -24,6 +24,11 @@ function bundle(dir, { worker } = {}){
 const main = bundle('src', { worker: 'src/worker/solver.js' });
 const bub = bundle('src/bubble');
 
+/* The only recording the game ships, and only Jabari mode plays it. Read here
+   rather than in `compose` because both pages want the same bytes and the build
+   id wants their hash. */
+const boom = readFileSync(join(root, 'assets/audio/boom.mp3'));
+
 /* The app page carries both games, because some of its levels are the other
    one. The bubble sources go in after, so the pour game's modules are all
    defined by the time anything reads them, and nothing in this bundle touches
@@ -39,8 +44,10 @@ const solver = main.solver;
 /* One id for the build, stamped into the page and used as the cache name, so
    "which version am I actually looking at" is a question with an answer. It has
    to cover the bubble sources too now that they ship inside this page, or a
-   change to them would leave every installed copy on the old worker. */
-const buildId = createHash('sha256').update(css + js + solver).digest('hex').slice(0, 10);
+   change to them would leave every installed copy on the old worker. The same
+   goes for the boom: swapping the recording without touching a line of code
+   would otherwise leave every installed copy playing the old one forever. */
+const buildId = createHash('sha256').update(css + js + solver).update(boom).digest('hex').slice(0, 10);
 
 const fontFace = (cinzel, sans, sansBold) => `<style>
 @font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(${cinzel}) format('woff2')}
@@ -55,9 +62,15 @@ const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">`;
 
-function compose({ fonts, head }){
+/* Where the bang is. A tag rather than a fetch of a known path, so the two pages
+   can answer it differently: the installable build points at a cacheable file,
+   the portable one carries the bytes, and nothing in the audio module has to
+   know which kind of build it is running in. Not a preload — almost nobody ever
+   hears this, and it is fetched on demand. */
+function compose({ fonts, head, boomSrc }){
   return read('src/index.html')
     .replace('<!--BUILD-->', `<meta name="build" content="${buildId}">`)
+    .replace('<!--BOOM-->', () => `<meta name="boom" content="${boomSrc}">`)
     .replace('<!--PWAHEAD-->', head)
     .replace('<!--FONTS-->', fonts)
     .replace('<!--CSS-->', () => css)
@@ -69,22 +82,29 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(join(root, 'assets/fonts'), join(dist, 'fonts'), { recursive: true });
 cpSync(join(root, 'assets/icons'), join(dist, 'icons'), { recursive: true });
+cpSync(join(root, 'assets/audio'), join(dist, 'audio'), { recursive: true });
 
-/* 1. the installable app, fonts as separate cacheable files. The room is drawn
-   at runtime, so there is no art to ship. */
+/* 1. the installable app, fonts and the boom as separate cacheable files. The
+   room is drawn at runtime, so there is no art to ship. */
 const app = compose({
   fonts: fontFace('./fonts/cinzel.woff2', './fonts/alegreyasans.woff2', './fonts/alegreyasans-bold.woff2'),
-  head: pwaHead
+  head: pwaHead,
+  boomSrc: './audio/boom.mp3'
 });
 writeFileSync(join(dist, 'index.html'), app);
 
-/* 2. one portable file, fonts inlined, opens straight off disk */
+/* 2. one portable file, fonts and the boom inlined, opens straight off disk.
+   The bang has to be inlined for the same reason the fonts are: a file:// page
+   fetching a sibling path is a cross origin request to a browser, so a portable
+   file that pointed at ./audio/ would fall back to the synthesised bang the
+   moment it left the folder it was built in. */
 const font = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).toString('base64');
 writeFileSync(join(dist, 'decanter-standalone.html'), compose({
   fonts: fontFace(font('assets/fonts/cinzel.woff2'),
                   font('assets/fonts/alegreyasans.woff2'),
                   font('assets/fonts/alegreyasans-bold.woff2')),
-  head: ''
+  head: '',
+  boomSrc: 'data:audio/mpeg;base64,' + boom.toString('base64')
 }));
 
 /* 3. the bubble game, at its own subpath. Its own sources, its own id and its

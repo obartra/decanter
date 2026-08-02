@@ -1,6 +1,10 @@
 /* Gold changing hands, and the things it buys. */
 import { test, expect } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
 import { start, openLevel, settle } from './helpers.js';
+
+const PORTABLE = join(dirname(fileURLToPath(import.meta.url)), '../../dist/decanter-standalone.html');
 
 test('a level can be bought from the map, and only the next one', async ({ page }) => {
   await start(page, { unlocked: 5, gold: 400 });
@@ -162,9 +166,93 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
   /* the first touch is the first moment a sound can be heard, so that is when
      it goes off — muted or not */
   await page.mouse.click(200, 400);
+  /* Three, and the number is the point: the recording is one source per bang,
+     and the synthesised fallback is three. Nine here would be a bang that still
+     sounds, so nothing else in the suite would fail, and the recording could
+     have stopped shipping months earlier. */
   await expect.poll(() => page.evaluate(() => window.__srcs),
-    { message: 'three booms should build three noise sources each' })
-    .toBeGreaterThanOrEqual(9);
+    { message: 'three booms, one source each, played from the recording' })
+    .toBe(3);
+});
+
+/* Three of the recording overlap, and nothing between them and the speaker
+   limits anything. That makes the mix a property of whichever file is sitting in
+   assets/audio/, and 11 Sound tells the next person to swap that file by copying
+   a different one over it — so the number in the code is only right for as long
+   as nobody takes that invitation. This renders the actual bang and measures it,
+   which is the only form of "it does not clip" that survives the swap.
+
+   The floor matters as much as the ceiling. A quiet recording still plays, still
+   passes every other test here, and turns the loudest moment in the game into a
+   thud nobody remarks on. 0.3 is just above the synthesised bang it replaced. */
+test('the three bangs together neither clip nor fizzle', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const mix = await page.evaluate(async () => {
+    const src = document.querySelector('meta[name="boom"]')?.content;
+    if (!src) return { missing: true };
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const bytes = await (await fetch(src)).arrayBuffer();
+    const buf = await new AC().decodeAudioData(bytes.slice(0));
+    /* the shipped graph: three sources at the bang's spacing, each through its
+       own gain, all through the master */
+    const off = new OfflineAudioContext(1, Math.ceil(48000 * (buf.duration + 1)), 48000);
+    const master = off.createGain();
+    master.gain.value = 0.45;
+    master.connect(off.destination);
+    for (const at of [0, 0.19, 0.44]){
+      const s = off.createBufferSource(); s.buffer = buf;
+      const g = off.createGain(); g.gain.value = 0.8;
+      s.connect(g).connect(master); s.start(at);
+    }
+    const d = (await off.startRendering()).getChannelData(0);
+    let peak = 0, clipped = 0;
+    for (let i = 0; i < d.length; i++){
+      const a = Math.abs(d[i]);
+      if (a > peak) peak = a;
+      if (a >= 1) clipped++;
+    }
+    return { peak, clipped, seconds: buf.duration };
+  });
+
+  expect(mix.missing, 'the page does not say where the bang is').toBeFalsy();
+  expect(mix.clipped, 'three bangs overlapping drove the mix into the rails').toBe(0);
+  expect(mix.peak, 'the bang is quieter than the synthesised one it replaced').toBeGreaterThan(0.3);
+  expect(mix.peak, 'no headroom left for the three to overlap in').toBeLessThan(0.85);
+});
+
+/* The portable file is the other half of what ships and no other spec opens it,
+   because until now it was the same page with the fonts pasted in and there was
+   nothing about running it off disk that could fail on its own. The bang is: it
+   is fetched at the moment it is wanted, and a file:// page is its own origin,
+   so the version of this that points at ./audio/ would find nothing and fall
+   through to the synthesised bang without a word. A build test can check the
+   bytes are in the file; only a browser can say they can still be reached from
+   there. */
+test('the portable file still has the bang when it is opened off disk', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  await page.goto(`file://${PORTABLE}?jabarimoneeey`);
+  await page.waitForFunction(() => {
+    const el = document.getElementById('jabari');
+    return el && !el.hidden && el.classList.contains('go');
+  });
+
+  const played = await page.evaluate(async () => {
+    let srcs = 0;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const make = AC.prototype.createBufferSource;
+    AC.prototype.createBufferSource = function(){ srcs++; return make.apply(this, arguments); };
+    const src = document.querySelector('meta[name="boom"]')?.content || '';
+    await globalThis.Audio.loadBoom();
+    globalThis.Audio.unlock();
+    globalThis.Audio.boom(); globalThis.Audio.boom(0.19); globalThis.Audio.boom(0.44);
+    return { carriesItsOwnBytes: src.startsWith('data:audio/mpeg;base64,'), srcs };
+  });
+
+  expect(played.carriesItsOwnBytes, 'the portable file points at a bang instead of holding one').toBe(true);
+  /* one source per bang is the recording, three would be the fallback */
+  expect(played.srcs, 'off disk the bang fell back to the synthesised one').toBe(3);
+  expect(errors, 'the portable file threw on open').toEqual([]);
 });
 
 /* A bang belongs to something on the screen. The noise waits for a touch

@@ -25,6 +25,7 @@ option, to add it to a home screen or dock.
 | `src/js/35-pars.js` | generated par table, committed. Never edit by hand |
 | `assets/art/` | painted backdrops as WebP, one per view |
 | `assets/fonts/` | Cinzel and Alegreya Sans, latin subsets, self-hosted |
+| `assets/audio/` | the only recording that ships. Every other sound is synthesised |
 | `src/js/72-fluid.js` | the liquid: a world-space fill line masked by the glass |
 | `src/worker/solver.js` | A\* search that computes each level's par |
 | `tools/build.mjs` | the entire build, no bundler |

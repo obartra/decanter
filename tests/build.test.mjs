@@ -12,7 +12,8 @@ describe('build output', () => {
                      'decanter-standalone.html', 'fonts/cinzel.woff2',
                      'fonts/alegreyasans.woff2', 'fonts/alegreyasans-bold.woff2',
                      'icons/icon-192.png',
-                     'icons/icon-512.png', 'icons/maskable-512.png']){
+                     'icons/icon-512.png', 'icons/maskable-512.png',
+                     'audio/boom.mp3']){
       assert(has(f), `dist/${f} is missing, run npm run build`);
     }
   });
@@ -26,7 +27,8 @@ describe('build output', () => {
   it('leaves no unfilled template slots', () => {
     for (const f of ['index.html', 'decanter-standalone.html']){
       const html = text(f);
-      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--BUILD-->', '<!--PWAHEAD-->']){
+      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--BUILD-->',
+                          '<!--PWAHEAD-->', '<!--BOOM-->']){
         assert(!html.includes(slot), `dist/${f} still contains ${slot}`);
       }
     }
@@ -87,6 +89,28 @@ describe('build output', () => {
       if (f === './') continue;
       assert(has(f.replace('./', '')), `${f} is precached but does not exist, install would fail`);
     }
+  });
+  it('hands each build the bang it can actually reach', () => {
+    /* The two outputs answer this differently and both answers are easy to get
+       wrong in the direction nobody notices: a missing or unreachable recording
+       falls back to the synthesised bang, which still sounds, so the portable
+       file would go on working and simply stop being the sound it shipped with.
+
+       The portable one has to carry the bytes. A file:// page fetching a sibling
+       path is a cross origin request, so a data URI is the only form of this
+       that survives the file leaving the folder it was built in. */
+    const app = text('index.html').match(/<meta name="boom" content="([^"]+)">/);
+    assert(app, 'index.html says nothing about where the bang is');
+    equal(app[1], './audio/boom.mp3', 'the installable build should point at the cached file');
+
+    const solo = text('decanter-standalone.html').match(/<meta name="boom" content="([^"]+)">/);
+    assert(solo, 'the portable file says nothing about where the bang is');
+    assert(solo[1].startsWith('data:audio/mpeg;base64,'),
+      'the portable file must carry the bang, not point at it');
+    /* the whole recording, not a truncated one */
+    const bytes = Buffer.from(solo[1].slice('data:audio/mpeg;base64,'.length), 'base64');
+    equal(bytes.length, statSync(join(dist, 'audio/boom.mp3')).size,
+      'the inlined bang is not the file that shipped');
   });
   it('changes its cache name when the app changes', () => {
     const version = text('sw.js').match(/const VERSION = '([^']+)'/)[1];
@@ -248,9 +272,13 @@ describe('the two games do not collide', () => {
     for (const [dir, mod] of [['src/bubble/js', '50-audio.js'], ['src/js', '50-audio.js']]){
       const src = read(`${dir}/${mod}`);
       /* Only the object the module returns, not its body: a `if (` at the same
-         indentation reads as a method named `if` otherwise. */
+         indentation reads as a method named `if` otherwise.
+
+         Shorthand (`  loadBoom,`) counts as well as a method. It reads as an
+         ordinary property and so used to be skipped, which meant a cue could go
+         uncalled simply by being exposed under the name it already had. */
       const returned = src.slice(src.lastIndexOf('\n  return {'));
-      const cues = [...returned.matchAll(/^\s{4}(\w+)\s*(?:\(|:\s*(?:function\b|\())/gm)]
+      const cues = [...returned.matchAll(/^\s{4}(\w+)\s*(?:\(|,\s*$|:\s*(?:function\b|\())/gm)]
         .map(m => m[1])
         .filter(n => !['get', 'set', 'if', 'for', 'while', 'return', 'switch', 'catch'].includes(n));
       assert(cues.length > 3, `found only ${cues.length} cues in ${dir}/${mod}, so the scan is wrong`);
