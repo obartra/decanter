@@ -126,6 +126,17 @@ const dead = [];
 const { ctx, owner, leaked } = surfaceOf(['src/js', 'src/bubble/js']);
 const all = corpus();
 
+/* The allowlist is the one thing here nothing else checks, and it is exactly the
+   shape of thing that rots: an entry outlives the export it excuses, and from
+   then on it is a paragraph explaining why a name that does not exist is worth
+   keeping. */
+for (const key of Object.keys(KEEP)){
+  const [ns, member] = key.split('.');
+  const value = owner.has(ns) ? ctx[ns] : null;
+  if (!value || !(member in value))
+    dead.push(`KEEP excuses ${key}, which is not published by anything. Delete the entry.`);
+}
+
 /* What a given file calls a namespace, which is usually not its name.
 
    Modules pull them in under one letter, `const C = BubbleConfig`, and then
