@@ -112,12 +112,19 @@ describe('lab knobs', () => {
     for (const game of LabConfig.games){
       assert(game.sweep === 'par' || game.sweep === 'survival', `${game.id} has no sweep kind`);
       if (game.sweep === 'par'){
-        assert(game.levels && game.search, `${game.id} is swept by par but names no level table or search`);
+        /* `pars` is checked with the other two because it is the one whose
+           absence is silent: the sweep falls back to a null shipped par, every
+           comparison is skipped, and the panel reports agreement having compared
+           nothing. That is the bug this file already carries a guard for, and a
+           typo in the `pars:` string here would put it straight back. */
+        assert(game.levels && game.search && game.pars,
+          `${game.id} is swept by par but names no level table, search or par table`);
         const mods = loadFrom(`src/${game.id}/js`,
           ['00-config.js', '20-rules.js', '25-search.js', '32-order.js', '32-boards.js', '35-pars.js', '30-levels.js']
             .filter(f => hasFile(game.id, f)));
         assert(mods[game.levels], `${game.id} publishes no ${game.levels}`);
         assert(mods[game.search], `${game.id} publishes no ${game.search}`);
+        assert(mods[game.pars], `${game.id} publishes no ${game.pars}`);
       }
     }
   });

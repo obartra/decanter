@@ -125,9 +125,11 @@ export default [
     rules: { ...shared, 'no-var': 'off', 'prefer-const': 'off' }
   },
 
-  /* the service worker */
+  /* The service worker. Source only: the copy in dist/ is this file with three
+     constants stamped in, and dist/** is ignored above, so listing it here
+     matched nothing and said the config covered a build output it never saw. */
   {
-    files: ['src/sw.js', 'dist/sw.js'],
+    files: ['src/sw.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'script', globals: globals.serviceworker },
     rules: shared
   },
