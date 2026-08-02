@@ -97,18 +97,38 @@ describe('what a save remembers going wrong', () => {
     /* a save carrying a purse nobody played for is a debugging trap unless the
        save itself says so */
     const { progress } = withSave();
-    const before = progress.gold;
-    equal(progress.grant(1000), 1000);
-    equal(progress.gold, before + 1000);
+    equal(progress.fill(9999999), 9999999);
+    equal(progress.gold, 9999999);
     equal(progress.diag.grants, 1);
   });
 
-  it('refuses a grant that is not gold', () => {
+  it('brings the purse up to a figure rather than adding one', () => {
+    /* This is what lets the word stay in the address bar: filling twice lands
+       on the same number, so opening the link again is free. Adding would stack
+       a second payment on every reload. */
+    const { progress } = withSave();
+    progress.fill(9999999);
+    progress.fill(9999999);
+    progress.fill(9999999);
+    equal(progress.gold, 9999999, 'three fills, one figure');
+  });
+
+  it('never takes gold away from a purse already holding more', () => {
+    const { progress } = withSave();
+    progress.fill(9999999);
+    progress.complete(1, 11, 3);            /* earned on top of it */
+    const rich = progress.gold;
+    assert(rich > 9999999);
+    progress.fill(9999999);
+    equal(progress.gold, rich, 'a fill is a floor, not an assignment');
+  });
+
+  it('refuses a fill that is not gold, and changes nothing', () => {
     const { progress } = withSave();
     const before = progress.gold;
-    for (const bad of [0, -50, 1.5, '1000', null, undefined, NaN]) equal(progress.grant(bad), 0);
+    for (const bad of [0, -50, 1.5, '1000', null, undefined, NaN]) equal(progress.fill(bad), before);
     equal(progress.gold, before);
-    assert(!progress.diag.grants, 'nothing was granted, so nothing should be counted');
+    assert(!progress.diag.grants, 'nothing was handed over, so nothing should be counted');
   });
 
   it('gives a save written before any of this existed somewhere to write it', () => {
