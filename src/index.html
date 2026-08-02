@@ -144,6 +144,28 @@
   </div>
 </div>
 
+<!-- Shown instead of dealing a board, when the level tapped is one you have
+     already cleared. It is the only screen that can say what going back is
+     worth: the medallion has room for stars and nothing else, and what a
+     replay pays is the difference between the rating you have and the one you
+     earn, which is not a thing anyone can work out from the outside. -->
+<div class="veil" id="previewVeil">
+  <div class="panel previewCard">
+    <p class="kicker" id="previewChapter">The Cellar</p>
+    <h2 id="previewTitle">Level 1</h2>
+    <p class="previewKind" id="previewKind" hidden></p>
+    <div class="stars" id="previewStars"></div>
+    <div class="stillBox" id="previewStill"></div>
+    <p id="previewLine"></p>
+    <div class="payout" id="previewPayout"><b id="previewGold">+0</b><span id="previewWhy"></span></div>
+    <p class="hint" id="previewHint"></p>
+    <div class="panelBtns">
+      <button class="btn" id="previewBack" type="button">Back</button>
+      <button class="btn primary priced" id="previewPlay" type="button">Play again<small id="previewFee">free</small></button>
+    </div>
+  </div>
+</div>
+
 <div class="veil" id="veil">
   <div class="panel">
     <h2 id="winTitle">Poured clean</h2>

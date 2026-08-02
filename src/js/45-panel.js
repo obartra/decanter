@@ -8,6 +8,11 @@
    there at all. Everything here is decided from numbers, so the cases can simply
    be asserted. */
 const Panel = (() => {
+  /* The one thing worth saying to an empty purse, and the way out of it. Named
+     rather than typed twice: the card shown before a replay refuses for the same
+     reason and has to refuse in the same words. */
+  const BROKE = 'Not enough gold. The daily draught is on the map.';
+
   function decide(input){
     const {
       level, lastLevel, failed, stars, nextUnlocked,
@@ -77,7 +82,7 @@ const Panel = (() => {
      line so an empty purse still outranks it: somebody who cannot afford another
      go does not need to hear about a dearer way out first. */
   if (!blastHidden && canPayBlast) hint = 'A blast would leave this board winnable.';
-  if (!canPayFee || cannotGoOn) hint = 'Not enough gold. The daily draught is on the map.';
+  if (!canPayFee || cannotGoOn) hint = BROKE;
 
     /* Matching the minimum is the whole point of the scoring, so say that and stop.
        Quoting the count twice ("sorted in 12 pours, the minimum is 12") makes the
@@ -110,6 +115,6 @@ const Panel = (() => {
     };
   }
 
-  return { decide };
+  return { decide, BROKE };
 })();
 globalThis.Panel = Panel;

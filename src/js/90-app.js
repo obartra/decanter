@@ -207,6 +207,65 @@ const App = (() => {
   }
   function showGame(level){ attempt(level); }
 
+  /* ---------- the card before a replay ----------
+
+     A level already cleared is the one tap on the map that should not deal a
+     board. Everything the map has no room to say about it fits on a card: which
+     board it was, how well it went, and what going back would actually pay,
+     which once it is at three stars is nothing at all. That last one is not
+     guessable and not what anyone assumes; before this the only way to learn it
+     was to play the level again and be handed a +0, by which point the answer
+     had cost a run.
+
+     A level not yet cleared has none of that to show, so it is still dealt on
+     the tap. A card with a picture and three blanks under it is an extra tap in
+     front of the button that was already there. */
+  /* which level the card is about, so Play deals that one rather than whatever
+     the map happens to consider current */
+  let previewLevel = null;
+  function showPreview(level){
+    const bubble = Levels.isBubble(level);
+    const stars = progress.starsFor(level);
+    const fee = costOf(level);
+    /* dealt rather than drawn: the still is this level's actual board, and the
+       par is the one that board would be scored against */
+    const tubes = bubble ? null : Levels.make(level);
+    const par = bubble ? null : parOf(level, tubes);
+    const card = Preview.decide({
+      level, stars, bubble,
+      best: progress.bestFor(level),
+      par, parExact: par != null,
+      goal: bubble ? BubbleApp.runShots : null,
+      fee, canPayFee: progress.canAfford(fee),
+      /* what a perfect run would pay on this save, answered by the same
+         arithmetic that will pay it out */
+      earned: progress.wouldEarn(level, 3).earned
+    });
+
+    $('previewChapter').textContent = Levels.sectionName(level);
+    $('previewTitle').textContent = card.title;
+    $('previewKind').hidden = !card.kind;
+    $('previewKind').textContent = card.kind;
+    $('previewStars').innerHTML = starRow(stars);
+    $('previewStill').innerHTML = bubble
+      ? Still.bubbles(BubbleApp.still(level))
+      : Still.pour(tubes);
+    $('previewLine').textContent = card.line;
+    $('previewPayout').hidden = card.payoutHidden;
+    $('previewGold').textContent = card.earnedLabel;
+    $('previewWhy').textContent = card.why;
+    /* Hidden rather than emptied, so a card with nothing to advise closes up
+       instead of leaving a gap where a sentence used to be. */
+    $('previewHint').hidden = !card.hint;
+    $('previewHint').textContent = card.hint;
+    $('previewFee').textContent = card.feeLabel;
+    $('previewPlay').disabled = card.playDisabled;
+    $('previewVeil').style.setProperty('--tint', Levels.sectionTint(level));
+    $('previewVeil').classList.add('show');
+    previewLevel = level;
+    Trace.note(`looking at level ${level}`, `${stars} stars, a perfect run pays ${card.earnedLabel}`);
+  }
+
   /* ---------- the other game ----------
 
      Some levels are the bubble game. It is booted once, the first time one is
@@ -364,23 +423,32 @@ const App = (() => {
      the board the level is. The purchase is not refunded, because a restart is
      not an undo. Nothing is laundered by this either, since a run that ever had
      a vessel is capped at two stars whether or not it still has one. */
+  /* The par this board is scored against, which is not simply the one written
+     down for the level.
+
+     The baked table is exact, and so is anything progress kept. But a par
+     belongs to a particular board: minPours can never overstate the work a board
+     has left, so a par below it cannot be this board's, and scoring against it
+     would hand out three stars and a payout for a run that never happened.
+     Refuse the number rather than the run: an unknown par shows a tilde and
+     decides nothing.
+
+     Asked here rather than inline, because the card shown before a replay quotes
+     this number as a target and has to quote the one the run will honour. A card
+     promising three stars for twelve pours, in front of a run that will not
+     score at all, is a worse lie than no target. */
+  function parOf(level, tubes){
+    const par = PARS[level] ?? progress.parFor(level);
+    return par != null && par >= Rules.minPours(tubes) ? par : null;
+  }
+
   function start(level, keepVessel){
     newRun(level);
     S.tubes = Levels.make(level);
     if (keepVessel) S.tubes.push([]);
     S.vesselUsed = !!keepVessel;
-    /* the baked table is exact, and so is anything progress kept */
-    S.par = PARS[level] ?? progress.parFor(level);
+    S.par = parOf(level, S.tubes);
     S.parExact = S.par != null;
-    /* A par belongs to a particular board. minPours can never overstate the work
-       a board has left, so a par below it cannot be this board's, and scoring
-       against it would hand out three stars and a payout for a run that never
-       happened. Refuse the number rather than the run: an unknown par shows a
-       tilde and decides nothing. */
-    if (S.parExact && S.par < Rules.minPours(S.tubes)){
-      S.par = null;
-      S.parExact = false;
-    }
     Board.view = Rules.clone(S.tubes);
     Board.selected = null;
     closeVeil();
@@ -870,7 +938,13 @@ const App = (() => {
     MapView.mount($('mapScroll'));
     /* the map shows what a board costs, and this is where that is decided */
     MapView.feeFor = costOf;
-    MapView.onPick = level => { Sound.unlock(); Sound.tick(); showGame(level); };
+    /* A level with a record behind it gets the card; one without has nothing to
+       put on a card, so the tap still deals the board. */
+    MapView.onPick = level => {
+      Sound.unlock(); Sound.tick();
+      if (progress.starsFor(level) > 0) showPreview(level);
+      else showGame(level);
+    };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
        and actually beating it still pays what it always would have. */
@@ -981,6 +1055,24 @@ const App = (() => {
     /* the other game's way out, which is the same way out */
     $('bubToMap').onclick = () => { Sound.tick(); showMap(false); };
     const closePanel = () => { closeVeil(); showMap(true); };
+    /* The card is a question, so both answers close it and only one of them
+       spends anything. Backing out has to leave the map exactly as it was: no
+       fee, no board dealt, nothing moved. */
+    const closePreview = () => {
+      $('previewVeil').classList.remove('show');
+      previewLevel = null;
+    };
+    $('previewBack').onclick = () => { Sound.tick(); closePreview(); };
+    $('previewPlay').onclick = () => {
+      const level = previewLevel;
+      if (level == null) return;
+      closePreview();
+      Sound.tick();
+      showGame(level);
+    };
+    $('previewVeil').addEventListener('click', e => {
+      if (e.target === $('previewVeil')) closePreview();
+    });
     $('chapterGo').onclick = () => {
       Sound.unlock(); Sound.tick();
       $('chapterVeil').classList.remove('show');
@@ -1117,7 +1209,11 @@ const App = (() => {
     /* some browsers rotate without firing resize */
     addEventListener('orientationchange', scheduleResize);
     addEventListener('keydown', e => {
-      if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
+      if (e.key !== 'Escape') return;
+      /* the card sits over the map, so while it is up it is what Escape is
+         about; leaving the level is what it means the rest of the time */
+      if ($('previewVeil').classList.contains('show')){ closePreview(); return; }
+      if (document.body.dataset.view === 'game') showMap(false);
     });
   }
   /* An exception inside a click handler is the quietest failure the game has:

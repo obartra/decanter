@@ -73,11 +73,41 @@ const BubbleApp = (() => {
     return live[Math.floor(rand.next() * live.length) % live.length];
   }
 
+  /* How much board a seed opens with, and how to deal it. Two things ask now:
+     the run itself, and the still on the card the host shows before a bubble
+     level is replayed. A picture of a board the level does not deal would be
+     believed, so there is one answer to what that board is.
+
+     The live one deals from the run's own stream, because everything after it
+     carries on from where the deal left that stream (the bubble in hand, the
+     one behind it, the rows that come down later), and undo puts it back. A
+     still cannot borrow that stream without moving it, so it is handed a fresh
+     one seeded the same way, which deals the same board. */
+  const OPENING_ROWS = 5;
+  const opening = (seed, pick) => R.dealBoard(OPENING_ROWS, pick || BubbleRng.from(seed));
+
+  /* What a seed opens on, as rows of colours rather than as a board.
+
+     The host draws this on the card before a bubble level is replayed, and it
+     has no business knowing about the lattice, the parity bit or this game's
+     palette. The coupling between the two games is this one object and it stays
+     that way. So it asks what the board looks like and is told, including
+     which rows are indented, which is the board's answer and never `j % 2`. */
+  function still(seed){
+    const board = opening(seed);
+    let last = -1;
+    board.rows.forEach((row, j) => { if (row.some(c => c !== G.EMPTY)) last = j; });
+    return board.rows.slice(0, last + 1).map((row, j) => ({
+      indent: !!G.indent(board, j),
+      cells: row.map(c => (c === G.EMPTY ? null : C.PALETTE[c]))
+    }));
+  }
+
   function newBoard(seed){
     rand.seed(seed);
     fx.seed(seed * 7919 + 1);
     st.seed = seed;
-    st.board = R.dealBoard(5, rand.next);
+    st.board = opening(seed, rand.next);
     st.loaded = deal();
     st.next = deal();
     st.mode = S_AIM;
@@ -772,7 +802,11 @@ const BubbleApp = (() => {
     requestAnimationFrame(loop);
   }
 
-  return { boot, _state: st, newBoard, fire, step, land, finish, result,
+  return { boot, _state: st, newBoard, still, fire, step, land, finish, result,
+           /* the length of a full run, which is what the third star costs. The
+              host quotes it on the card before a replay; it is not the host's
+              number to know. */
+           get runShots(){ return C.RUN_SHOTS; },
            undo, hint, swap, pickColour, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
            set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, bomb: true, ...v }; },

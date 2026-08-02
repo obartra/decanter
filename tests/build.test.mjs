@@ -229,7 +229,33 @@ describe('build output', () => {
       assert(has(from), `dist/${f} points at ${icon[1]}, which was not built`);
     }
   });
+  it('declares no top-level name in two files, in either bundle', () => {
+    /* Every source file in a game is concatenated into one script, so top-level
+       declarations from different files share a scope, and function declarations
+       hoist, so the last one wins for the whole script, including the lines
+       above it.
 
+       This is not a clash that shows up as an error anywhere. A second file
+       declaring `decide` quietly replaced the one `Panel` had already published,
+       and the end-of-run panel started titling itself "Level 1". Nothing threw,
+       the page ran, and the only symptom was one module answering with another
+       module's words.
+
+       Modules here are IIFEs precisely so this cannot happen; what this catches
+       is the next one that is not. */
+    for (const dir of ['src/js', 'src/bubble/js']){
+      const where = new Map();
+      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+        for (const m of read(`${dir}/${f}`).matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
+          if (!where.has(m[1])) where.set(m[1], new Set());
+          where.get(m[1]).add(f);
+        }
+      }
+      const clashes = [...where].filter(([, files]) => files.size > 1)
+        .map(([name, files]) => `${name} in ${[...files].join(' and ')}`);
+      equal(clashes, [], `${dir} declares the same name twice, so one file silently overwrites the other`);
+    }
+  });
   it('ships a valid manifest', () => {
     const m = JSON.parse(text('manifest.webmanifest'));
     equal(m.display, 'standalone');

@@ -75,11 +75,14 @@ body[data-view="game"] #gameView{display:flex}
 /* The opening of a chapter, shown once. It is the only place the game explains
    itself, so it gets room rather than a toast that slides away mid sentence. */
 .chapterCard{max-width:340px}
-.chapterCard .kicker{
+/* On every panel rather than on the chapter card alone: the card shown before a
+   replay names its chapter in the same slot, and a second copy of the same six
+   declarations is how the two drift apart. */
+.panel .kicker{
   margin:0 0 4px; font-size:9px; letter-spacing:.22em; text-transform:uppercase;
   color:var(--ink-dim);
 }
-.chapterCard .kicker b{color:var(--gold-lit); font-weight:600}
+.panel .kicker b{color:var(--gold-lit); font-weight:600}
 .chapterBlurb{margin:10px 0 0; font-size:13px; line-height:1.55; color:var(--ink)}
 .chapterGrant{
   margin:14px 0 0; padding:9px 12px; border-radius:10px;

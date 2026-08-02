@@ -58,10 +58,24 @@ export async function start(page, save = {}) {
    itself passes `seen` in its save and never gets here. */
 export async function openLevel(page, level) {
   await page.locator(`[data-level="${level}"]`).click();
+  await playFromPreview(page);
   await page.waitForFunction(l => globalThis.App._state.level === l
     && globalThis.App._state.tubes.length > 0, level);
   await dismissChapter(page);
   await page.waitForFunction(() => document.querySelectorAll('#board .bottle').length > 0);
+}
+
+/* A level already cleared answers the tap with a card rather than a board: what
+   it was, how it went, and what going back would pay. A spec about the level
+   itself reads it and plays, the way a player would. A spec about the card
+   itself never comes through here. */
+export async function playFromPreview(page) {
+  const card = page.locator('#previewVeil');
+  if (await card.evaluate(el => el.classList.contains('show')).catch(() => false)) {
+    await page.locator('#previewPlay').click();
+    await page.waitForFunction(() =>
+      !document.getElementById('previewVeil').classList.contains('show'));
+  }
 }
 
 export async function dismissChapter(page) {

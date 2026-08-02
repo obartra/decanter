@@ -75,6 +75,45 @@ describe('gold', () => {
     equal(p.gold - afterFirstPass, 0, 'fifteen replays paid nothing');
   });
 
+  it('quotes exactly what it is about to pay, from every state a level can be in', () => {
+    /* The card shown before a replay offers a number, and this is the check that
+       the number is the payment. They are the same arithmetic on purpose: what
+       a replay is worth depends on the rating the level already has, and a
+       second copy of "the difference between what you had and what you got" is
+       precisely how a card comes to promise six for a board that hands over
+       three.
+
+       Measured against the purse rather than against what complete() reports,
+       so it is the money that has to agree, not two readings of one number. */
+    for (const had of [0, 1, 2, 3]){
+      for (const now of [1, 2, 3]){
+        const p = fresh();
+        if (had > 0) p.complete(1, 20, had);
+        const quoted = p.wouldEarn(1, now).earned;
+        const before = p.gold;
+        p.complete(1, 20, now);
+        equal(p.gold - before, quoted,
+          `a level at ${had} stars, replayed at ${now}: quoted ${quoted}, paid ${p.gold - before}`);
+      }
+    }
+  });
+
+  it('offers nothing for another perfect run on a perfect board', () => {
+    /* the headline the card exists to carry, and the one thing about this
+       economy nothing else on any screen says */
+    const p = fresh();
+    p.complete(1, 11, 3);
+    equal(p.wouldEarn(1, 3).earned, 0);
+    equal(p.wouldEarn(1, 2).earned, 0, 'nor for a worse one');
+  });
+
+  it('offers a failed run nothing, whatever the level has', () => {
+    const p = fresh();
+    equal(p.wouldEarn(1, 0).earned, 0);
+    p.complete(1, 20, 1);
+    equal(p.wouldEarn(1, 0).earned, 0);
+  });
+
   it('pays nothing for a failed run, and opens nothing', () => {
     const p = fresh();
     const gold = p.gold, unlocked = p.unlocked;

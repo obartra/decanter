@@ -54,26 +54,53 @@ Deliberately thin, because the tension is the point.
 | 3★ | 6 | Any attempt | 5 |
 | 2★ | 3 | Pay past a board | 10 |
 | 1★ | 1 | Extra vessel | 45 |
+<<<<<<< HEAD
 | 0★ | nothing | A blast | 65 |
 | First clear | 8, once ever | Undo | 3 free per level, then 8 |
 | Daily draught | 12 per day | Restart | an attempt |
+=======
+| 0★ | nothing | Undo | 3 free per level, then 8 |
+| First clear | 8, once ever | Restart | an attempt |
+| Daily draught | 12 per day | Replay a cleared level | free |
+>>>>>>> 7b30463 (Say what a replay is worth before the run, not after it)
 
 The purse opens at **86**: one vessel away from broke. Above roughly 150 the
 pressure disappears, which is the number to watch when retuning.
 
 **Every board dealt costs the same**, whether it is a new level or another go at
 one just lost. That is what gives failing a price; without it, flailing is free
-and there is no reason not to. A good first clear still nets 9 and a three-star
-replay nets 1, so playing well always pays.
+and there is no reason not to. A good first clear nets 9, so playing well always
+pays.
+
+**A level already cleared replays for nothing.** The fee exists to give a failed
+run a price, and a board you have beaten has no run to lose: chasing the third
+star is the part worth encouraging, not taxing.
 
 **Paying past a board** costs twice an attempt and covers dealing the next one,
 so moving on is one decision rather than two charges. It buys exactly one thing:
 the next level opens. Being beaten by a board is not the same as being stuck on
 one, and without this a level nobody can crack is a wall with a meter on it.
 
-**The first-clear bonus is paid once ever.** This is what stops a cleared level
-being farmed: replaying pays stars only. Five perfect replays pay 5 × 6, not
-5 × 14.
+**The first-clear bonus is paid once ever**, and **a replay pays only the
+difference** between the rating the level already has and the one just earned.
+Together those are what stop a free board being an income: five perfect replays
+of a three-star level pay nothing at all, not 5 × 14 and not 5 × 6.
+
+That is also the least guessable rule in here, so it is **quoted before the run
+rather than discovered after it**. Tapping a cleared level opens a card saying
+what a perfect run would pay, which was learnable only by replaying the level and
+being handed a `+0`.
+
+Where the answer is nothing, **the offer is simply not made**. A `+0` in the slot
+where the winnings go dresses the best result in the game up as a refusal, and it
+would do it on exactly the levels the player did best on. Saying so in words
+instead is the same sentence at greater length, so the card says neither and
+shows what you did.
+
+The card and the payout are the same arithmetic, `wouldEarn` and `complete`, so
+an offer of six cannot be followed by a payment of three; a test compares the
+quote against the purse from every state a level can be in. The card itself is
+[09 The map](09-map.md).
 
 **A vessel costs about three well-played new levels**, so the only rescue worth
 buying has to be funded on boards you have not solved yet.
