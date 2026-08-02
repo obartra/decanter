@@ -10,6 +10,35 @@
    dependencies at all, which a test checks. */
 import js from '@eslint/js';
 import globals from 'globals';
+import { readdirSync, existsSync, readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = dirname(fileURLToPath(import.meta.url));
+
+/* Every game, found the way the build and the tests find them: a directory under
+   src/ with a js/ of its own. Discovered rather than listed because this file
+   used to need a hand-written block per game, and the failure mode was silent in
+   the worst way — a game with no block falls through to the module defaults,
+   every cross-module reference becomes `no-undef`, and lint fails describing
+   three errors that are not errors. That is a note for whoever adds the next
+   game, delivered at the moment it is least welcome. */
+const gameDirs = readdirSync(join(root, 'src'), { withFileTypes: true })
+  .filter(d => d.isDirectory() && existsSync(join(root, 'src', d.name, 'js')))
+  .map(d => d.name);
+
+/* What a game publishes, read off the sources rather than repeated here, so the
+   two cannot disagree. A module that stops publishing something stops declaring
+   it in the same commit. */
+function publishedBy(dir){
+  const out = {};
+  for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+    for (const m of readFileSync(join(root, dir, f), 'utf8').matchAll(/^globalThis\.(\w+)\s*=/gm)){
+      out[m[1]] = 'writable';
+    }
+  }
+  return out;
+}
 
 /* what each browser source publishes for the ones loaded after it */
 const published = {
@@ -69,24 +98,21 @@ export default [
     rules: { ...shared, 'no-redeclare': 'off' }
   },
 
-  /* The bubble game. Its own globals map rather than a wider `files` on the
-     block above, so a reference from one game to the other is a lint error
-     rather than something that happens to work because both were in scope. */
-  {
-    files: ['src/bubble/js/**/*.js'],
+  /* One block per game, each seeing only its own globals. Separate blocks rather
+     than one wide `files` covering them all, so a reference from one game to
+     another is a lint error rather than something that happens to work because
+     both were in scope. That is the rule this arrangement exists to enforce, and
+     generating the blocks does not relax it: each game still gets exactly its
+     own names and nothing else. */
+  ...gameDirs.map(name => ({
+    files: [`src/${name}/js/**/*.js`],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
-      globals: {
-        ...globals.browser,
-        BubbleConfig: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
-        BubbleRules: 'writable', BubbleView: 'writable', BubbleRender: 'writable',
-        BubbleAudio: 'writable', BubbleAdvice: 'writable', BubbleScore: 'writable',
-        BubbleApp: 'writable'
-      }
+      globals: { ...globals.browser, ...publishedBy(`src/${name}/js`) }
     },
     rules: { ...shared, 'no-redeclare': 'off' }
-  },
+  })),
 
   /* the solver runs in a worker, and is written to survive being loaded as one */
   {
