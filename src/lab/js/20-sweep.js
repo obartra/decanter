@@ -25,12 +25,24 @@ const LabSweep = (() => {
      search says when asked again. They should agree, and the interesting case is
      when they do not — that is a table and a searcher that have come apart. */
   function pars(mods, from, to){
-    const { levels, search } = mods;
+    const { levels, search, pars: table } = mods;
     const rows = [];
+    /* Straight off the committed table, which both games publish as { last, par }.
+       It used to ask `levels.par(level)`, and only one of the two games has such
+       a function -- so for the other, `shipped` was null for every level, every
+       comparison against it was skipped, and `disagreements` came back empty
+       because nothing had been compared. An empty list of disagreements is what
+       success looks like, which is why it went unnoticed: the panel said the
+       table and the search agreed, having asked neither. */
+    const shippedFor = level => {
+      if (table && table.par && Number.isInteger(table.par[level])) return table.par[level];
+      if (typeof levels.par === 'function') return levels.par(level);
+      return null;
+    };
     for (let level = from; level <= to; level++){
       const board = levels.make(level);
       if (!board){ rows.push({ level, shipped: null, found: null, gone: true }); continue; }
-      const shipped = typeof levels.par === 'function' ? levels.par(level) : null;
+      const shipped = shippedFor(level);
       const got = board.caps
         ? search.solve(board.caps, board.start, board.target)
         : search.solve(board.layout, board.start);

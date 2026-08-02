@@ -51,6 +51,7 @@ const LabApp = (() => {
     if (!w || !g || !w[g.config] || !w[g.app]) return null;
     const out = { C: w[g.config], app: w[g.app] };
     if (g.levels) out.levels = w[g.levels];
+    if (g.pars) out.pars = w[g.pars];
     if (g.search) out.search = w[g.search];
     /* Read off the entry rather than written here. See the note beside
        survivalMods in 00-config.js: that file is the one place allowed to name

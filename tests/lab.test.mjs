@@ -131,9 +131,16 @@ describe('lab sweep', () => {
   it('reads a par curve out of a game and judges it', () => {
     const m = loadFrom('src/measure/js',
       ['00-config.js', '20-rules.js', '25-search.js', '32-order.js', '35-pars.js', '30-levels.js']);
-    const res = LabSweep.pars({ levels: m.MeasureLevels, search: m.MeasureSearch }, 1, 12);
+    const res = LabSweep.pars(
+      { levels: m.MeasureLevels, search: m.MeasureSearch, pars: m.MeasurePars }, 1, 12);
     equal(res.kind, 'par');
     equal(res.rows.length, 12);
+    /* An empty disagreement list is what success looks like AND what asking
+       nothing looks like. This sweep read `levels.par`, which only one of the two
+       games has, so for this one every shipped par was null, every comparison was
+       skipped, and the panel reported agreement having compared nothing. */
+    equal(res.rows.filter(r => r.shipped != null).length, 12,
+      'the shipped par was not read, so nothing was actually compared');
     equal(res.disagreements, [], 'the shipped table and the search disagree about a par');
     equal(res.drops, [], 'the shipped curve goes backwards');
     assert(res.min >= 1 && res.max >= res.min, 'the curve has no range');
@@ -142,7 +149,10 @@ describe('lab sweep', () => {
   it('reads the cellar door the same way, through a different board shape', () => {
     const c = loadFrom('src/casks/js',
       ['00-config.js', '20-rules.js', '25-search.js', '32-boards.js', '35-pars.js', '30-levels.js']);
-    const res = LabSweep.pars({ levels: c.CasksLevels, search: c.CasksSearch }, 1, 10);
+    const res = LabSweep.pars(
+      { levels: c.CasksLevels, search: c.CasksSearch, pars: c.CasksPars }, 1, 10);
+    equal(res.rows.filter(r => r.shipped != null).length, 10,
+      'the shipped par was not read, so nothing was actually compared');
     equal(res.disagreements, [], 'the shipped table and the sweep disagree about a par');
     equal(res.drops, [], 'the shipped curve goes backwards');
   });

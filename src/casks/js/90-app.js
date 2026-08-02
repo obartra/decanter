@@ -173,7 +173,7 @@ const CasksApp = (() => {
 
   /* A press. On a cask it takes it in hand and opens a drag; on bare floor with
      something already in hand it is the second half of a tap-then-tap. */
-  function press(p){
+  function press(p, pointerId){
     if (st.over || st.sliding || st.escaping) return false;
     const cell = V.cellAt(p);
     const i = caskAt(cell);
@@ -190,7 +190,13 @@ const CasksApp = (() => {
       if (st.grab) return false;
       st.grab = {
         cask: i, at: V.along(st.layout[i], p), from: st.pos[i],
-        run: R.runOf(st.layout, st.pos, i), offset: 0, moved: false, hadPicked
+        run: R.runOf(st.layout, st.pos, i), offset: 0, moved: false, hadPicked,
+        /* whose finger this is, so the move and up handlers can tell. `p` is a
+           world point, not the event, so the id travels as its own argument;
+           undefined when a test or a tap drives this, which the handlers below
+           compare against an equally undefined e.pointerId only for real
+           pointers, so nothing is refused that should not be. */
+        pointerId
       };
       if (!hadPicked){
         st.picked = i;
@@ -459,10 +465,20 @@ const CasksApp = (() => {
   }
 
   /* ---- boot ---- */
+  let bound = false;
   function boot(){
     const cv = $('cskCanvas');
     V.mount(cv);
     newBoard(1);
+
+    /* Bound once. boot() is called again whenever something has to re-measure
+       the canvas — the lab does it after a knob changes the shape of the world —
+       and addEventListener does not replace, it stacks. Two pointerup listeners
+       means one tap runs the turn twice: the first takes the piece in hand and
+       the second, seeing it already held, puts it straight back down, so the
+       game stops responding to taps and nothing anywhere throws. */
+    if (bound) return;
+    bound = true;
 
     const world = e => V.screenToWorld(e.clientX, e.clientY);
     cv.addEventListener('pointerdown', e => {
@@ -471,10 +487,16 @@ const CasksApp = (() => {
       e.preventDefault();
       A.unlock();
       cv.setPointerCapture(e.pointerId);
-      press(world(e));
+      press(world(e), e.pointerId);
     });
-    cv.addEventListener('pointermove', e => { if (st.grab) drag(world(e)); });
-    cv.addEventListener('pointerup', () => release());
+    /* Only the finger that opened the grab may move it or put it down. press()
+       already refuses a second pointer, but the move and up handlers keyed off
+       `st.grab` alone — so the second finger, having been refused a grab of its
+       own, went on driving the first one's cask and committed its move on
+       release. Half the guard, which is worse than none: it reads as covered. */
+    const mine = e => st.grab && st.grab.pointerId === e.pointerId;
+    cv.addEventListener('pointermove', e => { if (mine(e)) drag(world(e)); });
+    cv.addEventListener('pointerup', e => { if (mine(e)) release(); });
     /* A pointer that is taken away — a system gesture, a phone call arriving —
        is not a move. Letting go without committing is the only safe reading, and
        without this the cask stays stuck to a finger that no longer exists. */

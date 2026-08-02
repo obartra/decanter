@@ -408,10 +408,20 @@ const MeasureApp = (() => {
   }
 
   /* ---- boot ---- */
+  let bound = false;
   function boot(){
     const cv = $('msrCanvas');
     V.mount(cv);
     newBoard(1);
+
+    /* Bound once. boot() is called again whenever something has to re-measure
+       the canvas — the lab does it after a knob changes the shape of the world —
+       and addEventListener does not replace, it stacks. Two pointerup listeners
+       means one tap runs the turn twice: the first takes the piece in hand and
+       the second, seeing it already held, puts it straight back down, so the
+       game stops responding to taps and nothing anywhere throws. */
+    if (bound) return;
+    bound = true;
 
     /* pointerup rather than pointerdown, so a tap that started on a vessel and
        drifted onto the next one before it was lifted lands where it was let go.

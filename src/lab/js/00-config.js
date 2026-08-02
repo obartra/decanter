@@ -30,6 +30,7 @@ const LabConfig = {
       /* how the lab asks this game for a board and a par it did not ship */
       levels: 'MeasureLevels',
       search: 'MeasureSearch',
+      pars: 'MeasurePars',
       /* Par is exact and cheap here, so a sweep can solve every level in the
          range outright rather than sampling. */
       sweep: 'par',
@@ -38,7 +39,7 @@ const LabConfig = {
         { key: 'CAP_MIN', min: 2, max: 12, step: 1,
           note: 'Smallest vessel a bench can be dealt.' },
         { key: 'CAP_MAX', min: 6, max: 40, step: 1,
-          note: 'Largest. The difficulty lever: long pars live at the top of this range, and capping it at 16 was what held the measured curve down to par 13.' },
+          note: 'Largest. The difficulty lever: long pars live at the top of this range, and capping it at 16 held the measured curve down to par 12.' },
         { key: 'SEARCH_CAP', min: 1000, max: 400000, step: 1000,
           note: 'Positions the exhaustive search will walk before giving up. Lower it to see what an unrated bench looks like.' },
         { key: 'AID_CAP', min: 0, max: 3, step: 1,
@@ -59,6 +60,7 @@ const LabConfig = {
       app: 'CasksApp',
       levels: 'CasksLevels',
       search: 'CasksSearch',
+      pars: 'CasksPars',
       sweep: 'par',
       firstLevel: 1,
       /* W, H and EXIT_ROW are deliberately not knobs. The sixty boards are a
