@@ -1,4 +1,5 @@
 import { run } from './helpers.mjs';
+import './trace.test.mjs';
 import './rules.test.mjs';
 import './solver.test.mjs';
 import './levels.test.mjs';

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="c064305c7b">
+<meta name="build" content="3e0ba29956">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -108,6 +108,21 @@ body[data-view="game"] #gameView{display:flex}
   font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-lit);
 }
 #chapterGo{margin-top:16px}
+
+/* The diagnostics report. Wider than the other panels and monospaced, because
+   this one is meant to be read out and copied rather than glanced at, and it is
+   the only place in the game where the exact characters matter. It scrolls on
+   its own: nothing else in the game scrolls, but a log that is cut off is a log
+   that lost the line worth having. */
+.diagCard{max-width:min(560px, 92vw)}
+.diagText{
+  margin:12px 0; padding:12px; max-height:52vh; overflow:auto;
+  text-align:left; white-space:pre-wrap; word-break:break-word;
+  border-radius:10px; border:1px solid rgba(224,177,92,.22);
+  background:rgba(6,4,2,.6); color:var(--ink);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; line-height:1.5;
+  -webkit-user-select:text; user-select:text; overscroll-behavior:contain;
+}
 
 /* Reading the board after the run is over. It is drained of colour so it plainly
    is not in play, and it takes no input at all: the next touch anywhere puts the
@@ -590,6 +605,18 @@ body[data-view="game"] #gameView{display:flex}
 
 <div id="confetti"></div>
 
+<div class="veil" id="diagVeil">
+  <div class="panel diagCard">
+    <h2>What the game says</h2>
+    <p class="hint">Read this out, or copy it, to whoever is looking into it.</p>
+    <pre class="diagText" id="diagText"></pre>
+    <div class="panelBtns">
+      <button class="btn primary" id="diagCopy" type="button">Copy</button>
+      <button class="btn" id="diagClose" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="veil" id="chapterVeil">
   <div class="panel chapterCard">
     <p class="kicker">Chapter <b id="chapterNum">1</b></p>
@@ -820,6 +847,86 @@ const CONFIG = {
   stars: { three: 0, two: 1, one: 2 }
 };
 globalThis.CONFIG = CONFIG;
+
+
+/* ---- 05-trace.js ---- */
+/* What the game was doing when it stopped doing anything.
+
+   This exists because of a bug report that could not be answered: a player said
+   a level did nothing when he tapped it, and there was no way to find out what
+   the game thought had happened. The game runs offline and nothing is sent
+   anywhere, so the only place the answer can be is on the device, in a form the
+   player can read out.
+
+   Two kinds of thing are worth keeping.
+
+   A **refusal** is an action the game declined: a fee it could not take, a pour
+   the rules would not allow, a purchase with nothing behind it. Every one of
+   these is a tap that does nothing, and a tap that does nothing is exactly what
+   gets reported. They are the whole reason this file is here, and they are
+   recorded with the reason rather than just the fact, because "level 15 did
+   nothing" and "level 15 cost 5 and the purse held 4" are different bug reports.
+
+   A **fault** is an exception. One thrown inside a click handler is invisible:
+   the handler stops, the screen stays as it was, and the player sees a dead
+   button. Catching them here is the difference between a mystery and a line of
+   text.
+
+   The log is a ring of the last few dozen entries rather than everything. What
+   matters is the run-up to the thing that went wrong, and a buffer that grows
+   without bound on a device that is never reloaded is its own bug. */
+const Trace = (() => {
+  /* enough to cover the run-up to a report without being a leak */
+  const CAP = 64;
+  const ring = [];
+  let seq = 0;
+  let origin = null;
+
+  /* Times are relative to the first entry, not wall clock. A player reading
+     these out loud does not need the date, and a run of them is easier to read
+     as seconds since the game opened than as six identical timestamps. */
+  function stamp(){
+    const now = Date.now();
+    if (origin == null) origin = now;
+    return ((now - origin) / 1000).toFixed(1);
+  }
+  function push(kind, what, detail){
+    ring.push({ n: ++seq, at: stamp(), kind, what, detail: detail == null ? '' : String(detail) });
+    if (ring.length > CAP) ring.shift();
+    return ring[ring.length - 1];
+  }
+
+  /* counters that outlive the ring, so a report still says how often rather than
+     only what happened most recently */
+  const tally = { note: 0, refused: 0, fault: 0 };
+  const refusals = {};
+
+  return {
+    /* something happened and went as it should */
+    note(what, detail){ tally.note++; return push('·', what, detail); },
+    /* the game declined to do what it was asked, and why */
+    refused(what, why){
+      tally.refused++;
+      refusals[what] = (refusals[what] || 0) + 1;
+      return push('refused', what, why);
+    },
+    /* something threw. `where` says which part was running at the time, because
+       the stack alone does not survive being read down a phone line. */
+    fault(where, err){
+      tally.fault++;
+      const msg = err && err.message ? err.message : String(err);
+      return push('FAULT', where, msg);
+    },
+    get entries(){ return ring.slice(); },
+    get counts(){ return { ...tally, refusals: { ...refusals } }; },
+    /* the log as plain text, oldest first, for a panel or a paste */
+    lines(){
+      return ring.map(e => `${e.at}s ${e.kind === '·' ? '' : e.kind + ' '}${e.what}${e.detail ? ' — ' + e.detail : ''}`);
+    },
+    clear(){ ring.length = 0; seq = 0; origin = null; }
+  };
+})();
+globalThis.Trace = Trace;
 
 
 /* ---- 10-rng.js ---- */
@@ -1222,7 +1329,13 @@ function blank(){
     /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
     dailyOn: null,
     /* chapters whose opening has already been read, so it is shown once */
-    seen: {}
+    seen: {},
+    /* What has gone wrong here, kept across reloads. A player who is stuck
+       reloads, and everything the trace was holding goes with the page, so the
+       counts that answer "has this happened before, and how often" have to
+       outlive it. Deliberately counts and one message rather than a log: this
+       lives in the player's save, and a save is not a place to grow a diary. */
+    diag: { refused: {}, faults: 0, lastFault: '' }
   };
 }
 function createProgress(storage){
@@ -1248,6 +1361,9 @@ function createProgress(storage){
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
   if (!state.seen || typeof state.seen !== 'object') state.seen = {};
+  if (!state.diag || typeof state.diag !== 'object') state.diag = blank().diag;
+  if (!state.diag.refused || typeof state.diag.refused !== 'object') state.diag.refused = {};
+  if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
   /* The boards moved. What a player earned stays earned: stars and best move
      counts are theirs, and taking them away to keep a record tidy is a worse
      trade than leaving a best that the new board happens not to allow.
@@ -1278,6 +1394,20 @@ function createProgress(storage){
        player has got rather than from the level in front of them, so going back
        to an early board does not take the tools away again. */
     perks(){ return Chapters.perksFor(Levels.sectionOf(state.unlocked)); },
+    /* ---- what has gone wrong ----
+       Written straight to the save rather than batched. These are rare by
+       definition, and a count that is lost because the page went away is a
+       count that was not worth keeping. */
+    get diag(){ return state.diag; },
+    recordRefusal(kind){
+      state.diag.refused[kind] = (state.diag.refused[kind] || 0) + 1;
+      save();
+    },
+    recordFault(message){
+      state.diag.faults++;
+      state.diag.lastFault = String(message).slice(0, 200);
+      save();
+    },
     hasSeen: section => !!state.seen[section],
     markSeen(section){
       if (state.seen[section]) return false;
@@ -3079,6 +3209,140 @@ const MapView = (() => {
 globalThis.MapView = MapView;
 
 
+/* ---- 85-diagnostics.js ---- */
+/* What to read out when the game does nothing.
+
+   The report that prompted this said a level did nothing when it was tapped, and
+   there was no way to find out what the game thought had happened: which build,
+   which save, how much gold, whether anything had been refused and why. All of
+   that existed, none of it was reachable, and the game sends nothing anywhere,
+   so the only way to get at it is to put it on the screen.
+
+   It is opened by holding the gold count for a moment, on either screen. That is
+   deliberately not a button: it costs no room in a footer that is already full,
+   it cannot be hit by accident, and it is one sentence to describe to someone
+   who is stuck — "press and hold the gold number". Support instructions do not
+   need to be discoverable, they need to be sayable.
+
+   Nothing here is collected, uploaded or timed. It reads state that already
+   exists and formats it. */
+const Diagnostics = (() => {
+  const HOLD_MS = 700;
+  let readState = () => ({});
+  let hold = null;
+
+  const el = id => document.getElementById(id);
+  const buildId = () => {
+    const m = document.querySelector('meta[name="build"]');
+    return (m && m.getAttribute('content')) || 'dev';
+  };
+
+  /* The save as a line rather than as JSON. A player reading this to someone
+     else can say "unlocked 15, gold 4"; they cannot say a brace. */
+  function saveLine(progress){
+    const raw = progress.raw;
+    const seen = Object.keys(raw.seen || {}).sort().join(',') || 'none';
+    return [
+      `layout ${raw.layout}`,
+      `unlocked ${raw.unlocked}`,
+      `gold ${progress.gold}`,
+      `${progress.totalStars()} stars`,
+      `chapters read ${seen}`,
+      `daily ${raw.dailyOn || 'never'}`
+    ].join(' · ');
+  }
+  function perkLine(progress){
+    const p = progress.perks();
+    const on = ['undo', 'hint', 'vessel'].filter(k => p[k]);
+    return `${on.join(' ') || 'none'} · ${p.freeUndos} free undos · hints ${p.hintCost} · ${p.freeHints} free`;
+  }
+  function runLine(state){
+    if (!state || !state.tubes || !state.tubes.length) return 'no board dealt';
+    return [
+      `level ${state.level}`,
+      `${state.tubes.length} bottles`,
+      `${state.moves} pours`,
+      `par ${state.par == null ? 'unknown' : state.par}${state.parExact ? '' : ' (approx)'}`,
+      state.over ? `over: ${state.reason || 'won'}` : 'in play',
+      state.running || state.queue.length ? 'animating' : 'settled'
+    ].join(' · ');
+  }
+  function countLine(){
+    const c = Trace.counts;
+    const kinds = Object.entries(c.refusals).map(([k, n]) => `${k}:${n}`).join(' ') || 'none';
+    return `${c.refused} refused (${kinds}) · ${c.fault} faults`;
+  }
+
+  function compose(){
+    const { progress, state } = readState();
+    const lines = [
+      `Decanter build ${buildId()}`,
+      `${innerWidth}x${innerHeight} dpr${(devicePixelRatio || 1).toFixed(1)} · ${document.body.dataset.view}`,
+      ''
+    ];
+    if (progress){
+      lines.push(`save: ${saveLine(progress)}`);
+      lines.push(`tools: ${perkLine(progress)}`);
+      const d = progress.diag;
+      if (d && d.faults) lines.push(`faults on record: ${d.faults} · last: ${d.lastFault}`);
+      const ever = Object.entries(d && d.refused || {}).map(([k, n]) => `${k}:${n}`).join(' ');
+      if (ever) lines.push(`refused ever: ${ever}`);
+    }
+    lines.push(`run: ${runLine(state)}`);
+    lines.push(`this session: ${countLine()}`);
+    lines.push('', '--- what happened ---');
+    const log = Trace.lines();
+    lines.push(...(log.length ? log : ['nothing recorded']));
+    return lines.join('\n');
+  }
+
+  function open(){
+    el('diagText').textContent = compose();
+    el('diagCopy').textContent = 'Copy';
+    el('diagVeil').classList.add('show');
+  }
+  function close(){ el('diagVeil').classList.remove('show'); }
+
+  /* Copying has to work with no network and no permissions prompt in the way, so
+     a refused clipboard falls back to selecting the text and saying so: someone
+     can always copy a selection by hand. */
+  async function copy(){
+    const text = el('diagText').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      el('diagCopy').textContent = 'Copied';
+    } catch (e) {
+      const range = document.createRange();
+      range.selectNodeContents(el('diagText'));
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      el('diagCopy').textContent = 'Selected — copy it';
+    }
+  }
+
+  return {
+    /* the app hands over a way to read itself, rather than this reaching into it */
+    set source(fn){ readState = fn; },
+    open,
+    mount(){
+      const cancel = () => { clearTimeout(hold); hold = null; };
+      document.querySelectorAll('.purse').forEach(p => {
+        p.addEventListener('pointerdown', () => {
+          cancel();
+          hold = setTimeout(open, HOLD_MS);
+        });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(e => p.addEventListener(e, cancel));
+      });
+      el('diagClose').onclick = close;
+      el('diagCopy').onclick = copy;
+      el('diagVeil').addEventListener('click', e => { if (e.target === el('diagVeil')) close(); });
+    }
+  };
+})();
+globalThis.Diagnostics = Diagnostics;
+
+
 /* ---- 90-app.js ---- */
 /* Glue: routing between the map and a level, the move queue, and the win flow. */
 const App = (() => {
@@ -3090,6 +3354,19 @@ const App = (() => {
     undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
+
+  /* Every refusal in this file goes through here.
+
+     A refused action is a tap that does nothing, and a tap that does nothing is
+     what gets reported: the deny sound is the only thing that marks it, and a
+     player with sound off does not get even that. Recording the reason alongside
+     the sound is what turns "level 15 did nothing" into "level 15 cost 5 and the
+     purse held 4" without anyone having to guess. */
+  function deny(what, why){
+    Trace.refused(what, why);
+    progress.recordRefusal(what);
+    Audio.deny();
+  }
 
   /* ---------- routing ---------- */
   /* The stylesheets colour bands with var(--cN), the pour and the particle sim
@@ -3138,6 +3415,7 @@ const App = (() => {
     $('daily').classList.toggle('primary', ready && !progress.canAfford(fee));
   }
   function showMap(scrollSmooth){
+    Trace.note('to the map');
     document.body.dataset.view = 'map';
     Backdrop.kind = 'moss';
     Backdrop.setShelf(null);
@@ -3150,7 +3428,12 @@ const App = (() => {
      one just lost. Charging here rather than inside start() keeps the internal
      re-deals free: only a deliberate attempt costs. */
   function attempt(level, keepVessel){
-    if (!progress.spend(costOf(level))){ Audio.deny(); paintMap(); return false; }
+    if (!progress.spend(costOf(level))){
+      deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
+      paintMap();
+      return false;
+    }
+    Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
@@ -3173,6 +3456,10 @@ const App = (() => {
     $('chapterGrant').textContent = grant ? `Unlocked · ${grant}` : '';
     $('chapterVeil').style.setProperty('--tint', Levels.sectionTint(level));
     $('chapterVeil').classList.add('show');
+    /* The opening covers the board and only goes away when it is dismissed, so
+       a report of a level that did nothing has to be able to say whether this
+       was over it at the time. */
+    Trace.note(`chapter ${section + 1} opening`, Levels.sectionName(level));
   }
   function showGame(level){ attempt(level); }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
@@ -3270,7 +3557,12 @@ const App = (() => {
     $('vessel').disabled = busy || S.vesselUsed || !progress.canAfford(CONFIG.economy.vessel);
     $('vessel').classList.toggle('spent', S.vesselUsed);
 
-    $('restart').disabled = (!S.history.length && !S.moves) || busy;
+    /* A restart deals the board again and is charged for like any other deal, so
+       a purse that cannot cover it must not be offered the button. Left live it
+       is the same dead tap the map used to have, and the end-of-run panel already
+       disables Try again for exactly this reason. */
+    $('restart').disabled = (!S.history.length && !S.moves) || busy
+      || !progress.canAfford(costOf(S.level));
 
     /* Tools arrive a chapter at a time, so one that has not been granted yet is
        not there at all. Showing it disabled would advertise something the player
@@ -3306,7 +3598,7 @@ const App = (() => {
     Audio.unlock();
     const sel = Board.selected;
     if (sel === null){
-      if (!canLift(i)){ Board.nudge(i); Audio.deny(); return; }
+      if (!canLift(i)){ Board.nudge(i); deny('lift', `bottle ${i} is empty or finished`); return; }
       lift(i);
       return;
     }
@@ -3324,7 +3616,7 @@ const App = (() => {
     drop();
     if (canLift(i)){ lift(i); return; }
     Board.nudge(i);
-    Audio.deny();
+    deny('pour', `${sel} into ${i} is not a pour the rules allow`);
   }
   function commit(from, to){
     const move = { from, to, n: Rules.pourAmount(S.tubes, from, to), color: S.tubes[from][S.tubes[from].length - 1] };
@@ -3454,7 +3746,10 @@ const App = (() => {
        and actually beating it still pays what it always would have. */
     MapView.onBuy = level => {
       Audio.unlock();
-      if (!progress.buyUnlock(level - 1, skipCost())){ Audio.deny(); return; }
+      if (!progress.buyUnlock(level - 1, skipCost())){
+        deny('buy', `opening ${level} costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       Audio.tick();
       paintMap();
       MapView.render(progress);
@@ -3463,7 +3758,10 @@ const App = (() => {
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;
       /* charge before rolling back, so a refused payment changes nothing */
-      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){ Audio.deny(); return; }
+      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){
+        deny('undo', `costs ${CONFIG.economy.undoCost}, purse holds ${progress.gold}`);
+        return;
+      }
       S.undosUsed++;
       const prev = S.history.pop();
       S.tubes = prev.tubes;
@@ -3476,7 +3774,10 @@ const App = (() => {
     };
     $('vessel').onclick = () => {
       if (S.queue.length || S.running || S.vesselUsed) return;
-      if (!progress.spend(CONFIG.economy.vessel)){ Audio.deny(); return; }
+      if (!progress.spend(CONFIG.economy.vessel)){
+        deny('vessel', `costs ${CONFIG.economy.vessel}, purse holds ${progress.gold}`);
+        return;
+      }
       S.vesselUsed = true;
       S.tubes.push([]);
       Board.view.push([]);
@@ -3497,7 +3798,10 @@ const App = (() => {
        there is a move to show: a search that gives up owes the player nothing. */
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
-      if (!progress.canAfford(hintCost())){ Audio.deny(); return; }
+      if (!progress.canAfford(hintCost())){
+        deny('hint', `costs ${hintCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       Audio.unlock();
       S.hinting = true;
       paintHud();
@@ -3507,7 +3811,11 @@ const App = (() => {
         /* the board moved on while the search ran, so the answer is about a
            position that is no longer in front of anyone */
         if (level !== S.level || moves !== S.moves){ paintHud(); return; }
-        if (!res.first || !progress.spend(hintCost())){ Audio.deny(); paintHud(); return; }
+        if (!res.first || !progress.spend(hintCost())){
+          deny('hint', res.first ? `costs ${hintCost()}, purse holds ${progress.gold}` : 'the search found no move');
+          paintHud();
+          return;
+        }
         S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
         Audio.lift();
@@ -3523,6 +3831,7 @@ const App = (() => {
     $('chapterGo').onclick = () => {
       Audio.unlock(); Audio.tick();
       $('chapterVeil').classList.remove('show');
+      Trace.note('chapter opening read');
       paintHud();
     };
     $('chapterVeil').addEventListener('click', e => {
@@ -3561,13 +3870,19 @@ const App = (() => {
       if (e.target === $('veil')) closePanel();
     });
     $('retry').onclick = () => {
-      if (!progress.canAfford(costOf(S.level))){ Audio.deny(); return; }
+      if (!progress.canAfford(costOf(S.level))){
+        deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       attempt(S.level);
     };
     $('skip').onclick = () => {
-      if (!progress.buyUnlock(S.level, skipCost())){ Audio.deny(); return; }
+      if (!progress.buyUnlock(S.level, skipCost())){
+        deny('skip', `costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show', 'failed');
       /* the fee covered the board too, so this deals it without charging again */
       document.body.dataset.view = 'game';
@@ -3575,8 +3890,11 @@ const App = (() => {
       start(Math.min(S.level + 1, progress.lastLevel));
     };
     $('next').onclick = () => {
-      if (S.level >= progress.lastLevel){ Audio.deny(); return; }
-      if (!progress.canAfford(costOf(S.level + 1))){ Audio.deny(); return; }
+      if (S.level >= progress.lastLevel){ deny('next', 'that was the last graded level'); return; }
+      if (!progress.canAfford(costOf(S.level + 1))){
+        deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show');
       showGame(S.level + 1);
     };
@@ -3591,7 +3909,7 @@ const App = (() => {
     $('mapPlay').onclick = () => { Audio.unlock(); showGame(Math.min(progress.unlocked, progress.lastLevel)); };
     $('daily').onclick = () => {
       Audio.unlock();
-      if (!progress.claimDaily(today())){ Audio.deny(); return; }
+      if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }
       Audio.lift();
       paintMap();
       /* the purse is what decides which boards can be dealt, so the medallions
@@ -3625,11 +3943,31 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
     });
   }
+  /* An exception inside a click handler is the quietest failure the game has:
+     the handler stops, the screen stays exactly as it was, and what the player
+     sees is a button that does nothing. Nothing here tries to recover — the
+     state is already whatever the half-run handler left — it only makes sure the
+     failure leaves a mark instead of none at all. */
+  function watchForFaults(){
+    addEventListener('error', e => {
+      Trace.fault(e.filename ? `${e.filename}:${e.lineno}` : 'page', e.message || e.error);
+      progress.recordFault(e.message || String(e.error));
+    });
+    addEventListener('unhandledrejection', e => {
+      Trace.fault('a promise', e.reason);
+      progress.recordFault(e.reason && e.reason.message ? e.reason.message : String(e.reason));
+    });
+  }
+
   return {
     boot(){
+      watchForFaults();
+      Trace.note('booted', `unlocked ${progress.unlocked}, purse ${progress.gold}`);
       publishPalette();
       Backdrop.mount();
       bind();
+      Diagnostics.source = () => ({ progress, state: S });
+      Diagnostics.mount();
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);
       showMap(false);

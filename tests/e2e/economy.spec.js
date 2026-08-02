@@ -64,6 +64,22 @@ test('an open level nobody can afford refuses the tap, and says the price', asyn
   await page.waitForFunction(() => globalThis.App._state.level === 15);
 });
 
+/* Restart deals the board again and is charged for like any other deal, so it is
+   the same dead tap the map had: a live button that takes the tap, refuses the
+   fee and leaves the screen exactly as it was. */
+test('restart refuses to offer a board the purse cannot deal again', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 5, seen: { 0: true, 1: true } });
+  await openLevel(page, 15);
+  /* the fee for this board has just been paid, so the purse is empty behind it */
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(0);
+
+  /* restart needs a move behind it before it offers itself at all */
+  await page.locator('#board .glass').nth(0).click();
+  await page.locator('#board .glass').nth(1).click();
+  await settle(page);
+  await expect(page.locator('#restart')).toBeDisabled();
+});
+
 /* a cleared board is free, so an empty purse must never stand in the way of one */
 test('an empty purse still opens a level already beaten', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, stars: { 4: 3 }, seen: { 0: true, 1: true } });

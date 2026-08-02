@@ -37,7 +37,13 @@ function blank(){
     /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
     dailyOn: null,
     /* chapters whose opening has already been read, so it is shown once */
-    seen: {}
+    seen: {},
+    /* What has gone wrong here, kept across reloads. A player who is stuck
+       reloads, and everything the trace was holding goes with the page, so the
+       counts that answer "has this happened before, and how often" have to
+       outlive it. Deliberately counts and one message rather than a log: this
+       lives in the player's save, and a save is not a place to grow a diary. */
+    diag: { refused: {}, faults: 0, lastFault: '' }
   };
 }
 function createProgress(storage){
@@ -63,6 +69,9 @@ function createProgress(storage){
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
   if (!state.seen || typeof state.seen !== 'object') state.seen = {};
+  if (!state.diag || typeof state.diag !== 'object') state.diag = blank().diag;
+  if (!state.diag.refused || typeof state.diag.refused !== 'object') state.diag.refused = {};
+  if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
   /* The boards moved. What a player earned stays earned: stars and best move
      counts are theirs, and taking them away to keep a record tidy is a worse
      trade than leaving a best that the new board happens not to allow.
@@ -93,6 +102,20 @@ function createProgress(storage){
        player has got rather than from the level in front of them, so going back
        to an early board does not take the tools away again. */
     perks(){ return Chapters.perksFor(Levels.sectionOf(state.unlocked)); },
+    /* ---- what has gone wrong ----
+       Written straight to the save rather than batched. These are rare by
+       definition, and a count that is lost because the page went away is a
+       count that was not worth keeping. */
+    get diag(){ return state.diag; },
+    recordRefusal(kind){
+      state.diag.refused[kind] = (state.diag.refused[kind] || 0) + 1;
+      save();
+    },
+    recordFault(message){
+      state.diag.faults++;
+      state.diag.lastFault = String(message).slice(0, 200);
+      save();
+    },
     hasSeen: section => !!state.seen[section],
     markSeen(section){
       if (state.seen[section]) return false;

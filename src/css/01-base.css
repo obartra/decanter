@@ -87,6 +87,21 @@ body[data-view="game"] #gameView{display:flex}
 }
 #chapterGo{margin-top:16px}
 
+/* The diagnostics report. Wider than the other panels and monospaced, because
+   this one is meant to be read out and copied rather than glanced at, and it is
+   the only place in the game where the exact characters matter. It scrolls on
+   its own: nothing else in the game scrolls, but a log that is cut off is a log
+   that lost the line worth having. */
+.diagCard{max-width:min(560px, 92vw)}
+.diagText{
+  margin:12px 0; padding:12px; max-height:52vh; overflow:auto;
+  text-align:left; white-space:pre-wrap; word-break:break-word;
+  border-radius:10px; border:1px solid rgba(224,177,92,.22);
+  background:rgba(6,4,2,.6); color:var(--ink);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; line-height:1.5;
+  -webkit-user-select:text; user-select:text; overscroll-behavior:contain;
+}
+
 /* Reading the board after the run is over. It is drained of colour so it plainly
    is not in play, and it takes no input at all: the next touch anywhere puts the
    panel back rather than pouring anything. */
