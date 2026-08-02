@@ -311,6 +311,60 @@ test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
   expect(legal).toBe(true);
 });
 
+/* Seventeen silent refusals in one player's save, all of them the hint. The
+   search comes back with nothing — a board with no way on from here, or a
+   search that could not find one, and the game cannot tell those apart — and
+   the button simply did nothing, while saying it costs 25. */
+test('a hint that finds nothing says so, and charges nothing', async ({ page }) => {
+  await start(page, { unlocked: 11, gold: 400, seen: { 0: true, 1: true } });
+  await openLevel(page, 11);
+  await page.evaluate(() => {
+    globalThis.SolverClient.solve = (t, c, cb) => setTimeout(() => cb({ par: null, exact: false, first: null }), 10);
+  });
+  const before = await page.evaluate(() => globalThis.App._progress.gold);
+
+  await page.locator('#hint').click();
+  await expect(page.locator('#pourLabel')).toHaveText(/no way on/i);
+  expect(await page.evaluate(() => globalThis.App._progress.gold),
+    'a search that gives up owes the player nothing').toBe(before);
+  await expect(page.locator('#board .bottle.hintFrom')).toHaveCount(0);
+  /* and it says it rather than only recording it */
+  expect(await page.evaluate(() => globalThis.App._progress.diag.refused.hint)).toBe(1);
+});
+
+/* A board the exact search cannot crack still has a way through it, and the
+   fallback that finds one used to walk the whole line and then throw away the
+   move it opened with. */
+test('a hint from the fallback is shown, and is free because it is not the shortest', async ({ page }) => {
+  await start(page, { unlocked: 11, gold: 400, seen: { 0: true, 1: true } });
+  await openLevel(page, 11);
+  await page.evaluate(() => {
+    const real = globalThis.SolverClient.solve;
+    /* the budget an exact search cannot finish in, so the worker falls back */
+    globalThis.SolverClient.solve = (t, c, cb) => {
+      globalThis.CONFIG.solver.nodeCap = 200;
+      globalThis.CONFIG.solver.msCap = 5;
+      return real(t, c, cb);
+    };
+  });
+  const before = await page.evaluate(() => globalThis.App._progress.gold);
+
+  await page.locator('#hint').click();
+  await expect(page.locator('#board .bottle.hintFrom')).toHaveCount(1);
+  await expect(page.locator('#board .bottle.hintTo')).toHaveCount(1);
+  await expect(page.locator('#pourLabel')).toHaveText(/not the shortest/i);
+  expect(await page.evaluate(() => globalThis.App._progress.gold),
+    'an unproven move is not what the price is for').toBe(before);
+
+  /* and it is still a move the rules would allow */
+  expect(await page.evaluate(() => {
+    const bs = [...document.querySelectorAll('#board .bottle')];
+    const from = bs.findIndex(b => b.classList.contains('hintFrom'));
+    const to = bs.findIndex(b => b.classList.contains('hintTo'));
+    return globalThis.Rules.canPour(globalThis.App._state.tubes, from, to);
+  })).toBe(true);
+});
+
 test('a vessel adds a bottle, and restarting takes it away', async ({ page }) => {
   /* the vessel is the distillery's */
   await start(page, { unlocked: 21, gold: 900, seen: { 0: true, 1: true, 2: true } });

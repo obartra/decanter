@@ -88,3 +88,40 @@ test('the bottles sit above the HUD and the controls', async ({ page }) => {
   expect(Number(order.stream)).toBeLessThan(Number(order.liquid));
   expect(Number(order.liquid)).toBeLessThan(Number(order.top));
 });
+
+/* The room is drawn from where the bottles are, so what "where" means matters.
+
+   A bottle is transformed constantly — lifted twenty pixels while it is
+   selected, thunking as it seals, tipping as it pours — and the shelves were
+   keyed on the painted box, transforms and all. So picking a bottle up made it
+   claim to be standing twenty pixels above the shelf it was actually on, and the
+   room built a whole extra shelf up there: plank, brackets, and a dark band
+   underneath, which then moved about after whichever bottle was in hand. */
+test('picking a bottle up does not build a shelf under it', async ({ page }) => {
+  await start(page, { unlocked: 12, gold: 400, seen: { 0: true, 1: true } });
+  await openLevel(page, 12);
+  await page.evaluate(() => {
+    globalThis.__rows = null;
+    const real = globalThis.Backdrop.setShelf.bind(globalThis.Backdrop);
+    Object.defineProperty(globalThis.Backdrop, 'setShelf', {
+      value: r => { globalThis.__rows = r ? r.map(x => x.y) : null; return real(r); }
+    });
+  });
+  const rowsNow = async () => {
+    await page.evaluate(() => globalThis.Board.render());
+    return page.evaluate(() => globalThis.__rows);
+  };
+
+  /* however many shelves this width lays the board out on */
+  const standing = await rowsNow();
+  expect(standing.length).toBeGreaterThan(0);
+
+  await page.locator('#board .glass').nth(0).click();
+  await expect(page.locator('#board .bottle.lifted')).toHaveCount(1);
+  expect(await rowsNow(), 'a bottle in hand still stands on its shelf')
+    .toEqual(standing);
+
+  /* and the same for a bottle mid-thunk, which is the other transform */
+  await page.evaluate(() => document.querySelectorAll('.bottle')[2].classList.add('thunk'));
+  expect(await rowsNow(), 'nor does one bouncing as it seals').toEqual(standing);
+});

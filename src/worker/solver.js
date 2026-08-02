@@ -102,16 +102,26 @@ function astar(start, colors, nodeCap, msCap){
   return {par:null, exact:false, expanded:expanded};
 }
 
-/* upper bound when the exact search runs out of budget */
+/* An upper bound when the exact search runs out of budget, and the move it
+   starts with.
+
+   It used to return the length alone. That threw away the one thing a hint
+   needs: this walks an entire finishing line and then forgot which move it
+   opened with, so a board A* could not crack had no hint at all, however easily
+   this found a way through it. The move is carried down the search rather than
+   reconstructed, which costs one reference per node. */
 function anySolution(start){
-  var stack=[{s:cl(start),d:0}], seen=Object.create(null), n=0;
+  var stack=[{s:cl(start),d:0,m0:null}], seen=Object.create(null), n=0;
   while(stack.length){
     if(n++>150000) return null;
     var cur=stack.pop(), k=keyOf(cur.s);
     if(seen[k]) continue; seen[k]=1;
-    if(done(cur.s)) return cur.d;
+    if(done(cur.s)) return {par:cur.d, first:cur.m0};
     var ms=moveList(cur.s), i;
-    for(i=0;i<ms.length;i++){ var nx=cl(cur.s); doMove(nx,ms[i]); stack.push({s:nx,d:cur.d+1}); }
+    for(i=0;i<ms.length;i++){
+      var nx=cl(cur.s); doMove(nx,ms[i]);
+      stack.push({s:nx, d:cur.d+1, m0: cur.d===0 ? ms[i] : cur.m0});
+    }
   }
   return null;
 }
@@ -120,6 +130,9 @@ self.onmessage = function(e){
   var d=e.data;
   CAP = d.cap;
   var r = astar(d.tubes, d.colors, d.nodeCap||400000, d.msCap||7000);
-  if(r.par===null){ r = {par:anySolution(d.tubes), exact:false}; }
+  if(r.par===null){
+    var any = anySolution(d.tubes);
+    r = any ? {par:any.par, exact:false, first:any.first} : {par:null, exact:false};
+  }
   self.postMessage({id:d.id, par:r.par, exact:r.exact, first:r.first || null});
 };

@@ -5,7 +5,7 @@ const App = (() => {
     level: 1, tubes: [], moves: 0,
     history: [], queue: [], running: false,
     par: null, parExact: false, parRequest: 0,
-    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, finished: false, reason: null, hinting: false
+    undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, finished: false, reason: null, hinting: false, saying: null
   };
   const $ = id => document.getElementById(id);
 
@@ -156,6 +156,7 @@ const App = (() => {
     S.hintsUsed = 0;
     S.over = false;
     S.finished = false;
+    S.saying = null;
     S.reason = null;
     S.hinting = false;
     S.moves = 0;
@@ -217,6 +218,19 @@ const App = (() => {
     S.reason = why;
     return true;
   }
+  /* A sentence held under the count for a moment, in place of the pour label.
+
+     There is nowhere else for the game to say a short thing during a run: the
+     panels all end it, and a tooltip is not a thing a thumb can read. The hint
+     needs one, because a hint that finds nothing has to say so — seventeen
+     silent refusals in one save is what this is here to stop. */
+  let saidUntil = null;
+  function say(words){
+    S.saying = words;
+    clearTimeout(saidUntil);
+    saidUntil = setTimeout(() => { S.saying = null; paintHud(); }, 2800);
+    paintHud();
+  }
   const poursLeft = () => Rules.poursLeft(S.moves, S.par, S.parExact);
 
   const undoIsFree = () => S.undosUsed < progress.perks().freeUndos;
@@ -239,7 +253,8 @@ const App = (() => {
     const left = poursLeft();
     $('statLeft').textContent = left == null ? S.moves : left;
     $('pourLabel').textContent =
-      left == null ? 'pours made'
+      S.saying ? S.saying
+      : left == null ? 'pours made'
       : left === 0 ? 'no pours left'
       : left === 1 ? 'last pour'
       : 'pours left';
@@ -512,14 +527,32 @@ const App = (() => {
         /* the board moved on while the search ran, so the answer is about a
            position that is no longer in front of anyone */
         if (level !== S.level || moves !== S.moves){ paintHud(); return; }
-        if (!res.first || !progress.spend(hintCost())){
-          deny('hint', res.first ? `costs ${hintCost()}, purse holds ${progress.gold}` : 'the search found no move');
+        /* Nothing to show. That is either a board with no way on from here or a
+           search that could not find one, and the game cannot tell those apart
+           — but the player has to be told either way. Doing nothing at all, for
+           a button that says it costs 25, is the worst of the three. */
+        if (!res.first){
+          deny('hint', 'no way on found from here');
+          say('No way on from here');
           paintHud();
           return;
         }
-        S.hintsUsed++;
+        /* A move the exact search proved is the one this is priced for: taking
+           it cannot cost a star, because taking optimal moves is what earns
+           them. When the exact search ran out and the fallback found a way
+           through instead, the move is still worth showing and is not worth
+           paying for — it finishes the board, but longer. */
+        const proven = !!res.exact;
+        const fee = proven ? hintCost() : 0;
+        if (fee > 0 && !progress.spend(fee)){
+          deny('hint', `costs ${fee}, purse holds ${progress.gold}`);
+          paintHud();
+          return;
+        }
+        if (fee > 0) S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
         Audio.lift();
+        if (!proven) say('A way on, not the shortest');
         paintHud();
       });
     };
