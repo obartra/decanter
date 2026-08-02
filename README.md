@@ -34,6 +34,7 @@ option, to add it to a home screen or dock.
 | `src/js/86-jabari.js` | the beta word's celebration, kept in one file so nothing borrows it |
 | `src/css/07-jabari.css` | the same fence in the stylesheets, beside the module it belongs to |
 | `src/js/78-still.js` | a board drawn small: the card before a replay, and the shelf the blast offers |
+| `src/js/pure/46-preview.js` | what the card before a replay says. Fetched after the page opens, not at first paint |
 | `src/bubble/` | the bubble shooter at `/bubble/`, with its own sources and bundle |
 | `src/measure/` | the decanting puzzle at `/measure/` |
 | `src/casks/` | the sliding puzzle at `/casks/` |

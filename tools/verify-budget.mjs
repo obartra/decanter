@@ -47,20 +47,41 @@ const dist = join(root, 'dist');
    prose explaining why a win condition can move at all. 255,000 puts the few
    percent back on top of that.
 
-   Raised a second time, on the same terms, for the card shown before a replay:
-   two modules, two stylesheets and the markup for a panel, about 22kb of source
-   of which the prose is most. Trimming that to fit would be the per-game cap's
-   mistake made here instead, capping how much a screen may explain itself.
+   Raised a second time, on the same terms, for the card shown before a replay,
+   and then brought back down, which is the outcome that entry was asking for
+   rather than a third raise. Nothing on that card is reachable until somebody
+   taps a medallion for a level they have already cleared, so on the critical
+   path every byte of it was downloaded by every player and read by the ones who
+   go back. It now rides in a bundle of its own, fetched right after the page
+   opens: tools/build.mjs can defer part of the app's own script and stylesheet
+   and not only a whole game, and `preview` is the first group to use it.
 
-   What it does not deserve is a place on the first paint. Nothing on that card
-   is reachable until somebody taps a medallion, so every byte of it is loaded by
-   every player to be used by the ones who go back to a cleared level. The build
-   can already defer a bundle, but only a whole game, so splitting the app's own
-   script is a change of shape rather than a number, and it is the thing to do
-   before this cap is raised a third time. */
+   That is the shape this cap wanted, and it is worth being straight about the
+   size of the win: 6.7kb of unminified source, which over the wire is a couple
+   of kilobytes. The number was never the argument. What the split buys is that
+   the next screen nobody sees at first paint has somewhere to go that is not
+   here, so this cap can stay tight enough to be worth reading.
+
+   Which is why 274,000 rather than something rounder. The cap comes down by
+   less than the card weighed, because the critical path grew elsewhere while
+   this was being written and 277,000 had already been eaten down to under one
+   percent of headroom. The rule is the same one both earlier settings used, a
+   few percent over what the build actually produces, and the number falls out
+   of it. A cap set to the saving instead would read as a bigger win and would
+   fail on the next paragraph of prose anybody adds.
+
+   Not all of the card left. 78-still.js draws the small bottles on the shelf
+   the blast offers as well, and 05-still.css styles them, so both stay: that
+   shelf is opened mid-run and cannot wait for a fetch, and those two were made
+   shared in the first place because two hand-rolled copies of a small bottle
+   drew a full one and a nearly empty one identically. Splitting them again to
+   move about 3kb would be trading a defect this repo has already had for less
+   than it costs to say so. The card's markup stays in the shell for a plainer
+   reason: it is the shell's own budget above, which has room, and moving it
+   would put a null guard on every line that reaches for the panel. */
 const BUDGET = {
   shell: 12_000,
-  critical: 277_000,
+  critical: 274_000,
   /* Re-based when the third game landed, and worth saying why rather than
      leaving a number that looks like it drifted.
 

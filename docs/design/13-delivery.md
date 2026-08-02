@@ -39,8 +39,9 @@ of the bundles.
 | | | |
 | --- | --- | --- |
 | `index.html` | ~9kb | the shell. Revalidated every navigation |
-| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~230kb | the pour game. Cached forever |
+| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~250kb | the pour game. Cached forever |
 | `assets/audio-<hash>.js` | ~10kb | the sound, fetched after the page opens |
+| `assets/preview-<hash>.{css,js}` | ~8kb | the card before a replay, fetched after the page opens |
 | `assets/solver-<hash>.js` | ~6kb | the A\* worker, fetched on the first solve |
 | `./audio/boom.mp3` | 17kb | the one recording, copied from `assets/audio/`, fetched the first time it is needed |
 | `assets/<game>-<hash>.{css,js}` | | one game each |
@@ -61,6 +62,26 @@ Two consequences paid for the change on their own:
 `src/js/96-deferred.js` fetches the rest, listed by the build in a
 `<script type="application/json" id="deferredAssets">`. It runs on `load`, so the
 map is on the screen and interactive first.
+
+A group is a name with a list of URLs under it, and a caller waits on the name.
+For a while a group could only be a whole game or the sound, because that was all
+the build could describe: `DEFERRED` was a list of scripts, so everything on it
+went under one name, and a stylesheet could not be on it at all.
+
+It is a map of named groups now, each with `js`, `css` or both, so **part of the
+app's own script and stylesheet can be deferred as well**. The card shown before
+a replay is the first to use it. Nothing on that card is reachable until somebody
+taps a medallion for a level they have already cleared, so on the critical path
+every byte of it was downloaded by every player and read by the ones who go back;
+`src/js/pure/46-preview.js` and `src/css/06-preview.css` now arrive under the name
+`preview`, and `showPreview` waits on it before drawing.
+
+`src/js/78-still.js` and `src/css/05-still.css` deliberately stayed behind. They
+draw the small bottles on the shelf the blast offers as well as the card's
+picture, and that shelf opens in the middle of a run. They were made shared in
+the first place because two hand-rolled copies of a small bottle disagreed about
+what a half empty one looks like, so splitting them again to move about 3kb would
+be buying back a defect this project has already had.
 
 **Eagerly, not on demand**, and that distinction is the whole design. Waiting
 until first need would put a network round trip inside a tap, and on a game that
@@ -151,6 +172,14 @@ just the app's. With one shared cache, a game changing without the version
 changing would mean the worker reopening the same cache, adding the newly named
 bundles beside the superseded ones, and never sweeping them: the install would
 grow a little every release, forever.
+
+That claim was true of every stylesheet except the app's own, which was left out
+of the hash for long enough to be worth recording. Editing `src/css/` minted a
+newly named bundle under an unchanged version, which is exactly the growth above,
+and stamped the page with the build id of the last *script* change, which is the
+one thing the stamp exists not to do. A test now builds a copy of the tree with
+one file of each kind altered and asserts the id moved, because the expression
+that computes it read correctly while being wrong.
 
 ## Picking up a new version
 
