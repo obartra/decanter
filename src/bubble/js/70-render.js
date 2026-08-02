@@ -152,6 +152,32 @@ const BubbleRender = (() => {
     ctx.stroke();
   }
 
-  return { bubble, board, guide, walls, muzzle, target };
+  /* What marks a bomb, drawn over the dark bubble that carries it.
+
+     A separate primitive rather than a seventh palette entry, and that is the
+     whole point of it: everything else in here turns a colour index into a css
+     colour, and a bomb is not a colour. Giving it one would put a value into
+     the palette that the board, the deal and the falling debris could all
+     reach, and any of them drawing it would mean a bubble nobody can match.
+
+     A ring and a lit spark that runs round it, so the thing in hand reads as
+     armed rather than as a bubble that came out badly. Time comes in from the
+     caller, because nothing in this file is allowed its own clock. */
+  function fuse(ctx, x, y, now){
+    const r = C.DRAW_R * 0.58;
+    ctx.strokeStyle = 'rgba(255,196,120,.85)';
+    ctx.lineWidth = 0.055;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const a = (now / 420) % (Math.PI * 2);
+    ctx.fillStyle = '#FFD79A';
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, 0.075, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return { bubble, board, guide, walls, muzzle, target, fuse };
 })();
 globalThis.BubbleRender = BubbleRender;

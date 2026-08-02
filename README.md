@@ -30,6 +30,7 @@ option, to add it to a home screen or dock.
 | `src/worker/solver.js` | A\* search that computes each level's par |
 | `tools/build.mjs` | the entire build, no bundler |
 | `tools/pars.mjs` | solves every level offline and writes the par table |
+| `src/js/86-jabari.js` | the beta word's celebration, kept in one file so nothing borrows it |
 | `src/bubble/` | the bubble game, a second page at `/bubble/` with its own sources and build id |
 | `tools/bubble-run.mjs` | plays a bubble run headless, so the survival tool and the difficulty test measure the same game |
 | `tools/bubble-survival.mjs` | measures how often a bubble run reaches each star, which is where its thresholds come from |

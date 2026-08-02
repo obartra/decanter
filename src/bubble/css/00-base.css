@@ -79,9 +79,19 @@ body{
   display:flex; justify-content:center; gap:8px; padding:0 12px;
   pointer-events:none;
 }
-.tools .bubBtn{pointer-events:auto; padding:9px 13px}
-.bubBtn.tool:disabled{opacity:.28; cursor:default}
-.bubBtn.tool.armed{border-color:var(--gold); color:var(--gold-lit)}
+/* Keyed on `.tool` rather than on `.bubBtn`, because the same row is built into
+   two pages with two different button classes: `bubBtn tool` on the standalone
+   page and `btn tool` on the one carrying both games. Only `.tool` is in both.
+
+   That was not a style nit. The row sets pointer-events:none so the strip does
+   not swallow taps meant for the canvas around it, and exactly one rule handed
+   them back — a rule matching a class the merged page does not use. So inside
+   the graded run every bubble tool was drawn, enabled, and untappable, and the
+   armed states had no styling at all. Nothing caught it: the e2e suite clicks
+   these on /bubble/, where the other class matches. */
+.tools .tool{pointer-events:auto; padding:9px 13px}
+.tools .tool:disabled{opacity:.28; cursor:default}
+.tools .tool.armed{border-color:var(--gold); color:var(--gold-lit)}
 
 /* The colour picker, opened from the tool row and closed by choosing. Only the
    colours still on the board are offered: picking one the player has already

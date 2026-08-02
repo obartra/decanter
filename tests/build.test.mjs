@@ -11,6 +11,36 @@ const dist = join(root, 'dist');
 const has = f => existsSync(join(dist, f));
 const text = f => readFileSync(join(dist, f), 'utf8');
 
+describe('the workflow and the scripts it names', () => {
+  it('never asks npm for a script that does not exist', () => {
+    /* CI is the one file `npm run check` cannot check. Its steps are npm
+       scripts named as strings in yaml, so renaming or removing one leaves the
+       workflow calling a script that is gone — and everything passes locally
+       right up until the pull request goes red on `Missing script`. That is
+       exactly how this landed: a detector was folded into another, its script
+       came out of package.json, and the CI step naming it stayed. */
+    const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+    const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
+    const named = [...yml.matchAll(/npm run ([\w:]+)/g)].map(m => m[1]);
+    assert(named.length >= 5, `only found ${named.length} npm steps, so the scan has broken`);
+    for (const name of new Set(named)){
+      assert(scripts[name], `.github/workflows/ci.yml runs "npm run ${name}", which package.json does not define`);
+    }
+  });
+
+  it('runs every gate that npm run check runs', () => {
+    /* The other direction, and the reason it matters: a gate in `check` but in
+       no CI step is one nothing can fail a pull request with. */
+    const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+    const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
+    const inCheck = [...scripts.check.matchAll(/npm run ([\w:]+)/g)].map(m => m[1]);
+    for (const name of inCheck){
+      assert(new RegExp(`npm run ${name}\\b`).test(yml),
+        `npm run check runs "${name}" and no CI step does, so it cannot fail a pull request`);
+    }
+  });
+});
+
 describe('build output', () => {
   it('produces every file the app needs', () => {
     for (const f of ['index.html', 'sw.js', 'manifest.webmanifest',
@@ -212,8 +242,17 @@ describe('build output', () => {
        came out as three stars and a payout. Stars have to be gated on the board
        actually being solved. */
     const app = read('src/js/90-app.js');
-    const fn = app.slice(app.indexOf('function finish(){'), app.indexOf('function skipCost'));
-    assert(/const solved = Rules\.isSolved\(S\.tubes\)/.test(fn),
+    /* Ends at the blast rather than running to the end of the file, which is
+       what `function skipCost` used to do by not matching anything: skipCost is
+       a const arrow and declared above this, so indexOf returned -1 and the
+       slice was everything after finish(). Any later call site could satisfy
+       these two on its behalf, and one now would. */
+    const fn = app.slice(app.indexOf('function finish(){'), app.indexOf('/* ---------- the blast'));
+    assert(fn.length > 100, 'the slice must actually contain finish()');
+    /* The second argument is the spilled set. Pinned loosely on purpose: what
+       matters is that finish() asks the rules whether this board is solved, not
+       how many arguments that question takes this month. */
+    assert(/const solved = Rules\.isSolved\(S\.tubes[,)]/.test(fn),
       'finish() must ask whether the board is actually solved');
     assert(/solved \? Rules\.rate\(/.test(fn),
       'and must only rate a run that finished the board');

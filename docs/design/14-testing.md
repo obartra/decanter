@@ -131,6 +131,26 @@ because every one of them guards something whose failure is silent:
 - an export nothing reads, a stray top-level declaration, and a style rule no
   element carries, each added in turn and each reported
 
+## The tunable that lied
+
+`CONFIG.bubblePerChapter` announced "two per ten" over a function that returned a
+pair by construction and never asked it anything: it could have been set to five
+and nothing would have moved. A stale tunable is the most convincing dead code
+there is, because everything else looks like what it is, while a tunable looks
+like the place to change the behaviour it claims to control and usually carries a
+paragraph explaining the decision.
+
+So `verify-live` checks both `CONFIG` objects, one level of nesting deep, and
+asks for a qualified read rather than a name appearing somewhere. It has to: a
+config key is a short common word, and `blast`, `daily` and `attempt` are all
+written in prose and in other modules' variables, so a name-anywhere test calls
+every tunable alive whether or not a line ever reads `CONFIG.economy.blast`.
+
+That check answered its first planted corpse with three accusations, because two
+of the nested blocks are written on one line and have no closing brace of their
+own to stop at, so matching them against the multi-line shape ran them on to the
+next brace and swallowed a neighbour. Both shapes have a planted corpse now.
+
 ## What is not tested, and why
 
 - **Sound.** Judged by ear.

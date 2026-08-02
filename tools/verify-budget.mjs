@@ -44,8 +44,14 @@ const dist = join(root, 'dist');
    page and they are downloaded by every player.
 
    `bubble/index.html` is the standalone page at /bubble/ and holds one game, so
-   it did not move. */
-const BUDGET = { 'index.html': 350_000, 'bubble/index.html': 140_000, total: 1_100_000 };
+   it did not move.
+
+   Raised again for the blast. It is one tool but it lands in both games and on
+   the end-of-run panel, so it arrives as rules, economy, a chapter, markup and
+   styling in two stylesheets, and the prose explaining why the win condition can
+   move at all. Taken with the recording the bang now carries, the page needs
+   more room than either change wanted alone. */
+const BUDGET = { 'index.html': 380_000, 'bubble/index.html': 140_000, total: 1_100_000 };
 
 /* Walks the whole tree, not just the top. It used to look only at the top level,
    which meant a page in a subfolder sailed past the budget entirely. Dotfiles

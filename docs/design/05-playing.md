@@ -34,6 +34,7 @@ bottle again puts it down.
   an undone pour never happened. Three are free per level, then they cost.
 - **Restart** re-deals the same level, and costs an attempt.
 - **A vessel** adds an empty bottle to the shelf.
+- **A blast** takes one away, glass and contents together.
 
 Two details about the vessel are load-bearing:
 
@@ -43,6 +44,35 @@ Two details about the vessel are load-bearing:
 - **Buying one clears the undo history.** The shelf changed shape, so the
   snapshots behind it no longer describe this board, and undoing into one would
   quietly take the vessel back.
+
+### The blast
+
+The vessel's opposite in both directions at once: one more place to put liquid
+against one less, and work rearranged against work removed. That is what keeps
+the two from being the same purchase at two prices.
+
+Pressing it arms a **choice**, and the only bottles it will offer are the ones
+the rules allow — not empty, not finished, and not one whose removal would end
+the run. So the tool has no target that can only make things worse.
+
+Three things about the money, and they are one decision seen from three sides:
+
+- **The gold is taken when a bottle is chosen**, never when the tool is armed.
+  Opening the shelf to see what is on it costs nothing.
+- **The mode cannot be entered without the price.** The button is disabled rather
+  than hidden, because a purse that cannot cover it today means "not now" rather
+  than "not yet". Nobody opens a shelf of bottles they cannot buy and finds out
+  at the last tap.
+- **The same button is the way back out.** Armed, it reads Cancel and says free
+  underneath, which is the thing worth saying at that moment: nothing has been
+  taken. A second button to put the first one away is a row that grows every time
+  something can be opened, and this row already carries three.
+
+Both of the vessel's load-bearing details apply unchanged, for the same reasons:
+a blast survives a restart, and it clears the undo history.
+
+What it costs the run is the third star, exactly as a vessel does and through the
+same flag.
 
 ## The HUD
 
@@ -82,7 +112,31 @@ A win fades in. A failure does not: the room goes red, the panel arrives with a
 knock, the stars are dark, and there is no confetti and no win sound. Losing
 should be felt rather than read.
 
-The failed panel offers exactly two things, because they are the only two that
-help: **another go** at the attempt price, or **paying past the board** for twice
-that, which opens the next level and deals it. If neither can be afforded it says
-so and points at the daily draught.
+The failed panel offers **another go** at the attempt price, **paying past the
+board** for twice that, and — when it would work — **a blast**.
+
+The blast is on this panel because of when a run ends. A run stops the moment it
+is lost, and `S.over` is never unset, so a rescue that lives only in the tool row
+can be pressed only *before* the game has said you need it. The vessel has always
+had that problem: it is sold as the answer to a board with nowhere left to put
+anything, and nowhere left to put anything is exactly the ending that stops the
+run. Buying on a read of the board rather than on a verdict is a real skill, and
+it is also a real reason a button goes unpressed.
+
+So the blast is offered where it is wanted, and only where it helps. That is
+checkable rather than guessable: apply it to a copy for every bottle on the shelf
+and ask the same function that ended the run whether the board comes back alive.
+If no bottle does, the button is not there. This matters most for the three
+endings, which are not equally rescuable — a blast always lowers the work left,
+so it reliably answers **short**; it sometimes opens a move, so it sometimes
+answers **stuck**; and it can do nothing at all about **over**, where the pours
+are simply spent. Checking rather than assuming is what stops the panel selling
+the wrong one.
+
+Taking it resumes the run in place. Nothing is re-dealt and no attempt is
+charged, because a failed run banked nothing and there is nothing to undo — the
+board simply becomes winnable again, two pours shorter on work and one bottle
+lighter, capped at two stars.
+
+If nothing on the panel can be afforded it says so and points at the daily
+draught.

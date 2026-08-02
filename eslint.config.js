@@ -18,7 +18,7 @@ const published = {
   ORDER: 'writable', PARS: 'writable', Chapters: 'writable', LAST_LEVEL: 'writable', Progress: 'writable',
   Panel: 'writable', Sound: 'writable', MapGeom: 'writable', MapView: 'writable',
   Backdrop: 'writable', Board: 'writable', Fluid: 'writable', Confetti: 'writable',
-  SolverClient: 'writable', App: 'writable'
+  SolverClient: 'writable', Jabari: 'writable', App: 'writable'
 };
 
 const shared = {

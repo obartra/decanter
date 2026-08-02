@@ -168,6 +168,106 @@ for (const mod of modules){
   }
 }
 
+/* ---- helpers a module declares and never calls ----
+
+   The one check here that does not use the whole-repository name rule, and it
+   cannot: a module level function is private to the file that declares it, so
+   "somebody somewhere writes that word" says nothing about whether it is
+   reachable. The question is only ever whether its own module calls it.
+
+   Column zero as well as indented. The modules wrapping an IIFE indent theirs;
+   the ones publishing a plain literal write them flush left, which is sixteen
+   functions across the pour game alone.
+
+   The worker is exempt. `tests/helpers.mjs` loads `src/worker/solver.js` through
+   `new Function` with an internals export appended, so its private functions are
+   genuinely called from outside and the premise does not hold. Scoped by how a
+   file is loaded rather than by a list of names, because the exception is
+   structural and a list would drift. */
+for (const [file, src] of files){
+  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
+  const mod = modules.find(m => m.file === file);
+  for (const m of src.matchAll(/^ {0,2}function (\w+)\s*\(/gm)){
+    const name = m[1];
+    if ((src.match(new RegExp(`\\b${name}\\b`, 'g')) || []).length > 1) continue;
+    if (mod && mod.members.includes(name)) continue;
+    add('helper', file, name, 'declared here and nothing in this file calls it');
+  }
+}
+
+/* ---- tunables nothing reads ----
+
+   Also outside the whole-repository rule, and for a sharper reason: a config key
+   is a short common word. `blast`, `daily`, `hint` and `attempt` are all written
+   in prose, in test names and in other modules' variables, so a name-anywhere
+   test calls every one of them alive whether or not a single line ever reads
+   `CONFIG.economy.blast`. Asked as a qualified read instead.
+
+   Worth its own check because a stale tunable is the most convincing dead code
+   there is. Everything else looks like what it is; a tunable looks like the
+   place to change the behaviour it claims to control, and usually carries a
+   paragraph explaining the decision. `bubblePerChapter` sat in CONFIG announcing
+   "two per ten" over a function that returned a pair by construction and never
+   asked it anything. It could have been set to five and nothing would have moved.
+
+   One level of nesting, so `economy.blast` is reached rather than only
+   `economy`. Deeper is the palette and the star brackets, which are read by
+   index and by spread and cannot be seen by a scan either way. */
+const CONFIG_FILES = ['src/js/00-config.js', 'src/bubble/js/00-config.js'];
+for (const file of CONFIG_FILES){
+  const src = files.get(file);
+  if (!src) continue;
+  const others = [...files].filter(([f]) => f !== file).map(([, t]) => t).join('\n');
+  const check = (key, label) => {
+    if (new RegExp(`\\.${key}\\b|\\b${key}\\s*[,}]`).test(others)) return;
+    add('config', file, label, 'a tunable nothing reads');
+  };
+  for (const m of src.matchAll(/^ {2}([A-Za-z_]\w*):/gm)) check(m[1], m[1]);
+  for (const parent of ['economy', 'solver', 'stars', 'beta']){
+    /* Two shapes, and telling them apart is not optional. A multi-line block
+       closes on its own line; a one-liner has no `\n  }` to stop at, so matching
+       everything against the multi-line shape ran it on to the next closing
+       brace it could find and attributed every key in that block to this one as
+       well. Three reports for one planted corpse is how that surfaced. */
+    const multi = src.match(new RegExp(`^ {2}${parent}:\\s*\\{\\r?\\n([\\s\\S]*?)^ {2}\\}`, 'm'));
+    if (multi){
+      for (const m of multi[1].matchAll(/^ {4}([A-Za-z_]\w*):/gm)) check(m[1], `${parent}.${m[1]}`);
+      continue;
+    }
+    const one = src.match(new RegExp(`^ {2}${parent}:\\s*\\{([^}]*)\\}`, 'm'));
+    if (one) for (const m of one[1].matchAll(/([A-Za-z_]\w*)\s*:/g)) check(m[1], `${parent}.${m[1]}`);
+  }
+}
+
+/* ---- names a module puts in the page's scope ----
+
+   Not deadness, collision, and the one check here that is not about anything
+   being unused. Every source file in both games is concatenated into a single
+   `<script>`, so the top level of a module is the top level of the page, and two
+   modules declaring one name is a defect rather than a smell. Which defect
+   depends on the keyword: `function` and `var` overwrite in silence, the later
+   definition winning for everybody, while `const` and `let` are a redeclaration
+   error, and a page that is one script failing to parse is a blank screen.
+
+   The suite already forbids the other game publishing an unprefixed `globalThis`
+   name for exactly this reason, which was watching one of the two doors. Six
+   modules declared their functions here and published a namespace afterwards,
+   putting `shape`, `deal`, `make`, `at` and `rate` into the same scope the other
+   game is parsed in. Nothing collided yet, which is the only reason it was
+   possible to keep not noticing.
+
+   So: one name per module, the one it publishes. Everything else goes inside the
+   IIFE, where a duplicate is somebody else's business. */
+for (const [file, src] of files){
+  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
+  const published = [...src.matchAll(/^globalThis\.(\w+)\s*=/gm)].map(m => m[1]);
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  for (const m of bare.matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
+    if (published.includes(m[1])) continue;
+    add('scope', file, m[1], "declared at the page's top level, where the other game's sources also live");
+  }
+}
+
 /* ---- stylesheets ----
 
    Class and id selectors only. Element and attribute selectors are shared with
@@ -253,10 +353,13 @@ if (AS_JSON){
     missing: 'ids a script reaches for and no page has',
     global: 'modules nothing else uses',
     member: 'members no other file names',
+    helper: 'functions their own module never calls',
+    config: 'tunables nothing reads',
+    scope: "names loose in the page's top level",
     style: 'selectors and properties nothing uses',
     page: 'ids nothing reaches for'
   };
-  for (const kind of ['missing', 'global', 'member', 'style', 'page']){
+  for (const kind of ['missing', 'global', 'member', 'helper', 'config', 'scope', 'style', 'page']){
     const mine = findings.filter(f => f.kind === kind);
     if (!mine.length) continue;
     console.log(`\n${titles[kind]}:`);

@@ -167,7 +167,49 @@ const BubbleRules = (() => {
     };
   }
 
+  /* Everything within one cell of a point on the lattice.
+
+     Radius one is the six neighbours, and they are the six the grid already
+     knows: the diagonal table depends on the row's stagger, and a blast that
+     worked that out for itself would be the third copy of the single most
+     common bug in this genre. So it asks.
+
+     The centre is in the list and is almost always empty — a shot's landing is
+     the cell the bubble would have snapped into — but it is asked for rather
+     than assumed, because the one thing worse than a blast that clears six is a
+     blast that quietly clears five when the geometry surprises it. */
+  function within(board, j0, c0){
+    return [[j0, c0], ...G.neighbours(board, j0, c0)]
+      .filter(([j, c]) => G.at(board, j, c) !== G.EMPTY);
+  }
+
+  /* A bomb going off where a bubble would have landed.
+
+     Deliberately not `resolveTurn` with a flag. That function's whole shape is
+     "place a bubble, then walk its colour", and a bomb has no colour to walk:
+     `matchFrom` could not be seeded by it, and the file already says why those
+     two fills must never be merged. What the two do share is the ending, which
+     is the part that is genuinely the same — whatever leaves the board takes
+     down whatever was only hanging from it — so `detach` is called here exactly
+     as it is called there, and the return has the same shape so the animator
+     needs no idea which one happened. `matched` is what the shot knocked off,
+     whatever did the knocking. */
+  function resolveBlast(board, landing){
+    const blown = withColour(board, within(board, landing.j, landing.c));
+    if (blown.length) remove(board, blown);
+
+    const cut = blown.length ? withColour(board, detach(board)) : [];
+    if (cut.length) remove(board, cut);
+
+    return {
+      matched: blown,
+      cut,
+      won: isWon(board),
+      lost: isLost(board)
+    };
+  }
+
   return { matchFrom, detach, remove, liveColours, isLost, resolveTurn,
-           dealBoard, freshRow, anyLanding };
+           within, resolveBlast, dealBoard, freshRow, anyLanding };
 })();
 globalThis.BubbleRules = BubbleRules;

@@ -22,9 +22,13 @@ if it needs softening, `CONFIG.stars` is the only place to change.
 
 Two things can lower the ceiling:
 
-- **A bought vessel caps the run at two stars.** Par describes the bottles the
-  level dealt. Put a seventh on the shelf and the board is easier than the number
-  being scored against, so the third star would be measuring a different puzzle.
+- **An eased board caps the run at two stars.** Par describes the bottles the
+  level dealt. Change the shelf — a seventh bottle on it, or one taken off it by
+  a blast — and the board is easier than the number being scored against, so the
+  third star would be measuring a different puzzle. One flag, not one per tool:
+  the reason is the same either way and a run is capped once however many were
+  bought. The bubble game has called this `aided` since it shipped and means
+  exactly the same thing by it.
 - **An inexact par is not scored at all**, and with a failing bracket in play
   that guard matters more than it used to. Why an estimate can never be scored is
   [03 Par](03-par.md).
@@ -50,9 +54,9 @@ Deliberately thin, because the tension is the point.
 | 3★ | 6 | Any attempt | 5 |
 | 2★ | 3 | Pay past a board | 10 |
 | 1★ | 1 | Extra vessel | 45 |
-| 0★ | nothing | Undo | 3 free per level, then 8 |
-| First clear | 8, once ever | Restart | an attempt |
-| Daily draught | 12 per day | | |
+| 0★ | nothing | A blast | 65 |
+| First clear | 8, once ever | Undo | 3 free per level, then 8 |
+| Daily draught | 12 per day | Restart | an attempt |
 
 The purse opens at **86**: one vessel away from broke. Above roughly 150 the
 pressure disappears, which is the number to watch when retuning.
@@ -73,6 +77,46 @@ being farmed: replaying pays stars only. Five perfect replays pay 5 × 6, not
 
 **A vessel costs about three well-played new levels**, so the only rescue worth
 buying has to be funded on boards you have not solved yet.
+
+## The blast, and why it is not priced like a big number
+
+A blast destroys a bottle. It is the dearest thing in the game and deliberately
+not by much, because the instinct to make it cost a fortune is wrong and the
+numbers say why.
+
+It is bought on a board that is beating you, so its competition is not the
+vessel. It is **another go at 5**, and **paying past the board at 10**. Against
+those, what it sells is a two star clear on a level that would otherwise stay
+unbeaten — worth 3 in star gold and the 8 that has been waiting there since the
+level was first dealt. So priced at `X` it costs `X − 18` more than simply
+walking away from the board.
+
+The purse opens at 86, a good level pays 14, and this document already says the
+pressure disappears above roughly 150. A tool priced up there is priced above the
+figure the whole economy is tuned to keep you under, and becomes an item nobody
+can afford by playing. **Dear, here, means 65.** Four and a half good levels
+against the vessel's three.
+
+That number buys one thing worth more than the number itself:
+
+> **An opening purse affords the vessel or the blast, and never both.**
+
+86 − 45 is 41, which is under 65; 86 − 65 is 21, which is under 45. Which rescue
+you can carry into a board is a decision rather than a shopping list, and that is
+the tension the vessel's own price was chosen for.
+
+**One per run**, gated the way the vessel is. A blast held across a whole save
+would be worth a bigger number and would be a worse feature: it needs a field in
+the save file, and it invites the oldest failure in consumables, the player who
+saves it for something special and finishes the game never having pressed it.
+
+**The game refuses a blast that could only hurt.** An empty bottle spills nothing
+and costs a slot. A finished bottle undoes work already done. And a blast can
+strand a board outright — take away the last thing anything could pour into and
+there are no legal moves left. All three are refused in `Rules.blastTargets`,
+which asks the question on a copy using the same function that ends runs, so a
+target is offered only when it leaves the run alive. Sixty five gold for an
+outcome worse than not pressing it is not a price, it is a trap.
 
 ## Running dry
 
@@ -118,7 +162,11 @@ And it goes off rather than sliding in — a strobe, three shockwaves, three ban
 and **JABARI MODE** shaking across the screen in rainbow over a neon
 **+9,999,999**. This is the one thing in the build that is not trying to be
 tasteful, and it is written that way deliberately: none of it should be borrowed
-for anything else the game does. There is nothing to dismiss and nothing to
+for anything else the game does. It lives in `src/js/86-jabari.js` so that
+sentence is structural rather than a remark — it was a hundred lines in the
+middle of the app, between the wiring and the fault handler. It is handed the
+purse and one callback and knows nothing else, so it comes out with the beta by
+deleting one file and one call. There is nothing to dismiss and nothing to
 press, and it ignores pointers throughout, so it cannot eat a tap that was on its
 way somewhere else. It takes itself away after three seconds. A cheat that
 silently changed a number would be its own small version of the bug this all
@@ -162,6 +210,9 @@ than by judgement:
   the better play and the puzzle is decoration.
 - **A vessel must cost around three good levels**, or the pressure it exists to
   create disappears.
+- **A blast must be dearer than a vessel, affordable on an opening purse, and
+  never affordable alongside one**, or the choice between the two rescues stops
+  being a choice.
 
 ## Where this is applied
 

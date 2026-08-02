@@ -28,8 +28,8 @@ const CONFIG = {
      subsequence of a sorted sequence is still sorted, so taking boards out
      recomputes no par and regenerates no ordering. */
   sectionNames: ['The Cellar','The Apothecary','The Distillery',
-                 'The Conservatory','The Vault','The Observatory'],
-  sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8'],
+                 'The Conservatory','The Vault','The Observatory','The Furnace'],
+  sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8','#FF5A36'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
   /* A word in the query string that fills the purse, for handing to a beta
@@ -65,6 +65,24 @@ const CONFIG = {
     firstClear: 8,
     daily: 12,
     vessel: 45,
+    /* The dearest thing in the game, and deliberately not by much.
+
+       A blast is bought on a board that is beating you, so its real competition
+       is not the vessel: it is another go at five, and paying past the board at
+       ten. Against those, what it sells is a two star clear on a level that
+       would otherwise stay unbeaten — worth three in star gold and eight in the
+       one-off bonus. So a large number is the wrong instinct. The purse opens at
+       86, a good level pays 14, and this economy loses its pressure above about
+       150; a tool priced up there is priced above the figure the whole thing is
+       tuned to keep you under, and becomes an item you can only afford by not
+       playing.
+
+       Sixty five is dear where dear means something here: four and a half good
+       levels against the vessel's three, affordable on an opening purse, and
+       never affordable alongside a vessel in the same run. Having to choose
+       which rescue you can carry is the tension; owning both is not. The tests
+       pin all three of those. */
+    blast: 65,
     freeUndos: 3,
     undoCost: 8,
     /* A hint names the move the solver would play, so it never costs a star: it
