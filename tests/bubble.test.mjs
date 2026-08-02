@@ -11,19 +11,12 @@
    and shorter is better in the other game. */
 import { describe, it, assert, equal, loadBubble } from './helpers.mjs';
 
-const { BubbleConfig: C, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
+const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
         BubbleAdvice: Adv, BubbleScore: Sc } = loadBubble();
 
-/* a small deterministic stream, so a failure can be reproduced from its seed */
-function rng(seed){
-  let s = seed >>> 0;
-  return () => {
-    s ^= s << 13; s >>>= 0;
-    s ^= s >>> 17;
-    s ^= s << 5; s >>>= 0;
-    return s / 4294967296;
-  };
-}
+/* The game's own stream, so a failure can be reproduced from its seed and so
+   these boards are the boards the game deals rather than lookalikes. */
+const rng = seed => Rng.from(seed);
 
 function board(seed, rows, colours = 4){
   const r = rng(seed);
@@ -289,8 +282,7 @@ describe('bubble board', () => {
     /* the property that matters most now: a run terminates, by clearing the
        board, by reaching the line, or by having nowhere left to put anything */
     const run = seed => {
-      let s = seed >>> 0 || 1;
-      const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      const rnd = rng(seed);
       const b = board(seed, 5);
       for (let shots = 1; shots <= 500; shots++){
         const live = R.liveColours(b);
@@ -322,8 +314,7 @@ describe('bubble board', () => {
        it and the opening shot clears something nobody earned */
     for (let seed = 1; seed <= 20; seed++){
       const b = G.create(0);
-      let s = seed >>> 0 || 1;
-      const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      const rnd = rng(seed);
       for (let j = 0; j < 5; j++){
         for (let c = 0; c < C.COLS; c++){
           const start = Math.floor(rnd() * C.COLOURS);
@@ -539,8 +530,7 @@ describe('bubble deal', () => {
 
   it('deals nothing already matched, and nothing already floating', () => {
     for (let seed = 1; seed <= 20; seed++){
-      let s = seed >>> 0 || 1;
-      const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      const rnd = rng(seed);
       const b = R.dealBoard(5, rnd);
       for (const [j, c] of G.occupied(b)){
         assert(R.matchFrom(b, j, c).length < C.MATCH_MIN,
