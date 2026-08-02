@@ -264,9 +264,8 @@ for (const cls of [...styled].sort())
 
 if (dead.length){
   for (const line of dead.sort()) console.error(`  ${line}`);
-  console.error(`\n${dead.length} dead, unreachable or leaking. Delete them, or add a reason to KEEP in ${'tools/verify-dead-code.mjs'}.`);
+  console.error(`\n${dead.length} dead, unreachable or leaking. Delete them, or say why in KEEP at the top of tools/verify-dead-code.mjs.`);
   process.exitCode = 1;
 } else {
-  const members = [...owner.values()].length;
-  console.log(`nothing dead: ${members} namespaces, ${styled.size} classes, all reached`);
+  console.log(`nothing dead: ${owner.size} namespaces, ${styled.size} classes, all reached`);
 }
