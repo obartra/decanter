@@ -67,7 +67,6 @@ const GRANT_NAMES = {
 };
 
 const at = section => CHAPTERS[section] || null;
-const grantAt = section => (CHAPTERS[section] ? CHAPTERS[section].grant : null);
 
 /* Everything the player has been given by the time they reach `section`, applied
    in order. Accumulated rather than looked up, so a chapter can deepen something
@@ -97,4 +96,4 @@ function perksFor(section){
   return perks;
 }
 
-globalThis.Chapters = { count: CHAPTERS.length, at, grantAt, perksFor, GRANT_NAMES };
+globalThis.Chapters = { count: CHAPTERS.length, at, perksFor, GRANT_NAMES };

@@ -236,6 +236,8 @@ function rate(moves, par, exact = true, eased = false){
                : 0;
   return Math.min(earned, cap);
 }
-globalThis.Rules = { CAP, clone, uniform, isFull, isSolved, keyOf, runLength,
-                     minPours, canPour, pourAmount, applyMove, legalMoves, isSolvable,
-                     rate, poursLeft, lostBecause, blast, blastTargets };
+/* `uniform` stays in the file rather than on this object: nothing outside needs
+   it, and an export nobody reads is what verify-live is for. */
+globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, minPours,
+                     canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
+                     poursLeft, lostBecause, blast, blastTargets };

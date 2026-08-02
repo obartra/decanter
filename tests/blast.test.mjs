@@ -169,12 +169,12 @@ describe('what a blast costs', () => {
 describe('where the blast is handed over', () => {
   it('arrives in a chapter, like every other tool', () => {
     const grants = [];
-    for (let s = 0; s < Chapters.count; s++) grants.push(Chapters.grantAt(s));
+    for (let s = 0; s < Chapters.count; s++) grants.push(Chapters.at(s).grant);
     assert(grants.includes('blast'), 'a tool with no chapter behind it would be the first');
   });
 
   it('is not held by anyone who has not reached it', () => {
-    const chapter = [...Array(Chapters.count).keys()].find(s => Chapters.grantAt(s) === 'blast');
+    const chapter = [...Array(Chapters.count).keys()].find(s => Chapters.at(s).grant === 'blast');
     assert(chapter > 0, 'not in the opening chapter');
     equal(Chapters.perksFor(chapter - 1).blast, false, 'withheld the chapter before');
     equal(Chapters.perksFor(chapter).blast, true, 'granted at it');
@@ -182,7 +182,7 @@ describe('where the blast is handed over', () => {
   });
 
   it('gives the chapter it arrives in a name of its own', () => {
-    const chapter = [...Array(Chapters.count).keys()].find(s => Chapters.grantAt(s) === 'blast');
+    const chapter = [...Array(Chapters.count).keys()].find(s => Chapters.at(s).grant === 'blast');
     assert(chapter < CONFIG.sectionNames.length,
       'a chapter that hands something over must not be called Reserve');
     assert(chapter < CONFIG.sectionTints.length,

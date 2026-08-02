@@ -21,7 +21,7 @@
    Run: node tools/bubble-survival.mjs [--seeds=N] [--json] */
 import { loadBubble } from '../tests/helpers.mjs';
 
-const { BubbleConfig: C, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
+const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
         BubbleAdvice: Adv } = loadBubble();
 
 const args = process.argv.slice(2);
@@ -29,14 +29,13 @@ const SEEDS = Number((args.find(a => a.startsWith('--seeds=')) || '').slice(8)) 
 const AS_JSON = args.includes('--json');
 const CAP = 800;
 
-const rng = seed => { let s = seed >>> 0 || 1; return () => {
-  s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; };
-
 /* One run, played to its end, returning how long it lasted and what ended it.
    The cadence is passed in so a candidate setting can be measured without
    editing the config the game ships with. */
 function run(seed, { every, ramp, greedy }){
-  const rnd = rng(seed);
+  /* the game's own stream, not a copy of it: a harness drawing different
+     numbers measures a different game */
+  const rnd = Rng.from(seed);
   const b = R.dealBoard(5, rnd);
   const cadenceAt = shots => Math.max(C.ADVANCE_MIN, every - Math.floor(shots / ramp));
 
