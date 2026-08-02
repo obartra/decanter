@@ -61,10 +61,6 @@ const BubbleAudio = (() => {
 
   return {
     get enabled(){ return on; },
-    /* Whether a sound scheduled now would actually reach anybody. The context
-       starts suspended and stays there until a gesture, so anything scheduled
-       before the first tap is played to nobody. */
-    get ready(){ return !!ctx && ctx.state === 'running'; },
     /* Called from the first gesture of any kind. Safe to call on every one. */
     unlock(){ try { init(); if (ctx && ctx.state === 'suspended') ctx.resume(); } catch(e){} },
     setEnabled(v){
@@ -72,7 +68,6 @@ const BubbleAudio = (() => {
       try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch(e){}
       return on;
     },
-    toggle(){ return this.setEnabled(!on); },
 
     /* The launcher. Short and dry, because it fires on every shot and anything
        with a tail turns a fast player's game into a drone. */

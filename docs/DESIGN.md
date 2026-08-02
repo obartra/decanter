@@ -23,7 +23,7 @@ it.
 | [08 The room](design/08-room.md) | The drawn backdrop, and how it aligns itself to the board |
 | [09 The map](design/09-map.md) | Getting between levels: geometry, the road, chapters, unlocking |
 | [10 Visual system](design/10-visual-system.md) | Colour and type, and the single sources that keep them consistent |
-| [11 Sound](design/11-sound.md) | Synthesised audio, and why it is synthesised |
+| [11 Sound](design/11-sound.md) | Synthesised audio, why it is synthesised, and the one recording that is not |
 | [12 Saving](design/12-saving.md) | The save file: schema, migration, and surviving a bad one |
 | [13 Delivery](design/13-delivery.md) | Build, offline, installation, and picking up a new version |
 | [14 Testing](design/14-testing.md) | How this is verified, and what it deliberately cannot verify |
@@ -47,11 +47,7 @@ A few boundaries are worth naming, because they are the ones that blur:
 
 ## Layout of the repo
 
-| Path | |
-| --- | --- |
-| `src/js/` | modules, concatenated in filename order. Under 50 is pure logic, above is browser code |
-| `src/css/` | stylesheets, concatenated in filename order |
-| `src/worker/solver.js` | the A\* search, shipped verbatim into the page |
-| `tools/build.mjs` | the entire build, no bundler |
-| `tools/pars.mjs` | solves every level offline and writes the par table |
-| `tests/` | a test runner and suites, no dependencies |
+In the [README](../README.md), and only there. It was written out again here,
+four rows of it word for word, which is the thing this page opens by saying not
+to do: the copy in the README had gone stale in three places before anybody
+noticed there were two.

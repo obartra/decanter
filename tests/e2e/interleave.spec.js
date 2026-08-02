@@ -182,6 +182,51 @@ test('the two games do not tread on each other in one page', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+/* Reported as "I turned the sound off and the bubble ones are still loud".
+
+   There are two sound modules on this page, one per game, and they kept two
+   separate answers: this game's in the save, the other's in a key of its own,
+   because it also ships as a page of its own where there is no save to read.
+   Muting therefore reached one game, roughly four boards in five, and the fifth
+   arrived at full volume on a screen with no button to stop it. Nothing failed,
+   nothing errored, and the player had already done the only thing the game
+   offers for making it stop. */
+test('muting the game mutes both of them, including the boards that are the other one', async ({ page }) => {
+  await start(page, { unlocked: 120, gold: 400, sound: true, seen: { 0: true, 1: true, 2: true } });
+  const { bubble } = await kinds(page);
+
+  await page.locator('#mapView .js-sound').click();
+  const afterTap = await page.evaluate(() => ({
+    pour: globalThis.Sound.enabled,
+    bubble: globalThis.BubbleAudio.enabled,
+    saved: globalThis.App._progress.sound
+  }));
+  expect(afterTap).toEqual({ pour: false, bubble: false, saved: false });
+
+  /* and it is still off once one of the other game's boards is actually dealt */
+  await open(page, bubble[0]);
+  expect(await page.evaluate(() => globalThis.BubbleAudio.enabled),
+    'a bubble board came up loud in a muted game').toBe(false);
+
+  /* back on again, from the one control the player has, and both hear it */
+  await page.locator('#bubToMap').click();
+  await page.locator('#mapView .js-sound').click();
+  expect(await page.evaluate(() => ({
+    pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled
+  }))).toEqual({ pour: true, bubble: true });
+});
+
+/* A muted game that was muted in an earlier sitting has to come back muted, in
+   both games. The preference is read from the save at boot, and the other game
+   reads its own key at that point, so this is the path where the two can
+   disagree before anybody has touched anything. */
+test('a game muted in an earlier sitting comes back muted in both', async ({ page }) => {
+  await start(page, { unlocked: 120, gold: 400, sound: false, seen: { 0: true, 1: true, 2: true } });
+  expect(await page.evaluate(() => ({
+    pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled
+  }))).toEqual({ pour: false, bubble: false });
+});
+
 test('leaving a bubble level goes back to the map', async ({ page }) => {
   await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
   const { bubble } = await kinds(page);

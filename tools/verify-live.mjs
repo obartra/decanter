@@ -144,6 +144,36 @@ for (const file of js){
   }
 }
 
+/* ---- names a module puts in the page's scope ----
+
+   Not deadness, collision. Every source file in both games is concatenated into
+   a single `<script>`, so the top level of a module is the top level of the
+   page, and two modules declaring one name is a defect rather than a smell.
+   Which defect depends on the keyword: `function` and `var` overwrite in
+   silence, the later definition winning for everybody, while `const` and `let`
+   are a redeclaration error, and a page that is one script failing to parse is a
+   blank screen.
+
+   The suite already forbids the other game publishing an unprefixed `globalThis`
+   name for exactly this reason, which was watching one of the two doors. Six
+   modules declared their functions here and published a namespace afterwards,
+   putting `shape`, `deal`, `make`, `at` and `rate` into the same scope the other
+   game is parsed in. Nothing collided yet, which is the only reason it was
+   possible to keep not noticing.
+
+   So: one name per module, the one it publishes. Everything else goes inside the
+   IIFE, where a duplicate is somebody else's business. */
+for (const file of js){
+  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
+  const src = read(file);
+  const published = [...src.matchAll(/^globalThis\.(\w+)\s*=/gm)].map(m => m[1]);
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  for (const m of bare.matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
+    if (published.includes(m[1])) continue;
+    add('scope', m[1], file, "declared at the page's top level, where the other game's sources also live");
+  }
+}
+
 /* ---- css classes nothing mentions ---- */
 const markup = [...html, ...js, ...tests].map(read).join('\n');
 for (const file of css){

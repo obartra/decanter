@@ -50,6 +50,12 @@ jobs:
       - name: nothing in the build is unreachable
         run: npm run verify:dead
 
+      # The same question from the other end, plus the rule that keeps the two
+      # games out of each other's scope. It was in `npm run check` and in no CI
+      # step at all, so nothing it found could fail a pull request.
+      - name: nothing dead, nothing sharing a scope
+        run: npm run verify:live
+
       - name: Unit tests
         run: npm test
 

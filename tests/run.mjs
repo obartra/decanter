@@ -17,4 +17,5 @@ import './bubble.test.mjs';
 import './build.test.mjs';
 import './live.test.mjs';
 import './dead-code.test.mjs';
+import './docs.test.mjs';
 await run();
