@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="588cc5c256">
+<meta name="build" content="a78fd0c798">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -953,17 +953,18 @@ const CONFIG = {
   /* A word in the query string that fills the purse, for handing to a beta
      player who has run dry mid-report rather than making them wait out a day.
 
-     The figure is what the purse is brought up to, not what is added to it, so
-     the link can be opened as many times as you like and always lands on the
-     same number. It is absurd on purpose: this is not a top-up to be balanced
-     against anything, it is the end of the economy for one save.
+     It fills the purse to `purseCap` rather than paying a sum into it, so the
+     link can be opened as many times as you like and always lands on the same
+     number, and playing on afterwards cannot climb past it either. Absurd on
+     purpose: this is not a top-up to be balanced against anything, it is the
+     end of the economy for one save.
 
      It guards nothing. The save is localStorage on the player's own device and
      anyone who wants gold can type it into a console, so this is a convenience
      with a password-shaped hole in it, not a lock. It is written down here in
      plain sight for the same reason: pretending otherwise would only make the
      next person think it was load-bearing. It comes out with the beta. */
-  beta: { word: 'jabarimoneeey', gold: 9999999 },
+  beta: { word: 'jabarimoneeey' },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile
@@ -971,6 +972,13 @@ const CONFIG = {
      A good first run pays 14, a replay 6, a sloppy replay 1. */
   economy: {
     startingGold: 86,
+    /* The most the purse will ever hold. Nothing earned in the game gets near
+       it — a good clear pays 14 — so this exists for the one thing that can:
+       the beta word, which fills the purse to exactly this. It is a ceiling
+       rather than a starting point, so playing on afterwards cannot climb past
+       it and turn the joke into an eight digit number the header has no room
+       for. Every rise in 40-progress.js goes through it. */
+    purseCap: 9999999,
     starGold: { 3: 6, 2: 3, 1: 1 },
     firstClear: 8,
     daily: 12,
@@ -1520,6 +1528,12 @@ function blank(){
     diag: { refused: {}, faults: 0, lastFault: '' }
   };
 }
+/* No rise in the purse skips this. The cap exists because the beta word fills
+   the purse to it, and a player who then keeps playing would climb past the
+   figure they were given — which is both the joke wearing off and an eighth
+   digit the header has no room for. */
+const capped = n => Math.min(n, CONFIG.economy.purseCap);
+
 function createProgress(storage){
   const store = storage || safeStorage();
   let state = blank();
@@ -1541,6 +1555,8 @@ function createProgress(storage){
   if (state.unlocked > lastLevel()) state.unlocked = lastLevel();
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
+  /* a save written before the cap existed, or by a hand in the console */
+  state.gold = capped(state.gold);
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
   if (!state.seen || typeof state.seen !== 'object') state.seen = {};
   if (!state.diag || typeof state.diag !== 'object') state.diag = blank().diag;
@@ -1631,9 +1647,8 @@ function createProgress(storage){
        Counted, because a purse nobody earned is a debugging trap otherwise: the
        next report from this player has to be able to say that the number was
        handed over rather than played for. */
-    fill(gold){
-      if (!Number.isInteger(gold) || gold <= 0) return state.gold;
-      state.gold = Math.max(state.gold, gold);
+    fill(){
+      state.gold = CONFIG.economy.purseCap;
       state.diag.grants = (state.diag.grants || 0) + 1;
       save();
       return state.gold;
@@ -1644,7 +1659,7 @@ function createProgress(storage){
     claimDaily(today){
       if (state.dailyOn === today) return 0;
       state.dailyOn = today;
-      state.gold += CONFIG.economy.daily;
+      state.gold = capped(state.gold + CONFIG.economy.daily);
       save();
       return CONFIG.economy.daily;
     },
@@ -1690,7 +1705,7 @@ function createProgress(storage){
       const starGold = Math.max(0, worth(stars) - worth(prevStars));
       const bonus = firstClear ? CONFIG.economy.firstClear : 0;
       state.claimed[level] = true;
-      state.gold += starGold + bonus;
+      state.gold = capped(state.gold + starGold + bonus);
 
       save();
       return {
@@ -1803,8 +1818,12 @@ const Audio = (() => {
     const d = noise.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   }
-  function tone({ f = 440, f2, type = 'sine', dur = 0.15, gain = 0.2, delay = 0 }){
-    if (!on) return; init();
+  /* `force` plays regardless of the sound setting. Only Jabari mode uses it: an
+     Easter egg somebody went out of their way to type a secret word for is a
+     request, and a bang nobody hears is not a bang. Nothing the game itself
+     does may set it. */
+  function tone({ f = 440, f2, type = 'sine', dur = 0.15, gain = 0.2, delay = 0, force = false }){
+    if (!on && !force) return; init();
     const t = ctx.currentTime + delay;
     const o = ctx.createOscillator(); o.type = type;
     o.frequency.setValueAtTime(f, t);
@@ -1816,8 +1835,8 @@ const Audio = (() => {
     o.connect(g).connect(master);
     o.start(t); o.stop(t + dur + 0.05);
   }
-  function burst({ freq = 1200, q = 1, dur = 0.09, gain = 0.2, delay = 0, type = 'bandpass' }){
-    if (!on) return; init();
+  function burst({ freq = 1200, q = 1, dur = 0.09, gain = 0.2, delay = 0, type = 'bandpass', force = false }){
+    if (!on && !force) return; init();
     const t = ctx.currentTime + delay;
     const s = ctx.createBufferSource(); s.buffer = noise;
     const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
@@ -1899,10 +1918,10 @@ const Audio = (() => {
        which is what makes it felt rather than heard. The tail is low noise
        decaying slowly underneath, the debris still coming down. */
     boom(delay = 0){
-      burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay });
-      tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay });
-      burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass' });
-      burst({ freq:950, q:0.5, dur:0.5, gain:0.13, delay:delay + 0.05 });
+      burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay, force:true });
+      tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay, force:true });
+      burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass', force:true });
+      burst({ freq:950, q:0.5, dur:0.5, gain:0.13, delay:delay + 0.05, force:true });
     }
   };
 })();
@@ -4225,26 +4244,46 @@ const App = (() => {
     let url;
     try { url = new URL(location.href); } catch (e) { return; }
     if (!url.searchParams.has(CONFIG.beta.word)) return;
-    const gold = progress.fill(CONFIG.beta.gold);
+    const gold = progress.fill();
     Trace.note('purse filled', `${gold} from the query string`);
     goldChanged();
-    whenItCanBeHeard(jabariMode);
+    jabariMode();
   }
 
-  /* The bang is the point, and a page nobody has touched yet is not allowed to
-     make one: the audio context stays suspended until a gesture, so firing this
-     on load would play it to an empty room. The gold is already in the purse
-     either way — only the fanfare waits, and only when there is a sound to wait
-     for. With sound off there is nothing to miss, so it goes off at once. */
-  function whenItCanBeHeard(run){
+  /* The bang: now if the page is allowed to make one, and on the first touch if
+     it is not.
+
+     A page nobody has touched yet is not allowed to make a sound — the audio
+     context stays suspended until a gesture, and opening a pasted link is not a
+     gesture, which is precisely how this arrives. An earlier pass made the whole
+     celebration wait for that touch, which bought the sound at the price of the
+     thing the word is actually for: the message has to be on the screen the
+     moment the link opens, every time, no conditions. So the picture never waits
+     and only the noise does.
+
+     It gives up after a few seconds rather than going off in somebody's ear
+     minutes later, next to nothing on the screen to explain it.
+
+     Three bangs rather than one, because one is a sound effect and three is a
+     point being made. */
+  function bang(){
     Audio.unlock();
-    if (!Audio.enabled || Audio.ready){ run(); return; }
-    const go = () => {
+    const fire = () => { Audio.boom(); Audio.boom(0.19); Audio.boom(0.44); };
+    if (Audio.ready){ fire(); return; }
+    let done = false;
+    const drop = () => {
+      done = true;
       document.removeEventListener('pointerdown', go, true);
       document.removeEventListener('keydown', go, true);
-      Audio.unlock();
-      run();
     };
+    const go = () => {
+      if (done) return;
+      clearTimeout(gaveUp);
+      drop();
+      Audio.unlock();
+      fire();
+    };
+    const gaveUp = setTimeout(drop, 8000);
     document.addEventListener('pointerdown', go, true);
     document.addEventListener('keydown', go, true);
   }
@@ -4258,17 +4297,13 @@ const App = (() => {
 
   function jabariMode(){
     const el = $('jabari');
-    $('jabariGold').textContent = `+${CONFIG.beta.gold.toLocaleString('en-US')}`;
+    $('jabariGold').textContent = `+${CONFIG.economy.purseCap.toLocaleString('en-US')}`;
     el.hidden = false;
     /* forced out of the frame that unhid it, or the animation never starts */
     void el.offsetWidth;
     el.classList.add('go');
 
-    /* three bangs rather than one, because one is a sound effect and three is a
-       point being made */
-    Audio.boom();
-    Audio.boom(0.19);
-    Audio.boom(0.44);
+    bang();
 
     /* Thrown against the short side of the screen, not the long one. Scaled off
        the height, a phone flings most of the paper out of frame before anyone

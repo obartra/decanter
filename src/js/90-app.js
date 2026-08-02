@@ -631,26 +631,46 @@ const App = (() => {
     let url;
     try { url = new URL(location.href); } catch (e) { return; }
     if (!url.searchParams.has(CONFIG.beta.word)) return;
-    const gold = progress.fill(CONFIG.beta.gold);
+    const gold = progress.fill();
     Trace.note('purse filled', `${gold} from the query string`);
     goldChanged();
-    whenItCanBeHeard(jabariMode);
+    jabariMode();
   }
 
-  /* The bang is the point, and a page nobody has touched yet is not allowed to
-     make one: the audio context stays suspended until a gesture, so firing this
-     on load would play it to an empty room. The gold is already in the purse
-     either way — only the fanfare waits, and only when there is a sound to wait
-     for. With sound off there is nothing to miss, so it goes off at once. */
-  function whenItCanBeHeard(run){
+  /* The bang: now if the page is allowed to make one, and on the first touch if
+     it is not.
+
+     A page nobody has touched yet is not allowed to make a sound — the audio
+     context stays suspended until a gesture, and opening a pasted link is not a
+     gesture, which is precisely how this arrives. An earlier pass made the whole
+     celebration wait for that touch, which bought the sound at the price of the
+     thing the word is actually for: the message has to be on the screen the
+     moment the link opens, every time, no conditions. So the picture never waits
+     and only the noise does.
+
+     It gives up after a few seconds rather than going off in somebody's ear
+     minutes later, next to nothing on the screen to explain it.
+
+     Three bangs rather than one, because one is a sound effect and three is a
+     point being made. */
+  function bang(){
     Audio.unlock();
-    if (!Audio.enabled || Audio.ready){ run(); return; }
-    const go = () => {
+    const fire = () => { Audio.boom(); Audio.boom(0.19); Audio.boom(0.44); };
+    if (Audio.ready){ fire(); return; }
+    let done = false;
+    const drop = () => {
+      done = true;
       document.removeEventListener('pointerdown', go, true);
       document.removeEventListener('keydown', go, true);
-      Audio.unlock();
-      run();
     };
+    const go = () => {
+      if (done) return;
+      clearTimeout(gaveUp);
+      drop();
+      Audio.unlock();
+      fire();
+    };
+    const gaveUp = setTimeout(drop, 8000);
     document.addEventListener('pointerdown', go, true);
     document.addEventListener('keydown', go, true);
   }
@@ -664,17 +684,13 @@ const App = (() => {
 
   function jabariMode(){
     const el = $('jabari');
-    $('jabariGold').textContent = `+${CONFIG.beta.gold.toLocaleString('en-US')}`;
+    $('jabariGold').textContent = `+${CONFIG.economy.purseCap.toLocaleString('en-US')}`;
     el.hidden = false;
     /* forced out of the frame that unhid it, or the animation never starts */
     void el.offsetWidth;
     el.classList.add('go');
 
-    /* three bangs rather than one, because one is a sound effect and three is a
-       point being made */
-    Audio.boom();
-    Audio.boom(0.19);
-    Audio.boom(0.44);
+    bang();
 
     /* Thrown against the short side of the screen, not the long one. Scaled off
        the height, a phone flings most of the paper out of frame before anyone

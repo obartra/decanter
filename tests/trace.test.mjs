@@ -96,39 +96,51 @@ describe('what a save remembers going wrong', () => {
   it('counts gold that was handed over rather than earned', () => {
     /* a save carrying a purse nobody played for is a debugging trap unless the
        save itself says so */
-    const { progress } = withSave();
-    equal(progress.fill(9999999), 9999999);
-    equal(progress.gold, 9999999);
+    const { ctx, progress } = withSave();
+    equal(progress.fill(), ctx.CONFIG.economy.purseCap);
+    equal(progress.gold, ctx.CONFIG.economy.purseCap);
     equal(progress.diag.grants, 1);
   });
 
-  it('brings the purse up to a figure rather than adding one', () => {
+  it('fills the purse to a figure rather than adding one', () => {
     /* This is what lets the word stay in the address bar: filling twice lands
        on the same number, so opening the link again is free. Adding would stack
        a second payment on every reload. */
-    const { progress } = withSave();
-    progress.fill(9999999);
-    progress.fill(9999999);
-    progress.fill(9999999);
-    equal(progress.gold, 9999999, 'three fills, one figure');
+    const { ctx, progress } = withSave();
+    progress.fill();
+    progress.fill();
+    progress.fill();
+    equal(progress.gold, ctx.CONFIG.economy.purseCap, 'three fills, one figure');
   });
 
-  it('never takes gold away from a purse already holding more', () => {
-    const { progress } = withSave();
-    progress.fill(9999999);
-    progress.complete(1, 11, 3);            /* earned on top of it */
-    const rich = progress.gold;
-    assert(rich > 9999999);
-    progress.fill(9999999);
-    equal(progress.gold, rich, 'a fill is a floor, not an assignment');
+  it('does not let a filled purse climb past the figure by playing on', () => {
+    /* The whole point of the number is that it is the end of the economy. A
+       player who fills the purse and then keeps clearing levels was walking
+       straight past it, into an eighth digit the header has no room for. */
+    const { ctx, progress } = withSave();
+    const cap = ctx.CONFIG.economy.purseCap;
+    progress.fill();
+    for (let level = 1; level <= 20; level++) progress.complete(level, 11, 3);
+    equal(progress.gold, cap, 'twenty clean clears must not add a coin');
+    progress.claimDaily('2026-08-02');
+    equal(progress.gold, cap, 'nor the daily draught');
   });
 
-  it('refuses a fill that is not gold, and changes nothing', () => {
+  it('caps a save that arrives holding more than the purse can hold', () => {
+    const ctx = loadPure();
+    const store = ctx.Progress.memoryStorage();
+    store.setItem(ctx.Progress.SAVE_KEY, JSON.stringify({
+      version: 1, layout: ctx.CONFIG.layout, unlocked: 15, gold: 999999999999
+    }));
+    equal(ctx.Progress.createProgress(store).gold, ctx.CONFIG.economy.purseCap);
+  });
+
+  it('still lets an ordinary purse rise normally', () => {
+    /* the cap must be a ceiling nobody playing can feel */
     const { progress } = withSave();
     const before = progress.gold;
-    for (const bad of [0, -50, 1.5, '1000', null, undefined, NaN]) equal(progress.fill(bad), before);
-    equal(progress.gold, before);
-    assert(!progress.diag.grants, 'nothing was handed over, so nothing should be counted');
+    progress.complete(1, 11, 3);
+    assert(progress.gold > before, 'a good clear still pays');
   });
 
   it('gives a save written before any of this existed somewhere to write it', () => {

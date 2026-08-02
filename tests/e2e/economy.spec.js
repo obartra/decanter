@@ -99,7 +99,7 @@ test('the drawn draught says how long until it comes back', async ({ page }) => 
 test('the beta word fills the purse, and keeps working on every load', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
-  const full = await page.evaluate(() => globalThis.CONFIG.beta.gold);
+  const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
   await page.goto(`/?${word}`);
   await page.waitForFunction(g => globalThis.App && globalThis.App._progress.gold === g, full);
@@ -131,10 +131,70 @@ test('an ordinary load fills nothing', async ({ page }) => {
   await expect(page.locator('#jabari')).toBeHidden();
 });
 
+/* Reported as silent, and there were two reasons for it.
+
+   The fixture, like the player who reported it, plays with the sound off, and
+   the bang was being swallowed by that setting. And a page nobody has touched
+   cannot make a sound at all: the audio context is suspended when a pasted link
+   opens, so anything scheduled then is played to nobody. This counts the nodes
+   the web audio graph actually builds, because "did a sound play" is not
+   otherwise a thing a browser will tell you. */
+test('the bang survives a muted game, and waits for a touch it can be heard through', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, sound: false, seen: { 0: true, 1: true } });
+  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  await page.addInitScript(() => {
+    window.__srcs = 0;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const make = AC.prototype.createBufferSource;
+    AC.prototype.createBufferSource = function () { window.__srcs++; return make.apply(this, arguments); };
+  });
+
+  await page.goto(`/?${word}`);
+  await page.waitForFunction(() => {
+    const el = document.getElementById('jabari');
+    return el && !el.hidden && el.classList.contains('go');
+  });
+  /* the picture is up before anything has been touched, which is the point */
+  expect(await page.evaluate(() => globalThis.Audio.ready),
+    'a pasted link is not a gesture, so the context cannot be running yet').toBe(false);
+  expect(await page.evaluate(() => globalThis.Audio.enabled), 'and the game is muted').toBe(false);
+
+  /* the first touch is the first moment a sound can be heard, so that is when
+     it goes off — muted or not */
+  await page.mouse.click(200, 400);
+  await expect.poll(() => page.evaluate(() => window.__srcs),
+    { message: 'three booms should build three noise sources each' })
+    .toBeGreaterThanOrEqual(9);
+});
+
+/* The message is the thing the word is for, so nothing is allowed to hold it
+   back — not a muted game, not an audio context that will not start, not a
+   purse that is already full. It is on screen the moment the link opens. */
+test('the message shows on every load, whatever the state behind it', async ({ page }) => {
+  const word = await page.evaluate(async () => 'jabarimoneeey');
+  const cases = [
+    { name: 'broke and muted', save: { unlocked: 15, gold: 0, sound: false } },
+    { name: 'already full', save: { unlocked: 15, gold: 9999999, sound: false } },
+    { name: 'sound on', save: { unlocked: 15, gold: 40, sound: true } }
+  ];
+  for (const c of cases) {
+    await start(page, { ...c.save, seen: { 0: true, 1: true } });
+    await page.goto(`/?${word}`);
+    await page.waitForFunction(() => {
+      const el = document.getElementById('jabari');
+      return el && !el.hidden && el.classList.contains('go');
+    }, null, { timeout: 5000 });
+    /* and the purse is reset to the figure, not nudged towards it */
+    expect(await page.evaluate(() => globalThis.App._progress.gold),
+      `${c.name}: the purse must read the cap exactly`)
+      .toBe(await page.evaluate(() => globalThis.CONFIG.economy.purseCap));
+  }
+});
+
 test('the beta word goes off with a bang, and clears itself away', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
-  const full = await page.evaluate(() => globalThis.CONFIG.beta.gold);
+  const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
   await page.goto(`/?${word}`);
   /* caught while it is up: it is on screen for about three seconds by design */

@@ -67,6 +67,12 @@ function blank(){
     diag: { refused: {}, faults: 0, lastFault: '' }
   };
 }
+/* No rise in the purse skips this. The cap exists because the beta word fills
+   the purse to it, and a player who then keeps playing would climb past the
+   figure they were given — which is both the joke wearing off and an eighth
+   digit the header has no room for. */
+const capped = n => Math.min(n, CONFIG.economy.purseCap);
+
 function createProgress(storage){
   const store = storage || safeStorage();
   let state = blank();
@@ -88,6 +94,8 @@ function createProgress(storage){
   if (state.unlocked > lastLevel()) state.unlocked = lastLevel();
   /* a save written before gold existed still deserves a starting purse */
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
+  /* a save written before the cap existed, or by a hand in the console */
+  state.gold = capped(state.gold);
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
   if (!state.seen || typeof state.seen !== 'object') state.seen = {};
   if (!state.diag || typeof state.diag !== 'object') state.diag = blank().diag;
@@ -178,9 +186,8 @@ function createProgress(storage){
        Counted, because a purse nobody earned is a debugging trap otherwise: the
        next report from this player has to be able to say that the number was
        handed over rather than played for. */
-    fill(gold){
-      if (!Number.isInteger(gold) || gold <= 0) return state.gold;
-      state.gold = Math.max(state.gold, gold);
+    fill(){
+      state.gold = CONFIG.economy.purseCap;
       state.diag.grants = (state.diag.grants || 0) + 1;
       save();
       return state.gold;
@@ -191,7 +198,7 @@ function createProgress(storage){
     claimDaily(today){
       if (state.dailyOn === today) return 0;
       state.dailyOn = today;
-      state.gold += CONFIG.economy.daily;
+      state.gold = capped(state.gold + CONFIG.economy.daily);
       save();
       return CONFIG.economy.daily;
     },
@@ -237,7 +244,7 @@ function createProgress(storage){
       const starGold = Math.max(0, worth(stars) - worth(prevStars));
       const bonus = firstClear ? CONFIG.economy.firstClear : 0;
       state.claimed[level] = true;
-      state.gold += starGold + bonus;
+      state.gold = capped(state.gold + starGold + bonus);
 
       save();
       return {
