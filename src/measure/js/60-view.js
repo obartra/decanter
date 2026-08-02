@@ -147,7 +147,7 @@ const MeasureView = (() => {
   }
 
   return {
-    mount, fit, resize, frame, screenToWorld, vesselBox, yFor, vesselAt,
+    mount, fit, frame, screenToWorld, vesselBox, yFor, vesselAt,
     get world(){ return world; },
     get ctx(){ return ctx; },
     get scale(){ return scale; }

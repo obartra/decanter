@@ -552,7 +552,7 @@ const CasksApp = (() => {
     return newBoard(L.make(next) ? next : 1);
   }
 
-  return { boot, newBoard, nextBoard, press, drag, release, play, undo, hint, step, paintHud, _state: st };
+  return { boot, newBoard, press, drag, release, play, undo, hint, step, paintHud, _state: st };
 })();
 globalThis.CasksApp = CasksApp;
 

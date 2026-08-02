@@ -336,6 +336,6 @@ const CasksRender = (() => {
     ctx.fillText(text, d.x - 0.25, d.y - 0.55);
   }
 
-  return { floor, walls, door, track, cask, rule, doorLabel, box, shade, grit };
+  return { floor, walls, door, track, cask, rule, doorLabel, box };
 })();
 globalThis.CasksRender = CasksRender;

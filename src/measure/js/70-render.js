@@ -319,7 +319,7 @@ const MeasureRender = (() => {
     ctx.globalAlpha = 1;
   }
 
-  return { shelf, glass, sheen, wine, graduations, targetLine, labels, selection,
-           stream, vessel, rule, shade };
+  return { shelf, glass, wine, graduations, targetLine, selection,
+           stream, vessel, rule };
 })();
 globalThis.MeasureRender = MeasureRender;

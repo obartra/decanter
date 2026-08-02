@@ -313,9 +313,8 @@ const Fluid = (() => {
   function start(){ if (running) return; running = true; last = performance.now(); loop(); }
   function stop(){ running = false; cancelAnimationFrame(raf); }
 
-  return {
-    supported, mount, sync, transfer, draw, wake,
-    resize(){ if (root && bottles.length) measure(); }
-  };
+  /* No `resize` here. There was one, and nothing had ever called it: a resize
+     goes through Board.render(), which calls sync(), which measures. */
+  return { supported, mount, sync, transfer, wake };
 })();
 globalThis.Fluid = Fluid;

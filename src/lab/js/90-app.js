@@ -353,7 +353,7 @@ const LabApp = (() => {
     pickGame(C.games[0].id);
   }
 
-  return { boot, pickGame, sweep, _state: st };
+  return { boot, sweep, _state: st };
 })();
 globalThis.LabApp = LabApp;
 

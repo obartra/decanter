@@ -82,6 +82,6 @@ const BubbleAdvice = (() => {
     return !!best && best.matched > 0;
   };
 
-  return { bestShot, hasClearingShot, AIMS };
+  return { bestShot, hasClearingShot };
 })();
 globalThis.BubbleAdvice = BubbleAdvice;

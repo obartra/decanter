@@ -43,7 +43,12 @@ const SRC = walk('src');
 const js = SRC.filter(f => f.endsWith('.js'));
 const css = SRC.filter(f => f.endsWith('.css'));
 const html = SRC.filter(f => f.endsWith('.html'));
-const tools = walk('tools').filter(f => f.endsWith('.mjs'));
+/* Not this file. Its own prose names the very symbols it reports — the comment
+   below about `Fluid.resize` marked Fluid.resize as used the moment it was
+   written, and the finding vanished from the run that had just produced it. A
+   detector that reads its own explanations as evidence can be argued out of any
+   result by describing it. */
+const tools = walk('tools').filter(f => f.endsWith('.mjs') && f !== 'tools/verify-live.mjs');
 const tests = walk('tests').filter(f => /\.(mjs|js)$/.test(f));
 
 /* Each check builds its own haystack below, and every one of them includes the
@@ -83,6 +88,59 @@ function publishedSurface(src){
   return close < 0 ? '' : src.slice(ret, close);
 }
 
+/* The identifiers at brace depth zero of an object literal, which is what its
+   own members are. Strings and comments are skipped, because a brace inside
+   either is not a brace. */
+function entriesOf(surface){
+  const open = surface.indexOf('{');
+  if (open < 0) return [];
+  const names = [];
+  let depth = 0, i = open, expect = true;
+  while (i < surface.length){
+    const c = surface[i];
+    if (c === '/' && surface[i + 1] === '*'){ i = surface.indexOf('*/', i) + 2; continue; }
+    if (c === '/' && surface[i + 1] === '/'){ i = surface.indexOf('\n', i) + 1 || surface.length; continue; }
+    if (c === "'" || c === '"' || c === '`'){
+      i++;
+      while (i < surface.length && surface[i] !== c){ if (surface[i] === '\\') i++; i++; }
+      i++; continue;
+    }
+    if (c === '{' || c === '(' || c === '['){ depth++; i++; continue; }
+    if (c === '}' || c === ')' || c === ']'){ depth--; if (depth <= 0 && c === '}') break; i++; continue; }
+    if (depth === 1 && c === ','){ expect = true; i++; continue; }
+    if (depth === 1 && expect && /[A-Za-z_$]/.test(c)){
+      let j = i;
+      while (j < surface.length && /[\w$]/.test(surface[j])) j++;
+      names.push(surface.slice(i, j));
+      expect = false;
+      i = j; continue;
+    }
+    if (depth === 1 && !/\s/.test(c)) expect = false;
+    i++;
+  }
+  return names;
+}
+
+/* Who could actually reach a name declared in this file.
+
+   Not everybody. The games are parallel copies with parallel member names —
+   three publish a `resize`, three a `shade`, three a `stars` — so a repo-wide
+   search reports every one of them used the moment any ONE is. `Fluid.resize`
+   had no caller anywhere and sat invisible behind the other three, inside a gate
+   whose entire job is to notice that.
+
+   A game may not name another game and lint enforces it, so the haystack is the
+   module's own area, plus every page, plus tools and tests, plus the lab — the
+   one thing allowed to reach into a game, which says so at the top of itself. */
+function reachableFrom(file){
+  const area = file.startsWith('src/js/') ? 'src/js/' : file.replace(/\/js\/[^/]+$/, '/js/');
+  return [...js, ...tools, ...tests]
+    .filter(f => f !== file && (f.startsWith(area) || f.startsWith('src/lab/')
+                                || f.startsWith('tools/') || f.startsWith('tests/')))
+    .concat(html)
+    .map(read).join('\n');
+}
+
 const findings = [];
 const add = (kind, name, where, why) => findings.push({ kind, name, where, why });
 
@@ -103,10 +161,23 @@ for (const file of js){
   const surface = publishedSurface(src);
   const keys = flat
     ? surface.split(',').map(k => k.split(':')[0].trim()).filter(k => /^\w+$/.test(k))
-    : [...surface.matchAll(/^\s{4}(?:get |set )?(\w+)\s*[(:,]/gm)].map(x => x[1]);
+    /* The object's own entries, found by depth rather than by indentation.
+
+       Three shapes are in use and no line-based rule reads all three: members on
+       the `return {` line itself, continuation lines indented to line up under
+       it, and methods at four spaces. Matching the first name of a four-space
+       line saw only one of the three. Matching after any comma reached into the
+       method bodies and reported `f2` and `gain`, which are destructured
+       parameter defaults inside `tone({ f = 440, f2, dur, gain })`.
+
+       Depth settles it. An entry of this object is an identifier sitting at
+       brace depth zero; a parameter default is inside at least one more brace,
+       and a nested object literal likewise. Nothing about how it is laid out
+       matters, which is the point. */
+    : entriesOf(surface);
   if (!keys.length) continue;
 
-  const others = [...js, ...html, ...tools, ...tests].filter(f => f !== file).map(read).join('\n');
+  const others = reachableFrom(file);
   for (const key of new Set(keys)){
     /* `.key` anywhere, or destructured out of the module */
     const used = new RegExp(`\\.${key}\\b|\\b${key}\\s*[,}]`).test(others);
@@ -195,7 +266,7 @@ for (const file of js){
   const src = read(file);
   for (const m of src.matchAll(/^globalThis\.(\w+)\s*=/gm)){
     const name = m[1];
-    const others = [...js, ...html, ...tools, ...tests].filter(f => f !== file).map(read).join('\n');
+    const others = reachableFrom(file);
     if (new RegExp(`\\b${name}\\b`).test(others)) continue;
     /* still alive if its own file uses it after publishing — an entry point does */
     const own = src.replace(/^globalThis\.\w+\s*=.*$/gm, '');

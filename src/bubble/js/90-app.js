@@ -644,7 +644,7 @@ const BubbleApp = (() => {
     requestAnimationFrame(loop);
   }
 
-  return { boot, _state: st, newBoard, fire, step, land, canPlay, finish, result,
+  return { boot, _state: st, newBoard, fire, step, land, finish, result,
            undo, hint, swap, pickColour, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
            set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, ...v }; },

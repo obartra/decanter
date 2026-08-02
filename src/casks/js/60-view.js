@@ -115,7 +115,7 @@ const CasksView = (() => {
   const along = (cask, p) => (cask.horiz ? p.x : p.y) - C.WALL;
 
   return {
-    mount, resize, frame, screenToWorld, rectFor, cellAt, along,
+    mount, frame, screenToWorld, rectFor, cellAt, along,
     get world(){ return world; },
     get ctx(){ return ctx; },
     get scale(){ return scale; }
