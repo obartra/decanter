@@ -122,4 +122,10 @@ const Audio = (() => {
     }
   };
 })();
+/* 49-audio.js has been taking every cue until now, and the app read the save and
+   set the sound preference on it during boot — before this file existed. Taking
+   the name without reading that back would un-mute a player who plays muted, a
+   second or so after they opened the game and with nothing to explain it. */
+const stub = globalThis.Audio;
 globalThis.Audio = Audio;
+if (stub && stub !== Audio && typeof stub.enabled === 'boolean') Audio.setEnabled(stub.enabled);

@@ -160,22 +160,36 @@ const App = (() => {
        to nothing, which draws as an empty screen with no error to explain it. */
     document.body.dataset.view = 'bubble';
     Backdrop.kind = 'cellar';
-    if (!bubbleReady){
-      BubbleApp.boot();
-      BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
-      BubbleApp.onEnd = banked => finishBubble(banked);
-      BubbleApp.charge = what => payFor(what);
-      bubbleReady = true;
-    }
-    /* The chapters hand these over the same way they hand over the pour game's,
-       because they are the same grants: an undo is an undo and a hint is a hint
-       whichever board is in front of you. Picking a colour is the extra bottle,
-       so it arrives with the vessel and costs what a vessel costs. */
-    const perks = progress.perks();
-    BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel, swap: perks.undo };
-    $('bubGold').textContent = progress.gold;
-    BubbleApp.newBoard(level);
-    Trace.note(`dealt level ${level}`, 'bubble board');
+    /* This game is not in the critical bundle — it is fetched right after the
+       page opens, so by the time anybody reaches a bubble level it has been on
+       the device for minutes. `ready` resolves immediately once it has. On the
+       one load where it has not, this waits rather than throwing, and the view
+       is already up so the wait looks like the board being dealt. */
+    Deferred.ready('bubble').then(() => {
+      /* the player may have gone back to the map while that was in the air */
+      if (S.level !== level || document.body.dataset.view !== 'bubble') return;
+      if (typeof BubbleApp === 'undefined'){
+        deny('bubble', 'the bubble game could not be loaded');
+        showMap();
+        return;
+      }
+      if (!bubbleReady){
+        BubbleApp.boot();
+        BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
+        BubbleApp.onEnd = banked => finishBubble(banked);
+        BubbleApp.charge = what => payFor(what);
+        bubbleReady = true;
+      }
+      /* The chapters hand these over the same way they hand over the pour game's,
+         because they are the same grants: an undo is an undo and a hint is a hint
+         whichever board is in front of you. Picking a colour is the extra bottle,
+         so it arrives with the vessel and costs what a vessel costs. */
+      const perks = progress.perks();
+      BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel, swap: perks.undo };
+      $('bubGold').textContent = progress.gold;
+      BubbleApp.newBoard(level);
+      Trace.note(`dealt level ${level}`, 'bubble board');
+    });
   }
 
   /* What a bubble tool costs, taken from the purse the same way the pour game's
