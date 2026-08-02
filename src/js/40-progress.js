@@ -163,15 +163,27 @@ function createProgress(storage){
       return true;
     },
     canAfford: cost => state.gold >= cost,
-    /* Gold from outside the economy. Counted, because a save carrying a purse
-       nobody earned is a debugging trap: the next report from this player has to
-       be able to say that the number was handed over rather than played for. */
-    grant(gold){
-      if (!Number.isInteger(gold) || gold <= 0) return 0;
-      state.gold += gold;
+    /* Gold from outside the economy: a figure the purse is brought up to, not a
+       sum added on top of it.
+
+       That is what lets the word stay in the URL. Adding would stack another
+       payment on every reload, so the word had to be spent out of the address
+       bar to stop it, and then the trick only worked once. Bringing the purse up
+       to a number can be done any number of times and land in the same place, so
+       the link keeps working and the reload is free.
+
+       It is a floor rather than an assignment, so it can never take anything
+       away: a save already holding more than this keeps it.
+
+       Counted, because a purse nobody earned is a debugging trap otherwise: the
+       next report from this player has to be able to say that the number was
+       handed over rather than played for. */
+    fill(gold){
+      if (!Number.isInteger(gold) || gold <= 0) return state.gold;
+      state.gold = Math.max(state.gold, gold);
       state.diag.grants = (state.diag.grants || 0) + 1;
       save();
-      return gold;
+      return state.gold;
     },
     /* the draught is once per local day, and the day is passed in so this stays
        testable and so a clock that jumps cannot pay twice for the same date */

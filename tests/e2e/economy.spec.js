@@ -96,35 +96,48 @@ test('the drawn draught says how long until it comes back', async ({ page }) => 
 
 /* Beta convenience: a word in the query string tops the purse up, so a player
    who has run dry mid-report does not have to wait out a day to carry on. */
-test('the beta word tops the purse up, once, and leaves the url clean', async ({ page }) => {
+test('the beta word fills the purse, and keeps working on every load', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
-  const gift = await page.evaluate(() => globalThis.CONFIG.beta.gold);
+  const full = await page.evaluate(() => globalThis.CONFIG.beta.gold);
 
   await page.goto(`/?${word}`);
-  await page.waitForFunction(g => globalThis.App && globalThis.App._progress.gold >= g, gift);
-  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(gift);
+  await page.waitForFunction(g => globalThis.App && globalThis.App._progress.gold === g, full);
   /* the map has to show it, not just the save */
-  await expect(page.locator('#mapGold')).toHaveText(String(gift));
-  /* Spent out of the url as well as into the purse, so a screenshot afterwards
-     does not carry it and a reload cannot pay twice. The reload itself is not
-     asserted here: every navigation re-runs this suite's save fixture, which
-     would overwrite the very purse being checked. What makes the second payment
-     impossible is the empty query string, and that is what this pins. */
-  expect(await page.evaluate(() => location.search)).toBe('');
-
+  await expect(page.locator('#mapGold')).toHaveText(String(full));
+  /* the word stays put, because that is what makes the link keep working */
+  expect(await page.evaluate(() => location.search)).toContain(word);
   /* and the save says the gold was handed over rather than played for */
   expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(1);
   /* the level it was blocking is playable now */
   await expect(page.locator('[data-level="15"]')).toBeEnabled();
+
+  /* Opened again: the bang goes off again and the figure is the same one. This
+     is the whole reason the purse is brought up to a number rather than paid a
+     sum — adding would stack a second payment on every reload. */
+  await page.goto(`/?${word}`);
+  await page.waitForFunction(() => {
+    const el = document.getElementById('jabari');
+    return el && !el.hidden && el.classList.contains('go');
+  });
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(full);
+  await expect(page.locator('#mapGold')).toHaveText(String(full));
+});
+
+test('an ordinary load fills nothing', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 7, seen: { 0: true, 1: true } });
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(7);
+  expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(undefined);
+  await expect(page.locator('#jabari')).toBeHidden();
 });
 
 test('the beta word goes off with a bang, and clears itself away', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const full = await page.evaluate(() => globalThis.CONFIG.beta.gold);
 
   await page.goto(`/?${word}`);
-  /* caught while it is up: it is on screen for about two seconds by design */
+  /* caught while it is up: it is on screen for about three seconds by design */
   await page.waitForFunction(() => {
     const el = document.getElementById('jabari');
     return el && !el.hidden && el.classList.contains('go');
@@ -153,16 +166,9 @@ test('the beta word goes off with a bang, and clears itself away', async ({ page
   expect(mid.confetti).toBeGreaterThan(50);
 
   /* nothing to dismiss: it takes itself away and leaves the map alone */
-  await page.waitForFunction(() => document.getElementById('jabari').hidden, null, { timeout: 6000 });
-  await expect(page.locator('#mapGold'))
-    .toHaveText(String(await page.evaluate(() => globalThis.CONFIG.beta.gold)));
+  await page.waitForFunction(() => document.getElementById('jabari').hidden, null, { timeout: 8000 });
+  await expect(page.locator('#mapGold')).toHaveText(String(full));
   await expect(page.locator('[data-level="15"]')).toBeEnabled();
-});
-
-test('an ordinary load tops up nothing', async ({ page }) => {
-  await start(page, { unlocked: 15, gold: 7, seen: { 0: true, 1: true } });
-  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(7);
-  expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(undefined);
 });
 
 /* The beta word hands out seven figures, and the purse is a number in a header

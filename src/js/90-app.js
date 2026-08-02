@@ -619,23 +619,20 @@ const App = (() => {
     });
   }
   /* Gold handed over rather than earned, for a beta player who has run dry in
-     the middle of telling us about something else. The word is in the query
-     string; it is spent out of the URL as well as into the purse, so pasting the
-     link again is the only way to get it twice, and a screenshot of the game
-     afterwards does not carry it.
+     the middle of telling us about something else.
 
-     It arrives with a flash on the purse. A cheat that silently changed a number
-     would be its own small version of the bug this branch is about. */
+     The word stays in the address bar, and the whole thing goes off again every
+     time the link is opened. That is only safe because the purse is brought up
+     to a figure rather than paid a sum: landing on it twice lands on the same
+     number. An earlier pass added instead, which meant the word had to be
+     deleted from the URL to stop a reload paying again — and that made it a
+     link that worked once, quietly, which is not what a link is for. */
   function takeGift(){
     let url;
     try { url = new URL(location.href); } catch (e) { return; }
     if (!url.searchParams.has(CONFIG.beta.word)) return;
-    const gold = progress.grant(CONFIG.beta.gold);
-    url.searchParams.delete(CONFIG.beta.word);
-    try {
-      history.replaceState(null, '', url.pathname + url.search + url.hash);
-    } catch (e) { /* a page opened from a file has no history to rewrite */ }
-    Trace.note('purse topped up', `+${gold} from the query string`);
+    const gold = progress.fill(CONFIG.beta.gold);
+    Trace.note('purse filled', `${gold} from the query string`);
     goldChanged();
     whenItCanBeHeard(jabariMode);
   }

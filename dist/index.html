@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="32d1c68201">
+<meta name="build" content="588cc5c256">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -950,8 +950,13 @@ const CONFIG = {
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
-  /* A word in the query string that tops the purse up, for handing to a beta
+  /* A word in the query string that fills the purse, for handing to a beta
      player who has run dry mid-report rather than making them wait out a day.
+
+     The figure is what the purse is brought up to, not what is added to it, so
+     the link can be opened as many times as you like and always lands on the
+     same number. It is absurd on purpose: this is not a top-up to be balanced
+     against anything, it is the end of the economy for one save.
 
      It guards nothing. The save is localStorage on the player's own device and
      anyone who wants gold can type it into a console, so this is a convenience
@@ -1611,15 +1616,27 @@ function createProgress(storage){
       return true;
     },
     canAfford: cost => state.gold >= cost,
-    /* Gold from outside the economy. Counted, because a save carrying a purse
-       nobody earned is a debugging trap: the next report from this player has to
-       be able to say that the number was handed over rather than played for. */
-    grant(gold){
-      if (!Number.isInteger(gold) || gold <= 0) return 0;
-      state.gold += gold;
+    /* Gold from outside the economy: a figure the purse is brought up to, not a
+       sum added on top of it.
+
+       That is what lets the word stay in the URL. Adding would stack another
+       payment on every reload, so the word had to be spent out of the address
+       bar to stop it, and then the trick only worked once. Bringing the purse up
+       to a number can be done any number of times and land in the same place, so
+       the link keeps working and the reload is free.
+
+       It is a floor rather than an assignment, so it can never take anything
+       away: a save already holding more than this keeps it.
+
+       Counted, because a purse nobody earned is a debugging trap otherwise: the
+       next report from this player has to be able to say that the number was
+       handed over rather than played for. */
+    fill(gold){
+      if (!Number.isInteger(gold) || gold <= 0) return state.gold;
+      state.gold = Math.max(state.gold, gold);
       state.diag.grants = (state.diag.grants || 0) + 1;
       save();
-      return gold;
+      return state.gold;
     },
     /* the draught is once per local day, and the day is passed in so this stays
        testable and so a clock that jumps cannot pay twice for the same date */
@@ -4196,23 +4213,20 @@ const App = (() => {
     });
   }
   /* Gold handed over rather than earned, for a beta player who has run dry in
-     the middle of telling us about something else. The word is in the query
-     string; it is spent out of the URL as well as into the purse, so pasting the
-     link again is the only way to get it twice, and a screenshot of the game
-     afterwards does not carry it.
+     the middle of telling us about something else.
 
-     It arrives with a flash on the purse. A cheat that silently changed a number
-     would be its own small version of the bug this branch is about. */
+     The word stays in the address bar, and the whole thing goes off again every
+     time the link is opened. That is only safe because the purse is brought up
+     to a figure rather than paid a sum: landing on it twice lands on the same
+     number. An earlier pass added instead, which meant the word had to be
+     deleted from the URL to stop a reload paying again — and that made it a
+     link that worked once, quietly, which is not what a link is for. */
   function takeGift(){
     let url;
     try { url = new URL(location.href); } catch (e) { return; }
     if (!url.searchParams.has(CONFIG.beta.word)) return;
-    const gold = progress.grant(CONFIG.beta.gold);
-    url.searchParams.delete(CONFIG.beta.word);
-    try {
-      history.replaceState(null, '', url.pathname + url.search + url.hash);
-    } catch (e) { /* a page opened from a file has no history to rewrite */ }
-    Trace.note('purse topped up', `+${gold} from the query string`);
+    const gold = progress.fill(CONFIG.beta.gold);
+    Trace.note('purse filled', `${gold} from the query string`);
     goldChanged();
     whenItCanBeHeard(jabariMode);
   }
