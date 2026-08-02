@@ -18,7 +18,7 @@
 
    Driven by tools/order.mjs; not useful on its own. */
 import { loadPure, loadSolver } from '../tests/helpers.mjs';
-import { analyse, TOO_DEAR, DEFAULT_BUDGET } from './measure.mjs';
+import { analyse, TOO_DEAR, DEFAULT_BUDGET } from './difficulty-core.mjs';
 
 const ctx = loadPure();
 const solver = loadSolver();

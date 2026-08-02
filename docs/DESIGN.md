@@ -50,11 +50,8 @@ A few boundaries are worth naming, because they are the ones that blur:
 
 ## Layout of the repo
 
-| Path | |
-| --- | --- |
-| `src/js/` | modules, concatenated in filename order. Under 50 is pure logic, above is browser code |
-| `src/css/` | stylesheets, concatenated in filename order |
-| `src/worker/solver.js` | the A\* search, shipped verbatim into the page |
-| `tools/build.mjs` | the entire build, no bundler |
-| `tools/pars.mjs` | solves every level offline and writes the par table |
-| `tests/` | a test runner and suites, no dependencies |
+Kept in one place, in [the README](../README.md#what-is-where), rather than here
+as well. This table listed two of the six source directories and described the
+solver as "shipped verbatim into the page", which stopped being true when the
+build started hashing it into its own file — a table maintained in two places
+drifts in exactly the way these documents are organised to prevent.

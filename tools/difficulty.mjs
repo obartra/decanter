@@ -1,13 +1,13 @@
 /* How hard is each level, measured rather than guessed, and is the shipped order
    a difficulty curve?
 
-   The measurement itself lives in tools/measure.mjs, which explains what `tight`
+   The measurement itself lives in tools/difficulty-core.mjs, which explains what `tight`
    and `logOdds` mean. This reports it over a run of levels and checks whether
    level number and measured difficulty agree.
 
    Run: node tools/difficulty.mjs [levels] [--json] */
 import { loadPure } from '../tests/helpers.mjs';
-import { h, analyse, TOO_DEAR } from './measure.mjs';
+import { h, analyse, TOO_DEAR } from './difficulty-core.mjs';
 
 const ctx = loadPure();
 const args = process.argv.slice(2);
