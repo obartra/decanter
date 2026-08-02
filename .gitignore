@@ -19,3 +19,14 @@ playwright-report/
 tools/sound-lab/audio/
 tools/sound-lab/.packs/
 tools/sound-lab/index.html
+
+# Scratch files at the root. Agents and humans both leave probes here while
+# working something out, and `git add -A` will sweep one into a commit that
+# passed its gate a minute earlier -- which is how a stray probe-tmp.mjs reached
+# CI and failed lint on a file nobody meant to ship.
+/probe*.mjs
+/probe*.js
+/scratch*.mjs
+/scratch*.js
+/tmp-*.mjs
+/tmp-*.js
