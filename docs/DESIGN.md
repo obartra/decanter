@@ -23,7 +23,7 @@ it.
 | [08 The room](design/08-room.md) | The drawn backdrop, and how it aligns itself to the board |
 | [09 The map](design/09-map.md) | Getting between levels: geometry, the road, chapters, unlocking |
 | [10 Visual system](design/10-visual-system.md) | Colour and type, and the single sources that keep them consistent |
-| [11 Sound](design/11-sound.md) | Synthesised audio, and why it is synthesised |
+| [11 Sound](design/11-sound.md) | Synthesised audio, why it is synthesised, and the one recording that is not |
 | [12 Saving](design/12-saving.md) | The save file: schema, migration, and surviving a bad one |
 | [13 Delivery](design/13-delivery.md) | Build, offline, installation, and picking up a new version |
 | [14 Testing](design/14-testing.md) | How this is verified, and what it deliberately cannot verify |
