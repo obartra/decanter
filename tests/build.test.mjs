@@ -146,6 +146,24 @@ describe('build output', () => {
       'the sound was not emitted as its own bundle');
   });
 
+  /* The window this guards is between DOMContentLoaded, when the deferred app
+     script has run and the map is interactive, and `load`, which additionally
+     waits for three woff2 files. On a cold cache that is seconds. If the group
+     names are not known until `load`, ready() takes its unknown-group path and
+     resolves into nothing, and a caller awaiting a game gets told it is there. */
+  it('knows what it will fetch before it fetches it', () => {
+    const src = read('src/js/96-deferred.js');
+    const declare = src.slice(src.indexOf('function declare('), src.indexOf('function start('));
+    assert(/waiting\.set\(/.test(declare),
+      'the group names must be declared without waiting for load');
+    const start = src.slice(src.indexOf('function start('), src.indexOf('function ready('));
+    assert(!/waiting\.set\(/.test(start),
+      'start() runs on load; a name first known there is a name unknown while the map is live');
+    assert(/declare\(\);/.test(src), 'declare() is never called');
+    assert(src.indexOf('declare();') < src.indexOf("addEventListener('load', start)"),
+      'the names must be declared before the fetching is scheduled');
+  });
+
   it('names only deferred assets that were actually built', () => {
     const m = text('index.html').match(/<script type="application\/json" id="deferredAssets">([\s\S]*?)<\/script>/);
     assert(m, 'the app page lists nothing to fetch after it opens');

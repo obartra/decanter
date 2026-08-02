@@ -15,7 +15,10 @@
    list, because it has nothing to fetch: every byte is already in it. So an
    absent or empty manifest is not an error, it is the other build. */
 const Deferred = (() => {
+  /* name -> a promise that settles when that group has landed */
   const waiting = new Map();
+  /* name -> the resolver for it, held from declaration until the fetch finishes */
+  const settle = new Map();
 
   function manifest(){
     const el = document.getElementById('deferredAssets');
@@ -49,11 +52,35 @@ const Deferred = (() => {
     });
   }
 
+  /* WHAT there is to fetch is known at once. WHEN it is fetched is what waits.
+
+     Those have to be separated, and the first version did not separate them:
+     both the names and the promises were created inside start(), which runs on
+     `load`. Scripts here are `defer`, so the app is running and the map is
+     interactive from DOMContentLoaded — and `load` waits for three woff2 files
+     besides. On a cold cache and a slow connection that is a window of seconds
+     during which `waiting` was empty, so ready('bubble') took the unknown-group
+     path and resolved instantly, and the caller went looking for a game that had
+     not been asked for yet. It would then deny and send the player back to the
+     map. The guard was there; the timing walked around it.
+
+     So the groups are declared now and settled later. An unknown name still
+     resolves at once, which is what the standalone build needs: every group is
+     unknown there because every byte is already in the page. */
+  function declare(){
+    for (const name of Object.keys(manifest())){
+      waiting.set(name, new Promise(res => settle.set(name, res)));
+    }
+  }
+
   function start(){
     const groups = manifest();
     for (const name of Object.keys(groups)){
       const urls = groups[name] || [];
-      waiting.set(name, Promise.all(urls.map(fetchOne)).then(() => true));
+      Promise.all(urls.map(fetchOne)).then(() => {
+        const done = settle.get(name);
+        if (done) done(true);
+      });
     }
   }
 
@@ -63,8 +90,9 @@ const Deferred = (() => {
     return waiting.get(name) || Promise.resolve(true);
   }
 
+  declare();
   /* After load, not during it. Registering on `load` rather than firing straight
-     away keeps these off the critical path: the map is on the screen and
+     away keeps the fetching off the critical path: the map is on the screen and
      interactive before a byte of any of this is asked for. */
   if (document.readyState === 'complete') start();
   else addEventListener('load', start);
