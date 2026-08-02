@@ -30,17 +30,18 @@ const CONFIG = {
   /* A word in the query string that fills the purse, for handing to a beta
      player who has run dry mid-report rather than making them wait out a day.
 
-     The figure is what the purse is brought up to, not what is added to it, so
-     the link can be opened as many times as you like and always lands on the
-     same number. It is absurd on purpose: this is not a top-up to be balanced
-     against anything, it is the end of the economy for one save.
+     It fills the purse to `purseCap` rather than paying a sum into it, so the
+     link can be opened as many times as you like and always lands on the same
+     number, and playing on afterwards cannot climb past it either. Absurd on
+     purpose: this is not a top-up to be balanced against anything, it is the
+     end of the economy for one save.
 
      It guards nothing. The save is localStorage on the player's own device and
      anyone who wants gold can type it into a console, so this is a convenience
      with a password-shaped hole in it, not a lock. It is written down here in
      plain sight for the same reason: pretending otherwise would only make the
      next person think it was load-bearing. It comes out with the beta. */
-  beta: { word: 'jabarimoneeey', gold: 9999999 },
+  beta: { word: 'jabarimoneeey' },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile
@@ -48,6 +49,13 @@ const CONFIG = {
      A good first run pays 14, a replay 6, a sloppy replay 1. */
   economy: {
     startingGold: 86,
+    /* The most the purse will ever hold. Nothing earned in the game gets near
+       it — a good clear pays 14 — so this exists for the one thing that can:
+       the beta word, which fills the purse to exactly this. It is a ceiling
+       rather than a starting point, so playing on afterwards cannot climb past
+       it and turn the joke into an eight digit number the header has no room
+       for. Every rise in 40-progress.js goes through it. */
+    purseCap: 9999999,
     starGold: { 3: 6, 2: 3, 1: 1 },
     firstClear: 8,
     daily: 12,

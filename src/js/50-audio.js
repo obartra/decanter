@@ -16,8 +16,12 @@ const Audio = (() => {
     const d = noise.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   }
-  function tone({ f = 440, f2, type = 'sine', dur = 0.15, gain = 0.2, delay = 0 }){
-    if (!on) return; init();
+  /* `force` plays regardless of the sound setting. Only Jabari mode uses it: an
+     Easter egg somebody went out of their way to type a secret word for is a
+     request, and a bang nobody hears is not a bang. Nothing the game itself
+     does may set it. */
+  function tone({ f = 440, f2, type = 'sine', dur = 0.15, gain = 0.2, delay = 0, force = false }){
+    if (!on && !force) return; init();
     const t = ctx.currentTime + delay;
     const o = ctx.createOscillator(); o.type = type;
     o.frequency.setValueAtTime(f, t);
@@ -29,8 +33,8 @@ const Audio = (() => {
     o.connect(g).connect(master);
     o.start(t); o.stop(t + dur + 0.05);
   }
-  function burst({ freq = 1200, q = 1, dur = 0.09, gain = 0.2, delay = 0, type = 'bandpass' }){
-    if (!on) return; init();
+  function burst({ freq = 1200, q = 1, dur = 0.09, gain = 0.2, delay = 0, type = 'bandpass', force = false }){
+    if (!on && !force) return; init();
     const t = ctx.currentTime + delay;
     const s = ctx.createBufferSource(); s.buffer = noise;
     const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
@@ -112,10 +116,10 @@ const Audio = (() => {
        which is what makes it felt rather than heard. The tail is low noise
        decaying slowly underneath, the debris still coming down. */
     boom(delay = 0){
-      burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay });
-      tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay });
-      burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass' });
-      burst({ freq:950, q:0.5, dur:0.5, gain:0.13, delay:delay + 0.05 });
+      burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay, force:true });
+      tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay, force:true });
+      burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass', force:true });
+      burst({ freq:950, q:0.5, dur:0.5, gain:0.13, delay:delay + 0.05, force:true });
     }
   };
 })();

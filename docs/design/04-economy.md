@@ -97,14 +97,19 @@ written down in plain sight rather than dressed up as a lock. It is counted in
 the save, because a purse nobody earned is a debugging trap otherwise, and it
 comes out with the beta.
 
-The figure is what the purse is **brought up to**, not what is added to it, and
-that is what lets the word stay in the address bar. Adding stacked a second
+It **fills the purse to `economy.purseCap`** rather than paying a sum into it,
+and that is what lets the word stay in the address bar. Adding stacked a second
 payment on every reload, so the word had to be deleted from the URL to stop it —
 which made it a link that worked once, quietly, which is not what a link is for.
-Bringing the purse up to a number can be done any number of times and lands in
-the same place, so the link keeps working and every load sets it off again. It is
-a floor rather than an assignment, so it can never take gold away from a save
-already holding more.
+Filling to a figure can be done any number of times and lands in the same place,
+so the link keeps working and every load sets it off again.
+
+`purseCap` is a **ceiling on every rise in the purse**, not just the figure the
+word hands over. Without that, a player who filled the purse and kept clearing
+levels walked straight past the number they were given, which is both the joke
+wearing off and an eighth digit the header has no room for. Nothing earned in the
+game gets near it — a good clear pays 14 — so it is a ceiling no one playing can
+feel.
 
 The amount is absurd on purpose: it is not a top-up that has to be balanced
 against anything, it is the end of the economy for one save.
@@ -122,12 +127,23 @@ started with.
 The strobe is the one part that can actually hurt somebody, so `reduce` gets the
 words and the number without any of the flashing.
 
-The bang waits for a gesture when it has to. A page nobody has touched is not
-allowed to make a sound — the audio context stays suspended until then — so with
-sound on and nothing touched yet, the whole celebration waits for the first
-touch rather than playing to an empty room. The gold lands immediately either
-way; only the fanfare waits. With sound off there is nothing to miss, so it goes
-at once.
+**The bang ignores the sound setting**, which is the one place in the game
+anything does. Somebody who typed a secret word into a URL has asked for it, and
+a bang nobody hears is not a bang. It was reported silent for exactly this: the
+player who found it plays muted, so the explosion was being swallowed by their
+own preference.
+
+**The message never waits for anything.** It is on the screen the moment the
+link opens, every time, whatever the state behind it — muted, already full,
+audio blocked. That is the thing the word is for.
+
+The bang is the only part that can wait, and only because it has to. A page
+nobody has touched is not allowed to make a sound — the context stays suspended
+until then — and opening a pasted link is not a touch, which is precisely how
+this arrives. So the noise goes off on the first touch instead, and gives up
+after a few seconds rather than arriving in somebody's ear long after there is
+anything on screen to explain it. An earlier pass made the whole celebration wait
+for that touch, which bought the sound at the price of the picture.
 
 ## The invariants
 

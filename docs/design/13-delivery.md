@@ -26,6 +26,13 @@ is what keeps the portable file small enough to be portable.
 
 Everything uses relative paths, so `dist/` works from any subdirectory.
 
+`dist/` is **generated, not committed**. The deploy builds from source, so a
+committed copy was never what shipped; `npm run serve` builds before serving, so
+it was not what anyone was testing either. It is build output, and a generated
+bundle is not something anyone reads in review — what it did do was conflict on
+every branch that touched a source file. `npm run build` puts it back, and
+`npm run verify:budget` builds it to check the download has not quietly grown.
+
 ## Offline
 
 The service worker precaches a list **derived from what actually landed in
