@@ -116,10 +116,17 @@ const MeasureConfig = {
      state disagreeing. Long enough to read as liquid, short enough that a
      fourteen-pour line is not a sit-down. */
   POUR_TIME: 0.34,
-  /* How far the source leans over while it pours, in radians. It never actually
-     empties by tipping — the model has already moved the wine — so this is a
-     gesture, and a big one reads as spilling. */
-  TILT: 0.30
+  /* How far the source rises off the shelf while it pours, in world units.
+
+     It rises rather than tilts, and that is a correction rather than a taste. A
+     tilted vessel has to keep its liquid surface horizontal, which means
+     clipping a rotated glass against an unrotated plane; done properly it is
+     fiddly, and done at the size a phone draws a four-unit vessel it read as a
+     rendering fault rather than as a pour. Lifting the vessel and running a
+     stream out of it says the same thing, keeps every liquid surface level, and
+     leaves the graduations readable throughout — which matters, because the
+     graduations are what the player is watching. */
+  LIFT: 0.85
 };
 
 /* Derived, so the bench and the glass cannot drift apart. A board's world is
