@@ -21,9 +21,10 @@ option, to add it to a home screen or dock.
 
 | Path | |
 | --- | --- |
-| `src/js/` | modules, concatenated in filename order. Under 50 is pure logic, above is browser code |
+| `src/js/pure/` | the modules that run without a DOM. This folder is what the unit suite loads |
+| `src/js/` | the rest: browser code. Everything is concatenated in filename order, whichever folder it sits in |
 | `src/css/` | stylesheets, concatenated in filename order |
-| `src/js/35-pars.js` | generated par table, committed. Never edit by hand |
+| `src/js/pure/35-pars.js` | generated par table, committed. Never edit by hand |
 | `assets/fonts/` | Cinzel and Alegreya Sans, latin subsets, self-hosted |
 | `assets/audio/` | the only recording that ships. Every other sound is synthesised |
 | `src/js/72-fluid.js` | the liquid: a world-space fill line masked by the glass |

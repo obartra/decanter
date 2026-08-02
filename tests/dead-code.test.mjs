@@ -131,7 +131,7 @@ describe('dead code detector, with something dead in front of it', () => {
   it('finds a helper its own module never calls, at column zero', () => {
     /* The modules publishing a plain literal write their functions flush left,
        which is sixteen of them across the pour game alone. */
-    const found = withPlant('src/js/40-progress.js',
+    const found = withPlant('src/js/pure/40-progress.js',
       s => `${s}\nfunction plantedFlushLeft(){ return 1; }\n`);
     assert(found.some(f => f.kind === 'helper' && f.what === 'plantedFlushLeft'),
       `a column-zero dead helper went unnoticed; found ${JSON.stringify(found)}`);
@@ -141,20 +141,20 @@ describe('dead code detector, with something dead in front of it', () => {
     /* tests/helpers.mjs loads the solver through `new Function` with an
        internals export appended, so its module level functions really are
        called from outside and the helper check's premise does not hold. */
-    const found = withPlant('src/js/05-trace.js', s => s);
+    const found = withPlant('src/js/pure/05-trace.js', s => s);
     assert(!found.some(f => /solver/.test(f.where)),
       `the solver was accused of dead code it does not have; found ${JSON.stringify(found)}`);
   });
 
   it('finds a tunable nothing reads', () => {
-    const found = withPlant('src/js/00-config.js',
+    const found = withPlant('src/js/pure/00-config.js',
       s => s.replace('  sectionSize: 10,', '  sectionSize: 10,\n  plantedTunable: 7,'));
     assert(found.some(f => f.kind === 'config' && f.what === 'plantedTunable'),
       `a dead tunable went unnoticed; found ${JSON.stringify(found)}`);
   });
 
   it('finds one nested in economy, and blames only economy', () => {
-    const found = withPlant('src/js/00-config.js',
+    const found = withPlant('src/js/pure/00-config.js',
       s => s.replace('    attempt: 5,', '    attempt: 5,\n    plantedPrice: 3,'));
     equal(found.filter(f => f.kind === 'config').map(f => f.what), ['economy.plantedPrice'],
       `one planted key should be reported once; found ${JSON.stringify(found)}`);
@@ -165,7 +165,7 @@ describe('dead code detector, with something dead in front of it', () => {
        their own to stop at. Matched against the multi-line shape they ran on to
        economy's brace, so every economy key was reported against them too: one
        planted corpse, three accusations. */
-    const found = withPlant('src/js/00-config.js',
+    const found = withPlant('src/js/pure/00-config.js',
       s => s.replace('solver: { nodeCap:', 'solver: { plantedCap: 1, nodeCap:'));
     equal(found.filter(f => f.kind === 'config').map(f => f.what), ['solver.plantedCap'],
       `a one-line block was read wrongly; found ${JSON.stringify(found)}`);
@@ -175,7 +175,7 @@ describe('dead code detector, with something dead in front of it', () => {
     /* Not deadness, collision. Both games are concatenated into one script, so
        a module declaring anything but the name it publishes puts that name in
        the scope the other game is parsed in. */
-    const found = withPlant('src/js/05-trace.js', s => `const plantedLoose = 1;\n${s}`);
+    const found = withPlant('src/js/pure/05-trace.js', s => `const plantedLoose = 1;\n${s}`);
     assert(found.some(f => f.kind === 'scope' && f.what === 'plantedLoose'),
       `a loose top-level name went unnoticed; found ${JSON.stringify(found)}`);
   });
@@ -195,7 +195,7 @@ describe('dead code detector, with something dead in front of it', () => {
 
   it('says nothing about the tree as it stands', () => {
     /* the other half of the same claim: it is not simply flagging everything */
-    equal(withPlant('src/js/05-trace.js', s => s), [],
+    equal(withPlant('src/js/pure/05-trace.js', s => s), [],
       'the checked-in sources are not clean');
   });
 });

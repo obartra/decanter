@@ -6,7 +6,7 @@ What you get dealt, and why level 12 is the same puzzle for everyone forever.
 
 `hashSeed(s)` avalanches a seed and seeds a mulberry32 stream, and the generator
 draws only from that. There is no stored level data and no wall clock anywhere in
-the path. The seed is the level number unless `src/js/32-order.js` says
+the path. The seed is the level number unless `src/js/pure/32-order.js` says
 otherwise. See [Ordering](#ordering-by-measured-difficulty) below, which changes
 *which* board a level deals but not that the answer is fixed.
 
@@ -109,7 +109,7 @@ describes the game as played rather than the solver's model of it.
 
 ### What is done with it
 
-`tools/order.mjs` writes `src/js/32-order.js`, a table of
+`tools/order.mjs` writes `src/js/pure/32-order.js`, a table of
 `level: [colours, empties, seed]`. All three travel together because all three
 decide which board you are dealt, and splitting them let the par table and the
 ordering disagree about what a level even was.

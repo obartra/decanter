@@ -30,7 +30,29 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const read = p => readFileSync(join(root, p), 'utf8');
-const sorted = dir => readdirSync(join(root, dir)).filter(f => !f.startsWith('.')).sort();
+/* The name a module is known by, whichever folder it sits in. */
+const base = p => p.slice(p.lastIndexOf('/') + 1);
+
+/* Every source under a directory, in load order.
+
+   Walks rather than lists, because the modules that run without a DOM live in a
+   `pure/` folder beside the ones that do not. Ordered by filename and never by
+   path: the number on the front of a module is its place in the load order, and
+   which folder it was filed under must not be able to change that. Sorting by
+   path would put all of `pure/` after everything at the top level, which is a
+   different program. */
+const sorted = dir => {
+  const out = [];
+  const walkIn = rel => {
+    const here = join(root, dir, rel);
+    for (const f of readdirSync(here).filter(n => !n.startsWith('.')).sort()){
+      const p = rel ? `${rel}/${f}` : f;
+      if (statSync(join(root, dir, p)).isDirectory()) walkIn(p); else out.push(p);
+    }
+  };
+  walkIn('');
+  return out.sort((a, b) => (base(a) < base(b) ? -1 : base(a) > base(b) ? 1 : 0));
+};
 const hash = s => createHash('sha256').update(s).digest('hex').slice(0, 10);
 
 /* ---------- what there is to build ----------
@@ -66,9 +88,11 @@ const DEFERRED = ['50-audio.js'];
 
 /* ---------- gathering sources ---------- */
 /* Concatenated in filename order with the same markers the single file has
-   always used, so a stack trace in the built page still names the module. */
+   always used, so a stack trace in the built page still names the module. The
+   marker is the filename and not the path, because it is there to be recognised
+   in a stack trace and `pure/` is not part of how anyone refers to a module. */
 const concat = (dir, files) =>
-  files.map(f => `\n/* ---- ${f} ---- */\n${read(`${dir}/${f}`)}`).join('\n');
+  files.map(f => `\n/* ---- ${base(f)} ---- */\n${read(`${dir}/${f}`)}`).join('\n');
 
 const cssOf = dir => sorted(`${dir}/css`).map(f => read(`${dir}/css/${f}`)).join('\n');
 
@@ -76,8 +100,8 @@ function sourcesOf(dir, { skip = [] } = {}){
   const files = sorted(`${dir}/js`);
   return {
     css: cssOf(dir),
-    js: concat(`${dir}/js`, files.filter(f => !skip.includes(f))),
-    held: concat(`${dir}/js`, files.filter(f => skip.includes(f))),
+    js: concat(`${dir}/js`, files.filter(f => !skip.includes(base(f)))),
+    held: concat(`${dir}/js`, files.filter(f => skip.includes(base(f)))),
     all: concat(`${dir}/js`, files)
   };
 }

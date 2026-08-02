@@ -8,10 +8,9 @@
    scorer ones are about the inversion: this game gives NO stars for an unknown
    par where the pour game gives full marks, and the whole point of that decision
    is invisible unless it is asserted. */
-import { describe, it, assert, equal, loadFrom } from './helpers.mjs';
+import { describe, it, assert, equal, loadGame } from './helpers.mjs';
 
-const ctx = loadFrom('src/measure/js',
-  ['00-config.js', '20-rules.js', '25-search.js', '30-levels.js', '32-order.js', '35-pars.js', '45-score.js']);
+const ctx = loadGame('measure');
 const { MeasureConfig: C, MeasureRules: R, MeasureSearch: S,
         MeasureLevels: L, MeasureScore: Sc, MeasureOrder: ORDER, MeasurePars: PARS } = ctx;
 

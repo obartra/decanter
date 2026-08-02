@@ -95,5 +95,5 @@ to. It is a developer's page that happens to be built and shipped, the way
 `tools/sound-lab/` is a developer's tool that happens to live in the repo.
 
 Nothing in a game knows the lab exists. The dependency runs one way, and
-`src/lab/js/00-config.js` is the only file in the repo that names another game's
+`src/lab/js/pure/00-config.js` is the only file in the repo that names another game's
 internals — which everywhere else is a lint error and should stay one.
