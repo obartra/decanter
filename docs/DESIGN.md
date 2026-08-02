@@ -30,6 +30,12 @@ it.
 | [14b CI](design/14b-ci.md) | Which checks gate a change, and why those |
 | [15 Diagnostics](design/15-diagnostics.md) | Answering "it did nothing when I tapped it", offline |
 
+## What is not here
+
+`docs/proposals/` holds arguments about what the game could do. Nothing in it
+describes the build, and nothing in it is owned by a document above. A proposal
+either becomes a change to one of these documents or it does not happen.
+
 ## Where the seams are
 
 A few boundaries are worth naming, because they are the ones that blur:
