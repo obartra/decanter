@@ -7,6 +7,15 @@
 <meta name="theme-color" content="#0C1020">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="A bubble shooter. Match three to clear the board.">
+<!-- Inline rather than a file in ./icons/, because this page is served from its
+     own directory and is meant to open off disk as well as off a server, so any
+     path here is wrong somewhere. A page that declares no icon at all is not
+     neutral: the browser asks for /favicon.ico by itself, and on a build that
+     does not ship one at the root the 404 lands in the console. That is what
+     made bubble.spec.js flaky — whether the error arrived before the assertion
+     was a race — and a failure nobody can reproduce twice is worse than a
+     missing icon. Costs no request at all. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E2546F'/%3E%3Ccircle cx='11.5' cy='11.5' r='3.6' fill='%23fff' opacity='.45'/%3E%3C/svg%3E">
 <!--BUILD-->
 <!--FONTS-->
 <style><!--CSS--></style>
