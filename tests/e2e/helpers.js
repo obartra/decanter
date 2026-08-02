@@ -6,7 +6,7 @@
    boots into the state the spec asked for rather than booting, saving, and then
    being overwritten. */
 
-import { loadPure, loadFrom } from '../helpers.mjs';
+import { loadPure, loadGame } from '../helpers.mjs';
 
 export const SAVE_KEY = 'decanter.save.v1';
 
@@ -22,7 +22,7 @@ export const SAVE_KEY = 'decanter.save.v1';
    bubble board, which chapter grants the blast — so they are resolved against
    the pure modules in the sandbox, the same ones the unit suite uses. */
 const pure = loadPure();
-const { LabStates } = loadFrom('src/lab/js', ['10-states.js']);
+const { LabStates } = loadGame('lab');
 
 const stateEnv = () => {
   const d = new Date();
