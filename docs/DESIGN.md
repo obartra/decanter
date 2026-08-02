@@ -29,6 +29,7 @@ it.
 | [14 Testing](design/14-testing.md) | How this is verified, and what it deliberately cannot verify |
 | [14b CI](design/14b-ci.md) | Which checks gate a change, and why those |
 | [15 Diagnostics](design/15-diagnostics.md) | Answering "it did nothing when I tapped it", offline |
+| [16 The Measure](design/16-measure.md) | The decanting puzzle at `/measure/`: its rules, its exact par, and why it grades the opposite way round |
 
 ## Where the seams are
 

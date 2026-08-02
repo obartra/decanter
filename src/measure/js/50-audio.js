@@ -136,10 +136,12 @@ const MeasureAudio = (() => {
       burst({ freq: 2600, q: 1.2, dur: 0.3, gain: 0.03, delay: 0.1 });
     },
 
-    /* Stranded: the wine is somewhere the target can no longer be reached from.
-       With no drain that is a real ending rather than an error, and it needs its
-       own sound — falling, and left hanging rather than resolved, because the
-       board has not finished, it has simply stopped being winnable. */
+    /* A bench that cannot measure its target at all. Not something a player can
+       do — no sequence of pours can strand this game, see the top of
+       20-rules.js — but something a board dealt past the end of the par table
+       can be, since nobody measured it before handing it over. Falling, and left
+       hanging rather than resolved, because nothing has gone wrong: there is
+       simply no answer to find here. */
     stranded(){
       [392, 311.13, 261.63].forEach((f, i) =>
         tone({ f, type: 'triangle', dur: 0.5, gain: 0.12, delay: i * 0.12 }));

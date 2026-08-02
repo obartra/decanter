@@ -14,5 +14,6 @@ import './map.test.mjs';
 import './queue.test.mjs';
 import './peek.test.mjs';
 import './bubble.test.mjs';
+import './measure.test.mjs';
 import './build.test.mjs';
 await run();

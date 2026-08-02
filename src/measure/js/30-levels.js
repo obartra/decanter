@@ -76,15 +76,22 @@ const MeasureLevels = (() => {
   }
 
   /* What a level is made of. MeasureOrder is the measured ordering and is the
-     answer whenever it has one; past the end of it a level is still a real board
-     and can still be played, it has simply never been looked at. The vessel
-     count alternates there rather than climbing, because a bigger bench is an
-     EASIER bench — every extra vessel is another route to the target — so
-     climbing it would be a difficulty curve pointing downhill. */
+     answer whenever it has one.
+
+     Past the end of it a level is still a real bench and can still be played, it
+     has simply never been looked at — so it may be trivial, and about a quarter
+     of them cannot be measured at all, which is what an unmeasured board means
+     and is why the page says so in those words rather than pretending otherwise.
+
+     The count does not climb with the level number there, because a bigger bench
+     is an EASIER bench: every extra vessel is another route to the target, so
+     climbing it would be a difficulty curve pointing downhill. It uses the
+     largest count instead, which is the one the measurement chose every single
+     time it was offered a choice. */
   function shape(level){
     const e = globalThis.MeasureOrder && globalThis.MeasureOrder[level];
     if (Array.isArray(e) && e.length === 2 && e.every(Number.isInteger)) return { vessels: e[0], seed: e[1] };
-    return { vessels: C.VESSELS[(level - 1) % C.VESSELS.length], seed: level };
+    return { vessels: C.VESSELS[C.VESSELS.length - 1], seed: level };
   }
 
   function make(level){

@@ -16,9 +16,12 @@
    WHAT THE MEASUREMENT FOUND, and what this acts on:
 
    - Two-vessel boards have a choice score of EXACTLY ZERO, right across the
-     field: every step of every optimal line has one move that keeps par
-     reachable. A long par there is a handle being turned. They are not dealt;
-     see MeasureConfig.VESSELS.
+     field of the earlier variant that had a tap and a drain: every step of every
+     optimal line has one move that keeps par reachable, so a long par there is a
+     handle being turned. In the pour-only variant this game actually ships, it
+     is not even long — a two-vessel bench has at most two reachable positions
+     and the longest par over every such bench up to capacity 24 is ONE. They are
+     not dealt; see MeasureConfig.VESSELS.
    - More vessels makes a board EASIER. Every extra vessel is another route to
      the target, so par falls as the count rises. The count is not a difficulty
      knob and is not used as one.

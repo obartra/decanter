@@ -47,13 +47,15 @@ const MeasureSearch = (() => {
      Three outcomes, and they are genuinely different things:
 
        par a number, exact       the minimum, walked
-       par null, exact true      the target is UNREACHABLE from here, proven by
-                                 having exhausted every position this bench can
-                                 still get into. In a game with no drain that is
-                                 a real ending rather than an error: a wrong pour
-                                 can strand the wine somewhere it cannot be
-                                 recombined, and the player is entitled to be
-                                 told so rather than left pouring.
+       par null, exact true      the target cannot be reached from here, proven
+                                 by having exhausted every position this bench
+                                 can get into. Note carefully that this is a
+                                 property of the BOARD and never of the play: by
+                                 the argument at the top of 20-rules.js, the
+                                 opening position is reachable from every
+                                 position, so no sequence of pours can make a
+                                 reachable target unreachable. If this comes back
+                                 mid-run, it was already true at the deal.
        par null, exact false     the tripwire fired. Nothing is known. */
   function search(caps, start, target, nodeCap){
     const cap = nodeCap == null ? C.SEARCH_CAP : nodeCap;
@@ -182,9 +184,13 @@ const MeasureSearch = (() => {
       par, exact: true, states: states.length,
       choice: branchy / Math.max(1, steps),
       tight: odds / Math.max(1, steps),
-      /* How much of this bench is a position the target can no longer be reached
-         from. With no drain some pours cannot be walked back, and this is how
-         much of the board is regret. */
+      /* The share of reachable positions from which the target can no longer be
+         reached. It is ZERO on every solvable board and provably has to be — see
+         the argument at the top of 20-rules.js — so this is not a difficulty
+         signal, it is the assertion that the proof is still true. If a change to
+         the rules ever lets a vessel other than the largest start with wine in
+         it, or introduces a drain, this is the number that will stop being zero
+         and it will do so before anything else notices. */
       dead: (states.length - reachable) / states.length
     };
   }

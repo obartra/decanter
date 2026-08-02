@@ -7,10 +7,28 @@
    target.
 
    That is the whole game, and the absence of the tap and the drain is the whole
-   design. With a drain a wrong pour is undone by emptying a vessel, so no pour
-   ever has to be meant; without one, every pour is a commitment, and the reason
-   the state space has dead ends at all is that some of those commitments cannot
-   be walked back. */
+   design. With a drain, a wrong pour is undone by emptying a vessel, so no pour
+   ever has to be meant.
+
+   Taking the drain away has a consequence that took a measurement to notice and
+   two lines to prove, and it is the most important fact about this game:
+
+     THE BOARD CAN NEVER BE LOST. Total volume is conserved and equals the
+     largest capacity, because the largest vessel started full. So from any
+     position, pouring every other vessel into the largest one moves all of each
+     — the room in the largest is exactly the sum of what is in the others — and
+     lands back on the opening position in at most n-1 pours. Every position can
+     therefore reach every position the opening one could, so if the target was
+     ever reachable it still is.
+
+   A sweep of the whole field agrees: over six thousand solvable boards, the
+   fraction of reachable positions from which the target cannot be reached is
+   zero, on every single one. See MeasureSearch.survey, which reports it, and
+   docs/design/16-measure.md.
+
+   That is why this game is graded on exact par and on nothing else. There is no
+   failure to grade. A run cannot be lost, only made longer than it needed to be,
+   so the distance from the minimum is the entire story of how it went. */
 const MeasureRules = (() => {
   /* ---- the canonical key, and the thing most likely to be got wrong ----
 
@@ -78,25 +96,42 @@ const MeasureRules = (() => {
     return next;
   }
 
-  /* Distinct outcomes, not legal pours.
+  /* Distinct outcomes, not legal pours: two pours that leave the bench in the
+     same place are one decision, and the measurement counts decisions.
 
-     Two pours that leave the bench in the same place are one decision. That
-     reduction lives here, beside the rules, rather than in the search or the
-     measuring tool, for the same reason dealBoard lives in the bubble game's
-     rules: the search, the hint and the offline field measurement all have to
-     agree about what counts as a choice, and three copies of it would eventually
-     be two definitions.
+     docs/design/02-levels.md records what counting legal moves instead cost the
+     other game — a confident, reproducible and entirely false account of its own
+     difficulty curve, wrong by up to ten orders of magnitude — so this is the
+     reduction the difficulty of any game in this repository is stated in.
 
-     docs/design/02-levels.md records what counting legal moves instead of
-     distinct outcomes cost the other game — a confident, reproducible and
-     entirely false account of its own difficulty curve, wrong by up to ten
-     orders of magnitude. It cannot cost as much here, because the vessels are
-     distinguishable and coincidences are rarer, but it costs the same kind of
-     thing: a board that offers four pours into the same resulting position is
-     not offering four decisions.
+     AND HERE IT IS AN IDENTITY. It never collapses anything, and cannot:
 
-     Returned as [{ key, amount, move }], carrying one representative move, so a
-     caller that needs something to actually play has it. */
+       A pour from i to j moves a strictly positive amount, so it changes
+       amount[i] and amount[j] and nothing else. Two different ordered pairs
+       therefore disagree somewhere. If they share no vessel, each changes one
+       the other left alone. If they share one, the vessel only one of them
+       touches is changed by exactly one of them. If they are i->j and j->i, one
+       adds to j and the other takes from it. So distinct pours always land on
+       distinct positions.
+
+     That was checked as well as argued: over nine thousand positions reached by
+     real play, the count never once differed from the number of legal pours.
+
+     The reason is the unsorted key above. The other game's reduction bites
+     precisely because its key IS sorted, so pouring into either of two identical
+     empty bottles gives one key; nothing here is ever folded together, so
+     nothing here is ever folded together wrongly either.
+
+     It is kept anyway, for two reasons that are not tidiness. It is the
+     definition the difficulty numbers are stated in, and stating them in terms
+     of a function that provably does nothing is better than stating them in
+     terms of a coincidence. And it is the function that would have to do the
+     collapsing the day this game grows an operation that can reach the same
+     position two ways — a tap, a drain, a "pour half" — at which point it is
+     already the one the search and the measurement both call.
+
+     Returned as [{ key, amount, move }], carrying the move that produced it, so
+     a caller that needs something to actually play has it. */
   function outcomes(caps, amount){
     const here = key(amount);
     const seen = new Map();

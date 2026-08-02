@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Measure</title>
+<meta name="theme-color" content="#150E08">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A decanting puzzle. Pour between vessels until one holds the target exactly.">
+<!--BUILD-->
+<!--HEAD-->
+<!--FONTS-->
+<!--CSS-->
+</head>
+<body data-only="measure">
+<header class="msrBar">
+  <span class="msrMark">Measure</span>
+  <span class="msrHud">
+    <span class="msrCount"><b id="msrMoves">0</b><span id="msrPar">of 3</span></span>
+    <span class="msrStars" id="msrStars"></span>
+    <small class="msrWhich">Bench <span id="msrLevel">1</span> &middot; measure <span id="msrTarget">2</span></small>
+  </span>
+  <span class="msrActs">
+    <button class="msrBtn" id="msrSound" type="button" aria-pressed="true">Sound</button>
+    <button class="msrBtn" id="msrSkip" type="button">Next</button>
+  </span>
+</header>
+<main class="msrStage">
+  <canvas id="msrCanvas"></canvas>
+</main>
+<!-- Undo and hint both cap the run at two stars, and the page does not say so
+     here: the panel says it at the moment it costs something, which is the only
+     moment anybody reads it. A warning on the button is read once and then
+     becomes furniture. -->
+<div class="msrTools">
+  <button class="msrBtn" id="msrUndo" type="button">Undo</button>
+  <button class="msrBtn" id="msrHint" type="button">Hint</button>
+  <button class="msrBtn" id="msrRestart" type="button">Restart</button>
+</div>
+<div class="msrVeil" id="msrVeil">
+  <div class="msrCard">
+    <h2 id="msrResult">Measured</h2>
+    <p class="msrWhy" id="msrWhy"></p>
+    <p class="msrStars" id="msrStarsOut"></p>
+    <p class="msrNote" id="msrNote"></p>
+    <button class="msrBtn msrPrimary" id="msrNext" type="button">Next bench</button>
+  </div>
+</div>
+<!--JS-->
+</body>
+</html>

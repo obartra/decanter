@@ -80,10 +80,28 @@ const MeasureRender = (() => {
     ctx.lineTo(box.x + box.w, box.rim);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255,255,255,.09)';
-    ctx.fillRect(box.x + box.w * 0.16, box.rim + 0.2, box.w * 0.07, (box.base - box.rim) - 0.5);
-    ctx.fillStyle = 'rgba(255,255,255,.05)';
-    ctx.fillRect(box.x + box.w * 0.78, box.rim + 0.35, box.w * 0.04, (box.base - box.rim) - 0.8);
+  }
+
+  /* The light down the glass, over everything else rather than under it, because
+     a highlight on a vessel with wine in it runs down the wine as well — it is
+     on the near wall, and the wine is behind that wall.
+
+     A gradient rather than two filled bands. The bands were what this had first
+     and they were the same width all the way across at every scale, so on an
+     empty vessel they read as a rod standing inside it rather than as light on
+     its surface. A soft edge is the difference between a highlight and an
+     object. */
+  function sheen(ctx, box){
+    const g = ctx.createLinearGradient(box.x, 0, box.x + box.w, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.06, 'rgba(255,252,244,.05)');
+    g.addColorStop(0.15, 'rgba(255,252,244,.13)');
+    g.addColorStop(0.28, 'rgba(255,255,255,0)');
+    g.addColorStop(0.74, 'rgba(255,255,255,0)');
+    g.addColorStop(0.85, 'rgba(255,252,244,.07)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(box.x, box.rim + C.GLASS, box.w, box.base - box.rim - C.GLASS * 2);
   }
 
   /* The graduations, etched on the glass, one per unit with a heavier one every
@@ -152,11 +170,16 @@ const MeasureRender = (() => {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    /* Centred in the margin to the left of the first vessel rather than hard
+       against the edge. At two digits and this size the number is about 1.3
+       units wide, which set flush left overhangs the gap and lands on the first
+       vessel's glass — a gold numeral sitting on the graduations of the vessel
+       it is not about. */
     ctx.fillStyle = hit ? GOLD_LIT : GOLD;
-    ctx.font = `700 1.15px "Cinzel", Georgia, serif`;
-    ctx.textAlign = 'left';
+    ctx.font = '700 1.05px "Cinzel", Georgia, serif';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(String(target), 0.15, y - 0.22);
+    ctx.fillText(String(target), w.edge / 2, y - 0.2);
   }
 
   /* What each vessel holds, under it on the shelf, and what it could hold, above
@@ -171,14 +194,16 @@ const MeasureRender = (() => {
     const mid = box.x + box.w / 2;
 
     ctx.fillStyle = lit ? GOLD_LIT : (amount > 0 ? GOLD : 'rgba(162,144,122,.75)');
-    ctx.font = `700 1.25px "Cinzel", Georgia, serif`;
+    ctx.font = '700 1.25px "Cinzel", Georgia, serif';
     ctx.textBaseline = 'top';
     ctx.fillText(String(amount), mid, box.base + 0.42);
 
     ctx.fillStyle = INK_DIM;
-    ctx.font = `0.82px "Alegreya Sans", ui-sans-serif, sans-serif`;
+    ctx.font = '0.82px "Alegreya Sans", ui-sans-serif, sans-serif';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`${box.cap}`, mid, box.rim - 0.34);
+    /* clear of the rim rather than resting on it: the rim line is the brightest
+       thing on the vessel and a numeral touching it reads as part of the glass */
+    ctx.fillText(String(box.cap), mid, box.rim - 0.5);
   }
 
   /* The vessel in hand. A ring of light at its feet rather than an outline round
@@ -229,25 +254,69 @@ const MeasureRender = (() => {
     ctx.translate(0, -lift);
     glass(ctx, box);
     wine(ctx, box, amount);
+    /* Etched on the near wall, so they cross the wine rather than stopping at
+       it. A graduation that disappeared under the liquid would be missing at
+       exactly the moment it is being read. */
     graduations(ctx, box);
+    sheen(ctx, box);
     ctx.restore();
     labels(ctx, box, amount, lit);
   }
 
-  /* Said once, on a bench nobody has poured from yet, in the empty air above the
-     short vessels where there is nothing to cover. */
-  function hint(ctx, text){
+  /* How to play, said once on a bench nobody has poured from yet, in the empty
+     air above the rims where there is nothing to cover. It leaves on the first
+     pour and stays away: it is an explanation, not a status.
+
+     Called `rule` rather than `hint`, because in this game a hint is a specific
+     and expensive thing — it names the optimal move and caps the run at two
+     stars — and two functions a keystroke apart, one free and one costly, is an
+     invitation to call the wrong one. */
+  function rule(ctx, text){
     const w = V.world;
+    /* half a unit of air at each edge, so the sentence never touches the glass */
+    const room = w.w - 1;
+    const face = s => `${s}px "Alegreya Sans", ui-sans-serif, sans-serif`;
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.55;
-    ctx.font = `0.95px "Alegreya Sans", ui-sans-serif, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(text, w.w / 2, 0.4);
+
+    /* Fitted rather than set at one size. The bench is only as wide as the
+       level's vessels need it to be, so a sentence that fits a four-vessel board
+       runs off the ends of a three-vessel one — and a canvas clips instead of
+       scrolling, so this does not look like overflow. It looks like the first
+       and last words were never written. Nothing on the page reports it and no
+       layout test can see it, because as far as the document is concerned
+       nothing is out of place.
+
+       Shrink first, then break. A line that is merely small still reads; a line
+       that is cut does not. The floor is the point past which shrinking has
+       stopped helping and two lines are the better trade. */
+    let size = 0.95;
+    ctx.font = face(size);
+    while (size > 0.62 && ctx.measureText(text).width > room){
+      size -= 0.04;
+      ctx.font = face(size);
+    }
+
+    const lines = [];
+    if (ctx.measureText(text).width > room){
+      let line = '';
+      for (const word of text.split(' ')){
+        const next = line ? `${line} ${word}` : word;
+        if (line && ctx.measureText(next).width > room){ lines.push(line); line = word; }
+        else line = next;
+      }
+      if (line) lines.push(line);
+    } else {
+      lines.push(text);
+    }
+
+    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], w.w / 2, 0.4 + i * size * 1.25);
     ctx.globalAlpha = 1;
   }
 
-  return { shelf, glass, wine, graduations, targetLine, labels, selection,
-           stream, vessel, hint, shade };
+  return { shelf, glass, sheen, wine, graduations, targetLine, labels, selection,
+           stream, vessel, rule, shade };
 })();
 globalThis.MeasureRender = MeasureRender;

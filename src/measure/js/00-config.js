@@ -37,11 +37,21 @@ const MeasureConfig = {
   /* How many vessels a board may have, and the single most important number in
      this file.
 
-     Never two. A two-vessel board scored a "choice" of EXACTLY ZERO across the
-     whole measured field: every step of every optimal line had exactly one move
-     that kept par reachable, so a par of fourteen was fourteen turns of a handle
-     rather than fourteen decisions. It is the classic two-jug puzzle and it is
-     not a puzzle at all once the tap and the drain are taken away.
+     Never two, and the reason is worth two paragraphs because the obvious
+     mistake is to think a two-jug puzzle is a puzzle.
+
+     The variant with a tap and a drain was measured first, and there a
+     two-vessel board scored a "choice" of EXACTLY ZERO right across the field:
+     every step of every optimal line had one move that kept par reachable, so a
+     par of fourteen was fourteen turns of a handle rather than fourteen
+     decisions. Long, and not a puzzle.
+
+     In THIS variant it is worse, and it collapses rather than merely flattens. A
+     two-vessel bench has at most TWO reachable positions in total — pour the
+     large one into the small one, pour it back, and that is the whole state
+     space, because there is nowhere else for the wine to be. Measured over every
+     two-vessel bench up to a capacity of 24, the longest par in existence is
+     ONE. There is nothing to ship. See tools/measure-field.mjs.
 
      And more vessels is EASIER, not harder, which is the opposite of what the
      shape of the board suggests: every extra vessel is another route to the
@@ -92,14 +102,41 @@ const MeasureConfig = {
   WINE: '#A32F49',
   WINE_LIT: '#D9536B',
 
-  /* The bench. A vessel is three units wide whatever it holds; see the note at
-     the top of this file for why that is forced rather than chosen. */
-  VESSEL_W: 3,
-  GAP: 1.5,
-  /* below the bases, so the glass stands on something rather than floating */
-  SHELF: 2.4,
-  /* above the tallest rim, for the target label to sit in without covering glass */
-  HEADROOM: 2.6,
+  /* The bench.
+
+     Every vessel is the same width — see the note at the top of this file for
+     why that is forced rather than chosen — but how wide that is in units of
+     wine is not fixed, and this is a range rather than a number.
+
+     The height of the world is decided for us: it is the tallest capacity, plus
+     the room the labels need. So the only way to fill a tall phone screen with a
+     short bench is to make the vessels narrower IN UNITS, which makes the unit
+     itself taller in pixels and the graduations easier to read. 60-view.js picks
+     a width inside this range from the shape of the screen it was given.
+
+     The range exists because both ends are ugly. Left free, a bench of twelves
+     on a phone comes out as four tubes at one part in eight, and on a wide
+     desktop window the same bench comes out as four tanks. Clamped, a short
+     bench simply keeps a little air above and below it, which is what it should
+     do. */
+  VESSEL_W_MIN: 1.9,
+  VESSEL_W_MAX: 3.4,
+  /* Gap as a share of vessel width, so the bench keeps its proportions at every
+     width rather than looking crowded at one end of the range. */
+  GAP_RATIO: 0.5,
+  /* The margin at the two ends of the bench, as a share of the gap between
+     vessels. Wider than a gap, which is ordinary composition — a row of objects
+     wants air at its ends — but the reason it is a separate number is that the
+     target's numeral lives in the left one. At a plain gap's width a two digit
+     target ran off the edge of the canvas, and the targets worth having are very
+     often two digits. */
+  EDGE_RATIO: 1.6,
+  /* below the bases, so the glass stands on something rather than floating, with
+     room under it for the numeral saying what is in it */
+  SHELF: 2.2,
+  /* above the tallest rim, for the capacity label and the target's number to sit
+     in without covering glass */
+  HEADROOM: 2.2,
   /* Wall thickness, in world units. Thick enough to catch the light at the size
      a phone draws a twenty-four unit vessel, which is about eight pixels a unit. */
   GLASS: 0.17,
@@ -127,22 +164,6 @@ const MeasureConfig = {
      leaves the graduations readable throughout — which matters, because the
      graduations are what the player is watching. */
   LIFT: 0.85
-};
-
-/* Derived, so the bench and the glass cannot drift apart. A board's world is
-   only as tall as its own largest vessel: holding the world at CAP_MAX would
-   leave a board of eights drawn as a third of a screen of nothing. Within a
-   board the unit is constant, which is the invariant that matters; across boards
-   it is not, and it does not need to be. */
-MeasureConfig.worldFor = function(caps){
-  const n = caps.length;
-  const tallest = Math.max(...caps);
-  return {
-    w: n * MeasureConfig.VESSEL_W + (n + 1) * MeasureConfig.GAP,
-    h: tallest + MeasureConfig.HEADROOM + MeasureConfig.SHELF,
-    /* y of the shelf surface, which every vessel stands on */
-    floor: tallest + MeasureConfig.HEADROOM
-  };
 };
 
 globalThis.MeasureConfig = MeasureConfig;
