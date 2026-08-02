@@ -242,9 +242,6 @@ const App = (() => {
         BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
         BubbleApp.onEnd = banked => finishBubble(banked);
         BubbleApp.charge = what => payFor(what);
-        /* The setting applySound() could not hand over during boot, because this
-           object did not exist then. */
-        BubbleApp.sound = progress.sound;
         bubbleReady = true;
       }
       /* The chapters hand these over the same way they hand over the pour game's,
@@ -842,13 +839,19 @@ const App = (() => {
      height. What a screen reader is told is the same either way. */
   function applySound(on){
     Sound.setEnabled(on);
-    /* Guarded, because this runs during boot and the bubble game is fetched
-       after the page opens: at that moment the name genuinely does not exist
-       yet, and an unguarded assignment is a ReferenceError in boot() — a blank
-       screen, from the sound preference. startBubble() hands it the current
-       setting when it does arrive, which is the same value read from the same
-       save, so nothing is lost by the wait. */
+    /* The bubble game is fetched after the page opens, so during boot this name
+       does not exist yet: an unguarded assignment here is a ReferenceError in
+       boot(), which is a blank screen caused by the sound preference.
+
+       Guarding alone is not enough either. The setting has to actually arrive,
+       or a game muted in an earlier sitting comes back with the other half of it
+       unmuted and nothing says so. So if the bundle is not here, hand the
+       setting over the moment it is — reading the live value rather than the one
+       captured now, in case the button was pressed again in between. */
     if (typeof BubbleApp !== 'undefined') BubbleApp.sound = on;
+    else Deferred.ready('bubble').then(() => {
+      if (typeof BubbleApp !== 'undefined') BubbleApp.sound = Sound.enabled;
+    });
     document.querySelectorAll('.js-sound').forEach(b => {
       const glyph = b.classList.contains('icon');
       if (glyph){
