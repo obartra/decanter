@@ -38,6 +38,15 @@ describe('build output', () => {
     for (const f of readdirSync(join(root, 'src/js'))){
       assert(html.includes(`/* ---- ${f} ---- */`), `${f} was left out of the bundle`);
     }
+    /* Both games, on this page. Some of its levels are the other one, and the
+       app reaches straight into `BubbleApp` and `BubbleAudio` at boot to hand
+       over the perks, the purse and the sound setting. If they ever stopped
+       being inlined here the page would throw on load rather than degrade. */
+    for (const f of readdirSync(join(root, 'src/bubble/js'))){
+      assert(html.includes(`/* ---- ${f} ---- */`), `bubble ${f} was left out of the app page`);
+    }
+    assert(html.indexOf('/* ---- 90-app.js ---- */') < html.lastIndexOf('BubbleAudio'),
+      'the bubble sources must be inlined after the app that reaches into them');
     assert(html.indexOf('/* ---- 20-rules.js ---- */') < html.indexOf('/* ---- 90-app.js ---- */'),
       'modules must be inlined in dependency order');
   });
@@ -142,9 +151,11 @@ describe('build output', () => {
   });
 
   it(`leaves the other game's caches alone`, () => {
-    /* Two workers on one origin. A filter of "everything that is not me" means
-       whichever activated last empties the other's precache, and the two take
-       turns breaking each other, visible only when offline. */
+    /* The worker's scope is the whole origin, including the other game's
+       subpath, and the other game has no worker of its own. So two things have
+       to hold: a navigation there must not be answered with this game's page,
+       and the cache sweep must name what it deletes rather than taking
+       everything, which is what keeps a worker over there possible later. */
     const sw = text('sw.js');
     assert(/startsWith\('decanter-'\)/.test(sw),
       'the worker must only delete its own caches, not every cache on the origin');
@@ -231,11 +242,12 @@ describe('build output', () => {
 });
 
 describe('the two games do not collide', () => {
-  /* They are separate pages today, so none of this matters yet. It matters the
-     moment they are one, which is the stated plan: bubble levels every fifth
-     board of the graded game. These are the seams that would break silently at
-     that point, and they are far cheaper to hold open now than to discover
-     during the merge. */
+  /* Written while they were still separate pages, against the day they became
+     one. That day came: some levels of the graded game are the other one, both
+     stylesheets and both sets of sources are inlined into the same document, and
+     everything below is now load bearing rather than held open. Not every fifth
+     board, as this used to say; two scattered per chapter, decided by
+     `Levels.bubbleSlots`. */
   const classesIn = dir => {
     const out = new Set();
     for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.css'))){

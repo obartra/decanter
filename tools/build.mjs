@@ -65,7 +65,7 @@ const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
 /* Where the bang is. A tag rather than a fetch of a known path, so the two pages
    can answer it differently: the installable build points at a cacheable file,
    the portable one carries the bytes, and nothing in the audio module has to
-   know which kind of build it is running in. Not a preload — almost nobody ever
+   know which kind of build it is running in. Not a preload: almost nobody ever
    hears this, and it is fetched on demand. */
 function compose({ fonts, head, boomSrc }){
   return read('src/index.html')
@@ -107,10 +107,16 @@ writeFileSync(join(dist, 'decanter-standalone.html'), compose({
   boomSrc: 'data:audio/mpeg;base64,' + boom.toString('base64')
 }));
 
-/* 3. the bubble game, at its own subpath. Its own sources, its own id and its
-   own service worker scope, so the two games cannot cache over each other. The
-   fonts are shared, reached with a relative path out of the subfolder, because
-   a second copy of the same three files is dead weight in the precache. */
+/* 3. the bubble game, at its own subpath, with its own sources and its own id.
+   It registers no worker and is deliberately left out of the app's precache, so
+   it does not install and does not work offline. That is the trade for the two
+   games not being able to cache over each other: the app's worker controls this
+   whole origin, and a copy of this page inside its precache would be one only
+   the app's build id knew how to invalidate.
+
+   The fonts are shared, reached with a relative path out of the subfolder,
+   because a second copy of the same three files is dead weight in the
+   precache. */
 const bubblePage = read('src/bubble/index.html')
   .replace('<!--BUILD-->', `<meta name="build" content="${bub.id}">`)
   .replace('<!--FONTS-->', fontFace('../fonts/cinzel.woff2', '../fonts/alegreyasans.woff2',
@@ -164,10 +170,11 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      /* Only this game's old caches. There is a second game on this origin with
-         its own worker, and a filter of "everything that is not me" means
-         whichever activated last emptied the other's precache. The two would
-         take turns breaking each other, visible only offline. */
+      /* Only caches this build named, rather than everything on the origin.
+         There is a second game here and one day it may want a worker of its own;
+         a filter of "everything that is not me" is the kind that works until
+         that day and then has the two taking turns emptying each other's
+         precache, visible only offline. Prefixing costs nothing now. */
       .then(keys => Promise.all(keys.filter(k => k.startsWith('decanter-') && k !== VERSION).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );

@@ -70,7 +70,7 @@ const Audio = (() => {
      a sound, the glug is pitched off the same fill level, and the interface cues
      want to be nearly nothing. A bang is where all of that stops applying.
      Nothing in the puzzle makes this noise, it is never pitched, and its entire
-     job is to be bigger than the game around it — which is the one job a
+     job is to be bigger than the game around it, which is the one job a
      synthesised imitation of an explosion cannot do, however carefully it is
      tuned.
 
@@ -104,7 +104,6 @@ const Audio = (() => {
     get ready(){ return !!ctx && ctx.state === 'running'; },
     unlock(){ try { init(); if (ctx.state === 'suspended') ctx.resume(); } catch(e){} },
     setEnabled(v){ on = !!v; if (!on) this.pourEnd(); return on; },
-    toggle(){ return this.setEnabled(!on); },
     lift(){ tone({ f:660, f2:880, dur:0.09, gain:0.14 }); },
     drop(){ tone({ f:520, f2:340, dur:0.1, gain:0.11 }); },
     deny(){ tone({ f:150, f2:90, type:'triangle', dur:0.14, gain:0.15 }); },

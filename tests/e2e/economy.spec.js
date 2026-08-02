@@ -178,7 +178,7 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
 /* Three of the recording overlap, and nothing between them and the speaker
    limits anything. That makes the mix a property of whichever file is sitting in
    assets/audio/, and 11 Sound tells the next person to swap that file by copying
-   a different one over it — so the number in the code is only right for as long
+   a different one over it, so the number in the code is only right for as long
    as nobody takes that invitation. This renders the actual bang and measures it,
    which is the only form of "it does not clip" that survives the swap.
 

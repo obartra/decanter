@@ -47,11 +47,7 @@ A few boundaries are worth naming, because they are the ones that blur:
 
 ## Layout of the repo
 
-| Path | |
-| --- | --- |
-| `src/js/` | modules, concatenated in filename order. Under 50 is pure logic, above is browser code |
-| `src/css/` | stylesheets, concatenated in filename order |
-| `src/worker/solver.js` | the A\* search, shipped verbatim into the page |
-| `tools/build.mjs` | the entire build, no bundler |
-| `tools/pars.mjs` | solves every level offline and writes the par table |
-| `tests/` | a test runner and suites, no dependencies |
+In the [README](../README.md), and only there. It was written out again here,
+four rows of it word for word, which is the thing this page opens by saying not
+to do: the copy in the README had gone stale in three places before anybody
+noticed there were two.

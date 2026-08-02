@@ -638,7 +638,20 @@ const BubbleApp = (() => {
            get allow(){ return allow; },
            set charge(fn){ charge = fn; }, get charge(){ return charge; },
            /* the host hides this game's own panel and shows its own */
-           set panelHidden(v){ quiet = !!v; }, get panelHidden(){ return quiet; } };
+           set panelHidden(v){ quiet = !!v; }, get panelHidden(){ return quiet; },
+           /* Muting, when this game is running inside the other one.
+
+              This game remembers its own preference, because on its own page
+              there is no save to read it from. Inside the other game there is,
+              and one of them has to win: a player mutes a game, not a module,
+              and the button they used is the host's. Set before `boot`, since
+              the host applies the save's preference at startup and this game is
+              not booted until a board of it comes up.
+
+              Here rather than reaching for `BubbleAudio` from over there, which
+              would widen the coupling between the two games from one object to
+              two for the sake of a boolean. */
+           set sound(on){ A.setEnabled(on); }, get sound(){ return A.enabled; } };
 })();
 globalThis.BubbleApp = BubbleApp;
 

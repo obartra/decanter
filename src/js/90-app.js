@@ -549,11 +549,31 @@ const App = (() => {
   }
 
   /* ---------- wiring ---------- */
-  function paintSound(on){
+  /* One preference, both games, one place that applies it.
+
+     There are two sound modules on this page, one per game, each with its own
+     idea of whether it is muted: this game's lives in the save, the other's in a
+     key of its own, because it also ships as a page of its own where there is no
+     save to read. On that page it is right. Here it meant a player who muted the
+     game still got noise out of the two boards a chapter that are the other one,
+     on a screen with no button to stop it, having already done the only thing
+     the game offers for stopping it.
+
+     So the save is the preference and this hands it to both. The other game's
+     own key still gets written, which is what its own page will read next time,
+     and nothing here reads it.
+
+     Through `BubbleApp` rather than its audio module directly. The coupling
+     between the two games is one object wide on purpose, and a boolean is not a
+     reason to make it two. */
+  function applySound(on){
+    Audio.setEnabled(on);
+    BubbleApp.sound = on;
     document.querySelectorAll('.js-sound').forEach(b => {
       b.textContent = on ? 'Sound on' : 'Sound off';
       b.classList.toggle('off', !on);
     });
+    return on;
   }
   function bind(){
     Board.mount($('board'));
@@ -755,9 +775,9 @@ const App = (() => {
     document.querySelectorAll('.js-sound').forEach(btn => {
       btn.onclick = () => {
         Audio.unlock();
-        paintSound(Audio.toggle());
-        progress.setSound(Audio.enabled);
-        if (Audio.enabled) Audio.lift();
+        const on = applySound(!Audio.enabled);
+        progress.setSound(on);
+        if (on) Audio.lift();
       };
     });
     $('mapPlay').onclick = () => { Audio.unlock(); showGame(Math.min(progress.unlocked, progress.lastLevel)); };
@@ -936,8 +956,7 @@ const App = (() => {
       bind();
       Diagnostics.source = () => ({ progress, state: S });
       Diagnostics.mount();
-      Audio.setEnabled(progress.sound);
-      paintSound(progress.sound);
+      applySound(progress.sound);
       showMap(false);
       takeGift();
       /* The wait on the draught has to run down on its own, or it is a stale
