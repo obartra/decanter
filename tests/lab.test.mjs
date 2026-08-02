@@ -242,6 +242,40 @@ describe('lab sweep', () => {
 
   /* An empty verdict is what success looks like AND what asking nothing looks
      like, so both directions are driven. */
+  /* The panel matrix, as a gate rather than as a picture.
+
+     The lab draws these 135 screens side by side, which is how a wrong one is
+     spotted. This is how a wrong one FAILS: the enumeration is pure, so it runs
+     in the unit suite in milliseconds against the game's own Panel, and a rescue
+     offered where it cannot rescue, or a dead button with nothing saying why,
+     stops a merge instead of waiting to be looked at.
+
+     Reaching one of these by playing means losing a level a particular way with
+     a particular purse against animated pours. Reaching all of them means doing
+     that a hundred and thirty-five times. */
+  it('decides every end-of-run panel the game can show, and none of them wrongly', () => {
+    const g = loadPure();
+    const res = LabSweep.panels({ panel: g.Panel, lastLevel: g.LAST_LEVEL });
+    assert(res.rows.length > 100, `only ${res.rows.length} panels — the enumeration collapsed`);
+    equal(res.faults, [], 'the end-of-run panel offers something it should not');
+    /* and every row is a decision rather than a throw */
+    equal(res.rows.filter(r => r.threw).map(r => `${r.ending}/${r.purse}: ${r.threw}`), []);
+  });
+
+  /* The check above passes on a clean tree, which is also what a check that
+     asks nothing looks like. So one is planted: a panel that offers a next board
+     past the end of the game is the plainest thing the matrix is for. */
+  it('would catch a panel offering a board that is not there', () => {
+    const g = loadPure();
+    const bent = {
+      BROKE: g.Panel.BROKE,
+      decide: input => ({ ...g.Panel.decide(input), nextHidden: false })
+    };
+    const res = LabSweep.panels({ panel: bent, lastLevel: g.LAST_LEVEL });
+    assert(res.faults.some(f => /past the end of the game/.test(f)),
+      'a next board past the last level went unreported');
+  });
+
   it('says when the bars have stopped separating playing from flailing', () => {
     const good = { at: { one: 0.98, two: 0.83, three: 0.46 } };
     const random = { at: { one: 0.19, two: 0, three: 0 } };

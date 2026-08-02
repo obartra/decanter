@@ -945,6 +945,12 @@ const App = (() => {
       par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
       totalStars: progress.totalStars(), reason: S.reason
     });
+    /* Kept, for the same reason `_state` and `_progress` are exposed: so a spec
+       can ask what was decided rather than deciding it again. The browser suite
+       compares the panel on the screen against this, and a spec that rebuilt the
+       inputs would be asserting the app against its own idea of the run — which
+       is how a spec passes while the two have parted company. */
+    S.panel = panel;
     $('winTitle').textContent = panel.title;
     /* a bubble run has no par to measure against, so it says what it did */
     $('winLine').textContent = line || panel.line;

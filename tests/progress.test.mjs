@@ -184,3 +184,53 @@ describe('best compares in the direction the level scores', () => {
     equal(p.bestFor(aBubbleLevel), 25);
   });
 });
+
+/* A save is the one input this game does not control. It sits on a disk across
+   versions, it goes through migrations, and browsers do lose bytes out of
+   localStorage — so every field has to survive arriving as the wrong thing.
+
+   The consequence is worse here than anywhere else in the project. Reading the
+   save happens during boot, before anything is drawn, so a throw is a blank
+   screen with no button on it and nothing saying why. Every other failure a
+   player can walk away from and come back to; this one they cannot. */
+describe('a save that arrived broken', () => {
+  const from = raw => {
+    const store = Progress.memoryStorage();
+    store.setItem(Progress.SAVE_KEY, typeof raw === 'string' ? raw : JSON.stringify(raw));
+    return Progress.createProgress(store);
+  };
+
+  /* `stars`, `best` and `pars` were the three not guarded. They are older than
+     `claimed`, `seen` and `diag`, and they were trusted, which held for exactly
+     as long as every save came from this file. A null `stars` made `starsFor`
+     read `null[1]` at boot. Found by the browser suite fuzzing a real save field
+     by field; it took one run. */
+  it('survives every record of what was earned arriving as the wrong thing', () => {
+    for (const key of ['stars', 'best', 'pars', 'claimed', 'seen']){
+      for (const wrong of [null, 0, -1, '', 'nope', true, false, [], [1, 2, 3]]){
+        const p = from({ version: 1, unlocked: 5, gold: 40, [key]: wrong });
+        equal(p.starsFor(3), 0, `${key} as ${JSON.stringify(wrong)} broke starsFor`);
+        equal(p.bestFor(3), null, `${key} as ${JSON.stringify(wrong)} broke bestFor`);
+        equal(p.parFor(3), null, `${key} as ${JSON.stringify(wrong)} broke parFor`);
+        assert(Number.isInteger(p.unlocked) && p.unlocked >= 1, `${key} as ${JSON.stringify(wrong)}`);
+      }
+    }
+  });
+
+  it('survives the save not being an object at all', () => {
+    for (const raw of ['nonsense', '7', '[1,2,3]', 'null', '{', '']){
+      const p = from(raw);
+      assert(Number.isInteger(p.unlocked) && p.unlocked >= 1, `${raw} did not come back as a game`);
+      assert(Number.isFinite(p.gold) && p.gold >= 0, `${raw} came back with ${p.gold} gold`);
+      equal(p.starsFor(1), 0);
+    }
+  });
+
+  /* An array is the shape that gets past a `typeof x === 'object'` guard, which
+     is why it is asked for by name rather than left to the list above. */
+  it('does not mistake an array for a record', () => {
+    const p = from({ version: 1, unlocked: 5, gold: 40, stars: [3, 2, 1] });
+    equal(p.starsFor(0), 0, 'an array was read as a map of levels to stars');
+    assert(!Array.isArray(p.raw.stars), 'the array was kept');
+  });
+});

@@ -13,6 +13,10 @@
      report the curve. Because par is exact this is not a sample, it is the
      answer, and a step that goes down is a real fault in the ordering rather
      than noise to be squinted at.
+   - **panel**, for the graded game, whose interesting surface is neither a par
+     nor a distribution but a DECISION: what the end-of-run panel offers, given
+     a run and a purse together. Enumerated rather than sampled, because the
+     axes are small and the combinations are what nobody can reach by hand.
    - **survival**, for the game that cannot have a par. Play whole runs with the
      same shot-chooser the hint button offers, at a given miss rate, and report
      how often each bar is cleared. Pass rates rather than percentiles, because
@@ -197,6 +201,113 @@ const LabSweep = (() => {
     };
   }
 
+  /* Every end-of-run panel the game can show.
+
+     `Panel.decide` takes about twenty inputs and returns which buttons are
+     drawn, which are dead, which one is primary and what the hint says. That is
+     the densest decision in the codebase and it is also the hardest to reach:
+     getting to one combination means playing a level to a particular ending
+     with a particular purse, and the pours are animated, so a run that ends the
+     way you wanted takes a minute of real time.
+
+     So the axes are enumerated and the real function is asked. Nothing here
+     re-implements a rule; the frame's own `Panel` decides, and what is drawn is
+     what it said. The value is in seeing them side by side — a button offered on
+     a screen it makes no sense on, or two states that should differ coming out
+     identical, is obvious in a column and invisible one run at a time. */
+  function panels(mods){
+    const { panel, lastLevel } = mods;
+    const rows = [];
+    /* The axes that change the answer, and only those. `moves` and `best` move
+       the sentence rather than the offer, so they are held still: a matrix with
+       a row for every pour count is one nobody reads. */
+    const endings = [
+      { as: 'cleared', failed: false, stars: 3, reason: null },
+      { as: 'cleared, one over', failed: false, stars: 2, reason: null },
+      { as: 'cleared, scraped', failed: false, stars: 1, reason: null },
+      { as: 'failed: out of pours', failed: true, stars: 0, reason: 'over' },
+      { as: 'failed: no legal move', failed: true, stars: 0, reason: 'stuck' },
+      { as: 'failed: short', failed: true, stars: 0, reason: 'short' }
+    ];
+    const purses = [
+      { as: 'rich', canPayFee: true, canPayNext: true, canPaySkip: true, canPayBlast: true },
+      { as: 'can retry, cannot go on', canPayFee: true, canPayNext: false, canPaySkip: false, canPayBlast: false },
+      { as: 'empty', canPayFee: false, canPayNext: false, canPaySkip: false, canPayBlast: false }
+    ];
+    const wheres = [
+      { as: 'mid run', level: 12, nextUnlocked: true },
+      { as: 'at the frontier', level: 12, nextUnlocked: false },
+      { as: 'the last board', level: lastLevel, nextUnlocked: false }
+    ];
+    const blasts = [
+      { as: 'no blast', blastGranted: false, blastUsed: false, blastTargets: 0 },
+      { as: 'blast, would help', blastGranted: true, blastUsed: false, blastTargets: 3 },
+      { as: 'blast, nothing to hit', blastGranted: true, blastUsed: false, blastTargets: 0 },
+      { as: 'blast, already spent', blastGranted: true, blastUsed: true, blastTargets: 3 }
+    ];
+
+    for (const where of wheres){
+      for (const ending of endings){
+        for (const purse of purses){
+          for (const blast of blasts){
+            /* A blast is only ever offered on a failed run, so every blast axis
+               on a cleared one is the same screen four times. */
+            if (!ending.failed && blast.as !== 'no blast') continue;
+            const input = {
+              level: where.level, lastLevel, nextUnlocked: where.nextUnlocked,
+              failed: ending.failed, stars: ending.stars, reason: ending.reason,
+              canPayFee: purse.canPayFee, canPayNext: purse.canPayNext,
+              canPaySkip: purse.canPaySkip, canPayBlast: purse.canPayBlast,
+              blastGranted: blast.blastGranted, blastUsed: blast.blastUsed,
+              blastTargets: blast.blastTargets,
+              improvedStars: false, hadStars: 0, totalStars: 210,
+              par: 14, parExact: true, moves: ending.failed ? 19 : 14 + (3 - ending.stars),
+              best: null
+            };
+            let out, threw = null;
+            try { out = panel.decide(input); }
+            catch (e) { threw = e.message; }
+            rows.push({
+              where: where.as, ending: ending.as, purse: purse.as, blast: blast.as,
+              out, threw
+            });
+          }
+        }
+      }
+    }
+
+    /* What the matrix is FOR, said as claims rather than left to the eye. Each
+       of these is something the panel must never do, and each is invisible in a
+       single run because a single run only ever shows one row. */
+    const faults = [];
+    for (const r of rows){
+      if (r.threw){ faults.push(`${r.ending} / ${r.purse}: decide() threw — ${r.threw}`); continue; }
+      const o = r.out;
+      const offers = [!o.retryHidden, !o.nextHidden, !o.skipHidden, !o.blastHidden];
+      if (!offers.some(Boolean) && !o.atEnd)
+        faults.push(`${r.where} / ${r.ending} / ${r.purse}: offers nothing at all`);
+      if (!o.blastHidden && !r.blast.startsWith('blast, would'))
+        faults.push(`${r.ending} / ${r.blast}: a blast is offered that cannot rescue anything`);
+      if (!o.nextHidden && o.atEnd)
+        faults.push(`${r.where}: a next board is offered past the end of the game`);
+      if (!o.skipHidden && !o.stuck)
+        faults.push(`${r.where} / ${r.ending}: Move on is offered to a run that is not stuck`);
+      if (o.retryPrimary && o.nextPrimary)
+        faults.push(`${r.ending}: two primary buttons`);
+      /* No check that a hint exists. An ordinary clean win has nothing to say
+         beyond the result, and demanding a line there would be asking the panel
+         to fill silence. What IS checked is the one case where silence is wrong:
+         a button offered and dead. */
+      /* A dead button with nothing saying why is the failure this panel was
+         split out of the app to prevent: the screen looks broken rather than
+         refused. `BROKE` is the module's own sentence, asked for by name rather
+         than matched on, so the two cannot part company. */
+      if (o.retryDisabled && !o.retryHidden && o.hint !== panel.BROKE)
+        faults.push(`${r.ending} / ${r.purse}: Retry is dead and the hint does not say why`);
+    }
+    return { kind: 'panel', rows, faults };
+  }
+
   /* Whether the bars still separate playing from flailing, which is the claim
      they were set from and the one tools/bubble-survival.mjs prints. A bar a
      random aim clears is not a bar, and one the bot misses is not reachable. */
@@ -208,6 +319,6 @@ const LabSweep = (() => {
 
   /* runOne is published for tests/lab.test.mjs, which plays it against
      tools/bubble-run.mjs seed for seed. Nothing in the page calls it directly. */
-  return { pars, survival, tracks, runOne };
+  return { pars, panels, survival, tracks, runOne };
 })();
 globalThis.LabSweep = LabSweep;
