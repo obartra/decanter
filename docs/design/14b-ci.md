@@ -34,26 +34,32 @@ cheapest place to catch things. There is no count here on purpose: the one that
 used to be here said 139, and the README's said 203, and neither had been true
 for a long time.
 
-**Dead code** (`npm run verify:live`). Eight kinds in the output, seven of them
+**Dead code** (`npm run verify:dead`). Eight kinds in the output, six of them
 ways of being unused:
 
 | kind | what it is |
 | --- | --- |
-| `export` | a key on a module's published object that nothing reads |
-| `helper` | a top-level function in a module that nothing in it calls |
-| `config` | a tunable that nothing tunes against |
-| `global` | a module published on `globalThis` that nothing names |
-| `css` | a class in a stylesheet that nothing wears |
-| `id` | an element id that nothing reaches |
-| `unstyled` | markup wearing a class no stylesheet defines |
+| `global` | a module on `globalThis` that no other file names |
+| `member` | a key on a module's object that no other file names |
+| `helper` | a top-level function its own module never calls |
+| `config` | a tunable nothing reads |
+| `style` | a selector or custom property nothing uses |
+| `page` | an element id nothing reaches for |
+| `missing` | an id a script reaches for and no page has |
 | `scope` | a name a module leaves in the page's own top level |
 
-The last two run the other way round. `unstyled` finds something reached and
-never written where everything above it finds something written and never
-reached, and it is here because it fails for the same reason: a name on one side
-of a line and not the other. `scope` is not deadness but collision — the app page
-is one script, so a module's top level is the page's, and the same name twice is
-either a silent overwrite or a parse error that shows as a blank screen.
+The last two run the other way round. `missing` finds something reached and never
+written where everything above it finds something written and never reached, and
+it is the worse failure: a silent null every time that line runs. `scope` is not
+deadness but collision — the app page is one script, so a module's top level is
+the page's, and the same name twice is either a silent overwrite, if they are
+functions, or a parse error, which on a page that is one script is a blank
+screen.
+
+There were briefly two tools asking this from opposite ends, one scanning the
+sources and one the build. They are one now, and it carries every check either
+had. A tool nobody runs is worse than none: the second one sat in `npm run check`
+and in no CI step at all, so nothing it found could fail a pull request.
 
 An uncalled function is not an error. It does not throw, it does not slow
 anything down, and it reads exactly like code that works, which is why it
@@ -67,9 +73,10 @@ changed nothing. What it would have done is forgive the first genuinely dead
 `.armed` rule for ever, which is the opposite of the job. Something reached in a
 way a textual scan cannot see goes back in with the evidence that it is real.
 
-The config-key check found `CONFIG.bubblePerChapter`: a tunable with a paragraph
-of reasoning above it, and a function beside it that returned two whatever the
-number said. That is now wired to the function it describes.
+Test-only members are the one thing reported without failing. A member the suite
+reaches for directly is often exactly right, and a check demanding those be
+deleted would be asking for a worse suite — but the other half of the time it is
+a hole poked in a module for one assertion the public path could have made.
 
 Everything here is string matching, with no parser, so it errs toward silence —
 a name built at runtime looks used. A detector that cries wolf gets switched off,
@@ -87,22 +94,6 @@ no longer committed: the deploy has always rebuilt from source, so the copy in
 git was never what shipped, `npm run serve` rebuilds before serving so it was not
 what anyone was looking at either, and nobody reads a generated bundle in review.
 What it did reliably do was conflict on every branch that touched a source file.
-
-**Dead code** (`npm run verify:dead`). Three surfaces: an export nothing reads,
-a name declared at the page's top level, a style rule no element carries. Same
-motivation as the budget above, from the other end. Everything is inlined, so an
-unused function is bytes in that download, and it is read by the next person as
-if it still meant something.
-
-The export surface is read by running the modules in a sandbox rather than by
-matching their text, because a check that cannot parse something reports nothing
-and a check that reports nothing looks exactly like a clean repo.
-
-The top-level rule is the sharper one. Both games are concatenated into a single
-`<script>`, so a module's top level is the page's: two of them declaring one name
-either overwrite in silence, if they are functions, or fail to parse at all, if
-they are `const`, and a page that is one script failing to parse is a blank
-screen.
 
 **Par reachability** (`npm run verify:pars`). Replays all 120 levels against the
 independent rules in `baseline.mjs` and fails if any cannot be finished in

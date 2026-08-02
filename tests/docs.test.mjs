@@ -91,7 +91,7 @@ describe('the documents', () => {
      updated. A detector whose description omits a check is one nobody thinks to
      plant a corpse for. */
   it('names every kind the dead code detector can report', () => {
-    const tool = read('tools/verify-live.mjs');
+    const tool = read('tools/dead-code.mjs');
     const kinds = [...new Set([...tool.matchAll(/\badd\('(\w+)'/g)].map(m => m[1]))];
     assert(kinds.length > 4, `only found ${kinds.length} kinds, so the scan is wrong`);
     const doc = read('docs/design/14b-ci.md');
@@ -100,7 +100,7 @@ describe('the documents', () => {
     for (const kind of kinds){
       assert(doc.includes(`\`${kind}\``), `14b-ci.md never mentions the ${kind} check`);
       assert(listed.some(l => l.startsWith(kind)),
-        `verify-live.mjs reports ${kind} and its own header does not list it`);
+        `dead-code.mjs reports ${kind} and its own header does not list it`);
     }
     equal(listed.length, kinds.length,
       'the header lists a different number of checks than the tool reports');

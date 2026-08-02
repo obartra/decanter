@@ -301,3 +301,35 @@ test('an empty purse refuses a bubble tool rather than giving it away', async ({
     'a refused purchase still capped the run').toBe(false);
   expect(await purse(page)).toBe(0);
 });
+
+test('paying past a board deals the game the next level actually is', async ({ page }) => {
+  /* Move on dealt the next level by calling the pour game's start() directly,
+     skipping the branch that asks which game a level number is. Twenty three of
+     the hundred and twenty levels are the other game, so paying past the board
+     before any of them dealt a shelf of bottles on a bubble level: a par to
+     score against, a pour count in the HUD, and a best filed through
+     progress.complete, which reads Levels.isBubble to decide which direction
+     better is and would have recorded a twelve pour clear as a twelve shot run.
+
+     The level is found rather than written down, so moving which boards are the
+     other game cannot turn this into a test of nothing. */
+  const seen = Object.fromEntries([...Array(12)].map((_, i) => [i, true]));
+  await start(page, { unlocked: 120, gold: 400, seen });
+  const { bubble } = await kinds(page);
+  const before = bubble.find(b => b > 1);
+
+  /* Move on is only offered when the next level is not already open — being
+     beaten by a board is not the same as being stuck on one — so the frontier
+     has to sit exactly here. */
+  await start(page, { unlocked: before - 1, gold: 400, seen });
+  await open(page, before - 1);
+  await page.evaluate(() => globalThis.App._end());
+  await page.waitForFunction(() => document.getElementById('veil').classList.contains('show'));
+  await page.locator('#skip').click();
+
+  await page.waitForFunction(l => globalThis.App._state.level === l, before);
+  expect(await page.evaluate(() => document.body.dataset.view),
+    'a bubble level must not be shown as a shelf of bottles').toBe('bubble');
+  expect(await page.evaluate(() => globalThis.BubbleApp._state.board !== null),
+    'and it must actually have been dealt a bubble board').toBe(true);
+});

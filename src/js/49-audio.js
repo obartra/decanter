@@ -45,6 +45,8 @@ globalThis.Sound = (() => {
     glug: quiet,
     cork: quiet,
     win: quiet,
+    /* Glass going over, for a bottle taken off the board. */
+    smash: quiet,
     /* A promise, because the caller waits on it before firing: the bang is
        asked for and then fired after the wait, so that the three explosions land
        on the recording rather than racing the fetch. Resolving immediately here

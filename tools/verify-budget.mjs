@@ -41,16 +41,20 @@ const dist = join(root, 'dist');
    The critical path is deliberately the tightest, at a few percent. It is what
    a first paint waits for, so being told about every addition is the behaviour
    wanted rather than a false alarm to be tuned away. Raising it should be a
-   decision someone makes, not a step they skip. */
+   decision someone makes, not a step they skip — and it has been raised once,
+   deliberately, for the blast: one tool that lands in both games and on the
+   end-of-run panel, so it arrives as rules, economy, a chapter, markup and the
+   prose explaining why a win condition can move at all. 255,000 puts the few
+   percent back on top of that. */
 const BUDGET = {
   shell: 12_000,
-  critical: 230_000,
+  critical: 255_000,
   /* Re-based when the third game landed, and worth saying why rather than
      leaving a number that looks like it drifted.
 
      This cap was originally about ten percent above the bubble game, which was
      the only one there was. Two more have arrived since and each is larger than
-     the last: bubble 89.6kb, the measure 97.9kb, the cellar door 103.3kb. The
+     the last: bubble 97.4kb, the measure 97.9kb, the cellar door 103.3kb. The
      measure fitting inside a cap set from bubble was luck, not headroom.
 
      None of that growth is code. These bundles are unminified source and the
@@ -58,7 +62,7 @@ const BUDGET = {
      style and is deliberate — so a per-game byte cap set from the smallest game
      is really a cap on how much a game is allowed to explain itself. That is not
      what this check is for. It exists to notice a game DOUBLING, and at 120,000
-     it still does for all three: the smallest of them doubled is 179.3kb, well
+     it still does for all three: the smallest of them doubled is 194.8kb, well
      past it. The shell and critical-path budgets above are the ones that
      actually protect a page load. */
   game: 120_000,

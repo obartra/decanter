@@ -11,7 +11,8 @@ const Panel = (() => {
   function decide(input){
     const {
       level, lastLevel, failed, stars, nextUnlocked,
-      canPayFee, canPayNext, canPaySkip,
+      canPayFee, canPayNext, canPaySkip, canPayBlast,
+    blastGranted, blastUsed, blastTargets,
       improvedStars, hadStars, par, parExact, moves, best, totalStars,
       reason
     } = input;
@@ -39,7 +40,27 @@ const Panel = (() => {
        button was never disabled after a win however empty the purse, and pressing
        it fell through to the guard in the click handler, which refused silently.
        Nothing was stolen and nothing was dealt; the button simply lied. */
-    const nextHidden = atEnd || (failed && !nextUnlocked);
+    /* The blast, and the four things that all have to be true before it is even
+     drawn. It rescues a run, so it is only ever on a failed one; it is once a
+     run; it arrives in a chapter like every other tool; and it is offered only
+     when some bottle on the shelf would bring the board back alive.
+
+     That last one is the whole point of deciding it here. The three endings are
+     not equally rescuable — a blast always lowers the work left so it answers
+     `short`, it sometimes opens a move so it sometimes answers `stuck`, and it
+     can do nothing whatever about `over`, where the pours are simply spent. The
+     caller works out which bottles qualify by applying the blast to a copy and
+     asking the same function that ended the run; what arrives here is how many
+     of them there were. Offering a rescue that cannot rescue anything is worse
+     than not offering one.
+
+     A count and not a list, because nothing here needs to know which bottles
+     they were, and a decision function that took the shelf would be one that had
+     to understand pouring. */
+  const blastHidden = !failed || !blastGranted || !!blastUsed || !(blastTargets > 0);
+  const blastDisabled = !canPayBlast;
+
+  const nextHidden = atEnd || (failed && !nextUnlocked);
     const cannotGoOn = (!nextHidden && !canPayNext) || (stuck && !canPaySkip);
 
     /* Last writer wins, so the order is the priority order. Being told the game is
@@ -52,7 +73,11 @@ const Panel = (() => {
         ? 'The last one. Another go?'
         : `That is the last of them. ${totalStars} stars from ${lastLevel} levels.`;
     }
-    if (!canPayFee || cannotGoOn) hint = 'Not enough gold. The daily draught is on the map.';
+    /* Said only when the offer is real and payable, and before the empty purse
+     line so an empty purse still outranks it: somebody who cannot afford another
+     go does not need to hear about a dearer way out first. */
+  if (!blastHidden && canPayBlast) hint = 'A blast would leave this board winnable.';
+  if (!canPayFee || cannotGoOn) hint = 'Not enough gold. The daily draught is on the map.';
 
     /* Matching the minimum is the whole point of the scoring, so say that and stop.
        Quoting the count twice ("sorted in 12 pours, the minimum is 12") makes the
@@ -79,6 +104,8 @@ const Panel = (() => {
       nextDisabled: !canPayNext,
       skipHidden: !stuck,
       skipDisabled: !canPaySkip,
+    blastHidden,
+    blastDisabled,
       hint
     };
   }

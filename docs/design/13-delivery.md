@@ -28,8 +28,8 @@ of the bundles.
 
 | | | |
 | --- | --- | --- |
-| `index.html` | ~8kb | the shell. Revalidated every navigation |
-| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~210kb | the pour game. Cached forever |
+| `index.html` | ~9kb | the shell. Revalidated every navigation |
+| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~230kb | the pour game. Cached forever |
 | `assets/audio-<hash>.js` | ~10kb | the sound, fetched after the page opens |
 | `assets/solver-<hash>.js` | ~6kb | the A\* worker, fetched on the first solve |
 | `./audio/boom.mp3` | 17kb | the one recording, copied from `assets/audio/`, fetched the first time it is needed |

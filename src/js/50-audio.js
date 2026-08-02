@@ -168,6 +168,16 @@ const Sound = (() => {
        noise with no body. The body is a sine falling off the bottom of hearing,
        which is what makes it felt rather than heard. The tail is low noise
        decaying slowly underneath, the debris still coming down. */
+    /* Glass giving way, for the blast. Deliberately not boom(): that one forces
+       itself past the mute setting because somebody who typed a secret word
+       into a URL has asked for it, and nobody buying a tool mid-run has. Short
+       and dry, so it reads as one bottle going rather than as the celebration
+       below. The crack is on top, the body is what is left of the liquid. */
+    smash(){
+      burst({ freq:5200, q:0.6, dur:0.06, gain:0.3 });
+      burst({ freq:1800, q:0.4, dur:0.22, gain:0.16, delay:0.01 });
+      tone({ f:190, f2:60, type:'triangle', dur:0.26, gain:0.2, delay:0.01 });
+    },
     boom(delay = 0){
       if (boomBuf){ shot(boomBuf, 0.8, delay); return; }
       burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay, force:true });

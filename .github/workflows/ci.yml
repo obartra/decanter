@@ -50,15 +50,13 @@ jobs:
       # Nothing is tree shaken, because there is no bundler: a member left on a
       # public object or a class left in a stylesheet ships to the player whether
       # or not anything reaches it. Neither the linter nor the tests can see it.
-      - name: nothing in the build is unreachable
-        run: npm run verify:dead
-
-      # The same question from the source end: an export nothing reads, a helper
-      # nothing calls, a tunable nothing tunes, a rule nothing wears, an id
-      # nothing reaches, plus the rule that keeps the games out of each other's
-      # scope. None of it throws, so none of it is visible any other way.
+      #
+      # One step, not two. There were briefly two tools asking this from opposite
+      # ends, as the comment here used to say; they are one now and it carries
+      # every check either had, including the one that keeps the two games out of
+      # each other's scope.
       - name: nothing dead, nothing sharing a scope
-        run: npm run verify:live
+        run: npm run verify:dead
 
       - name: Unit tests
         run: npm test

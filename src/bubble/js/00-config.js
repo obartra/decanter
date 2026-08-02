@@ -142,9 +142,24 @@ const BubbleConfig = {
 
      So: undo, hint and swap leave the run gradeable, because none of them
      changes what the board deals. Picking a colour outright does change it, and
-     a run that used one is capped exactly the way a bought vessel is. */
+     a run that used one is capped exactly the way a bought vessel is.
+
+     The blast is the second of the second kind. It clears everything within one
+     cell of where it lands, which is six bubbles before anything falls and
+     nearer twenty after, so it plainly makes the board easier than the shot
+     counts it is graded against — and being graded against measured percentiles
+     is exactly why that has to be said. The cap is what lets those thresholds
+     stand: tools/bubble-survival.mjs measures play with none of this, and an
+     aided run never reaches the third star to be compared against it. So no
+     re-measurement is owed for adding this, which is the whole reason the flag
+     was worth having. */
   AID_CAP: 2,
   UNDO_DEPTH: 24,
+
+  /* What is loaded when a blast has been bought. Not a colour and never on the
+     board, so it must not collide with BubbleGrid.EMPTY, which is -1: a sentinel
+     that compared equal to an empty cell would have the shooter dealing holes. */
+  BOMB: -2,
 
   /* How a cleared group leaves. Nothing is deleted in place: the group is
      knocked off the board and falls, so what a shot was worth is something the
