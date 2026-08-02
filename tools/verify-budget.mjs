@@ -45,10 +45,22 @@ const dist = join(root, 'dist');
    deliberately, for the blast: one tool that lands in both games and on the
    end-of-run panel, so it arrives as rules, economy, a chapter, markup and the
    prose explaining why a win condition can move at all. 255,000 puts the few
-   percent back on top of that. */
+   percent back on top of that.
+
+   Raised a second time, on the same terms, for the card shown before a replay:
+   two modules, two stylesheets and the markup for a panel, about 22kb of source
+   of which the prose is most. Trimming that to fit would be the per-game cap's
+   mistake made here instead, capping how much a screen may explain itself.
+
+   What it does not deserve is a place on the first paint. Nothing on that card
+   is reachable until somebody taps a medallion, so every byte of it is loaded by
+   every player to be used by the ones who go back to a cleared level. The build
+   can already defer a bundle, but only a whole game, so splitting the app's own
+   script is a change of shape rather than a number, and it is the thing to do
+   before this cap is raised a third time. */
 const BUDGET = {
   shell: 12_000,
-  critical: 255_000,
+  critical: 277_000,
   /* Re-based when the third game landed, and worth saying why rather than
      leaving a number that looks like it drifted.
 

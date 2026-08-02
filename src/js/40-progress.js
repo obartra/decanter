@@ -74,6 +74,29 @@ const Progress = (() => {
      digit the header has no room for. */
   const capped = n => Math.min(n, CONFIG.economy.purseCap);
 
+  /* What a run of a given rating would pay on a save in this state.
+
+     A level pays for the rating it is worth rather than for each time it is
+     cleared, so what another go is worth depends entirely on what the level
+     already has: the difference between the two ratings, plus the one-time
+     first-clear bonus if that has never been paid. Five perfect replays pay
+     5 x 6, not 5 x 14, and a perfect replay of an already perfect board pays
+     nothing at all.
+
+     Written down once and read twice. `complete` pays this out after a run, and
+     the card shown before a replay quotes it before one. A card promising six
+     gold for a board that then hands over three is worse than a card with no
+     number on it, and two copies of "the difference between what you had and
+     what you got" is exactly how that happens. */
+  const worth = n => CONFIG.economy.starGold[n] || 0;
+  function payoutFor(state, level, stars){
+    if (!(stars > 0)) return { firstClear: false, starGold: 0, bonus: 0, earned: 0 };
+    const firstClear = !state.claimed[level];
+    const starGold = Math.max(0, worth(stars) - worth(state.stars[level] || 0));
+    const bonus = firstClear ? CONFIG.economy.firstClear : 0;
+    return { firstClear, starGold, bonus, earned: starGold + bonus };
+  }
+
   function createProgress(storage){
     const store = storage || safeStorage();
     let state = blank();
@@ -230,6 +253,9 @@ const Progress = (() => {
                    firstClear: false, starGold: 0, bonus: 0, earned: 0 };
         }
         const prevStars = state.stars[level] || 0;
+        /* Worked out before anything is written down, because it is decided by
+           what the level had rather than by what it is about to have. */
+        const pay = payoutFor(state, level, stars);
         if (stars > prevStars) state.stars[level] = stars;
 
         /* Best is the fewest pours here and the *most* shots on a bubble level,
@@ -246,29 +272,24 @@ const Progress = (() => {
         if (beatIt) state.best[level] = moves;
         if (level >= state.unlocked) state.unlocked = Math.min(level + 1, lastLevel());
 
-        /* A level pays for the rating it is worth, not for each time it is
-           cleared. Clearing at two stars and coming back for the third pays the
-           difference, so the level pays the same in total either way and going
-           back for it cannot be turned into an income. Without this, free replays
-           would be a tap that prints gold. */
-        const worth = n => CONFIG.economy.starGold[n] || 0;
-        const firstClear = !state.claimed[level];
-        const starGold = Math.max(0, worth(stars) - worth(prevStars));
-        const bonus = firstClear ? CONFIG.economy.firstClear : 0;
         state.claimed[level] = true;
-        state.gold = capped(state.gold + starGold + bonus);
+        state.gold = capped(state.gold + pay.earned);
 
         save();
         return {
           failed: false,
           improvedStars: stars > prevStars,
           improvedBest: beatIt,
-          firstClear,
-          starGold,
-          bonus,
-          earned: starGold + bonus
+          firstClear: pay.firstClear,
+          starGold: pay.starGold,
+          bonus: pay.bonus,
+          earned: pay.earned
         };
       },
+      /* What another go at this level would pay if it went that well. Asked by
+         the card shown before a replay and answered by the same arithmetic that
+         pays out after one, so the offer and the payment cannot disagree. */
+      wouldEarn: (level, stars) => payoutFor(state, level, stars),
       reset(){ state = blank(); save(); }
     };
   }

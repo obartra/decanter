@@ -75,11 +75,14 @@ body[data-view="game"] #gameView{display:flex}
 /* The opening of a chapter, shown once. It is the only place the game explains
    itself, so it gets room rather than a toast that slides away mid sentence. */
 .chapterCard{max-width:340px}
-.chapterCard .kicker{
+/* On every panel rather than on the chapter card alone: the card shown before a
+   replay names its chapter in the same slot, and a second copy of the same six
+   declarations is how the two drift apart. */
+.panel .kicker{
   margin:0 0 4px; font-size:9px; letter-spacing:.22em; text-transform:uppercase;
   color:var(--ink-dim);
 }
-.chapterCard .kicker b{color:var(--gold-lit); font-weight:600}
+.panel .kicker b{color:var(--gold-lit); font-weight:600}
 .chapterBlurb{margin:10px 0 0; font-size:13px; line-height:1.55; color:var(--ink)}
 .chapterGrant{
   margin:14px 0 0; padding:9px 12px; border-radius:10px;
@@ -87,142 +90,6 @@ body[data-view="game"] #gameView{display:flex}
   font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-lit);
 }
 #chapterGo{margin-top:16px}
-
-/* --- Jabari mode ---
-   An Easter egg for one player, and the one thing in this build that is not
-   trying to be tasteful. Everything else here is dark glass and restraint; this
-   is a rainbow with an outline round it, shaking. That is deliberate, so none of
-   it should be borrowed for anything the rest of the game does.
-
-   It takes no pointers at all. A full screen thing that lands unannounced must
-   not be able to eat the tap that was on its way to something else. */
-.jabari{position:fixed; inset:0; z-index:96; display:grid; place-items:center; pointer-events:none}
-.jabariFlash{position:absolute; inset:0; background:#FFF6E2; opacity:0}
-.jabari.go .jabariFlash{animation:jabariStrobe 3s ease-out}
-/* shockwaves, three of them, thrown one after another */
-.jabariRing{
-  position:absolute; width:38vmax; height:38vmax; border-radius:50%;
-  border:2px solid #FFE04A; opacity:0;
-}
-.jabariRing.two{border-color:#FF3DDA}
-.jabariRing.three{border-color:#3DF2FF}
-.jabari.go .jabariRing{animation:jabariRing 1s cubic-bezier(.1,.8,.3,1)}
-.jabari.go .jabariRing.two{animation-delay:.16s}
-.jabari.go .jabariRing.three{animation-delay:.34s}
-
-/* the whole block is shaken, rather than the flash behind it, which would pull
-   the wash off the edges of the screen every frame */
-.jabariShake{position:relative; display:grid; place-items:center; gap:2vh; max-width:100%}
-.jabari.go .jabariShake{animation:jabariShake .09s linear infinite}
-
-.jabariWord{
-  position:relative; margin:0; text-align:center;
-  /* not the game's serif. This one is shouting. */
-  font-family:"Arial Black","Helvetica Neue",Impact,system-ui,sans-serif;
-  font-weight:900; line-height:.86; letter-spacing:-.02em; text-transform:uppercase;
-  /* "Jabari" is the long line, and it has to fit the narrowest screen in the
-     layout suite. Clipped letters read as broken rather than as loud. */
-  font-size:clamp(34px, 15vw, 150px);
-  padding:0 12px; max-width:100%;
-  opacity:0;
-}
-/* The gradient is clipped to the glyphs on an inner span, and the wobble lives
-   there too, so the outer element is left with nothing but the scale.
-
-   Nothing here uses `filter`. A filter puts the element on its own rasterised
-   surface, and this one is scaled from a fifth of its size to twice it:
-   Chromium rasterises that surface once, at the scale it starts at, and
-   stretches the result for the rest of the animation. The word arrived as a
-   smear that got worse as it grew. Text shadow and text stroke are painted with
-   the text, every frame, at the size the frame is actually drawn at.
-
-   No stroke and no shadow on this one, though the number below has both. Both
-   are painted at text time and the clipped gradient is painted at background
-   time, which is behind them: on a face this heavy they buried the rainbow and
-   left dark letters with a coloured rim. A solid colour takes an outline
-   happily, which is why the number keeps one. */
-.jabariWord span{
-  display:inline-block; color:#FFE04A;
-  background:linear-gradient(175deg,#FF3DDA,#FF2D2D 22%,#FFE04A 46%,#5BFF5F 70%,#3DF2FF);
-  -webkit-background-clip:text; background-clip:text;
-}
-@supports ((-webkit-background-clip:text) or (background-clip:text)){
-  .jabariWord span{color:transparent}
-}
-.jabari.go .jabariWord{animation:jabariWord 3s cubic-bezier(.16,1.15,.3,1) forwards}
-.jabari.go .jabariWord span{animation:jabariWobble .16s ease-in-out infinite alternate}
-
-/* the number, which is the joke */
-.jabariGold{
-  margin:0; font-family:"Arial Black","Helvetica Neue",Impact,system-ui,sans-serif;
-  font-weight:900; font-size:clamp(20px, 7.4vw, 64px); letter-spacing:-.01em;
-  color:#5BFF5F; -webkit-text-stroke:.05em #16090B; paint-order:stroke fill;
-  text-shadow:0 .06em 0 #16090B, 0 0 .5em rgba(91,255,95,.6);
-  opacity:0; white-space:nowrap;
-}
-.jabari.go .jabariGold{animation:jabariGold 3s cubic-bezier(.16,1.3,.3,1) .18s forwards}
-
-@keyframes jabariStrobe{
-  0%{background:#FFFFFF; opacity:.95}
-  9%{background:#FF3DDA; opacity:.5}
-  18%{background:#3DF2FF; opacity:.44}
-  27%{background:#FFE04A; opacity:.4}
-  36%{background:#5BFF5F; opacity:.34}
-  50%{background:#FF3DDA; opacity:.22}
-  70%{opacity:.12}
-  100%{opacity:0}
-}
-@keyframes jabariRing{
-  0%{transform:scale(.05); opacity:1; border-width:30px}
-  100%{transform:scale(2.8); opacity:0; border-width:1px}
-}
-@keyframes jabariShake{
-  0%{transform:translate(-3px,2px) rotate(-.6deg)}
-  25%{transform:translate(3px,-2px) rotate(.7deg)}
-  50%{transform:translate(-2px,-3px) rotate(-.4deg)}
-  75%{transform:translate(2px,3px) rotate(.5deg)}
-  100%{transform:translate(-3px,1px) rotate(-.7deg)}
-}
-@keyframes jabariWobble{
-  0%{transform:rotate(-3.5deg) scale(.98)}
-  100%{transform:rotate(3.5deg) scale(1.02)}
-}
-@keyframes jabariWord{
-  0%{transform:scale(.2) rotate(-20deg); opacity:0}
-  7%{transform:scale(1.4) rotate(9deg); opacity:1}
-  12%{transform:scale(1) rotate(-7deg)}
-  17%{transform:scale(1.22) rotate(6deg)}
-  23%{transform:scale(1.02) rotate(-4deg)}
-  29%{transform:scale(1.12) rotate(3deg)}
-  36%,78%{transform:scale(1.06) rotate(0deg); opacity:1}
-  100%{transform:scale(2) rotate(14deg); opacity:0}
-}
-@keyframes jabariGold{
-  0%{transform:scale(0) rotate(12deg); opacity:0}
-  10%{transform:scale(1.5) rotate(-8deg); opacity:1}
-  16%{transform:scale(.95) rotate(5deg)}
-  24%,78%{transform:scale(1.08) rotate(-2deg); opacity:1}
-  100%{transform:scale(1.7) rotate(9deg); opacity:0}
-}
-/* The global reduce rule collapses every animation to nothing, which for these
-   would mean landing on their own final frame: gone before they were read. So
-   they are simply shown, and the timer that clears them still does. The strobe
-   goes entirely — a screen flashing five colours a second is the one thing here
-   that can actually hurt somebody, and "reduce" is exactly who is asking. */
-@media (prefers-reduced-motion:reduce){
-  .jabari.go .jabariWord, .jabari.go .jabariGold{animation:none; opacity:1; transform:none}
-  .jabari.go .jabariWord span, .jabari.go .jabariShake{animation:none; transform:none}
-  .jabari .jabariFlash, .jabari .jabariRing{display:none}
-}
-
-/* Gold arriving from outside the game. It is the one number on the screen that
-   changed without the player having done anything to earn it, so it says so. */
-.purse.granted{animation:granted 1.4s cubic-bezier(.2,1.2,.4,1)}
-@keyframes granted{
-  0%{transform:scale(1)}
-  18%{transform:scale(1.35); filter:brightness(1.9) drop-shadow(0 0 14px rgba(238,197,120,.9))}
-  100%{transform:scale(1); filter:none}
-}
 
 /* The diagnostics report. Wider than the other panels and monospaced, because
    this one is meant to be read out and copied rather than glanced at, and it is
@@ -295,22 +162,14 @@ body[data-view="game"] #gameView{display:flex}
    the blast's own toggle would have changed its word and nothing else. */
 .btn.armed{border-color:var(--gold-lit); color:var(--gold-lit)}
 
-/* Choosing which bottle to destroy. Each swatch is the bottle, drawn as the
-   colours it holds stacked bottom to top, so the choice is made by looking at
-   liquid rather than at a number naming a shelf position.
+/* Choosing which bottle to destroy is drawn in 05-still.css, because the card
+   shown before a replay draws a board small too and there is no reason for the
+   two to disagree about what a bottle looks like.
 
    It lives on the panel rather than on the board behind it. Tapping the real
    bottle would read better, but the board is under a veil at this point and
    every route to arming it either strands the player on a board with no way
    back or collides with the pour selection that already owns a tap. */
-.panelPick{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px}
-.panelPick button{
-  width:26px; height:44px; padding:0; border:1px solid rgba(239,228,210,.28);
-  border-radius:3px 3px 5px 5px; background:rgba(12,16,32,.6);
-  display:flex; flex-direction:column-reverse; overflow:hidden; cursor:pointer;
-}
-.panelPick button:hover,.panelPick button:focus-visible{border-color:var(--gold-lit)}
-.panelPick i{display:block; flex:1 1 0}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important; transition-duration:.08s !important}}
 
 /* --- a run that failed ---

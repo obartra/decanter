@@ -118,6 +118,9 @@ const Diagnostics = (() => {
     /* the app hands over a way to read itself, rather than this reaching into it */
     set source(fn){ readState = fn; },
     open,
+    /* Escape is decided in one place for every panel in the game, and this is
+       one of them, so the way to put it away has to be reachable from there. */
+    close,
     mount(){
       const cancel = () => { clearTimeout(hold); hold = null; };
       document.querySelectorAll('.purse').forEach(p => {

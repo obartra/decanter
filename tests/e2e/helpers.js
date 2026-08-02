@@ -56,12 +56,38 @@ export async function start(page, save = {}) {
    Reaching a chapter for the first time puts its opening over the board, so this
    reads it and moves on the way a player would. A spec that is about the opening
    itself passes `seen` in its save and never gets here. */
-export async function openLevel(page, level) {
+/* Open a level from the map, whichever game it turns out to be. Some levels are
+   the bubble game and have no shelf to wait for, so this waits only for the
+   level to be dealt; `openLevel` is this plus the wait for bottles.
+
+   Both of the two things that can land between the tap and the board are dealt
+   with here: the card a cleared level answers with, and a chapter's opening. A
+   spec that had its own copy of this had neither, and would have hung the first
+   time it opened a level it had already cleared. */
+export async function open(page, level) {
   await page.locator(`[data-level="${level}"]`).click();
-  await page.waitForFunction(l => globalThis.App._state.level === l
-    && globalThis.App._state.tubes.length > 0, level);
+  await playFromPreview(page);
+  await page.waitForFunction(l => globalThis.App._state.level === l, level);
   await dismissChapter(page);
+}
+
+export async function openLevel(page, level) {
+  await open(page, level);
+  await page.waitForFunction(() => globalThis.App._state.tubes.length > 0);
   await page.waitForFunction(() => document.querySelectorAll('#board .bottle').length > 0);
+}
+
+/* A level already cleared answers the tap with a card rather than a board: what
+   it was, how it went, and what going back would pay. A spec about the level
+   itself reads it and plays, the way a player would. A spec about the card
+   itself never comes through here. */
+export async function playFromPreview(page) {
+  const card = page.locator('#previewVeil');
+  if (await card.evaluate(el => el.classList.contains('show')).catch(() => false)) {
+    await page.locator('#previewPlay').click();
+    await page.waitForFunction(() =>
+      !document.getElementById('previewVeil').classList.contains('show'));
+  }
 }
 
 export async function dismissChapter(page) {

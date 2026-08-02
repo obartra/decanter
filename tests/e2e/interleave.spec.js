@@ -10,7 +10,7 @@
    Every level number here is asked for rather than written down, so moving which
    boards are bubble cannot quietly turn these into tests of the pour game. */
 import { test, expect } from '@playwright/test';
-import { start, dismissChapter } from './helpers.js';
+import { start, open } from './helpers.js';
 
 const kinds = page => page.evaluate(() => {
   const all = [...Array(120)].map((_, i) => i + 1);
@@ -22,12 +22,6 @@ const kinds = page => page.evaluate(() => {
 
 /* opens a level from the map without waiting for bottles, since a bubble board
    has none */
-async function open(page, level){
-  await page.locator(`[data-level="${level}"]`).click();
-  await page.waitForFunction(l => globalThis.App._state.level === l, level);
-  await dismissChapter(page);
-}
-
 const purse = page => page.evaluate(() => globalThis.App._progress.gold);
 
 test('a bubble level deals a bubble board, not a shelf', async ({ page }) => {

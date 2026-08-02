@@ -1,0 +1,59 @@
+/* A board drawn small enough to look at rather than play.
+
+   Two screens want one: the card shown before a replay, and the shelf the blast
+   offers when a run has been lost. They used to draw it twice, in two files,
+   and the two disagreed about what a half empty bottle looks like. The markup
+   comes from 78-still.js; how wide a bottle is belongs to whatever is holding
+   it, so nothing here sets a width. */
+.stillBottle{
+  overflow:hidden; border-radius:34% 34% 20% 20%;
+  display:flex; flex-direction:column-reverse;
+  background:linear-gradient(180deg, rgba(58,46,30,.40), rgba(20,15,9,.58));
+  box-shadow:inset 0 0 0 1px var(--glass-line);
+}
+/* Bottom of the stack first, and the column reverses above, so what is drawn is
+   the bottle the right way up. */
+.stillBottle i{display:block; width:100%; flex:0 0 auto}
+/* A bottle that is already done keeps the finished glass's light, so a board
+   dealt part-solved is legible at this size rather than looking like a mistake. */
+.stillBottle.done{box-shadow:inset 0 0 0 1px rgba(252,238,208,.75), 0 0 10px rgba(232,190,110,.3)}
+
+/* --- the whole shelf, on the card --- */
+.still{
+  display:grid; grid-template-columns:repeat(var(--stillCols,6), 1fr);
+  justify-items:center; align-items:end; gap:9px 5px;
+}
+.still .stillBottle{width:100%; max-width:21px; aspect-ratio:1 / 3.1}
+
+/* The other game's board. Rows of circles sit closer together than they are
+   wide, sqrt(3)/2 apart for the same reason the real lattice is, and every
+   other row is indented by half a bubble, so the honeycomb reads at this size
+   even though nothing here is to scale. */
+.still.bubbles{
+  --stillDot:17px;
+  display:flex; flex-direction:column; align-items:flex-start; gap:0;
+  width:max-content; margin:0 auto;
+}
+.stillRow{display:flex}
+.stillRow + .stillRow{margin-top:calc(var(--stillDot) * -0.134)}
+.stillRow.odd{margin-left:calc(var(--stillDot) / 2)}
+.stillDot{
+  display:block; width:var(--stillDot); height:var(--stillDot); border-radius:50%;
+  box-shadow:inset 0 -2px 3px rgba(0,0,0,.32), inset 0 2px 2px rgba(255,255,255,.28);
+}
+/* an empty cell holds its place and paints nothing: the gaps in a board are
+   part of what it looks like */
+.stillDot:not([style]){box-shadow:none}
+
+/* --- the shelf the blast offers ---
+   Bottles that can be pressed, so they are a little larger than the card's and
+   say so when the pointer is on them. Everything about how a bottle looks is
+   above; this decides only how big and that it is a target. */
+.panelPick{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px}
+.panelPick .stillBottle{
+  width:26px; height:44px; padding:0; cursor:pointer;
+  border:0; background:linear-gradient(180deg, rgba(58,46,30,.40), rgba(20,15,9,.58));
+}
+.panelPick .stillBottle:hover,.panelPick .stillBottle:focus-visible{
+  box-shadow:inset 0 0 0 1px var(--gold-lit), 0 0 14px rgba(232,190,110,.35);
+}

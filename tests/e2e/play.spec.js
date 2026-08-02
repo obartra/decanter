@@ -144,3 +144,40 @@ test('a par that lands after its pours are spent ends the run', async ({ page })
   expect(await page.evaluate(() => globalThis.App._state.reason)).toBe('over');
   await expect(page.locator('#winTitle')).toHaveText('Failed');
 });
+
+/* Escape meant one thing, "leave the level", and it meant it whatever was on
+   the screen. A panel is not part of the level though, so pressing it over the
+   end-of-run panel moved the game to the map and left the panel sitting on top,
+   fully live, offering Try again and Next level for a run already banked and a
+   board that was no longer there. */
+test('escape puts away the panel in front of you, not the level behind it', async ({ page }) => {
+  await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
+  await openLevel(page, 4);
+  await page.evaluate(() => {
+    globalThis.App._state.moves = 999;
+    globalThis.App._end();
+  });
+  await expect(page.locator('#veil')).toHaveClass(/show/);
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#veil'), 'the panel stayed up over the map').not.toHaveClass(/show/);
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'map');
+
+  /* and pressing it again on the map does nothing at all */
+  await page.keyboard.press('Escape');
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'map');
+});
+
+test('escape reads a chapter opening rather than stepping round it', async ({ page }) => {
+  /* The opening covers the board and is shown once ever. Escaping past it used
+     to leave it on the map and count it as read, so the one chance to see it
+     went to a screen it was not describing. */
+  await start(page, { unlocked: 11, gold: 400, seen: { 0: true } });
+  await page.locator('[data-level="11"]').click();
+  await expect(page.locator('#chapterVeil')).toHaveClass(/show/);
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#chapterVeil')).not.toHaveClass(/show/);
+  await expect(page.locator('body'), 'the level itself was thrown away with the card')
+    .toHaveAttribute('data-view', 'game');
+});

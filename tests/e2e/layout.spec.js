@@ -58,6 +58,40 @@ for (const { w, h, note } of SIZES) {
     expect(inGame.over, 'the document scrolls sideways in a level').toBeLessThanOrEqual(0);
     expect(inGame.down, 'the document scrolls down in a level').toBeLessThanOrEqual(0);
   });
+
+  test(`the card before a replay fits at ${w}x${h}, ${note}`, async ({ page }) => {
+    /* The card carries a picture of a board, and a board is the tallest thing in
+       this game. On a phone lying on its side there is barely more height than
+       the card wants, and a card whose Play button is under the fold is a level
+       that cannot be replayed at all, with nothing on screen saying why, since
+       nothing here scrolls. So the picture gives up size and the card fits. */
+    await start(page, { unlocked: 20, gold: 900, seen: { 0: true, 1: true },
+                        stars: { 16: 3 }, best: { 16: 40 }, claimed: { 16: true } });
+    await page.setViewportSize({ width: w, height: h });
+    await page.locator('[data-level="16"]').click();
+
+    const fit = await page.evaluate(() => {
+      const card = document.querySelector('.previewCard').getBoundingClientRect();
+      const play = document.getElementById('previewPlay').getBoundingClientRect();
+      const back = document.getElementById('previewBack').getBoundingClientRect();
+      const de = document.documentElement;
+      return {
+        above: card.top, below: innerHeight - card.bottom,
+        left: card.left, right: innerWidth - card.right,
+        play: innerHeight - play.bottom, back: innerHeight - back.bottom,
+        scrollsDown: de.scrollHeight - de.clientHeight,
+        scrollsOver: de.scrollWidth - de.clientWidth
+      };
+    });
+    expect(fit.above, 'the card runs off the top').toBeGreaterThanOrEqual(0);
+    expect(fit.below, 'the card runs off the bottom').toBeGreaterThanOrEqual(0);
+    expect(fit.left, 'the card runs off the left').toBeGreaterThanOrEqual(0);
+    expect(fit.right, 'the card runs off the right').toBeGreaterThanOrEqual(0);
+    expect(fit.play, 'the way into the level is off the bottom of the screen').toBeGreaterThanOrEqual(0);
+    expect(fit.back, 'the way out is off the bottom of the screen').toBeGreaterThanOrEqual(0);
+    expect(fit.scrollsDown, 'the card makes the document scroll').toBeLessThanOrEqual(0);
+    expect(fit.scrollsOver, 'the card makes the document scroll sideways').toBeLessThanOrEqual(0);
+  });
 }
 
 test('the liquid follows the board across a resize', async ({ page }) => {

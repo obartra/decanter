@@ -9,7 +9,7 @@ export const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const read = p => readFileSync(join(root, p), 'utf8');
 
 /* every module that touches neither document nor window */
-const PURE = ['00-config.js', '05-trace.js', '10-rng.js', '20-rules.js', '30-levels.js', '32-order.js', '35-pars.js', '36-chapters.js', '40-progress.js', '45-panel.js'];
+const PURE = ['00-config.js', '05-trace.js', '10-rng.js', '20-rules.js', '30-levels.js', '32-order.js', '35-pars.js', '36-chapters.js', '40-progress.js', '45-panel.js', '46-preview.js'];
 
 export function loadPure(extra = []){
   return loadFrom('src/js', PURE.concat(extra));

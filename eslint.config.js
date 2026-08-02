@@ -45,8 +45,8 @@ const published = {
   CONFIG: 'writable', Trace: 'writable', RNG: 'writable', Rules: 'writable', Levels: 'writable',
   Diagnostics: 'writable',
   ORDER: 'writable', PARS: 'writable', Chapters: 'writable', LAST_LEVEL: 'writable', Progress: 'writable',
-  Panel: 'writable', Sound: 'writable', MapGeom: 'writable', MapView: 'writable',
-  Backdrop: 'writable', Board: 'writable', Fluid: 'writable', Confetti: 'writable',
+  Panel: 'writable', Preview: 'writable', Sound: 'writable', MapGeom: 'writable', MapView: 'writable',
+  Backdrop: 'writable', Board: 'writable', Fluid: 'writable', Confetti: 'writable', Still: 'writable',
   SolverClient: 'writable', Jabari: 'writable', App: 'writable', Deferred: 'writable'
 };
 

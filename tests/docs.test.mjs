@@ -16,9 +16,24 @@ import { join, dirname, normalize } from 'node:path';
 const docs = ['README.md', 'docs/DESIGN.md',
   ...readdirSync(join(root, 'docs/design')).sort().map(f => `docs/design/${f}`)];
 
+/* A document with its fenced blocks taken out.
+
+   Inline code is found by pairing backticks left to right, and a fence is three
+   of them: an odd number, twice, which puts every pair after it out of phase for
+   the rest of the file. The README opens with two shell blocks, so from line
+   eleven onward its `path/like/this` spans were being read as the gaps between
+   spans and never checked at all. A stale row naming a tool deleted three
+   commits earlier sat in that table, in the one file whose whole job is to say
+   what is where, with a green tick over it.
+
+   That is the failure mode this suite exists to prevent: not a check that fails,
+   a check that quietly stops looking. Taking the fences out first also stops a
+   command inside one being mistaken for a link. */
+const body = doc => read(doc).replace(/^```[\s\S]*?^```/gm, '');
+
 /* Markdown inline links, minus the ones that point off this machine. A bare
    `#anchor` is a jump inside the same page and has no file to find. */
-const linksIn = doc => [...read(doc).matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)]
+const linksIn = doc => [...body(doc).matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)]
   .map(m => m[1])
   .filter(href => !/^(https?:|mailto:|#)/.test(href));
 
@@ -65,6 +80,20 @@ describe('the documents', () => {
         `${name} is a check nothing in CI runs, so it cannot fail a pull request`);
   });
 
+  it('reads the whole document, not just the part before the first fence', () => {
+    /* The guard on the guard. `names no path` was passing on a README whose
+       table named a tool deleted three commits earlier, because the two shell
+       blocks at the top of it put every backtick pair after them out of phase,
+       and the table was being read as the gaps between spans rather than as the
+       spans. A check that quietly stops looking reports a clean repository for
+       ever, which is worse than not having one at all. */
+    const spans = doc => [...body(doc).matchAll(/`([^`]+)`/g)].map(m => m[1]);
+    assert(spans('README.md').includes('tools/dead-code.mjs'),
+      'the path table below the README shell blocks is not being read at all');
+    assert(!body('README.md').includes('gh pr create'),
+      'fenced commands are still in the text these checks scan');
+  });
+
   it('names no path that is not on disk', () => {
     /* Every `backtick/path/` in a table cell across the docs. Only the ones that
        look like repo paths: a trailing slash, or a known source extension. That
@@ -77,7 +106,7 @@ describe('the documents', () => {
     const looksLikePath = s => /^\w[\w.-]*\/[\w./-]*$/.test(s) &&
       (s.endsWith('/') || /\.(m?js|css|html|json|md|py|woff2|mp3|webmanifest)$/.test(s));
     for (const doc of docs){
-      const named = [...read(doc).matchAll(/`([^`]+)`/g)].map(m => m[1]).filter(looksLikePath);
+      const named = [...body(doc).matchAll(/`([^`]+)`/g)].map(m => m[1]).filter(looksLikePath);
       for (const p of new Set(named)){
         /* dist/ is built, not committed, and the docs are allowed to say so */
         if (p === 'dist/' || p.startsWith('dist/')) continue;

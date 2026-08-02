@@ -15,7 +15,7 @@
    Levels are asked for rather than written down, so moving which boards are the
    other game cannot turn these into tests of something else. */
 import { test, expect } from '@playwright/test';
-import { start, openLevel, settle, dismissChapter } from './helpers.js';
+import { start, openLevel, settle, dismissChapter, pour } from './helpers.js';
 
 const purse = page => page.evaluate(() => globalThis.App._progress.gold);
 const price = page => page.evaluate(() => globalThis.CONFIG.economy.blast);
@@ -48,6 +48,9 @@ const blastLevel = page => page.evaluate(() => {
    mechanism, and the shelf is chosen so it exists rather than hoping. */
 const SHORT_SHELF = [[0,1,0,1],[1,0,1,0],[2,3,2,3],[3,2,3,2],[]];
 const SHORT_PAR = 8;           /* par + 2 + 1 - 0 moves, so eleven pours left */
+/* A pour that leaves the resumed run still winnable, once the first bottle has
+   been blasted off that shelf. `0 -> 3` is the one move that does not. */
+const SAFE_AFTER_BLAST = [1, 3];
 
 async function loseShort(page, shelf = SHORT_SHELF){
   await page.evaluate(([t, par]) => {
@@ -132,6 +135,15 @@ test('opens a shelf of real bottles, and charges nothing for looking', async ({ 
   expect(await page.locator('#blastPick button').first().locator('i').count())
     .toBeGreaterThan(0);
   expect(await purse(page), 'opening the shelf is free').toBe(before);
+
+  /* Drawn by the same thing that draws the board on the card before a replay,
+     which is what the shared class says. The hand-rolled version this replaced
+     gave every band an equal share of the glass, so a bottle holding one unit
+     and one holding four were the same picture here. How full a bottle is drawn
+     is pinned in tests/still.test.mjs, on the markup rather than on whichever
+     board this level happens to deal. */
+  expect(await page.locator('#blastPick .stillBottle').count(),
+    'the shelf is drawing its own bottles again').toBe(offered);
 
   /* and the same button is the way back out, saying so */
   await expect(page.locator('#blast')).toHaveText(/Cancel/);
@@ -301,4 +313,39 @@ test('a fired bomb clears a patch and leaves the loop running', async ({ page })
   expect(errors, 'nothing threw out of the frame loop').toEqual([]);
   expect(await page.evaluate(() => globalThis.BubbleApp._state.shots)).toBe(shots);
   await expect(page.locator('#bubbleBomb')).toBeEnabled();
+});
+
+test('a restart deals the destroyed bottle back', async ({ page }) => {
+  /* The design doc claimed a blast survived a restart, the way it claimed a
+     vessel did, and neither was true: `newRun` clears both and `start` deals the
+     shelf the level deals. What made it hard to see is that `start` took a
+     `keepVessel` nobody ever passed, so three signatures described a choice the
+     game had already made. Pinned here so the words and the code cannot drift
+     apart again. */
+  await start(page, { unlocked: 120, gold: 900, seen: seenAll() });
+  const level = await blastLevel(page);
+  await openLevel(page, level);
+  /* the shelf this level deals, before the fixture puts a losing one there */
+  const whole = await page.evaluate(() => globalThis.App._state.tubes.length);
+
+  await loseIt(page);
+  await page.locator('#blast').click();
+  await page.locator('#blastPick button').first().click();
+  await expect.poll(() => page.evaluate(() => globalThis.App._state.blownUp)).toBe(true);
+  expect(await page.evaluate(() => globalThis.App._state.tubes.length),
+    'the blast should have taken a bottle off the shelf').toBe(SHORT_SHELF.length - 1);
+
+  /* Restart wants a move behind it before it offers itself, and the move has to
+     be one that does not lose the run again: the panel would come straight back
+     over the button. On the shelf above, minus its first bottle, pouring the
+     lone unit into the only empty one strands the board, and the two after it do
+     not. Named rather than found, because a spec that picks its own move is a
+     spec that quietly stops testing what it says when the shelf changes. */
+  await pour(page, SAFE_AFTER_BLAST[0], SAFE_AFTER_BLAST[1]);
+  await page.locator('#restart').click();
+
+  await expect.poll(() => page.evaluate(() => globalThis.App._state.tubes.length),
+    { message: 'the restarted board is still a bottle short' }).toBe(whole);
+  expect(await page.evaluate(() => globalThis.App._state.blownUp),
+    'the restarted run is still capped at two stars').toBe(false);
 });

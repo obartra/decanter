@@ -420,12 +420,18 @@ for (const [w, h] of [[375, 812], [380, 300], [320, 700]]) {
   });
 }
 
-/* a cleared board is free, so an empty purse must never stand in the way of one */
+/* a cleared board is free, so an empty purse must never stand in the way of one.
+   There are two places it could: the medallion, and the card the medallion now
+   opens. Both have to know the board costs nothing. */
 test('an empty purse still opens a level already beaten', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, stars: { 4: 3 }, seen: { 0: true, 1: true } });
   const node = page.locator('[data-level="4"]');
   await expect(node).toBeEnabled();
   await node.click();
+  await expect(page.locator('#previewFee')).toHaveText('free');
+  await expect(page.locator('#previewPlay'), 'the card refused a board it is not charging for')
+    .toBeEnabled();
+  await page.locator('#previewPlay').click();
   await page.waitForFunction(() => globalThis.App._state.level === 4);
 });
 
