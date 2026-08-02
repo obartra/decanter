@@ -162,7 +162,11 @@ And it goes off rather than sliding in — a strobe, three shockwaves, three ban
 and **JABARI MODE** shaking across the screen in rainbow over a neon
 **+9,999,999**. This is the one thing in the build that is not trying to be
 tasteful, and it is written that way deliberately: none of it should be borrowed
-for anything else the game does. There is nothing to dismiss and nothing to
+for anything else the game does. It lives in `src/js/86-jabari.js` so that
+sentence is structural rather than a remark — it was a hundred lines in the
+middle of the app, between the wiring and the fault handler. It is handed the
+purse and one callback and knows nothing else, so it comes out with the beta by
+deleting one file and one call. There is nothing to dismiss and nothing to
 press, and it ignores pointers throughout, so it cannot eat a tap that was on its
 way somewhere else. It takes itself away after three seconds. A cheat that
 silently changed a number would be its own small version of the bug this all

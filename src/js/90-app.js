@@ -20,6 +20,22 @@ const App = (() => {
      ending, and the HUD go through these two rather than reading the flags, so
      a new tool that eases the board is one call site rather than six. */
   const eased = () => S.vesselUsed || S.blownUp;
+  /* Putting the end of run panel away, both classes every time.
+
+     Four exits did this in three different spellings and one of them removed
+     only `show`, leaving the failure styling on a hidden panel for the next run
+     to inherit. That was harmless only by accident: showPanel happens to set the
+     class again before it shows anything. A panel with two states and four ways
+     out wants one way to close. */
+  const closeVeil = () => $('veil').classList.remove('show', 'failed');
+
+  /* Three stars, lit up to `n`. Written twice, once for the chip that counts a
+     run down and once for the panel that reports it, and the two have to say
+     the same thing in the same markup: they are the same claim about the same
+     run, half a second apart. */
+  const starRow = n => [0, 1, 2]
+    .map(i => (i < n ? '★' : '<span class="dim">★</span>')).join('');
+
   const spilled = () => (S.spilled.size ? S.spilled : null);
   const $ = id => document.getElementById(id);
 
@@ -132,6 +148,32 @@ const App = (() => {
   /* Every board dealt is paid for, whether it is a new level or another go at
      one just lost. Charging here rather than inside start() keeps the internal
      re-deals free: only a deliberate attempt costs. */
+  /* Put a board on the screen, whichever game it is.
+
+     Money is not this function's business: attempt() charges for the board and
+     paying past one has already paid for the next. What is very much its
+     business is which game the level number is, and that is the whole reason it
+     exists rather than being a branch inside attempt().
+
+     It was a branch inside attempt(), and Move on did not have it. That button
+     dealt the next level by calling the pour game's start() directly, so paying
+     past a board into one of the twenty three bubble levels dealt a shelf of
+     bottles on a level the rest of the game treats as the other game: a par to
+     score against, a pour count in the HUD, and a best recorded through
+     progress.complete, which reads Levels.isBubble to decide which direction
+     better is and would have filed a twelve pour clear as a twelve shot run. */
+  function deal(level, keepVessel){
+    if (Levels.isBubble(level)){
+      startBubble(level);
+    } else {
+      document.body.dataset.view = 'game';
+      Backdrop.kind = 'cellar';
+      start(level, keepVessel);
+    }
+    /* after the board, so what the card is talking about is already behind it */
+    openChapter(level);
+  }
+
   function attempt(level, keepVessel){
     if (!progress.spend(costOf(level))){
       deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
@@ -139,15 +181,7 @@ const App = (() => {
       return false;
     }
     Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
-    if (Levels.isBubble(level)){
-      startBubble(level);
-      openChapter(level);
-      return true;
-    }
-    document.body.dataset.view = 'game';
-    Backdrop.kind = 'cellar';
-    start(level, keepVessel);
-    openChapter(level);
+    deal(level, keepVessel);
     return true;
   }
 
@@ -324,7 +358,7 @@ const App = (() => {
     }
     Board.view = Rules.clone(S.tubes);
     Board.selected = null;
-    $('veil').classList.remove('show');
+    closeVeil();
     Board.render();
     paintHud();
     if (S.par == null) askPar();
@@ -389,8 +423,7 @@ const App = (() => {
     /* You start on three stars and spend them, so the stars say what the run is
        still worth while the count says how much of it is left. */
     const stars = Rules.rate(S.moves, S.par, S.parExact, eased());
-    $('statStars').innerHTML = [0,1,2]
-      .map(i => (i < stars ? '★' : '<span class="dim">★</span>')).join('');
+    $('statStars').innerHTML = starRow(stars);
     $('movesStat').classList.toggle('over', stars <= 1);
     $('movesStat').classList.toggle('spent', stars === 0);
 
@@ -651,7 +684,7 @@ const App = (() => {
        question is asked before the run is handed back, or a finished board would
        be handed to a player with nothing left to do on it. */
     if (Rules.isSolved(S.tubes, spilled())){
-      $('veil').classList.remove('show', 'failed');
+      closeVeil();
       finish();
       return;
     }
@@ -661,7 +694,7 @@ const App = (() => {
     S.over = false;
     S.finished = false;
     S.reason = null;
-    $('veil').classList.remove('show', 'failed');
+    closeVeil();
     paintHud();
     say('One bottle gone. Two stars is the most this run can take.');
   }
@@ -675,7 +708,7 @@ const App = (() => {
      lasted. Split out of finish() so a bubble level cannot drift into having its
      own economy by accident. */
   function showPanel({ stars, failed, result, before, line }){
-    $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
+    $('stars').innerHTML = starRow(stars);
 
     /* say where the gold came from, so the thin payouts read as earned */
     const parts = [`${stars}★`];
@@ -889,11 +922,7 @@ const App = (() => {
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
     /* the other game's way out, which is the same way out */
     $('bubToMap').onclick = () => { Audio.tick(); showMap(false); };
-    const closePanel = () => {
-      $('veil').classList.remove('show');
-      $('veil').classList.remove('failed');
-      showMap(true);
-    };
+    const closePanel = () => { closeVeil(); showMap(true); };
     $('chapterGo').onclick = () => {
       Audio.unlock(); Audio.tick();
       $('chapterVeil').classList.remove('show');
@@ -909,6 +938,9 @@ const App = (() => {
        The board is read only while it is being looked at: the run is over, and
        a stray tap should not be able to pour into a finished level. */
     $('peek').onclick = () => {
+      /* `show` only, and deliberately not closeVeil(): this hides the panel to
+         look behind it and puts the same panel back afterwards, so the failure
+         styling has to survive the trip. */
       $('veil').classList.remove('show');
       document.body.classList.add('peeking');
       /* Restored on the click rather than on the pointerdown, and that is the
@@ -954,8 +986,7 @@ const App = (() => {
         deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);
         return;
       }
-      $('veil').classList.remove('show');
-      $('veil').classList.remove('failed');
+      closeVeil();
       attempt(S.level);
     };
     $('skip').onclick = () => {
@@ -963,11 +994,9 @@ const App = (() => {
         deny('skip', `costs ${skipCost()}, purse holds ${progress.gold}`);
         return;
       }
-      $('veil').classList.remove('show', 'failed');
+      closeVeil();
       /* the fee covered the board too, so this deals it without charging again */
-      document.body.dataset.view = 'game';
-      Backdrop.kind = 'cellar';
-      start(Math.min(S.level + 1, progress.lastLevel));
+      deal(Math.min(S.level + 1, progress.lastLevel));
     };
     $('next').onclick = () => {
       if (S.level >= progress.lastLevel){ deny('next', 'that was the last graded level'); return; }
@@ -975,7 +1004,7 @@ const App = (() => {
         deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
         return;
       }
-      $('veil').classList.remove('show');
+      closeVeil();
       showGame(S.level + 1);
     };
     $('install').innerHTML = ICON.install;
@@ -1027,108 +1056,6 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
     });
   }
-  /* Gold handed over rather than earned, for a beta player who has run dry in
-     the middle of telling us about something else.
-
-     The word stays in the address bar, and the whole thing goes off again every
-     time the link is opened. That is only safe because the purse is brought up
-     to a figure rather than paid a sum: landing on it twice lands on the same
-     number. An earlier pass added instead, which meant the word had to be
-     deleted from the URL to stop a reload paying again — and that made it a
-     link that worked once, quietly, which is not what a link is for. */
-  function takeGift(){
-    let url;
-    try { url = new URL(location.href); } catch (e) { return; }
-    if (!url.searchParams.has(CONFIG.beta.word)) return;
-    const gold = progress.fill();
-    Trace.note('purse filled', `${gold} from the query string`);
-    goldChanged();
-    jabariMode();
-  }
-
-  /* The bang: now if the page is allowed to make one, and on the first touch if
-     it is not.
-
-     A page nobody has touched yet is not allowed to make a sound — the audio
-     context stays suspended until a gesture, and opening a pasted link is not a
-     gesture, which is precisely how this arrives. An earlier pass made the whole
-     celebration wait for that touch, which bought the sound at the price of the
-     thing the word is actually for: the message has to be on the screen the
-     moment the link opens, every time, no conditions. So the picture never waits
-     and only the noise does.
-
-     The wait ends with the picture. A bang belongs to something on the screen,
-     and one that arrives after the screen has gone back to the map is not a
-     celebration, it is a noise from nowhere. Returns the way to call it off, and
-     the same timer that clears the message calls it.
-
-     Three bangs rather than one, because one is a sound effect and three is a
-     point being made. */
-  function bang(){
-    Audio.unlock();
-    const fire = () => { Audio.boom(); Audio.boom(0.19); Audio.boom(0.44); };
-    if (Audio.ready){ fire(); return () => {}; }
-    let over = false;
-    const standDown = () => {
-      over = true;
-      document.removeEventListener('pointerdown', go, true);
-      document.removeEventListener('keydown', go, true);
-    };
-    const go = () => {
-      if (over) return;
-      standDown();
-      Audio.unlock();
-      fire();
-    };
-    document.addEventListener('pointerdown', go, true);
-    document.addEventListener('keydown', go, true);
-    return standDown;
-  }
-
-  /* It goes off, it says what it is, and it takes itself away. Cleared on a
-     timer rather than on the animation ending, because reduced motion collapses
-     the animation to nothing and there would be no end to wait for. */
-  /* Not the game's palette. That one was chosen so no two liquids are close to
-     the eye on a dark shelf; this is chosen to be as loud as a screen goes. */
-  const JABARI_COLOURS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
-
-  function jabariMode(){
-    const el = $('jabari');
-    $('jabariGold').textContent = `+${CONFIG.economy.purseCap.toLocaleString('en-US')}`;
-    el.hidden = false;
-    /* forced out of the frame that unhid it, or the animation never starts */
-    void el.offsetWidth;
-    el.classList.add('go');
-
-    const quiet = bang();
-
-    /* Thrown against the short side of the screen, not the long one. Scaled off
-       the height, a phone flings most of the paper out of frame before anyone
-       sees it: the first pass measured particles six hundred pixels left of a
-       screen three hundred and ninety wide. */
-    const reach = Math.min(innerWidth, innerHeight) * 0.5;
-    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, JABARI_COLOURS, reach);
-    throwPaper();
-    setTimeout(throwPaper, 190);
-    setTimeout(throwPaper, 440);
-    setTimeout(throwPaper, 900);
-
-    /* and the number it was all about, once the word is out of the way */
-    const purse = document.querySelector('#mapView .purse');
-    if (purse){
-      setTimeout(() => {
-        purse.classList.add('granted');
-        setTimeout(() => purse.classList.remove('granted'), 1400);
-      }, 2100);
-    }
-    setTimeout(() => {
-      el.classList.remove('go');
-      el.hidden = true;
-      /* and the bang goes with it: a tap from here is a tap on the map */
-      quiet();
-    }, 3100);
-  }
-
   /* An exception inside a click handler is the quietest failure the game has:
      the handler stops, the screen stays exactly as it was, and what the player
      sees is a button that does nothing. Nothing here tries to recover — the
@@ -1157,7 +1084,7 @@ const App = (() => {
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);
       showMap(false);
-      takeGift();
+      Jabari.takeGift(progress, goldChanged);
       /* The wait on the draught has to run down on its own, or it is a stale
          number that only corrects itself when something else happens to repaint.
          Every half minute is enough for something measured in minutes, and it

@@ -89,6 +89,38 @@ describe('the dead code detector', () => {
       `a dead key on a plain-object module went unnoticed; found ${JSON.stringify(found)}`);
   });
 
+  it('finds a tunable nothing reads', () => {
+    /* The most convincing kind of dead code here. Every other sort looks like
+       what it is; a stale tunable looks like the place to change the behaviour
+       it claims to control, and usually has a paragraph above it saying so.
+       `bubblePerChapter` sat in CONFIG announcing "two per ten" over a function
+       that returned a pair by construction and never asked it anything. */
+    const found = withPlant('src/js/00-config.js',
+      s => s.replace('  sectionSize: 10,', '  sectionSize: 10,\n  plantedTunable: 7,'));
+    assert(found.some(f => f.kind === 'config' && f.name === 'plantedTunable'),
+      `a dead tunable went unnoticed; found ${JSON.stringify(found)}`);
+  });
+
+  it('finds one nested inside economy, and blames only economy', () => {
+    const found = withPlant('src/js/00-config.js',
+      s => s.replace('    attempt: 5,', '    attempt: 5,\n    plantedPrice: 3,'));
+    const hits = found.filter(f => f.kind === 'config' && /plantedPrice/.test(f.name));
+    equal(hits.map(f => f.name), ['economy.plantedPrice'],
+      `one planted key should be reported once; found ${JSON.stringify(found)}`);
+  });
+
+  it('reads a one-line nested object without swallowing the next one', () => {
+    /* `solver` and `beta` are written on one line and have no closing brace of
+       their own to stop at. Matched against the multi-line shape they ran on to
+       economy's brace, so every economy key was reported against them as well:
+       one planted corpse, three accusations. */
+    const found = withPlant('src/js/00-config.js',
+      s => s.replace('solver: { nodeCap: 400000,', 'solver: { plantedCap: 1, nodeCap: 400000,'));
+    const hits = found.filter(f => f.kind === 'config');
+    equal(hits.map(f => f.name), ['solver.plantedCap'],
+      `a one-line block was read wrongly; found ${JSON.stringify(found)}`);
+  });
+
   it('finds a class nothing wears', () => {
     const found = withPlant('src/css/01-base.css', s => `${s}\n.plantedClass{color:red}\n`);
     assert(found.some(f => f.kind === 'css' && f.name === '.plantedClass'),

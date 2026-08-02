@@ -475,6 +475,11 @@ const BubbleApp = (() => {
      what ended it. */
   const starsNow = () => Sc.stars({ cleared: st.over === 'won', shots: st.shots, aided: st.aided });
 
+  /* Three stars, lit up to `n`. The running total and the result card are the
+     same claim about the same run, so they are drawn by the same line. */
+  const starRow = n => [0, 1, 2]
+    .map(i => (i < n ? '★' : '<span class="dim">★</span>')).join('');
+
   function show(how){
     const veil = document.getElementById('bubbleVeil');
     if (veil){
@@ -500,7 +505,7 @@ const BubbleApp = (() => {
       : R.isLost(st.board) ? 'The bubbles reached the line.' : 'No room left to shoot.';
     document.getElementById('bubbleScore').textContent = st.score;
     document.getElementById('bubbleStars').innerHTML =
-      [0, 1, 2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
+      starRow(stars);
     /* A capped run has to say so, or the player reads three stars' worth of work
        ending in two as the game losing count. */
     const note = document.getElementById('bubbleNote');
@@ -527,7 +532,7 @@ const BubbleApp = (() => {
     const run = document.getElementById('bubbleRunStars');
     if (!run) return;
     const held = Sc.stars({ cleared: false, shots: st.shots, aided: st.aided });
-    run.innerHTML = [0, 1, 2].map(i => i < held ? '★' : '<span class="dim">★</span>').join('');
+    run.innerHTML = starRow(held);
     const at = Sc.nextStarAt(st.shots);
     run.title = at ? `next star at ${at} shots` : 'all three earned';
     /* one entry point, so the row can never be repainted without the readouts

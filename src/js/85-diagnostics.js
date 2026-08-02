@@ -41,7 +41,12 @@ const Diagnostics = (() => {
   }
   function perkLine(progress){
     const p = progress.perks();
-    const on = ['undo', 'hint', 'vessel'].filter(k => p[k]);
+    /* Every tool a chapter can hand over. This list is the one thing here that
+       has to be kept in step with 36-chapters.js by hand, and it was already one
+       short: a player reporting that the blast did nothing would have got back a
+       line that did not mention the blast. Read off the perks rather than
+       written out again, so the next grant appears here without being added. */
+    const on = Object.keys(p).filter(k => p[k] === true);
     return `${on.join(' ') || 'none'} · ${p.freeUndos} free undos · hints ${p.hintCost} · ${p.freeHints} free`;
   }
   function runLine(state){

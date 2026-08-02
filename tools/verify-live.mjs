@@ -8,10 +8,11 @@
    though it mattered, and it is the reason `unlock2` sat in the audio module
    for months making a sound nobody could hear.
 
-   Four things are checked, each a different way of being unused:
+   Five things are checked, each a different way of being unused:
 
      exports   a key on a module's published object that nothing reads
      helpers   a top level function in a module that nothing in it calls
+     config    a tunable in either CONFIG that nothing reads
      css       a class in a stylesheet that no markup and no script mentions
      ids       an element id that no script and no stylesheet mentions
 
@@ -141,6 +142,49 @@ for (const file of js){
     /* it may still be published, which the export check above already covers */
     if (new RegExp(`\\b${name}\\b`).test(publishedSurface(src))) continue;
     add('helper', name, file, 'declared in this module and nothing in it calls');
+  }
+}
+
+/* ---- tunables nothing reads ----
+
+   A config key is the most convincing kind of dead code in this repo. Every
+   other sort looks like what it is; a stale tunable looks like the place to
+   change the behaviour it claims to control, usually with a paragraph above it
+   explaining the decision, and the next person edits it and watches nothing
+   happen. `bubblePerChapter` sat in CONFIG saying "two per ten" over a function
+   that returned a pair by construction and never asked.
+
+   Both config modules, and nested one level so `economy.blast` is checked rather
+   than only `economy`. Deeper than that is the palette and the star brackets,
+   which are read by index and by spread, and a scan cannot see either.
+
+   The file that declares a key is excluded from its own haystack — a key is
+   always mentioned where it is defined — but its own prose is not evidence of
+   use, which is exactly the failure being looked for. */
+const CONFIG_FILES = ['src/js/00-config.js', 'src/bubble/js/00-config.js'];
+const NESTED = ['economy', 'solver', 'stars', 'beta'];
+for (const file of CONFIG_FILES){
+  const src = read(file);
+  const others = [...js, ...html, ...tools, ...tests].filter(f => f !== file).map(read).join('\n');
+  const check = (key, label) => {
+    if (new RegExp(`\\.${key}\\b|\\b${key}\\s*[,}]`).test(others)) return;
+    add('config', label, file, 'a tunable nothing reads');
+  };
+  for (const m of src.matchAll(/^ {2}([A-Za-z_]\w*):/gm)) check(m[1], m[1]);
+  for (const parent of NESTED){
+    /* Two shapes, and telling them apart is not optional. `economy` opens a
+       brace and closes on its own line; `solver` and `beta` are one-liners with
+       no `\n  }` to close on, so matching everything against the multi-line
+       shape ran their block on to the next closing brace it could find — which
+       is economy's — and attributed every economy key to solver and beta as
+       well. Three reports for one planted corpse is how that surfaced. */
+    const multi = src.match(new RegExp(`^ {2}${parent}:\\s*\\{\\r?\\n([\\s\\S]*?)^ {2}\\}`, 'm'));
+    if (multi){
+      for (const m of multi[1].matchAll(/^ {4}([A-Za-z_]\w*):/gm)) check(m[1], `${parent}.${m[1]}`);
+      continue;
+    }
+    const one = src.match(new RegExp(`^ {2}${parent}:\\s*\\{([^}]*)\\}`, 'm'));
+    if (one) for (const m of one[1].matchAll(/([A-Za-z_]\w*)\s*:/g)) check(m[1], `${parent}.${m[1]}`);
   }
 }
 

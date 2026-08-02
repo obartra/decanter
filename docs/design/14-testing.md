@@ -59,6 +59,46 @@ put back, the `finally` removed, the transform-following narrowed to the pouring
 bottle. That last one reproduced the original bug at 330 lit pixels outside the
 glass, against 0 with the fix.
 
+## Dead code, checked like anything else
+
+`tools/verify-live.mjs` runs in `npm run check` and fails the build on anything
+written down and never used. This ships as plain scripts concatenated into one
+page, so there is no bundler to shake a tree and nothing that notices a function
+nobody calls: every dead byte is downloaded by every player and maintained by the
+next person as though it mattered.
+
+Five kinds, each a different way of being unused:
+
+| | |
+| --- | --- |
+| exports | a key on a module's published object that nothing reads |
+| helpers | a top level function in a module that nothing in it calls |
+| config | a tunable in either `CONFIG` that nothing reads |
+| css | a class in a stylesheet that no markup and no script mentions |
+| ids | an element id that no script and no stylesheet mentions |
+
+The **config** check is the one worth explaining, because a stale tunable is the
+most convincing dead code there is. Everything else looks like what it is; a
+tunable looks like the place to change the behaviour it claims to control, and it
+usually has a paragraph above it explaining the decision. `bubblePerChapter` sat
+in `CONFIG` announcing "two per ten" over a function that returned a pair by
+construction and never asked it anything. The number could have been set to five
+and nothing would have moved.
+
+There is no allowlist, deliberately. One existed, covering two exports, about
+forty class names and two ids, and emptying it one entry at a time changed
+nothing: every entry was speculative. What it would have done is forgive the
+first genuinely dead rule for ever.
+
+**Every check has a planted corpse in `tests/live.test.mjs`**, because a checker
+that reports nothing is indistinguishable from one that does nothing, and the
+second is worse than none: it is a green light nobody should trust. That is not
+hypothetical — the helper check reported a clean repo with a dead function
+sitting in front of it, and the config check's first version answered one planted
+key with three accusations, because two of the nested blocks are written on one
+line and have no closing brace of their own to stop at. Only planting found
+either.
+
 ## What is not tested, and why
 
 - **Sound.** Judged by ear.
