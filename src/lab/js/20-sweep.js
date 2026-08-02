@@ -74,11 +74,15 @@ const LabSweep = (() => {
      where that gap is small is a luck readout however hard it happens to be —
      which is the thing worth being able to see the moment a cadence knob moves. */
   function survival(mods, seeds, greedy){
-    const { C, grid, shot, rules, advice, score } = mods;
-    const rng = seed => {
-      let s = seed >>> 0 || 1;
-      return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
-    };
+    const { C, grid, shot, rules, advice, score, rng: Rng } = mods;
+    /* The game's own stream, not a copy of it. src/bubble/js/10-rng.js exists
+       because there were three copies of this xorshift that were all meant to be
+       the same and nothing made them so, and the reason that mattered is exactly
+       this one: a harness that draws its numbers differently from the game
+       measures a game nobody plays. Writing a fourth copy here would have
+       falsified that file's opening paragraph from inside the tool built to
+       check the game against itself. */
+    const rng = seed => Rng.from(seed);
     const CAP = 600;
     const shots = [];
     const how = {};

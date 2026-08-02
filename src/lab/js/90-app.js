@@ -52,10 +52,11 @@ const LabApp = (() => {
     const out = { C: w[g.config], app: w[g.app] };
     if (g.levels) out.levels = w[g.levels];
     if (g.search) out.search = w[g.search];
-    if (g.sweep === 'survival'){
-      out.grid = w.BubbleGrid; out.shot = w.BubbleShot; out.rules = w.BubbleRules;
-      out.advice = w.BubbleAdvice; out.score = w.BubbleScore;
-    }
+    /* Read off the entry rather than written here. See the note beside
+       survivalMods in 00-config.js: that file is the one place allowed to name
+       another game's internals, and it only stays the one place if this does
+       not quietly become a second. */
+    for (const [as, name] of Object.entries(g.survivalMods || {})) out[as] = w[name];
     return out;
   }
 

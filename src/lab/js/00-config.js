@@ -92,8 +92,18 @@ const LabConfig = {
       /* No par and no level table: this board is dealt at random, so there is
          nothing to solve and the sweep runs the shot-chooser instead and reports
          the spread. That is the same measurement tools/bubble-survival.mjs makes
-         and the one STAR_SHOTS was set from. */
+         and the one STAR_SHOTS was set from.
+
+         Which modules that takes, named HERE. They were hard-coded in the lab's
+         app, which quietly made a second file that knows another game's
+         internals — and the whole claim of this one is that it is the only one.
+         A claim like that is worth either keeping or deleting, not leaving
+         half-true. tests/lab.test.mjs checks every name in this list is real. */
       sweep: 'survival',
+      survivalMods: {
+        grid: 'BubbleGrid', shot: 'BubbleShot', rules: 'BubbleRules',
+        advice: 'BubbleAdvice', score: 'BubbleScore', rng: 'BubbleRng'
+      },
       firstLevel: 1,
       /* The world is derived from COLS and ROWS once, at the bottom of the
          config, so moving either has to put the walls and the muzzle back. */

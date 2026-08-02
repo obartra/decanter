@@ -1,4 +1,5 @@
 import { describe, it, assert, equal, read, loadFrom } from './helpers.mjs';
+import { readdirSync } from 'node:fs';
 
 const lab = loadFrom('src/lab/js', ['00-config.js', '20-sweep.js']);
 const { LabConfig, LabSweep } = lab;
@@ -72,6 +73,35 @@ describe('lab knobs', () => {
       const theirs = norm(cfg.match(new RegExp(`BubbleConfig\\.${key} = ([^;]+);`))[1]);
       equal(mine, theirs, `the lab computes ${key} differently from the game`);
     }
+  });
+
+  /* The lab's claim about itself is that 00-config.js is the ONE file naming
+     another game's internals. The survival sweep needs six of the bubble game's
+     modules, and they were hard-coded in the app until a review pointed out that
+     this made a second such file and quietly falsified the first one's header. */
+  it('names every module the survival sweep reaches for', () => {
+    for (const game of LabConfig.games){
+      if (game.sweep !== 'survival') continue;
+      assert(game.survivalMods, `${game.id} is swept by survival and names no modules`);
+      const dir = `src/${game.id}/js`;
+      const published = new Set();
+      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+        for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)) published.add(m[1]);
+      }
+      for (const [as, name] of Object.entries(game.survivalMods)){
+        assert(published.has(name), `${game.id} publishes no ${name}, but the lab reaches for it as ${as}`);
+      }
+    }
+  });
+
+  /* The lab must not grow its own copy of a game's randomness. 10-rng.js exists
+     because three copies of that stream had drifted, and a harness drawing
+     different numbers measures a game nobody plays. */
+  it('draws its numbers from the game rather than from a copy', () => {
+    const sweep = read('src/lab/js/20-sweep.js');
+    assert(!/<<\s*13|>>>\s*17/.test(sweep),
+      'the sweep has an xorshift of its own; it must use the game\'s stream');
+    assert(/rng/i.test(sweep), 'the sweep no longer takes a stream at all');
   });
 
   it('asks for a sweep the game can actually answer', () => {
