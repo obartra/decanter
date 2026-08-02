@@ -114,6 +114,36 @@ export default [
     rules: { ...shared, 'no-redeclare': 'off' }
   })),
 
+  /* The cellar door, written out rather than left to the discovery above.
+
+     The block generated for it is identical, and that is the point: this is the
+     list of names src/casks/js is allowed to see, said where a reader can check
+     it against the game rather than having to run the generator in their head.
+     It sits after the generated blocks so it wins, and it names its own globals
+     and nothing else — a reference from this game to another is a lint error
+     rather than something that happens to work because both were in scope.
+
+     Like /bubble/ when it was first added, this game is not wired into the
+     graded run: nothing in src/js may name anything here. The pour game's block
+     lists `BubbleApp` and nothing else from over there, because some of its
+     levels are that game; when and if a level is ever this one, the same single
+     name goes on that list and no more. */
+  {
+    files: ['src/casks/js/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+        CasksConfig: 'writable', CasksRules: 'writable', CasksSearch: 'writable',
+        CasksLevels: 'writable', CasksBoards: 'writable', CasksPars: 'writable',
+        CasksScore: 'writable', CasksAudio: 'writable', CasksView: 'writable',
+        CasksRender: 'writable', CasksApp: 'writable'
+      }
+    },
+    rules: { ...shared, 'no-redeclare': 'off' }
+  },
+
   /* the solver runs in a worker, and is written to survive being loaded as one */
   {
     files: ['src/worker/**/*.js'],
