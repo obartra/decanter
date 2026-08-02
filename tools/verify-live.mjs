@@ -8,12 +8,24 @@
    though it mattered, and it is the reason `unlock2` sat in the audio module
    for months making a sound nobody could hear.
 
-   Four things are checked, each a different way of being unused:
+   Seven things are checked, each a different way of being unused. The first
+   four came from here; the last three were folded in from a second detector
+   written on the same day, which is recorded because two tools doing one job
+   is how a check ends up switched off:
 
-     exports   a key on a module's published object that nothing reads
-     helpers   a top level function in a module that nothing in it calls
-     css       a class in a stylesheet that no markup and no script mentions
-     ids       an element id that no script and no stylesheet mentions
+     exports    a key on a module's published object that nothing reads
+     helpers    a top level function in a module that nothing in it calls
+     css        a class in a stylesheet that no markup and no script mentions
+     ids        an element id that no script and no stylesheet mentions
+     config     a tunable in a config object that nothing reads
+     globals    a module published on globalThis that nothing names
+     unstyled   markup wearing a class no stylesheet defines
+
+   The last is the odd one out and is the only check that runs the other way
+   round: everything above finds something written and never reached, that one
+   finds something reached and never written. It is here because it fails for
+   the same reason — a name on one side of a line and not the other — and
+   because a class that styles nothing looks exactly like a typo in the markup.
 
    Deliberately conservative. Anything reached dynamically is invisible to a
    textual scan, so a name that appears anywhere at all counts as used, and

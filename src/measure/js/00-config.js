@@ -60,9 +60,10 @@ const MeasureConfig = {
      the generator is left to find hard capacities. */
   VESSELS: [3, 4],
 
-  /* Stars are pours over par, exactly the brackets the other game uses. Both are
-     perfect information puzzles graded against an exact minimum, so one over par
-     had better be worth the same thing in both rooms of the same cellar. */
+  /* Stars are pours over par, exactly the brackets the pour game uses — and the
+     cellar door, which landed after this and says so from its side. All three
+     are perfect information puzzles graded against an exact minimum, so one over
+     par had better be worth the same thing in every room of the same cellar. */
   STARS: { three: 0, two: 1, one: 2 },
 
   /* What the run is allowed to lean on, and what that costs it.
