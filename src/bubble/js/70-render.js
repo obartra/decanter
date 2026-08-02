@@ -9,20 +9,56 @@ const BubbleRender = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
 
+  /* The rim of the glass and the body behind it, in the other game's terms: its
+     bottles are a warm cream line (--glass-line) over a dark warm well, and a
+     sphere built the same way reads as the same material without either file
+     knowing about the other. */
+  const GLASS_RIM = 'rgba(246,234,212,.42)';
+  const GLASS_BODY = 'rgba(20,14,8,.55)';
+
+  /* A glass sphere with liquid in it, rather than a coloured ball.
+
+     The difference is that the colour is not the surface. The glass is drawn
+     first and dark, the liquid sits inside it and stops short of the rim, and
+     the two highlights on top belong to the glass rather than to the liquid: one
+     long band down the left and one specular where the light actually lands.
+     That is the same three-part construction the bottles use, and it is what
+     stops a pale liquid reading as a flat disc. */
   function bubble(ctx, x, y, colour, r = C.DRAW_R, alpha = 1){
     ctx.globalAlpha = alpha;
-    const g = ctx.createRadialGradient(x - r * 0.32, y - r * 0.38, r * 0.05, x, y, r);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.22, colour);
-    g.addColorStop(1, shade(colour, -0.34));
-    ctx.fillStyle = g;
+
+    ctx.fillStyle = GLASS_BODY;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
-    /* a rim, so a bubble against a bubble of a near colour still reads as two */
-    ctx.lineWidth = r * 0.09;
-    ctx.strokeStyle = shade(colour, -0.5);
+
+    /* the liquid, lit from the upper left and deepening to the far side */
+    const lr = r * 0.85;
+    const g = ctx.createRadialGradient(x - lr * 0.34, y - lr * 0.4, lr * 0.06, x, y, lr);
+    g.addColorStop(0, shade(colour, 0.5));
+    g.addColorStop(0.42, colour);
+    g.addColorStop(1, shade(colour, -0.5));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, lr, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.44, y - r * 0.04, r * 0.09, r * 0.4, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,248,232,.55)';
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.29, y - r * 0.45, r * 0.23, r * 0.12, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* the rim, so a sphere against a sphere of a near colour still reads as two */
+    ctx.lineWidth = r * 0.08;
+    ctx.strokeStyle = GLASS_RIM;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.96, 0, Math.PI * 2);
     ctx.stroke();
+
     ctx.globalAlpha = 1;
   }
 
@@ -69,7 +105,7 @@ const BubbleRender = (() => {
   }
 
   function walls(ctx){
-    ctx.strokeStyle = 'rgba(255,255,255,.10)';
+    ctx.strokeStyle = 'rgba(246,234,212,.12)';
     ctx.lineWidth = 0.04;
     ctx.beginPath();
     ctx.moveTo(0.02, 0); ctx.lineTo(0.02, C.WORLD_H);
@@ -79,22 +115,36 @@ const BubbleRender = (() => {
 
     /* the line the board must not reach, drawn where it actually is */
     const y = 0.5 + C.ROW_H * C.DEATH_ROW;
-    ctx.strokeStyle = 'rgba(223,74,99,.35)';
+    ctx.strokeStyle = 'rgba(226,84,111,.42)';
     ctx.lineWidth = 0.03;
     ctx.setLineDash([0.22, 0.18]);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(C.WORLD_W, y); ctx.stroke();
     ctx.setLineDash([]);
   }
 
+  /* Where the hint says to put it. A ring on the empty cell rather than a line
+     from the muzzle, because the answer the player wants is "there", and drawing
+     the path as well would hand over the aim too and leave nothing to do. */
+  function target(ctx, board, cell, now){
+    if (!cell) return;
+    const p = G.centreOf(board, cell.j, cell.c);
+    const pulse = 0.5 + 0.5 * Math.sin(now / 260);
+    ctx.strokeStyle = `rgba(244,217,160,${0.35 + 0.4 * pulse})`;
+    ctx.lineWidth = 0.07;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, C.DRAW_R * (0.82 + 0.16 * pulse), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   function muzzle(ctx, aim){
     const m = C.MUZZLE;
-    ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    ctx.strokeStyle = 'rgba(224,177,92,.3)';
     ctx.lineWidth = 0.07;
     ctx.beginPath();
     ctx.arc(m.x, m.y, 0.78, 0, Math.PI * 2);
     ctx.stroke();
     if (!aim) return;
-    ctx.strokeStyle = 'rgba(255,255,255,.4)';
+    ctx.strokeStyle = 'rgba(244,217,160,.5)';
     ctx.lineWidth = 0.09;
     ctx.beginPath();
     ctx.moveTo(m.x, m.y);
@@ -102,6 +152,6 @@ const BubbleRender = (() => {
     ctx.stroke();
   }
 
-  return { bubble, board, guide, walls, muzzle, shade };
+  return { bubble, board, guide, walls, muzzle, target, shade };
 })();
 globalThis.BubbleRender = BubbleRender;

@@ -16,6 +16,7 @@
     "pars": "node tools/pars.mjs",
     "order": "node tools/order.mjs",
     "difficulty": "node tools/difficulty.mjs",
+    "bubble:survival": "node tools/bubble-survival.mjs",
     "serve": "npm run build && cd dist && python3 -m http.server 8080",
     "icons": "python3 tools/make-icons.py"
   },

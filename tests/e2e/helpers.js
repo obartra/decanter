@@ -12,7 +12,12 @@ export const SAVE_KEY = 'decanter.save.v1';
    build's, or the game will treat the save as one from older boards. */
 export async function start(page, save = {}) {
   await page.addInitScript(([key, wanted]) => {
+    /* Seeded once, not on every load. addInitScript runs again on every
+       navigation, so writing unconditionally meant a reload put the save back to
+       what the spec asked for and quietly threw away whatever the game had
+       recorded. Every assertion about persistence was checking the seed. */
     const write = () => {
+      if (localStorage.getItem(key)) return;
       const layout = (globalThis.CONFIG && globalThis.CONFIG.layout) || 1;
       localStorage.setItem(key, JSON.stringify({
         version: 1, layout, unlocked: 1, gold: 400, stars: {}, best: {},

@@ -10,7 +10,8 @@
 function decide(input){
   const {
     level, lastLevel, failed, stars, nextUnlocked,
-    canPayFee, canPaySkip, improvedStars, hadStars, par, parExact, moves, best, totalStars,
+    canPayFee, canPayNext, canPaySkip,
+    improvedStars, hadStars, par, parExact, moves, best, totalStars,
     reason
   } = input;
 
@@ -29,6 +30,17 @@ function decide(input){
     : reason === 'short' ? 'What is left needs more pours than the run had.'
     : `That is ${moves} pours against a minimum of ${par}.`;
 
+  /* Two fees, not one, because the panel offers two different boards.
+
+     Retry deals this level again and Next deals the following one, and those
+     cost different amounts: a level already beaten replays for nothing, so once
+     a run is cleared `canPayFee` is always true. Deciding Next from it meant the
+     button was never disabled after a win however empty the purse, and pressing
+     it fell through to the guard in the click handler, which refused silently.
+     Nothing was stolen and nothing was dealt; the button simply lied. */
+  const nextHidden = atEnd || (failed && !nextUnlocked);
+  const cannotGoOn = (!nextHidden && !canPayNext) || (stuck && !canPaySkip);
+
   /* Last writer wins, so the order is the priority order. Being told the game is
      over does not help someone who cannot afford another go, so an empty purse
      outranks it; a new best outranks the standing advice. */
@@ -39,7 +51,7 @@ function decide(input){
       ? 'The last one. Another go?'
       : `That is the last of them. ${totalStars} stars from ${lastLevel} levels.`;
   }
-  if (!canPayFee || (stuck && !canPaySkip)) hint = 'Not enough gold. The daily draught is on the map.';
+  if (!canPayFee || cannotGoOn) hint = 'Not enough gold. The daily draught is on the map.';
 
   /* Matching the minimum is the whole point of the scoring, so say that and stop.
      Quoting the count twice ("sorted in 12 pours, the minimum is 12") makes the
@@ -61,9 +73,9 @@ function decide(input){
     retryHidden: perfect,
     retryPrimary: !perfect,
     retryDisabled: !canPayFee,
-    nextHidden: atEnd || (failed && !nextUnlocked),
+    nextHidden,
     nextPrimary: perfect && !atEnd,
-    nextDisabled: !canPayFee,
+    nextDisabled: !canPayNext,
     skipHidden: !stuck,
     skipDisabled: !canPaySkip,
     hint
