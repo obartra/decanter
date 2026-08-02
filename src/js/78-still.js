@@ -15,7 +15,8 @@
    rectangles and the stylesheet already knows how to draw one. The colours are
    the published --cN properties, so a still cannot show a palette the game no
    longer pours. */
-const Still = (() => {
+import { Rules } from './pure/20-rules.js';
+export const Still = (() => {
   /* Two rows once there are enough bottles to make one row a thin ribbon. The
      real board picks its rows by measuring the space it has; this one has a
      fixed card to sit in, so the rule can be arithmetic. */
@@ -66,4 +67,3 @@ const Still = (() => {
 
   return { pour, bubbles, bottle };
 })();
-globalThis.Still = Still;

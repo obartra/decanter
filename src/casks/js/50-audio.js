@@ -16,7 +16,7 @@
    and a sound that made them identical would be flattening the one thing about a
    move that is not a decision. So the scrape lasts as long as the cask is
    actually moving, and the thud at the end is what says it ran out of floor. */
-const CasksAudio = (() => {
+export const CasksAudio = (() => {
   const KEY = 'casks.sound';
   let ctx, master, noise;
   /* Muted is remembered, because somebody who turned the sound off did not mean
@@ -151,4 +151,3 @@ const CasksAudio = (() => {
     }
   };
 })();
-globalThis.CasksAudio = CasksAudio;

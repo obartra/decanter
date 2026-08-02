@@ -22,10 +22,11 @@ lab is a sidebar: about 30kb, and it works offline like every other page.
 ## Why not Storybook
 
 The obvious answer to "a playground with knobs" is Storybook, and it was
-considered and declined. It needs a bundler and several hundred packages, against
-a project whose most defended constraint is that it has **no dependencies at all**
-— see [13 Delivery](13-delivery.md). And the games are not components: there is
-no story to write against `globalThis.CasksApp`, so Storybook would have been one
+considered and declined. It brings several hundred packages, against a project
+that has **one** — see [13 Delivery](13-delivery.md), which explains why a
+bundler earned its place and why nothing else has. And the games are not
+components: there is no story to write against `globalThis.CasksApp`, so
+Storybook would have been one
 story per game that mounts the whole thing, supplying a sidebar and a knobs panel
 and nothing else. Both of those are cheaper to write than to install here.
 

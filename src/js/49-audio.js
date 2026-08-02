@@ -21,6 +21,8 @@
    Every name the real module publishes has to appear here. The first call to one
    that does not is exactly the bug this file exists to prevent, so a test in
    tests/build.test.mjs compares the two lists rather than trusting this comment. */
+import { Deferred } from './96-deferred.js';
+
 /* Published straight onto globalThis rather than through a top-level `const`.
    The standalone build concatenates this and the real module into one script,
    and two lexical declarations of the same name in one script is a syntax

@@ -8,7 +8,7 @@
    within the same tenth of a second, or the player is reading the board to find
    out what happened instead of hearing it. So `stick` is dull and short and
    `matched` is bright and opens upward, and the two can never be confused. */
-const BubbleAudio = (() => {
+export const BubbleAudio = (() => {
   const KEY = 'bubble.sound';
   let ctx, master, noise;
   /* Muted is remembered, because a player who turned the sound off did not mean
@@ -140,4 +140,3 @@ const BubbleAudio = (() => {
     }
   };
 })();
-globalThis.BubbleAudio = BubbleAudio;

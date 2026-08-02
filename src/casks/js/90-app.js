@@ -27,7 +27,16 @@
    is allowed to be DRAWN a fraction of a cell past the stop, because a cask that
    freezes solid under a moving finger reads as the game having lost the touch;
    the state never goes there and the drawing springs back. */
-const CasksApp = (() => {
+import { CasksConfig } from './pure/00-config.js';
+import { CasksRules } from './pure/20-rules.js';
+import { CasksSearch } from './pure/25-search.js';
+import { CasksLevels } from './pure/30-levels.js';
+import { CasksScore } from './pure/45-score.js';
+import { CasksAudio } from './50-audio.js';
+import { CasksView } from './60-view.js';
+import { CasksRender } from './70-render.js';
+
+export const CasksApp = (() => {
   const C = CasksConfig;
   const R = CasksRules;
   const Se = CasksSearch;
@@ -560,7 +569,6 @@ const CasksApp = (() => {
 
   return { boot, newBoard, press, drag, release, play, undo, hint, step, paintHud, _state: st };
 })();
-globalThis.CasksApp = CasksApp;
 
 /* Booted on sight, because this page is nothing but this game. The other two
    check a data attribute because one of them is also loaded inside the pour

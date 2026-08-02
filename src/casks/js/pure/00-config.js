@@ -11,7 +11,7 @@
    The state of a whole board is therefore an array of small integers, one per
    cask, which is what makes the search in 25-search.js cheap enough to sweep a
    layout's entire reachable component. */
-const CasksConfig = {
+export const CasksConfig = {
   /* The floor. Six by six is the size this mechanic was measured at and it is
      not an arbitrary square: a cask is two or three cells long, so a six-cell
      row holds two casks with a cell to spare, which is the shortest row on which
@@ -144,4 +144,3 @@ const CasksConfig = {
   DRAG_SLOP: 0.28
 };
 
-globalThis.CasksConfig = CasksConfig;

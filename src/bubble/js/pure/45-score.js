@@ -31,7 +31,9 @@
    interesting cases are the hard ones to reach by hand. A capped three star run,
    a cleared board that also used an aid, a run that ended on the exact
    threshold. All of them are numbers, so all of them can simply be asserted. */
-const BubbleScore = (() => {
+import { BubbleConfig } from './00-config.js';
+
+export const BubbleScore = (() => {
   const C = BubbleConfig;
 
   /* Stars for a finished run.
@@ -90,4 +92,3 @@ const BubbleScore = (() => {
      config directly. */
   return { stars, nextStarAt };
 })();
-globalThis.BubbleScore = BubbleScore;

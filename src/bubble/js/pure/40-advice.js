@@ -9,7 +9,11 @@
    Deliberately shallow: it looks one shot ahead and no further. A search that
    planned setups would be a better player and a worse hint, because a hint whose
    reasoning cannot be seen on the board reads as arbitrary. */
-const BubbleAdvice = (() => {
+import { BubbleConfig } from './00-config.js';
+import { BubbleGrid } from './20-grid.js';
+import { BubbleRules } from './30-rules.js';
+
+export const BubbleAdvice = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
   const R = BubbleRules;
@@ -87,4 +91,3 @@ const BubbleAdvice = (() => {
      the same set of directions the hint button does. */
   return { bestShot, hasClearingShot, AIMS };
 })();
-globalThis.BubbleAdvice = BubbleAdvice;

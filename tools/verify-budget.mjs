@@ -4,7 +4,7 @@
    It used to be one number — index.html was the entire game, so its size was
    the cost of opening it — and the budget was a cap on that one file.
 
-   Now there are three numbers, and they are budgeted separately because they go
+   Now there are four numbers, and they are budgeted separately because they go
    wrong for different reasons and cost different things:
 
    - **The shells.** Every load revalidates these, forever, on every device. They
@@ -13,6 +13,9 @@
    - **The critical path.** Shell plus the app's own stylesheet and script: what
      a first paint actually waits for. This is the number that decides how long
      the game takes to open on a cold cache.
+   - **Each game.** One stylesheet and one script at its own path, capped
+     together, because a game doubling is the thing worth noticing and which half
+     did it is not the point.
    - **The whole build.** What an install costs once. Generous, because it is
      paid once and then cached by name, but not unbounded.
 
@@ -33,42 +36,52 @@ const dist = join(root, 'dist');
    number is allowed to move without anyone thinking about it. That is not the
    same margin for all four, and the differences are the point.
 
+   All four were re-based when the build gained a bundler, and it is worth saying
+   why rather than leaving numbers that look like they drifted. Every one of them
+   fell, some by a third, and none of it was code: the sources are written with
+   more prose above a function than in it, which is the house style and is
+   deliberate, and a concatenating build shipped every word of it to every
+   player. A bundler does not, so what these caps measure is now much closer to
+   what they were always meant to measure. They came down to match. Leaving them
+   where they were would have left a check that could not fail until something
+   had gone very wrong indeed.
+
    The shell cap has the most room in absolute terms and the least in meaning:
    nothing but markup belongs in a shell, so the 12,000 is not a size limit at
    all, it is what a stylesheet or a script getting inlined back into a page
-   would trip. Markup alone will never approach it.
+   would trip. Markup alone will never approach it, which is why it is the one
+   number the bundler did not move.
 
    The critical path is deliberately the tightest, at a few percent. It is what
    a first paint waits for, so being told about every addition is the behaviour
    wanted rather than a false alarm to be tuned away. Raising it should be a
-   decision someone makes, not a step they skip — and it has been raised once,
-   deliberately, for the blast: one tool that lands in both games and on the
-   end-of-run panel, so it arrives as rules, economy, a chapter, markup and the
-   prose explaining why a win condition can move at all. 255,000 puts the few
-   percent back on top of that.
+   decision someone makes, not a step they skip — and it has been raised twice on
+   those terms, once for the blast and once for the card shown before a replay.
 
    Raised a second time, on the same terms, for the card shown before a replay,
    and then brought back down, which is the outcome that entry was asking for
    rather than a third raise. Nothing on that card is reachable until somebody
    taps a medallion for a level they have already cleared, so on the critical
    path every byte of it was downloaded by every player and read by the ones who
-   go back. It now rides in a bundle of its own, fetched right after the page
-   opens: tools/build.mjs can defer part of the app's own script and stylesheet
-   and not only a whole game, and `preview` is the first group to use it.
+   go back. It rides in a bundle of its own now, fetched right after the page
+   opens: a deferred group is an entry point, so part of the app's own script and
+   stylesheet can be held back and not only a whole game.
 
-   That is the shape this cap wanted, and it is worth being straight about the
-   size of the win: 6.7kb of unminified source, which over the wire is a couple
-   of kilobytes. The number was never the argument. What the split buys is that
-   the next screen nobody sees at first paint has somewhere to go that is not
-   here, so this cap can stay tight enough to be worth reading.
+   Then the sources became modules and it came down again, twice over, which is
+   why the number below is so much smaller than the paragraphs above describe.
+   Two thirds of that is prose: a concatenating build shipped every word of the
+   comments above every function to every player, and a bundler does not. The
+   rest is the other game, which had been fetched after the page opens for a
+   while and was quietly put back on the first paint by a codemod turning a
+   late-bound global into an ordinary import. A test asserts that deferral
+   directly now, in terms of which modules are in which bundle, because a cap is
+   a bad place to notice such a thing: this one was rebased in the same change
+   that broke it, which is exactly how a number stops being a check.
 
-   Which is why 274,000 rather than something rounder. The cap comes down by
-   less than the card weighed, because the critical path grew elsewhere while
-   this was being written and 277,000 had already been eaten down to under one
-   percent of headroom. The rule is the same one both earlier settings used, a
-   few percent over what the build actually produces, and the number falls out
-   of it. A cap set to the saving instead would read as a bigger win and would
-   fail on the next paragraph of prose anybody adds.
+   The rule has not moved through any of it — a few percent over what the build
+   actually produces — and the number falls out of it. A cap set to a saving
+   instead would read as a bigger win and would fail on the next paragraph of
+   prose anybody adds.
 
    Not all of the card left. 78-still.js draws the small bottles on the shelf
    the blast offers as well, and 05-still.css styles them, so both stay: that
@@ -81,25 +94,25 @@ const dist = join(root, 'dist');
    would put a null guard on every line that reaches for the panel. */
 const BUDGET = {
   shell: 12_000,
-  critical: 274_000,
-  /* Re-based when the third game landed, and worth saying why rather than
-     leaving a number that looks like it drifted.
+  critical: 200_000,
+  /* This one exists to notice a game DOUBLING, and nothing finer.
 
-     This cap was originally about ten percent above the bubble game, which was
-     the only one there was. Two more have arrived since and each is larger than
-     the last: bubble 97.4kb, the measure 97.9kb, the cellar door 103.3kb. The
-     measure fitting inside a cap set from bubble was luck, not headroom.
+     It was once about ten percent above the bubble game, which was the only one
+     there was, and then re-based upwards as each new game came in larger than
+     the last. All of that growth was prose rather than code — these were
+     concatenated sources and the bulk of every one of them was the comment above
+     the function — so the cap was really a limit on how much a game was allowed
+     to explain itself, which is not what this check is for.
 
-     None of that growth is code. These bundles are unminified source and the
-     bulk of every one of them is the prose above the code — which is the house
-     style and is deliberate — so a per-game byte cap set from the smallest game
-     is really a cap on how much a game is allowed to explain itself. That is not
-     what this check is for. It exists to notice a game DOUBLING, and at 120,000
-     it still does for all three: the smallest of them doubled is 194.8kb, well
-     past it. The shell and critical-path budgets above are the ones that
-     actually protect a page load. */
-  game: 120_000,
-  total: 1_500_000
+     A bundler ships none of that, and the games came out at 66kb, 57kb, 53kb and
+     29kb, so the number is set from the largest with room above it. They still
+     differ by more than any cap can usefully police: one tight enough to mean
+     something for the workbench is unreachable for the bubble game. At 100,000
+     it does the job it is for — the largest doubled is 132kb, well past it — and
+     the shell and critical-path budgets above are the ones that actually protect
+     a page load. */
+  game: 100_000,
+  total: 1_300_000
 };
 
 const walk = (dir = dist, base = '') => {

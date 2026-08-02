@@ -23,7 +23,7 @@
      that is what the bars were set from: a bot's tenth percentile is not a
      person's, and the bars read off one sat where a real player cleared the
      first star — the one that opens the next level — barely half the time. */
-const LabSweep = (() => {
+export const LabSweep = (() => {
 
   /* Par for every level in a range, using the game's own level table and its own
      search. `shipped` is what the game says the par is; `found` is what the
@@ -321,4 +321,3 @@ const LabSweep = (() => {
      tools/bubble-run.mjs seed for seed. Nothing in the page calls it directly. */
   return { pars, panels, survival, tracks, runOne };
 })();
-globalThis.LabSweep = LabSweep;

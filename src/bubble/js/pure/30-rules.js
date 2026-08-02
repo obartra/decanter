@@ -5,7 +5,10 @@
    `detach` walks bubbles of any colour to find what is still hanging from the
    ceiling. They answer different questions and the day someone unifies them is
    the day the second one starts caring about colour. */
-const BubbleRules = (() => {
+import { BubbleConfig } from './00-config.js';
+import { BubbleGrid } from './20-grid.js';
+
+export const BubbleRules = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
 
@@ -212,4 +215,3 @@ const BubbleRules = (() => {
   return { matchFrom, detach, remove, liveColours, isLost, resolveTurn,
            within, resolveBlast, dealBoard, freshRow, anyLanding };
 })();
-globalThis.BubbleRules = BubbleRules;

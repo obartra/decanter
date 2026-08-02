@@ -314,7 +314,7 @@ lost the touch; the state never goes there.
 
 | Path | |
 | --- | --- |
-| `src/casks/js/` | modules, concatenated in filename order. Under 50 is pure logic, 50 and above is browser code |
+| `src/casks/js/` | ES modules, bundled from `main.js`. The numbers are a reading order: under 50 is pure logic, 50 and above is browser code |
 | `src/casks/css/00-base.css` | the one stylesheet; every class is prefixed `csk` |
 | `src/casks/js/pure/32-boards.js` | generated, committed: the floor of every level |
 | `src/casks/js/pure/35-pars.js` | generated, committed: the exact minimum, and where the cellar ends |

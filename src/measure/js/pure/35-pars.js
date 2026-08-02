@@ -12,4 +12,4 @@
    STARS rather than full marks. That is the opposite of what the other game's
    Rules.rate() does with a missing par, and the inversion is deliberate: see
    45-score.js, which explains which way round it is and why. */
-globalThis.MeasurePars = Object.freeze({ last: 40, par: Object.freeze({1:3,2:3,3:3,4:4,5:4,6:4,7:5,8:5,9:5,10:6,11:6,12:6,13:7,14:7,15:7,16:8,17:8,18:8,19:9,20:9,21:9,22:10,23:10,24:10,25:11,26:11,27:11,28:12,29:12,30:12,31:13,32:13,33:14,34:14,35:15,36:15,37:16,38:16,39:16,40:20}) });
+export const MeasurePars = Object.freeze({ last: 40, par: Object.freeze({1:3,2:3,3:3,4:4,5:4,6:4,7:5,8:5,9:5,10:6,11:6,12:6,13:7,14:7,15:7,16:8,17:8,18:8,19:9,20:9,21:9,22:10,23:10,24:10,25:11,26:11,27:11,28:12,29:12,30:12,31:13,32:13,33:14,34:14,35:15,36:15,37:16,38:16,39:16,40:20}) });

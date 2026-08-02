@@ -17,7 +17,7 @@
 
    Nothing in game state is ever a pixel. There is exactly one transform, in
    60-view.js. */
-const MeasureConfig = {
+export const MeasureConfig = {
   /* The field the generator draws capacities from.
 
      The ceiling was 16 when this mechanic was first measured, and that capped
@@ -167,4 +167,3 @@ const MeasureConfig = {
   LIFT: 0.85
 };
 
-globalThis.MeasureConfig = MeasureConfig;

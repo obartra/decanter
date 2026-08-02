@@ -23,7 +23,7 @@
    The log is a ring of the last few dozen entries rather than everything. What
    matters is the run-up to the thing that went wrong, and a buffer that grows
    without bound on a device that is never reloaded is its own bug. */
-const Trace = (() => {
+export const Trace = (() => {
   /* enough to cover the run-up to a report without being a leak */
   const CAP = 64;
   const ring = [];
@@ -70,7 +70,18 @@ const Trace = (() => {
     lines(){
       return ring.map(e => `${e.at}s ${e.kind === '·' ? '' : e.kind + ' '}${e.what}${e.detail ? ' — ' + e.detail : ''}`);
     },
-    clear(){ ring.length = 0; seq = 0; origin = null; }
+    /* Everything, counts included. It used to empty the ring and leave the
+       tallies standing, which nothing noticed while the suite loaded a fresh
+       copy of this module for every test: the counters were new anyway. A module
+       is a singleton under real imports, so a half-clear leaves one test's
+       refusals in the next one's totals — and that is the same trap for anyone
+       clearing a trace from a console to start a clean one. */
+    clear(){
+      ring.length = 0;
+      seq = 0;
+      origin = null;
+      tally.note = tally.refused = tally.fault = 0;
+      for (const k of Object.keys(refusals)) delete refusals[k];
+    }
   };
 })();
-globalThis.Trace = Trace;

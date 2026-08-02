@@ -1,7 +1,10 @@
 /* Talks to the A* solver. Prefers a real worker so a long search never blocks
    the UI, and degrades to an inline run with a small budget if workers are
    unavailable (some sandboxed embeds). */
-const SolverClient = (() => {
+import { CONFIG } from './pure/00-config.js';
+import { Rules } from './pure/20-rules.js';
+
+export const SolverClient = (() => {
   let worker = null, ok = true, nextId = 1;
   const pending = new Map();
 
@@ -69,4 +72,3 @@ const SolverClient = (() => {
     }
   };
 })();
-globalThis.SolverClient = SolverClient;

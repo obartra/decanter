@@ -14,7 +14,9 @@
 
    Nothing here is collected, uploaded or timed. It reads state that already
    exists and formats it. */
-const Diagnostics = (() => {
+import { Trace } from './pure/05-trace.js';
+
+export const Diagnostics = (() => {
   const HOLD_MS = 700;
   let readState = () => ({});
   let hold = null;
@@ -136,4 +138,3 @@ const Diagnostics = (() => {
     }
   };
 })();
-globalThis.Diagnostics = Diagnostics;

@@ -17,7 +17,10 @@
 
    Par is a path, not an estimate, for the same reason it is over there: the
    search returns the length of a sequence of legal moves it actually walked. */
-const MeasureSearch = (() => {
+import { MeasureConfig } from './00-config.js';
+import { MeasureRules } from './20-rules.js';
+
+export const MeasureSearch = (() => {
   const C = MeasureConfig;
   const R = MeasureRules;
 
@@ -197,4 +200,3 @@ const MeasureSearch = (() => {
 
   return { solve, line, survey };
 })();
-globalThis.MeasureSearch = MeasureSearch;

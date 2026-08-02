@@ -5,7 +5,7 @@
    pixel: there is exactly one transform, in 60-view.js, and everything else
    works in world units. A game whose state is measured in pixels has to be
    rewritten every time the window changes size. */
-const BubbleConfig = {
+export const BubbleConfig = {
   /* Every row holds the same number of cells, both parities. The alternative,
      rows of COLS and COLS-1, cannot survive a parity flip on advance: a bubble
      in the last column of a wide row has nowhere to go when that row becomes a
@@ -197,4 +197,3 @@ BubbleConfig.MUZZLE = {
   y: BubbleConfig.WORLD_H - BubbleConfig.LAUNCH_BAND + 1.5
 };
 
-globalThis.BubbleConfig = BubbleConfig;

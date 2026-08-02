@@ -5,7 +5,9 @@
    pixels has to be recomputed every time the window changes, and anything that
    was mid-flight during the change lands somewhere else. Here the board is a
    fixed size in world units and only this transform moves. */
-const BubbleView = (() => {
+import { BubbleConfig } from './pure/00-config.js';
+
+export const BubbleView = (() => {
   const C = BubbleConfig;
   let cv = null, ctx = null, scale = 1, ox = 0, oy = 0, dpr = 1;
 
@@ -56,4 +58,3 @@ const BubbleView = (() => {
     get scale(){ return scale; }
   };
 })();
-globalThis.BubbleView = BubbleView;

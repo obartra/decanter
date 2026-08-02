@@ -1,10 +1,13 @@
-import { describe, it, assert, equal, loadPure, read } from './helpers.mjs';
+import { describe, it, assert, equal, loadPure } from './helpers.mjs';
+/* MapGeom is the only part of the map with no DOM in it, and now it can simply
+   be imported. It used to be lifted out by slicing the file's source at
+   `const MapView` and running the front half through `new Function`, because
+   under concatenation there was no other way to take one of a file's two exports
+   without the browser half coming along. The module only touches the document
+   inside its functions, so importing it here runs nothing. */
+import { MapGeom } from '../src/js/80-map.js';
 
-/* MapGeom is the only part of the map that has no DOM in it */
-const ctx = loadPure();
-const geomSrc = read('src/js/80-map.js').split('const MapView')[0];
-new Function('globalThis', 'CONFIG', 'Levels', geomSrc)(ctx, ctx.CONFIG, ctx.Levels);
-const { MapGeom, CONFIG } = ctx;
+const { CONFIG } = loadPure();
 
 describe('map geometry', () => {
   it('never looks ahead past the graded range', () => {

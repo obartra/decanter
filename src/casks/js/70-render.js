@@ -15,7 +15,10 @@
 
    Text is drawn in world units under the transform, so it scales with the room
    and never needs a second coordinate system to live in. */
-const CasksRender = (() => {
+import { CasksConfig } from './pure/00-config.js';
+import { CasksView } from './60-view.js';
+
+export const CasksRender = (() => {
   const C = CasksConfig;
   const V = CasksView;
 
@@ -338,4 +341,3 @@ const CasksRender = (() => {
 
   return { floor, walls, door, track, cask, rule, doorLabel, box };
 })();
-globalThis.CasksRender = CasksRender;

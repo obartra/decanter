@@ -1,4 +1,6 @@
 /* Install prompt and service worker registration. */
+import { App } from './90-app.js';
+
 (() => {
   let deferred = null;
   const btn = document.getElementById('install');

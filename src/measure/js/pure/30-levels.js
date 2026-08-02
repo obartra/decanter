@@ -10,7 +10,11 @@
    One starting position per set of capacities means a level really is its
    capacities and its target, which is what makes it worth writing two numbers
    into 32-order.js and nothing else. */
-const MeasureLevels = (() => {
+import { MeasureConfig } from './00-config.js';
+import { MeasureSearch } from './25-search.js';
+import { MeasureOrder } from './32-order.js';
+
+export const MeasureLevels = (() => {
   const C = MeasureConfig;
 
   /* Copied rather than imported, exactly as the bubble game copies its own
@@ -91,7 +95,7 @@ const MeasureLevels = (() => {
      largest count instead, which is the one the measurement chose every single
      time it was offered a choice. */
   function shape(level){
-    const e = globalThis.MeasureOrder && globalThis.MeasureOrder[level];
+    const e = MeasureOrder && MeasureOrder[level];
     if (Array.isArray(e) && e.length === 2 && e.every(Number.isInteger)) return { vessels: e[0], seed: e[1] };
     return { vessels: C.VESSELS[C.VESSELS.length - 1], seed: level };
   }
@@ -116,7 +120,7 @@ const MeasureLevels = (() => {
      with the luck, and the honest answer is the bench the level asked for, which
      the page will show as unrated. */
   function solvable(bench){
-    const S = globalThis.MeasureSearch;
+    const S = MeasureSearch;
     if (!S) return true;                 /* loaded without the search, as tests may */
     const got = S.solve(bench.caps, bench.start, bench.target);
     return got.exact && got.par != null;
@@ -124,7 +128,7 @@ const MeasureLevels = (() => {
 
   function make(level){
     const { vessels, seed } = shape(level);
-    const ordered = globalThis.MeasureOrder && globalThis.MeasureOrder[level];
+    const ordered = MeasureOrder && MeasureOrder[level];
     if (ordered) return fromSeed(vessels, seed);
     for (let n = 0; n < 60; n++){
       const bench = fromSeed(vessels, seed + n * 7919);
@@ -135,4 +139,3 @@ const MeasureLevels = (() => {
 
   return { fromSeed, shape, make };
 })();
-globalThis.MeasureLevels = MeasureLevels;

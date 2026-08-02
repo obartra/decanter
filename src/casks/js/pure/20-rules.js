@@ -26,7 +26,9 @@
    a board is a layout plus a starting position. 25-search.js leans on that
    separation completely and so does the generator: the layout decides the
    reachable component, and the start is then chosen from inside it. */
-const CasksRules = (() => {
+import { CasksConfig } from './00-config.js';
+
+export const CasksRules = (() => {
   const C = CasksConfig;
 
   /* ---- the canonical key ----
@@ -206,4 +208,3 @@ const CasksRules = (() => {
 
   return { key, span, boxOf, occupancy, runOf, moves, apply, canMove, isOut, wellFormed };
 })();
-globalThis.CasksRules = CasksRules;

@@ -5,7 +5,18 @@
    animated, and the animation is handed the lists of what came off it. So a
    slow frame, a backgrounded tab or a long fall cannot leave the board and the
    screen disagreeing about what is on it. */
-const BubbleApp = (() => {
+import { BubbleConfig } from './pure/00-config.js';
+import { BubbleRng } from './pure/10-rng.js';
+import { BubbleGrid } from './pure/20-grid.js';
+import { BubbleShot } from './pure/25-shot.js';
+import { BubbleRules } from './pure/30-rules.js';
+import { BubbleAdvice } from './pure/40-advice.js';
+import { BubbleScore } from './pure/45-score.js';
+import { BubbleAudio } from './50-audio.js';
+import { BubbleView } from './60-view.js';
+import { BubbleRender } from './70-render.js';
+
+export const BubbleApp = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
   const R = BubbleRules;
@@ -843,7 +854,6 @@ const BubbleApp = (() => {
               overwrite it. */
            set sound(on){ A.setEnabled(on, false); }, get sound(){ return A.enabled; } };
 })();
-globalThis.BubbleApp = BubbleApp;
 
 /* Booted on sight only on the page that is nothing but this game. Inside the
    other one these modules are loaded on every page view and the board is dealt

@@ -84,7 +84,10 @@ describe('dead code detector', () => {
    planted key with three accusations. Only planting found either. */
 /* Run the detector over a copy of the tree with one file altered, so the real
    sources are never touched by a test. */
-function withPlant(file, mutate){
+/* One file or several: some plants only mean anything as a pair, because what is
+   being checked is that a mention in one file does not excuse the other. */
+function withPlant(plants, mutate){
+  const list = Array.isArray(plants) ? plants : [[plants, mutate]];
   const dir = mkdtempSync(join(tmpdir(), 'live-'));
   try {
     for (const d of ['src', 'tools', 'tests']) cpSync(join(root, d), join(dir, d), { recursive: true });
@@ -97,8 +100,10 @@ function withPlant(file, mutate){
        it plants, so three of these checks passed a corpse off as alive and
        reported nothing. Copied in, it hides exactly what it is here to find. */
     rmSync(join(dir, 'tests/dead-code.test.mjs'), { force: true });
-    const target = join(dir, file);
-    writeFileSync(target, mutate(readFile(target)));
+    for (const [file, fn] of list){
+      const target = join(dir, file);
+      writeFileSync(target, fn(readFile(target)));
+    }
     /* The findings are read from stdout, never inferred from the exit code —
        reading them off the failure path instead is how the first version of
        this returned an empty list for every plant and still passed its own
@@ -171,13 +176,30 @@ describe('dead code detector, with something dead in front of it', () => {
       `a one-line block was read wrongly; found ${JSON.stringify(found)}`);
   });
 
-  it('finds a name loose in the page\'s top level', () => {
-    /* Not deadness, collision. Both games are concatenated into one script, so
-       a module declaring anything but the name it publishes puts that name in
-       the scope the other game is parsed in. */
-    const found = withPlant('src/js/pure/05-trace.js', s => `const plantedLoose = 1;\n${s}`);
-    assert(found.some(f => f.kind === 'scope' && f.what === 'plantedLoose'),
-      `a loose top-level name went unnoticed; found ${JSON.stringify(found)}`);
+  it('finds a module nothing imports', () => {
+    const found = withPlant('src/js/78-still.js',
+      s => `${s}\nexport const PlantedModule = { plantedKey: 1 };\n`);
+    assert(found.some(f => f.kind === 'global' && f.what === 'PlantedModule'),
+      `a module nothing imports went unnoticed; found ${JSON.stringify(found)}`);
+  });
+
+  it('does not let an entry point\'s debug surface keep a module alive', () => {
+    /* The check that stops the `global` kind from being decorative. Every entry
+       point ends in one `Object.assign(globalThis, { ... })` naming every module
+       on the page, for the browser suite to reach. Counted as a use, that block
+       would answer "does anything name this?" with yes for every module there
+       will ever be, and the kind would find nothing for the rest of time — while
+       still looking like it worked.
+
+       So the same corpse as above, this time also listed on the debug surface.
+       It has to still be reported. */
+    const found = withPlant([
+      ['src/js/78-still.js', s => `${s}\nexport const PlantedModule = { plantedKey: 1 };\n`],
+      ['src/js/main.js', s => s.replace('Object.assign(globalThis, {',
+        "import { PlantedModule } from './78-still.js';\nObject.assign(globalThis, { PlantedModule,")]
+    ]);
+    assert(found.some(f => f.kind === 'global' && f.what === 'PlantedModule'),
+      `being named on a debug surface passed a dead module off as alive; found ${JSON.stringify(found)}`);
   });
 
   it('finds a class nothing wears', () => {

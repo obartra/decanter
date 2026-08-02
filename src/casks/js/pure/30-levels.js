@@ -28,7 +28,10 @@
 
    25-search.js is still in the bundle, because the hint needs it — but a hint is
    asked for, where a deal is not. */
-const CasksLevels = (() => {
+import { CasksBoards } from './32-boards.js';
+import { CasksPars } from './35-pars.js';
+
+export const CasksLevels = (() => {
   /* No config is read here, and that is worth noticing rather than fixing. Every
      dimension of a board — the size of the floor, which row the door is in, how
      long a cask may be — is already baked into the table by the tool that wrote
@@ -92,7 +95,7 @@ const CasksLevels = (() => {
      Read through globalThis so this module can load before the table does —
      filename order is dependency order, and 32-boards.js sorts after this. */
   function make(level){
-    const table = globalThis.CasksBoards;
+    const table = CasksBoards;
     const text = table && table[level];
     if (typeof text !== 'string' || !text.length) return null;
     return parse(text);
@@ -103,7 +106,7 @@ const CasksLevels = (() => {
      when neither table has been generated yet, which is only true in a checkout
      where the tool has not been run. */
   function last(){
-    const pars = globalThis.CasksPars;
+    const pars = CasksPars;
     return pars && Number.isInteger(pars.last) ? pars.last : 0;
   }
 
@@ -111,11 +114,10 @@ const CasksLevels = (() => {
      header. `null` is a real answer and 45-score.js gives it no stars rather
      than the benefit of the doubt. */
   function par(level){
-    const pars = globalThis.CasksPars;
+    const pars = CasksPars;
     const p = pars && pars.par && pars.par[level];
     return Number.isInteger(p) ? p : null;
   }
 
   return { parse, encode, make, last, par };
 })();
-globalThis.CasksLevels = CasksLevels;

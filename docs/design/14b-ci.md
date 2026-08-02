@@ -22,10 +22,13 @@ Redundant on purpose: it is the last thing between a merge and players.
 
 ## The layers, and what each one is for
 
-**Lint** (`npm run lint`). The game ships as plain scripts sharing one global
-scope, so the config declares what each file publishes and what it expects to
-find; a linter that assumes modules calls all of that undefined. It found two
-pieces of genuinely dead code the first time it ran.
+**Lint** (`npm run lint`). Every source file is an ES module, so the config says
+so once and the linter resolves imports on its own; the one thing it is still
+told about is `Sound`, which is written by the deferred half of the sound and
+read by the rest, across a boundary no import crosses. It found two pieces of
+genuinely dead code the first time it ran, and again during the move to modules:
+`no-undef` is what found a module using `Rules` without importing it, which the
+old configuration could not have seen.
 
 **Unit** (`npm test`). No dependencies, covering everything decidable from
 numbers: rules, solver, levels, par, ordering, economy, progress, the end-of-run
@@ -34,27 +37,43 @@ cheapest place to catch things. There is no count here on purpose: the one that
 used to be here said 139, and the README's said 203, and neither had been true
 for a long time.
 
-**Dead code** (`npm run verify:dead`). Eight kinds in the output, six of them
+**Dead code** (`npm run verify:dead`). Seven kinds in the output, six of them
 ways of being unused:
 
 | kind | what it is |
 | --- | --- |
-| `global` | a module on `globalThis` that no other file names |
+| `global` | a module no other file imports or names |
 | `member` | a key on a module's object that no other file names |
 | `helper` | a top-level function its own module never calls |
 | `config` | a tunable nothing reads |
 | `style` | a selector or custom property nothing uses |
 | `page` | an element id nothing reaches for |
 | `missing` | an id a script reaches for and no page has |
-| `scope` | a name a module leaves in the page's own top level |
 
-The last two run the other way round. `missing` finds something reached and never
+The last runs the other way round. `missing` finds something reached and never
 written where everything above it finds something written and never reached, and
-it is the worse failure: a silent null every time that line runs. `scope` is not
-deadness but collision — the app page is one script, so a module's top level is
-the page's, and the same name twice is either a silent overwrite, if they are
-functions, or a parse error, which on a page that is one script is a blank
-screen.
+it is the worse failure: a silent null every time that line runs.
+
+The bundler tree-shakes what nothing imports, which does not make any of this
+redundant: the shaking stops at the module's object. A module that is imported at
+all ships every key it hands back, so `member` is measuring something no bundler
+looks at, and `global` still matters because an unimported module is a file
+someone will read and maintain.
+
+`global` has one rule worth stating, because without it the kind would be
+decorative. Every entry point ends in a single `Object.assign(globalThis, { … })`
+naming every module on its page, so that the browser suite can reach them. That
+block is a debug surface, not a use, and is excluded from the count on the same
+footing as the module's own file — otherwise it would answer "does anything name
+this?" with yes for every module there will ever be.
+
+There used to be an eighth kind, `scope`, for a name a module left in the page's
+own top level. It was about collision rather than deadness, and it mattered
+because the build concatenated every file into one `<script>`: two modules
+declaring one name either overwrote each other in silence, if they were
+functions, or failed to parse, which on a page that is one script is a blank
+screen. Modules have their own scope now and there is nothing left for it to
+find, so it was removed rather than left to pass while examining nothing.
 
 There were briefly two tools asking this from opposite ends, one scanning the
 sources and one the build. They are one now, and it carries every check either
