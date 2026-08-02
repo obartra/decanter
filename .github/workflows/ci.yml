@@ -47,6 +47,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # A published global nothing names, an export nothing calls, a tunable
+      # nothing reads. None of it throws, so none of it is visible any other way.
+      - name: Nothing here is dead
+        run: npm run dead
+
       # Par is the number the whole scoring rests on. This replays every level
       # against the independent rules and fails if any of them cannot be
       # finished in exactly the par the game advertises.

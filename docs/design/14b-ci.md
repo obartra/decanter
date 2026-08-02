@@ -14,7 +14,7 @@ amounts of time. A typo should not wait behind a browser download.
 
 | job | what it runs | roughly |
 | --- | --- | --- |
-| `checks` | lint, dist freshness and size, unit tests, par reachability | seconds |
+| `checks` | lint, size budget, unit tests, dead code, par reachability | seconds |
 | `e2e` | the browser suite, two viewports | a minute |
 
 `.github/workflows/pages.yml` runs `npm run check` again before publishing.
