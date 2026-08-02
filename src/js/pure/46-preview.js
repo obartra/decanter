@@ -18,6 +18,14 @@
    Everything here is decided from numbers, so every case can be asserted rather
    than reached by clearing a level three different ways in a browser.
 
+   Not in the critical bundle. This file and 06-preview.css are fetched right
+   after the page opens, under the name `preview` in tools/build.mjs, because
+   nothing here is reachable until somebody taps a medallion for a level they
+   have already cleared. `showPreview` waits on that group before it draws.
+
+   The still is not deferred with it. 78-still.js draws the small bottles on the
+   shelf the blast offers too, and that shelf is opened mid-run.
+
    Closed over, the way every module here is except the one this was modelled on.
    All of these files are concatenated into a single script, so two of them
    declaring a top-level `decide` are one function and the later one wins, for

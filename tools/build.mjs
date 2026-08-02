@@ -81,10 +81,39 @@ const GAMES = [
            && existsSync(join(root, `src/${g.path}/js`))
            && existsSync(join(root, `src/${g.path}/css`)));
 
-/* Modules the app does not need in order to open. Named here rather than by a
-   number range, because "critical" is a judgement about this file's contents
-   and not a property of where it sorts. */
-const DEFERRED = ['50-audio.js'];
+/* ---------- what the app does not need in order to open ----------
+
+   Named groups of the app's own sources, each fetched after the page has opened
+   and awaited by whatever needs it. Named here rather than by a number range,
+   because "critical" is a judgement about what a file is for and not a property
+   of where it sorts.
+
+   This was a flat list of scripts while there was one thing on it, and that
+   shape had two limits that only showed up when a second thing wanted off the
+   critical path. It could hold one group, so everything on it was fetched under
+   one name and awaited together. And it was scripts only, so a screen could
+   defer its code and not its stylesheet, which for the card below would have
+   been a third of it left behind.
+
+   A group is js, css or both. The fetching side needed nothing for either: a
+   group has been a list of urls since the games went into it, and
+   96-deferred.js has always told a stylesheet from a script by its extension.
+   The build is what could only say "a game". */
+const DEFERRED = {
+  /* Every cue the game plays. 49-audio.js answers all of them silently and
+     remembers the sound setting until this lands, which is the thing that makes
+     deferring it safe at all. */
+  audio: { js: ['50-audio.js'] },
+  /* The card shown before a replay. Nothing on it is reachable until somebody
+     taps a medallion for a level they have already cleared, so on the critical
+     path it was downloaded by every player and read by the ones who go back.
+
+     Not the still it draws. 78-still.js and 05-still.css are shared with the
+     shelf the blast offers, which is mid-run and cannot wait for a fetch, and
+     those two were made shared on purpose after two hand-rolled copies of a
+     small bottle disagreed about what a half empty one looks like. */
+  preview: { js: ['46-preview.js'], css: ['06-preview.css'] }
+};
 
 /* ---------- gathering sources ---------- */
 /* Concatenated in filename order with the same markers the single file has
@@ -94,19 +123,46 @@ const DEFERRED = ['50-audio.js'];
 const concat = (dir, files) =>
   files.map(f => `\n/* ---- ${base(f)} ---- */\n${read(`${dir}/${f}`)}`).join('\n');
 
-const cssOf = dir => sorted(`${dir}/css`).map(f => read(`${dir}/css/${f}`)).join('\n');
+const cssOf = (dir, files) => files.map(f => read(`${dir}/css/${f}`)).join('\n');
 
-function sourcesOf(dir, { skip = [] } = {}){
-  const files = sorted(`${dir}/js`);
+/* `css` and `js` are what a page loads to open; `allCss` and `all` are the same
+   sources with nothing held back, which is what the portable file inlines and
+   what the build id is taken over. A game holds nothing back, so for one of the
+   games the two pairs are the same text.
+
+   What is skipped is matched on the filename, never the path, for the reason
+   the ordering is: which folder a module was filed under is not part of how
+   anyone refers to it, and a group naming `pure/46-preview.js` would be naming
+   a filing decision it has no business knowing about. */
+function sourcesOf(dir, { skipJs = [], skipCss = [] } = {}){
+  const js = sorted(`${dir}/js`);
+  const css = sorted(`${dir}/css`);
   return {
-    css: cssOf(dir),
-    js: concat(`${dir}/js`, files.filter(f => !skip.includes(base(f)))),
-    held: concat(`${dir}/js`, files.filter(f => skip.includes(base(f)))),
-    all: concat(`${dir}/js`, files)
+    css: cssOf(dir, css.filter(f => !skipCss.includes(base(f)))),
+    js: concat(`${dir}/js`, js.filter(f => !skipJs.includes(base(f)))),
+    allCss: cssOf(dir, css),
+    all: concat(`${dir}/js`, js)
   };
 }
 
-const app = sourcesOf('src', { skip: DEFERRED });
+const held = kind => Object.values(DEFERRED).flatMap(g => g[kind] || []);
+/* Every name this build mints a bundle under, so a group cannot take one that is
+   already spoken for.
+
+   Not only the games, which was the obvious half and the harmless one. `app` is
+   the dangerous name: a group called that would emit assets/app-<other hash>.css
+   beside the real one and overwrite nothing, so nothing would throw, and then
+   both verify-budget.mjs and the suite would pick whichever of the two readdir
+   handed them first. The critical path check would measure the deferred group
+   and report a page load 250kb lighter than it is, which is the one number that
+   check exists to be right about. */
+const MINTED = ['app', 'solver', ...GAMES.map(g => g.name)];
+for (const name of Object.keys(DEFERRED)){
+  if (MINTED.includes(name))
+    throw new Error(`the deferred group "${name}" already names a bundle, so the two would be told apart by readdir order`);
+}
+
+const app = sourcesOf('src', { skipJs: held('js'), skipCss: held('css') });
 const solver = read('src/worker/solver.js');
 /* The only recording anything here ships, and only Jabari mode plays it. Read
    once because both builds want the same bytes and the build id wants its
@@ -122,8 +178,16 @@ const games = GAMES.map(g => ({ ...g, src: sourcesOf(`src/${g.path}`) }));
    newly named bundles beside the superseded ones, and never sweep them: the
    install would grow a little every release, forever. The build stamp on that
    game's own page would be wrong too, which is the one thing the stamp exists
-   to be right about. */
-const buildId = hash([app.all, solver, ...games.map(g => g.src.css + g.src.all)].join('\n')
+   to be right about.
+
+   The app's own stylesheet was the one source this claimed to cover and did
+   not: every game's css was in here and `app.all` is scripts only, so editing
+   src/css/ minted a newly named bundle under an unchanged version, which is
+   exactly the release-on-release growth described above. It ran the other way
+   too, and worse: a page kept stamping the build id of the last script change
+   while showing a stylesheet from a later one. */
+const buildId = hash([app.allCss, app.all, solver,
+  ...games.map(g => g.src.css + g.src.all)].join('\n')
   + boom.toString('base64'));
 
 /* ---------- emitting ---------- */
@@ -147,8 +211,37 @@ const href = (depth, file) => (depth ? '../'.repeat(depth) : './') + file;
 
 const appCss = asset('app', 'css', app.css);
 const appJs = asset('app', 'js', app.js);
-const audioJs = asset('audio', 'js', app.held);
 const solverJs = asset('solver', 'js', solver);
+/* One bundle per group per kind, under the group's own name. The stylesheet is
+   listed first, the way a game's is, so its request goes out first.
+
+   Only that. It is worth saying what does NOT follow from the order, because it
+   looks like it should: 96-deferred.js appends every url in a group in the same
+   tick, and `async = false` orders scripts against each other and says nothing
+   about a stylesheet, so a group's script can run before its stylesheet has
+   landed. What keeps a card from being drawn into rules that are not there yet
+   is that `ready` does not settle until all of them have. */
+/* A group names its modules the way everything else does, by filename, so the
+   folder has to be looked up rather than assumed: 46-preview.js runs without a
+   DOM and therefore lives in src/js/pure/, and reading it from src/js/ would
+   fail the build on a file that is right where it belongs. Resolved through the
+   same walk that orders the bundle, so there is one answer to where a module is.
+
+   A name that matches nothing is a group that silently ships empty, so it is
+   caught here rather than left to be noticed as a screen that stops working. */
+const pathsIn = (dir, names) => {
+  const found = sorted(dir).filter(f => names.includes(base(f)));
+  const missing = names.filter(n => !found.some(f => base(f) === n));
+  if (missing.length) throw new Error(`deferred: ${dir} has no ${missing.join(', ')}`);
+  return found;
+};
+const deferredAssets = {};
+for (const [name, group] of Object.entries(DEFERRED)){
+  const urls = [];
+  if (group.css) urls.push(href(0, asset(name, 'css', cssOf('src', pathsIn('src/css', group.css)))));
+  if (group.js) urls.push(href(0, asset(name, 'js', concat('src/js', pathsIn('src/js', group.js)))));
+  deferredAssets[name] = urls;
+}
 for (const g of games){
   g.cssFile = asset(g.name, 'css', g.src.css);
   g.jsFile = asset(g.name, 'js', g.src.js);
@@ -188,7 +281,7 @@ function page(tmpl, slots){
 
 /* 1. the app, as a shell over hashed bundles */
 const deferredFor = () => {
-  const groups = { audio: [href(0, audioJs)] };
+  const groups = { ...deferredAssets };
   for (const g of games.filter(x => x.inApp)) groups[g.name] = [href(0, g.cssFile), href(0, g.jsFile)];
   return groups;
 };
@@ -215,8 +308,9 @@ writeFileSync(join(dist, 'index.html'), appPage);
 /* 2. one portable file, everything inlined, opens straight off disk.
 
    No hashing, no deferring and no worker file: there is nowhere to fetch from.
-   The sound module goes back in line with the rest, and an empty deferred slot
-   is how 96-deferred.js is told there is nothing to wait for. */
+   Every group goes back in line with the rest (`allCss` and `all` rather than
+   the two the app page loads), and an empty deferred slot is how 96-deferred.js
+   is told there is nothing to wait for. */
 const dataFont = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).toString('base64');
 const standalone = page('src/index.html', {
   '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
@@ -230,7 +324,7 @@ const standalone = page('src/index.html', {
                            dataFont('assets/fonts/alegreyasans.woff2'),
                            dataFont('assets/fonts/alegreyasans-bold.woff2')),
   '<!--SOLVER-->': `<script id="solverSrc" type="text/js-worker">${solver}</script>`,
-  '<!--CSS-->': `<style>${[app.css, ...games.filter(g => g.inApp).map(g => g.src.css)].join('\n')}</style>`,
+  '<!--CSS-->': `<style>${[app.allCss, ...games.filter(g => g.inApp).map(g => g.src.css)].join('\n')}</style>`,
   '<!--DEFERRED-->': '',
   '<!--JS-->': `<script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
 });
@@ -311,8 +405,10 @@ const critical = size('index.html') + size(appCss) + size(appJs);
 console.log('built dist/');
 console.log('  index.html                ', kb(size('index.html')), '(shell)');
 console.log('  critical path             ', kb(critical), '(shell + app css + app js)');
-console.log('  deferred                  ', kb(size(audioJs) + games.filter(g => g.inApp)
-  .reduce((n, g) => n + size(g.cssFile) + size(g.jsFile), 0)));
+const deferred = Object.values(deferredAssets).flat().reduce((n, u) => n + size(u.replace('./', '')), 0)
+  + games.filter(g => g.inApp).reduce((n, g) => n + size(g.cssFile) + size(g.jsFile), 0);
+console.log('  deferred                  ', kb(deferred),
+  `(${Object.keys(deferredFor()).join(', ')})`);
 for (const g of games) console.log(`  ${(g.path + '/index.html').padEnd(26)}`, kb(size(`${g.path}/index.html`)),
   `(shell, ${kb(size(g.cssFile) + size(g.jsFile))} of game)`);
 console.log('  decanter-standalone.html  ', kb(size('decanter-standalone.html')));

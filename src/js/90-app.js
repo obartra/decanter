@@ -256,19 +256,36 @@ const App = (() => {
 
   function showPreview(level){
     const token = ++previewRequest;
-    /* The other game's numbers are not on the critical path. It is fetched as
-       soon as the page opens, so by the time anybody taps a medallion it has
-       been on the device for minutes and this resolves at once; on the one load
-       where it has not, the card waits rather than throwing, which is the trade
-       `startBubble` already makes for the board itself.
+    const bubble = Levels.isBubble(level);
+    /* Neither the card nor the other game's numbers are on the critical path.
 
-       If it never arrives the card is still worth showing. What it is for is
-       what a replay pays, and that is this game's arithmetic: only the picture
-       and the shot count come from over there, and both know how to be absent. */
-    if (!Levels.isBubble(level)) return paintPreview(level, true);
-    Deferred.ready('bubble').then(() => {
+       The card rides in a bundle of its own now, because none of it is reachable
+       until a tap like this one and it was being downloaded by everybody for the
+       players who come back to a cleared level. Like the game's, it is fetched
+       the moment the page opens, so by the time anybody has read the map it has
+       been on the device for minutes and this resolves at once. On the one load
+       where it has not, the tap waits rather than dealing a board nobody asked
+       to pay for.
+
+       Both are awaited together for the plain reason that a bubble level's card
+       needs both, and waiting on them one after the other would make the slower
+       one wait for the faster.
+
+       They fail differently, though, so they are answered differently. Without
+       the other game the card is still worth drawing: what it is for is what a
+       replay pays, and that is this game's arithmetic: only the picture and the
+       shot count come from over there, and both know how to be absent. Without
+       the card there is nothing to draw at all, so the tap is refused, which at
+       least leaves a reason behind it rather than a medallion that does
+       nothing. */
+    const want = bubble ? ['preview', 'bubble'] : ['preview'];
+    Promise.all(want.map(name => Deferred.ready(name))).then(() => {
       if (token !== previewRequest) return;
-      const loaded = typeof BubbleApp !== 'undefined';
+      if (typeof Preview === 'undefined'){
+        deny('preview', 'the card before a replay could not be loaded');
+        return;
+      }
+      const loaded = !bubble || typeof BubbleApp !== 'undefined';
       if (!loaded) deny('preview', 'the bubble game could not be loaded');
       paintPreview(level, loaded);
     });

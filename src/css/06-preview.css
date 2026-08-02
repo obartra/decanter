@@ -3,7 +3,14 @@
    It borrows the win panel's furniture on purpose (the same stars, the same
    payout row, the same priced button) because it is the same conversation held
    before the run rather than after it. What it adds is the picture, and the
-   picture lives in 05-still.css, because the blast's shelf draws one too. */
+   picture lives in 05-still.css, because the blast's shelf draws one too.
+
+   Not in the app's stylesheet. This file rides with 46-preview.js in the
+   `preview` group in tools/build.mjs, fetched right after the page opens: no
+   rule here applies to anything until a medallion for a cleared level is
+   tapped, and the tap waits for both halves before the card is drawn.
+   05-still.css stays behind for the same reason the module does, which is that
+   the blast's shelf is mid-run and cannot wait for a fetch. */
 .previewCard{max-width:360px}
 .previewCard .kicker{color:var(--tint, var(--ink-dim))}
 .previewCard h2{margin-bottom:2px}

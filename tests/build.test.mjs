@@ -1,6 +1,9 @@
 import { describe, it, assert, equal, read, root, modulesOf, nameOf } from './helpers.mjs';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync,
+         mkdtempSync, writeFileSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 /* the same list the linter is configured from, so "what a browser defines" has
    one answer here and there rather than a copy that drifts */
 import globals from 'globals';
@@ -26,6 +29,40 @@ const assetNamed = (name, ext) =>
 const gameDirs = () => readdirSync(join(root, 'src'))
   .filter(d => existsSync(join(root, 'src', d, 'index.html'))
             && existsSync(join(root, 'src', d, 'js')));
+
+/* The groups the app page fetches after it opens, as the page itself lists them. */
+const deferredGroups = () => JSON.parse(text('index.html')
+  .match(/<script type="application\/json" id="deferredAssets">([\s\S]*?)<\/script>/)[1]);
+
+/* Every bundle of the app's OWN sources, critical and deferred alike.
+
+   The games' bundles are in the same directory and named the same way, and their
+   modules are numbered the same way too, so `00-config.js` marks a section in two
+   bundles that have nothing to do with one another. The manifest is what can tell
+   them apart: a group whose name is not a game's is the app holding part of
+   itself back. */
+const appBundles = ext => {
+  const games = new Set(gameDirs());
+  const critical = assetNamed('app', ext);
+  /* said here rather than left to blow up on `undefined.endsWith` two lines
+     down, which reports the wrong thing about a build that did not emit */
+  assert(critical, `there is no app ${ext} bundle to measure against`);
+  const held = Object.entries(deferredGroups())
+    .filter(([name]) => !games.has(name))
+    .flatMap(([, urls]) => urls)
+    .map(u => u.replace('./', ''));
+  return [critical, ...held].filter(f => f.endsWith(`.${ext}`));
+};
+
+/* Which stylesheets left the critical bundle, worked out from what shipped
+   rather than from a copy of the build's list. */
+const deferredSheets = () => {
+  /* through appBundles rather than assetNamed, so a build that emitted no app
+     stylesheet says so instead of dying inside readFileSync on an undefined */
+  const critical = text(appBundles('css')[0]);
+  return modulesOf('src/css', '.css')
+    .filter(f => !critical.includes(read(`src/css/${f}`)));
+};
 
 describe('the workflow and the scripts it names', () => {
   it('never asks npm for a script that does not exist', () => {
@@ -67,10 +104,12 @@ describe('build output', () => {
                      'audio/boom.mp3']){
       assert(has(f), `dist/${f} is missing, run npm run build`);
     }
-    for (const name of ['app', 'audio', 'solver']){
+    for (const name of ['app', 'audio', 'preview', 'solver']){
       assert(assetNamed(name, 'js'), `the ${name} bundle is missing`);
     }
-    assert(assetNamed('app', 'css'), 'the app stylesheet is missing');
+    for (const name of ['app', 'preview']){
+      assert(assetNamed(name, 'css'), `the ${name} stylesheet is missing`);
+    }
   });
 
   it('makes no network requests, so it can run fully offline', () => {
@@ -125,14 +164,94 @@ describe('build output', () => {
     }
   });
 
-  it('bundles every source module in order', () => {
-    const js = text(assetNamed('app', 'js'));
-    /* the sound is deliberately not in here; see the deferred test below */
-    for (const f of modulesOf('src/js').map(nameOf).filter(n => n !== '50-audio.js')){
-      assert(js.includes(`/* ---- ${f} ---- */`), `${f} was left out of the app bundle`);
+  /* Exactly one, rather than "in the app bundle", because the build can now hold
+     part of the app's own script back and the interesting failures are on both
+     sides of that. A file in none is a module that silently stopped shipping and
+     is a ReferenceError the first time some line wants it. A file in two is
+     every module in it evaluated twice, which for an IIFE that publishes a
+     namespace means the second copy replacing the first's state after everything
+     else has already taken a reference to it.
+
+     Nothing here names which files are deferred. That list lives in one place,
+     tools/build.mjs, and a test that kept a copy of it would go green on the day
+     the two stopped agreeing.
+
+     By the name the marker carries rather than the path, because `pure/` is a
+     fact about which modules need a DOM and not about which bundle they ship
+     in: the card's decision is pure and deferred, the still's is neither. */
+  it('bundles every source module exactly once, critical or deferred', () => {
+    const bundles = appBundles('js');
+    assert(bundles.length > 1, 'the app is one bundle, so this is not checking a split at all');
+    for (const f of modulesOf('src/js').map(nameOf)){
+      const found = bundles.filter(b => text(b).includes(`/* ---- ${f} ---- */`));
+      equal(found.length, 1,
+        `${f} is in ${found.length} of the app's bundles (${bundles.join(', ')}), wanted exactly one`);
     }
+    const js = text(assetNamed('app', 'js'));
     assert(js.indexOf('/* ---- 20-rules.js ---- */') < js.indexOf('/* ---- 90-app.js ---- */'),
       'modules must be bundled in dependency order');
+  });
+
+  /* The same question for the stylesheets, which never had it asked. While the
+     build concatenated the whole directory there was nothing to get wrong; now
+     that a sheet can be held back by name, a typo in that name is a stylesheet
+     that ships in neither bundle. That is not a crash. It is a screen that
+     renders as unstyled markup, which is exactly the kind of thing a suite with
+     no browser in it would sail past.
+
+     Matched on the file's whole text, since a stylesheet is copied in verbatim
+     with no marker around it. */
+  /* Deferring a stylesheet moves it to the END of the cascade, whatever its
+     number says, because it is appended once the critical one has already
+     loaded. The numbering in src/css is the cascade order in this project and it
+     is how every override in it is written, so a sheet that joins a group quietly
+     stops obeying it.
+
+     06-preview.css is numbered before 07-jabari.css and now loads after it. That
+     is fine, and it is fine by luck rather than by design: those two style
+     nothing in common. Defer 03-game.css instead and four sheets written to
+     override it stop winning, with no error anywhere and one rule losing to
+     another on one screen as the only symptom.
+
+     So the question is asked of the pair rather than of the order: a critical
+     sheet that sorts AFTER a deferred one may not name any of the same classes,
+     because the file numbers say it wins and the load order says it does not. */
+  it('lets no critical stylesheet quietly outrank a deferred one it sorts after', () => {
+    const sheets = modulesOf('src/css', '.css');
+    const held = deferredSheets();
+    assert(held.length, 'no stylesheet is deferred, so this is not checking anything');
+    /* Every class anywhere in a selector, not the one at the start of the line.
+       Overriding in this project is written `.stillBox .stillBottle`, so a check
+       that read the first token only would compare `.stillBox` against
+       `.stillBottle` and see two files with nothing in common. Planting a
+       deferred 02-bottle.css got past exactly that version of this.
+
+       Selector text only, the way tools/dead-code.mjs reads it: scanning whole
+       declarations turns every `#FBEBC8` into an id and every shorthand into
+       noise. */
+    const selectorText = css => css.replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('{')
+      .map(chunk => { const end = chunk.lastIndexOf('}'); return end < 0 ? chunk : chunk.slice(end + 1); })
+      .join('\n');
+    const classesOf = f => new Set(
+      [...selectorText(read(`src/css/${f}`)).matchAll(/\.([a-zA-Z][-\w]*)/g)].map(m => m[1]));
+    for (const deferredSheet of held){
+      const after = sheets.filter(f => f > deferredSheet && !held.includes(f));
+      for (const later of after){
+        const shared = [...classesOf(deferredSheet)].filter(c => classesOf(later).has(c)).sort();
+        equal(shared, [],
+          `${later} is critical and sorts after the deferred ${deferredSheet}, so it now loads BEFORE it and loses rules it used to win`);
+      }
+    }
+  });
+
+  it('bundles every stylesheet exactly once, critical or deferred', () => {
+    const bundles = appBundles('css');
+    for (const f of modulesOf('src/css', '.css')){
+      const found = bundles.filter(b => text(b).includes(read(`src/css/${f}`)));
+      equal(found.length, 1,
+        `${f} is in ${found.length} of the app's stylesheets (${bundles.join(', ')}), wanted exactly one`);
+    }
   });
 
   it('carries a working copy of the solver', () => {
@@ -182,6 +301,44 @@ describe('build output', () => {
       'the sound was not emitted as its own bundle');
   });
 
+  /* The card shown before a replay is the first thing to use the other half of
+     that mechanism: a group with a stylesheet in it as well as a script. Both
+     halves have to leave, or the deferring moves a third of the card and the
+     rest is still downloaded by every player. */
+  it('keeps the card before a replay out of the critical bundles, both halves', () => {
+    const js = text(assetNamed('app', 'js'));
+    const css = text(assetNamed('app', 'css'));
+    assert(!js.includes('/* ---- 46-preview.js ---- */'), 'the card is still in the critical bundle');
+    assert(!css.includes(read('src/css/06-preview.css')),
+      'the card\'s stylesheet is still in the critical one');
+    assert(text(assetNamed('preview', 'js')).includes('/* ---- 46-preview.js ---- */'),
+      'the card was not emitted as its own bundle');
+    assert(text(assetNamed('preview', 'css')).includes(read('src/css/06-preview.css')),
+      'the card\'s stylesheet was not emitted as its own bundle');
+    /* And what deliberately did not go with it. Both of these draw the small
+       bottles on the shelf the blast offers, which is opened in the middle of a
+       run and cannot wait for a fetch. */
+    assert(js.includes('/* ---- 78-still.js ---- */'),
+      'the still draws the blast shelf mid-run, so it cannot be deferred with the card');
+    assert(css.includes(read('src/css/05-still.css')),
+      'the same, for the rules that style those bottles');
+  });
+
+  /* A deferred group resolves whether or not its fetch worked, deliberately, so
+     that a caller is never left awaiting forever with nothing on the screen.
+     That puts the whole weight on the caller checking for what it asked for, and
+     the check has to be in the same place as the wait. */
+  it('waits for the card before it draws one, and copes if it never lands', () => {
+    const app = read('src/js/90-app.js');
+    const fn = app.slice(app.indexOf('function showPreview('), app.indexOf('function paintPreview('));
+    assert(fn.length > 100, 'the slice must actually contain showPreview()');
+    assert(/Deferred\.ready\(/.test(fn), 'the tap does not wait for anything it is going to need');
+    assert(/'preview'/.test(fn),
+      'it must wait for the card\'s own group, not only the other game\'s');
+    assert(/typeof Preview === 'undefined'/.test(fn),
+      'a group whose fetch failed resolves anyway, so the module has to be checked for');
+  });
+
   /* The window this guards is between DOMContentLoaded, when the deferred app
      script has run and the map is interactive, and `load`, which additionally
      waits for three woff2 files. On a cold cache that is seconds. If the group
@@ -200,16 +357,35 @@ describe('build output', () => {
       'the names must be declared before the fetching is scheduled');
   });
 
+  /* What actually keeps a deferred screen from being drawn before it has a
+     stylesheet, which is not what it looks like.
+
+     A group's urls are appended in the same tick, and `async = false` orders
+     scripts against each other and says nothing about a stylesheet, so listing
+     the css first buys nothing but an earlier request. The group promise is the
+     whole guarantee: settle it on the script alone and `showPreview` would draw
+     a card whose rules are still in the air, which is not a crash and not a
+     failing test, just a panel that reflows a frame later on a slow connection
+     and looks fine on the machine of whoever changed it. */
+  it('holds a group back until every file in it has landed, not just the script', () => {
+    const src = read('src/js/96-deferred.js');
+    const fn = src.slice(src.indexOf('function start('), src.indexOf('function ready('));
+    assert(fn.length > 50, 'the slice must actually contain start()');
+    assert(/Promise\.all\(\s*urls\.map\(fetchOne\)\s*\)/.test(fn),
+      'a group must settle on all of its urls, or a caller can be handed a module whose stylesheet has not arrived');
+  });
+
   it('names only deferred assets that were actually built', () => {
-    const m = text('index.html').match(/<script type="application\/json" id="deferredAssets">([\s\S]*?)<\/script>/);
-    assert(m, 'the app page lists nothing to fetch after it opens');
-    const groups = JSON.parse(m[1]);
+    assert(text('index.html').includes('id="deferredAssets"'),
+      'the app page lists nothing to fetch after it opens');
+    const groups = deferredGroups();
     assert(Object.keys(groups).length > 0, 'the deferred list is empty');
     for (const [name, urls] of Object.entries(groups)){
       assert(urls.length > 0, `${name} is listed with nothing in it`);
       for (const u of urls) assert(has(u.replace('./', '')), `${name} names ${u}, which was not built`);
     }
     assert(groups.audio, 'the sound must be fetched after the page opens');
+    assert(groups.preview, 'the card before a replay must be fetched after the page opens');
   });
 
   /* A page with no icon is not merely undecorated. The browser asks for
@@ -320,6 +496,51 @@ describe('build output', () => {
     assert(/^decanter-[0-9a-f]{10}$/.test(version), `unexpected cache name: ${version}`);
   });
 
+  /* And changes it for a change to ANY source that ships, which is what the id
+     claims to be a hash of and for one of them was not.
+
+     Every game's stylesheet was in that hash and the app's own was not, because
+     the app contributed its scripts only. Editing src/css/ therefore minted a
+     newly named bundle under an unchanged version, and one shared cache plus an
+     unchanged version means activate() reopens it, adds the new name beside the
+     superseded one and never sweeps: the install grows a little every release,
+     forever. The build stamp on the page went stale the same way, which is the
+     one thing a stamp exists not to do.
+
+     Asserted by building a copy of the tree with one file altered, rather than
+     by reading the expression that computes it. The expression looked right.
+
+     One file per kind, not every file: this is asking whether a kind of source
+     is in the hash at all, and it costs a build apiece. */
+  it('changes its cache name for a change to any source that ships', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'decanter-build-'));
+    try {
+      for (const d of ['src', 'assets', 'tools']) cpSync(join(root, d), join(dir, d), { recursive: true });
+      const idOf = () => {
+        execFileSync(process.execPath, [join(dir, 'tools/build.mjs')], { stdio: 'pipe' });
+        return readFileSync(join(dir, 'dist/sw.js'), 'utf8').match(/const VERSION = '([^']+)'/)[1];
+      };
+      const before = idOf();
+      for (const [file, addition] of [
+        ['src/css/01-base.css', '\n.aRuleThatShipped{color:red}\n'],
+        ['src/js/pure/20-rules.js', '\n/* a line that shipped */\n'],
+        ['src/css/06-preview.css', '\n.aDeferredRuleThatShipped{color:red}\n'],
+        ['src/js/pure/46-preview.js', '\n/* a deferred line that shipped */\n'],
+        ['src/bubble/css/00-base.css', '\n.anotherGamesRuleThatShipped{color:red}\n']
+      ]){
+        const target = join(dir, file);
+        const original = readFileSync(target, 'utf8');
+        writeFileSync(target, original + addition);
+        assert(idOf() !== before,
+          `${file} changed and the build id did not, so the worker would never sweep the old bundle`);
+        writeFileSync(target, original);
+      }
+      equal(idOf(), before, 'putting every file back did not put the id back');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('stamps every page with the build the worker caches', () => {
     const version = text('sw.js').match(/const VERSION = 'decanter-([0-9a-f]{10})'/);
     assert(version, 'the worker has no version');
@@ -410,6 +631,15 @@ describe('build output', () => {
     assert(/<script id="solverSrc"/.test(html), 'the portable file has no solver in it');
     assert(html.includes('/* ---- 50-audio.js ---- */'), 'the portable file would open silent');
     assert(html.includes('/* ---- 90-app.js ---- */'), 'the portable file has no app in it');
+    /* Every deferred group, both halves. A group held back here is a screen that
+       waits forever for a fetch this build has no way to make: `ready` resolves
+       on an unknown name precisely because nothing here is ever coming, so the
+       failure is not a hang but a card drawn out of a module that is not there.
+       The stylesheet is the easier half to forget, and the quieter one. */
+    for (const f of modulesOf('src/js').map(nameOf))
+      assert(html.includes(`/* ---- ${f} ---- */`), `the portable file is missing ${f}`);
+    for (const f of modulesOf('src/css', '.css'))
+      assert(html.includes(read(`src/css/${f}`)), `the portable file is missing ${f}`);
     assert(/data:font\/woff2;base64,/.test(html), 'the fonts are not inlined, so it cannot open off disk');
     assert(!/<link rel="stylesheet"/.test(html), 'the portable file references a stylesheet it cannot fetch');
     assert(!/<script defer src=/.test(html), 'the portable file references a script it cannot fetch');

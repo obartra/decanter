@@ -48,6 +48,13 @@ export async function start(page, save = {}) {
     await page.reload();
     await page.waitForFunction(() => !!globalThis.App && !!globalThis.Rules);
   }
+  /* The card a cleared level answers with is not in the critical bundle: it is
+     fetched on `load`, and `App` and `Rules` are alive well before that. So a
+     spec that taps a medallion the moment the map appears is racing a fetch, and
+     losing that race looks like a tap that did nothing rather than like a
+     missing wait. Waiting once, here, is what keeps every spec about the game
+     rather than about the network. */
+  await page.waitForFunction(() => !!globalThis.Preview);
 }
 
 /* Open a level from the map. Waits for the board to be dealt rather than for a
@@ -66,6 +73,13 @@ export async function start(page, save = {}) {
    time it opened a level it had already cleared. */
 export async function open(page, level) {
   await page.locator(`[data-level="${level}"]`).click();
+  /* Whichever of the two answers this tap gets, before looking at either. Both
+     of them settle a moment after the tap now, so sampling once for the card and
+     moving on when it is not there yet leaves this waiting for a board that was
+     never going to be dealt. */
+  await page.waitForFunction(() =>
+    document.getElementById('previewVeil').classList.contains('show')
+    || document.body.dataset.view !== 'map');
   await playFromPreview(page);
   await page.waitForFunction(l => globalThis.App._state.level === l, level);
   await dismissChapter(page);

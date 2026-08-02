@@ -20,6 +20,20 @@ const played = {
 const card = page => page.locator('#previewVeil');
 const shown = page => card(page).evaluate(el => el.classList.contains('show'));
 
+/* Tap a medallion and wait for the card it answers with.
+
+   The card is not in the critical bundle. It is fetched right after the page
+   opens, so the answer to a tap lands a moment after the tap, and every test
+   below reads the card. A read taken before it is drawn does not fail loudly:
+   `stillColours` comes back empty and `toBeHidden` passes on a row inside a
+   panel nobody can see yet. Both of those are green ticks over nothing, so the
+   wait lives here rather than at ten call sites where half of them would look
+   fine without it. */
+const look = async (page, level) => {
+  await page.locator(`[data-level="${level}"]`).click();
+  await expect(card(page)).toHaveClass(/show/);
+};
+
 /* the liquid in the still, bottle by bottle, as palette indices. The bands name
    their colour with the same --cN property the shelf pours, so the picture can
    be read back and compared with the board it claims to be. */
@@ -34,8 +48,7 @@ test('a cleared level opens the card instead of dealing a board', async ({ page 
   await start(page, played);
   const gold = await page.evaluate(() => globalThis.App._progress.gold);
 
-  await page.locator('[data-level="5"]').click();
-  expect(await shown(page)).toBe(true);
+  await look(page, 5);
   await expect(page.locator('#previewTitle')).toHaveText('Level 5');
   expect(await page.evaluate(() => document.body.dataset.view), 'the board was dealt anyway')
     .toBe('map');
@@ -59,7 +72,7 @@ test('backing out leaves the map exactly as it was', async ({ page }) => {
     gold: globalThis.App._progress.gold, level: globalThis.App._state.level
   }));
 
-  await page.locator('[data-level="5"]').click();
+  await look(page, 5);
   await page.locator('#previewBack').click();
 
   expect(await shown(page)).toBe(false);
@@ -75,8 +88,7 @@ test('the way out is the same three ways out every panel has', async ({ page }) 
     () => page.locator('#previewVeil').click({ position: { x: 5, y: 5 } }),
     () => page.keyboard.press('Escape')
   ]) {
-    await page.locator('[data-level="5"]').click();
-    expect(await shown(page)).toBe(true);
+    await look(page, 5);
     await leave();
     expect(await shown(page)).toBe(false);
     expect(await page.evaluate(() => document.body.dataset.view)).toBe('map');
@@ -85,7 +97,7 @@ test('the way out is the same three ways out every panel has', async ({ page }) 
 
 test('playing from the card deals the level the card was about', async ({ page }) => {
   await start(page, played);
-  await page.locator('[data-level="5"]').click();
+  await look(page, 5);
   await page.locator('#previewPlay').click();
   await page.waitForFunction(() => globalThis.App._state.level === 5
     && globalThis.App._state.tubes.length > 0);
@@ -98,7 +110,7 @@ test('the still is the board the level actually deals', async ({ page }) => {
      card can show the real board, and a picture of some other board would be
      believed, which is worse than no picture at all. */
   await start(page, played);
-  await page.locator('[data-level="5"]').click();
+  await look(page, 5);
   const picture = await stillColours(page);
 
   await page.locator('#previewPlay').click();
@@ -118,7 +130,7 @@ test('a board that has paid everything makes no offer at all', async ({ page }) 
      slot dresses it up as a refusal. Nor does it announce the absence in words
      underneath, which is that same refusal at greater length. */
   await start(page, played);
-  await page.locator('[data-level="5"]').click();
+  await look(page, 5);
   await expect(page.locator('#previewPayout')).toBeHidden();
   await expect(page.locator('#previewHint')).toBeHidden();
   await expect(page.locator('#previewFee')).toHaveText('free');
@@ -128,7 +140,7 @@ test('a board that has paid everything makes no offer at all', async ({ page }) 
 
 test('a level with a star still on it says what that star pays', async ({ page }) => {
   await start(page, { ...played, stars: { ...played.stars, 5: 2 } });
-  await page.locator('[data-level="5"]').click();
+  await look(page, 5);
 
   const expected = await page.evaluate(() => {
     const g = globalThis.CONFIG.economy.starGold;
@@ -147,7 +159,7 @@ test('the card quotes a target the run will actually score against', async ({ pa
   /* An estimated par scores nothing, so a card that named it as the bar for
      three stars would be promising something the run refuses to measure. */
   await start(page, { ...played, stars: { ...played.stars, 5: 1 } });
-  await page.locator('[data-level="5"]').click();
+  await look(page, 5);
   const par = await page.evaluate(() => globalThis.PARS[5]);
   await expect(page.locator('#previewHint')).toHaveText(`Three stars needs ${par} pours.`);
 });
@@ -160,12 +172,11 @@ test('a bubble level shows the board its run opens on', async ({ page }) => {
   });
   expect(level, 'no bubble level inside the seeded range').not.toBeNull();
 
-  /* The other game rides in a bundle that is not on the critical path, so the
-     card for one of its levels waits for that bundle before it draws. On a cold
-     load that wait is real, which is exactly what a spec that taps the moment
-     the map appears reproduces. */
-  await page.locator(`[data-level="${level}"]`).click();
-  await expect(card(page)).toHaveClass(/show/);
+  /* This card waits for two bundles rather than one: its own, and the other
+     game's, which is where the picture and the shot count come from. The tap
+     asks for both together and draws once both have answered, so there is no
+     half-drawn state for this to catch. */
+  await look(page, level);
   await expect(page.locator('#previewKind')).toHaveText('Bubble run');
   const rows = await page.locator('#previewStill .stillRow').count();
   expect(rows, 'the card drew no board at all').toBeGreaterThan(0);
