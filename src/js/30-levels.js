@@ -56,6 +56,43 @@ function make(level, seed){
   return deal(colors, empties, seed == null ? seedFor(level) : seed);
 }
 const sectionOf = level => Math.floor((level - 1) / CONFIG.sectionSize);
+
+/* Which places in a chapter belong to the other game.
+
+   Scattered rather than on a stride, and derived from the chapter number so the
+   answer is fixed forever without being written down anywhere.
+
+   The second is drawn at least two places from the first, in both directions
+   round the chapter. Merely making them distinct is not enough: it put pairs
+   like 13 and 14 back to back, and two of the other game in consecutive boards
+   reads as the game having changed rather than as a break in it. */
+function bubbleSlots(section){
+  const mix = n => {
+    let x = Math.imul(n + 0x9e3779b9, 2654435761) >>> 0;
+    x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0;
+    x ^= x >>> 13; return x >>> 0;
+  };
+  const size = CONFIG.sectionSize;
+  const first = mix(section) % size;
+  const second = (first + 2 + mix(section * 7919 + 11) % (size - 3)) % size;
+  return [first, second];
+}
+
+/* Which game a level number is. Everything that deals, scores, prices or draws a
+   level asks this rather than doing its own arithmetic, so the map and the
+   scoring cannot disagree about what level 12 is.
+
+   The opening half chapter is always the pour game. Somebody who has seen one
+   board does not yet know what this game is, and handing them a different one
+   at level two teaches that neither is the game. By the sixth they know, and the
+   change lands as a change rather than as confusion. The last level is the pour
+   game too: the graded run ends there and the finale should be the game the
+   hundred and nineteen before it were. */
+function isBubble(level){
+  if (!Number.isInteger(level) || level <= CONFIG.sectionSize / 2) return false;
+  if (Number.isInteger(globalThis.LAST_LEVEL) && level >= globalThis.LAST_LEVEL) return false;
+  return bubbleSlots(sectionOf(level)).includes((level - 1) % CONFIG.sectionSize);
+}
 function sectionName(level){
   const i = sectionOf(level);
   return i < CONFIG.sectionNames.length
@@ -65,4 +102,5 @@ function sectionName(level){
 const sectionTint = level => CONFIG.sectionTints[sectionOf(level) % CONFIG.sectionTints.length];
 const isSectionStart = level => (level - 1) % CONFIG.sectionSize === 0;
 
-globalThis.Levels = { shape, baseShape, deal, make, seedFor, sectionOf, sectionName, sectionTint, isSectionStart };
+globalThis.Levels = { shape, baseShape, deal, make, seedFor, isBubble, bubbleSlots,
+                      sectionOf, sectionName, sectionTint, isSectionStart };

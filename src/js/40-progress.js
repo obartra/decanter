@@ -230,8 +230,19 @@ function createProgress(storage){
       }
       const prevStars = state.stars[level] || 0;
       if (stars > prevStars) state.stars[level] = stars;
-      const prevBest = level in state.best ? state.best[level] : Infinity;
-      if (moves < prevBest) state.best[level] = moves;
+
+      /* Best is the fewest pours here and the *most* shots on a bubble level,
+         because there the run is graded on how long it lasted rather than how
+         briefly. Two numbers both called "best" that compare in opposite
+         directions is the kind of difference that survives a review and then
+         quietly records the worst run of every bubble level forever, with
+         nothing about the save looking wrong. So the direction is decided from
+         the level, here, rather than passed in by whoever happens to call. */
+      const longerIsBetter = Levels.isBubble(level);
+      const prevBest = level in state.best ? state.best[level] : null;
+      const beatIt = prevBest === null
+        || (longerIsBetter ? moves > prevBest : moves < prevBest);
+      if (beatIt) state.best[level] = moves;
       if (level >= state.unlocked) state.unlocked = Math.min(level + 1, lastLevel());
 
       /* A level pays for the rating it is worth, not for each time it is
@@ -250,7 +261,7 @@ function createProgress(storage){
       return {
         failed: false,
         improvedStars: stars > prevStars,
-        improvedBest: moves < prevBest,
+        improvedBest: beatIt,
         firstClear,
         starGold,
         bonus,

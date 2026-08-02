@@ -12,7 +12,15 @@
    visible to a browser. */
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 8123;
+/* Overridable, because the port is shared by anything else running this suite
+   from another checkout of the same repo. A git worktree under .claude/worktrees
+   is a second checkout, and with `reuseExistingServer` on it wins the port and
+   every later run silently tests *its* build instead: the page loads, nothing
+   errors, and assertions fail describing code that is not the code under test.
+   That is expensive to diagnose and invisible while it happens.
+
+   PW_PORT=8125 npx playwright test  runs against a server of your own. */
+const PORT = Number(process.env.PW_PORT) || 8123;
 
 export default defineConfig({
   testDir: 'tests/e2e',

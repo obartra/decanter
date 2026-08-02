@@ -37,7 +37,13 @@ const shared = {
 };
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**', 'test-results/**', 'playwright-report/**'] },
+  /* `.claude/` holds tooling state, not project source, and `.claude/worktrees/`
+     in particular holds whole checkouts of this repo. Without it here, having one
+     open means linting a second copy of everything: the same files reported twice
+     and, because a worktree carries a built `dist/` that the top-level ignore no
+     longer matches at that depth, several hundred errors in generated code. Lint
+     stops being runnable at all while a worktree exists. */
+  { ignores: ['dist/**', 'node_modules/**', 'test-results/**', 'playwright-report/**', '.claude/**'] },
 
   /* first, so everything below can override it. Last, it silently puts back the
      rules the per-directory blocks turn off. */
@@ -49,7 +55,13 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
-      globals: { ...globals.browser, ...published }
+      /* `BubbleApp` and nothing else. Some levels are the other game, so this
+         one has to be able to deal a board and be told how the run went, but the
+         coupling stops at that single object: no reaching past it into the
+         bubble game's rules, grid or renderer. Anything else from over there is
+         still a lint error, which is the point of listing one name rather than
+         widening `files` to cover both directories. */
+      globals: { ...globals.browser, ...published, BubbleApp: 'readonly' }
     },
     /* Each of these files declares the one thing it publishes and reads the ones
        published before it. The globals list above is for the reading; without

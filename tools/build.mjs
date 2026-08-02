@@ -22,11 +22,25 @@ function bundle(dir, { worker } = {}){
 }
 
 const main = bundle('src', { worker: 'src/worker/solver.js' });
-const { css, js, solver } = main;
+const bub = bundle('src/bubble');
+
+/* The app page carries both games, because some of its levels are the other
+   one. The bubble sources go in after, so the pour game's modules are all
+   defined by the time anything reads them, and nothing in this bundle touches
+   BubbleApp until a bubble level is actually opened.
+
+   They still build a separate page at /bubble/ from the same sources. That page
+   is the whole game on its own and is how the mechanic gets worked on without
+   playing ten levels to reach one. */
+const css = `${main.css}\n${bub.css}`;
+const js = `${main.js}\n${bub.js}`;
+const solver = main.solver;
 
 /* One id for the build, stamped into the page and used as the cache name, so
-   "which version am I actually looking at" is a question with an answer. */
-const buildId = main.id;
+   "which version am I actually looking at" is a question with an answer. It has
+   to cover the bubble sources too now that they ship inside this page, or a
+   change to them would leave every installed copy on the old worker. */
+const buildId = createHash('sha256').update(css + js + solver).digest('hex').slice(0, 10);
 
 const fontFace = (cinzel, sans, sansBold) => `<style>
 @font-face{font-family:'Cinzel';font-style:normal;font-weight:400 700;font-display:swap;src:url(${cinzel}) format('woff2')}
@@ -77,7 +91,6 @@ writeFileSync(join(dist, 'decanter-standalone.html'), compose({
    own service worker scope, so the two games cannot cache over each other. The
    fonts are shared, reached with a relative path out of the subfolder, because
    a second copy of the same three files is dead weight in the precache. */
-const bub = bundle('src/bubble');
 const bubblePage = read('src/bubble/index.html')
   .replace('<!--BUILD-->', `<meta name="build" content="${bub.id}">`)
   .replace('<!--FONTS-->', fontFace('../fonts/cinzel.woff2', '../fonts/alegreyasans.woff2',

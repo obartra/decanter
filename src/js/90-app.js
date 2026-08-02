@@ -106,6 +106,11 @@ const App = (() => {
       return false;
     }
     Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
+    if (Levels.isBubble(level)){
+      startBubble(level);
+      openChapter(level);
+      return true;
+    }
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
@@ -134,6 +139,86 @@ const App = (() => {
     Trace.note(`chapter ${section + 1} opening`, Levels.sectionName(level));
   }
   function showGame(level){ attempt(level); }
+
+  /* ---------- the other game ----------
+
+     Some levels are the bubble game. It is booted once, the first time one is
+     opened, because mounting a canvas and dealing a board on every page view
+     costs something and most views never reach one.
+
+     The board is dealt from the level number, so level 14 is the same board for
+     everyone the same way every pour level is. */
+  let bubbleReady = false;
+  function startBubble(level){
+    S.level = level;
+    S.undosUsed = 0;
+    S.hintsUsed = 0;
+    S.vesselUsed = false;
+    /* The view goes up before the game is booted, because booting measures the
+       canvas to work out how the world maps onto it, and a canvas inside a
+       hidden section measures zero. Mounting into that produces a board scaled
+       to nothing, which draws as an empty screen with no error to explain it. */
+    document.body.dataset.view = 'bubble';
+    Backdrop.kind = 'cellar';
+    if (!bubbleReady){
+      BubbleApp.boot();
+      BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
+      BubbleApp.onEnd = banked => finishBubble(banked);
+      BubbleApp.charge = what => payFor(what);
+      bubbleReady = true;
+    }
+    /* The chapters hand these over the same way they hand over the pour game's,
+       because they are the same grants: an undo is an undo and a hint is a hint
+       whichever board is in front of you. Picking a colour is the extra bottle,
+       so it arrives with the vessel and costs what a vessel costs. */
+    const perks = progress.perks();
+    BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel, swap: perks.undo };
+    $('bubGold').textContent = progress.gold;
+    BubbleApp.newBoard(level);
+    Trace.note(`dealt level ${level}`, 'bubble board');
+  }
+
+  /* What a bubble tool costs, taken from the purse the same way the pour game's
+     are. Undo is free for the first few and priced after, a hint costs what a
+     hint costs, and a colour costs a vessel. Returning false refuses, and the
+     refusal is recorded and heard exactly like every other one in this file. */
+  function payFor(what){
+    const perks = progress.perks();
+    const price = what === 'undo' ? (S.undosUsed < perks.freeUndos ? 0 : CONFIG.economy.undoCost)
+      : what === 'hint' ? (S.hintsUsed < perks.freeHints ? 0 : perks.hintCost)
+      : what === 'colour' ? CONFIG.economy.vessel
+      : 0;
+    if (!progress.spend(price)){
+      deny(what, `costs ${price}, purse holds ${progress.gold}`);
+      return false;
+    }
+    if (what === 'undo') S.undosUsed++;
+    if (what === 'hint') S.hintsUsed++;
+    $('bubGold').textContent = progress.gold;
+    return true;
+  }
+
+  /* A bubble run, banked the same way a pour run is.
+
+     `shots` goes in where `moves` goes for a pour level, and progress knows the
+     two compare in opposite directions, so the longest run is kept here and the
+     shortest there. Nothing else about the economy changes: the same star gold,
+     the same one-off first clear, the same fee already paid to deal it. */
+  function finishBubble(run){
+    const before = progress.starsFor(S.level);
+    const result = progress.complete(S.level, run.shots, run.stars);
+    S.over = true;
+    S.finished = true;
+    S.par = null;
+    S.parExact = false;
+    S.reason = null;
+    showPanel({
+      stars: run.stars, failed: run.stars <= 0, result, before,
+      line: run.cleared
+        ? `Every bubble gone, in ${run.shots} shots.`
+        : `Lasted ${run.shots} shots.` + (run.aided ? ' Picking a colour caps a run at two stars.' : '')
+    });
+  }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
   /* what this particular board costs to deal: nothing if it is already beaten */
   const costOf = level => (progress.starsFor(level) > 0
@@ -394,6 +479,18 @@ const App = (() => {
     const result = progress.complete(S.level, S.moves, stars);
     const failed = stars === 0;
 
+    showPanel({ stars, failed, result, before });
+  }
+
+  /* The end of a run, whichever game it was.
+
+     Both games earn the same way, so both are presented the same way: the same
+     stars, the same gold line, the same Retry and Next at the same prices. The
+     only thing that differs is the sentence describing what happened, because
+     one game counts pours against a minimum and the other counts how long you
+     lasted. Split out of finish() so a bubble level cannot drift into having its
+     own economy by accident. */
+  function showPanel({ stars, failed, result, before, line }){
     $('stars').innerHTML = [0,1,2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
 
     /* say where the gold came from, so the thin payouts read as earned */
@@ -416,7 +513,8 @@ const App = (() => {
       totalStars: progress.totalStars(), reason: S.reason
     });
     $('winTitle').textContent = panel.title;
-    $('winLine').textContent = panel.line;
+    /* a bubble run has no par to measure against, so it says what it did */
+    $('winLine').textContent = line || panel.line;
 
     $('veil').classList.toggle('failed', failed);
     $('retry').hidden = panel.retryHidden;
@@ -436,13 +534,15 @@ const App = (() => {
     $('skip').disabled = panel.skipDisabled;
     $('winHint').textContent = panel.hint;
 
+    const bubble = Levels.isBubble(S.level);
     setTimeout(() => {
       if (failed){
+        /* the shelf takes it too, but only when there is a shelf */
         Audio.deny();
-        Board.nudge(S.level % Math.max(1, S.tubes.length));   /* the shelf takes it too */
+        if (!bubble) Board.nudge(S.level % Math.max(1, S.tubes.length));
       } else {
         Audio.win();
-        Confetti.rain(CONFIG.palette.slice(0, Levels.shape(S.level).colors));
+        Confetti.rain(CONFIG.palette.slice(0, bubble ? 6 : Levels.shape(S.level).colors));
       }
       $('veil').classList.add('show');
     }, failed ? 260 : 700);
@@ -561,6 +661,8 @@ const App = (() => {
       });
     };
     $('toMap').onclick = () => { Audio.tick(); showMap(false); };
+    /* the other game's way out, which is the same way out */
+    $('bubToMap').onclick = () => { Audio.tick(); showMap(false); };
     const closePanel = () => {
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
