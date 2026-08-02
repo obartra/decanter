@@ -10,14 +10,16 @@
    "best" that records the worst run of every level because longer is better here
    and shorter is better in the other game. */
 import { describe, it, assert, equal, loadBubble } from './helpers.mjs';
-/* The same stream the harness plays with, so a seed that fails here reproduces
-   there. It was written out five times between this file and that one, in two
-   spellings that differed on seed zero and agreed on every seed anyone passed,
-   which is the kind of near-duplicate that is only ever found by accident. */
-import { run, measure, rng } from '../tools/bubble-run.mjs';
+/* The same loop the survival tool measures, so a green difficulty test and a red
+   table cannot both be true. */
+import { run, measure } from '../tools/bubble-run.mjs';
 
-const { BubbleConfig: C, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
+const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
         BubbleAdvice: Adv, BubbleScore: Sc } = loadBubble();
+
+/* The game's own stream, so a failure can be reproduced from its seed and so
+   these boards are the boards the game deals rather than lookalikes. */
+const rng = seed => Rng.from(seed);
 
 function board(seed, rows, colours = 4){
   const r = rng(seed);

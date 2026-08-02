@@ -98,7 +98,11 @@ test('the same board every time, for everyone', async ({ page }) => {
   };
   const first = await hash();
   await page.reload();
+  /* `App` existing is not the map being on screen: the medallions are drawn
+     during boot, and clicking one before then is a race that only shows under
+     load. Waiting for the node itself waits for the thing about to be clicked. */
   await page.waitForFunction(() => !!globalThis.App);
+  await page.locator(`[data-level="${bubble[1]}"]`).waitFor({ state: 'visible' });
   expect(await hash()).toBe(first);
 });
 
@@ -173,8 +177,8 @@ test('the two games do not tread on each other in one page', async ({ page }) =>
   await expect(page.locator('body')).toHaveAttribute('data-view', 'map');
 
   /* the pour game's own buttons still look like themselves */
-  const mapPlay = await page.locator('#mapPlay').evaluate(el => getComputedStyle(el).borderRadius);
-  expect(mapPlay).toBe('999px');
+  const daily = await page.locator('#daily').evaluate(el => getComputedStyle(el).borderRadius);
+  expect(daily).toBe('999px');
   expect(errors).toEqual([]);
 });
 

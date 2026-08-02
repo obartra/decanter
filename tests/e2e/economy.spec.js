@@ -415,7 +415,9 @@ test('a vessel adds a bottle, and restarting takes it away', async ({ page }) =>
 
 test('going back to a cleared level is free, and pays nothing', async ({ page }) => {
   await start(page, { unlocked: 3, gold: 400, stars: { 1: 3 }, claimed: { 1: true } });
-  await expect(page.locator('#playCost')).toBeVisible();
+  /* The price used to live on a Play button in a footer. It lives on the
+     medallion now, and a cleared level is free, so it carries no price at all. */
+  await expect(page.locator('.node[data-level="1"] .buy')).toHaveCount(0);
   const before = await page.evaluate(() => globalThis.App._progress.gold);
   await page.locator('[data-level="1"]').click();
   await page.waitForFunction(() => globalThis.App._state.level === 1);

@@ -68,8 +68,6 @@ const App = (() => {
        that cannot be paid for. A level already beaten is free, and says free
        rather than showing a nought nobody has to think about. */
     const fee = costOf(progress.unlocked);
-    $('playCost').textContent = fee > 0 ? fee : 'free';
-    $('mapPlay').disabled = !progress.canAfford(fee);
     /* A purse that cannot deal the next board is not the end of the game, it is
        a day's wait, and the draught is the only way through it. So when nothing
        else on this screen can be pressed, it is the thing being offered. */
@@ -85,6 +83,9 @@ const App = (() => {
   function goldChanged(){
     paintMap();
     MapView.render(progress);
+    /* a render moves which level is "yours" and rebuilds every node, so whether
+       the way back is needed, and which level it names, can both have changed */
+    paintJump();
   }
   function showMap(scrollSmooth){
     Trace.note('to the map');
@@ -94,7 +95,25 @@ const App = (() => {
     MapView.render(progress);
     MapView.scrollToCurrent(!!scrollSmooth);
     paintMap();
+    paintJump();
     takeUpdate();
+  }
+
+  /* The way back to your level, shown only while it is out of sight.
+
+     This is the job the Play button was really doing. Tapping the medallion
+     already deals the board and the medallion already shows the price, so Play
+     duplicated both; what it did not duplicate was being reachable when the map
+     had been scrolled somewhere else. Making that the whole purpose lets it
+     disappear when there is nothing to go back to, and gives the map the strip
+     of screen the footer used to hold. */
+  function paintJump(){
+    const jump = $('mapJump');
+    if (!jump) return;
+    const away = document.body.dataset.view === 'map' && !MapView.currentIsVisible();
+    jump.hidden = !away;
+    $('mapJumpLevel').textContent = MapView.currentLevel;
+    jump.setAttribute('aria-label', `Back to level ${MapView.currentLevel}`);
   }
   /* Every board dealt is paid for, whether it is a new level or another go at
      one just lost. Charging here rather than inside start() keeps the internal
@@ -170,6 +189,7 @@ const App = (() => {
        so it arrives with the vessel and costs what a vessel costs. */
     const perks = progress.perks();
     BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel, swap: perks.undo };
+    BubbleApp.prices = () => bubblePrices();
     $('bubGold').textContent = progress.gold;
     BubbleApp.newBoard(level);
     Trace.note(`dealt level ${level}`, 'bubble board');
@@ -179,12 +199,22 @@ const App = (() => {
      are. Undo is free for the first few and priced after, a hint costs what a
      hint costs, and a colour costs a vessel. Returning false refuses, and the
      refusal is recorded and heard exactly like every other one in this file. */
-  function payFor(what){
+  /* What each bubble tool costs right now. One place, so the button and the
+     charge cannot disagree: a control that says "free" and then takes eight gold
+     is worse than one with no label at all. */
+  function bubblePrices(){
     const perks = progress.perks();
-    const price = what === 'undo' ? (S.undosUsed < perks.freeUndos ? 0 : CONFIG.economy.undoCost)
-      : what === 'hint' ? (S.hintsUsed < perks.freeHints ? 0 : perks.hintCost)
-      : what === 'colour' ? CONFIG.economy.vessel
-      : 0;
+    return {
+      undo: S.undosUsed < perks.freeUndos
+        ? { free: true, left: perks.freeUndos - S.undosUsed } : { cost: CONFIG.economy.undoCost },
+      hint: S.hintsUsed < perks.freeHints ? { free: true } : { cost: perks.hintCost },
+      colour: { cost: CONFIG.economy.vessel }
+    };
+  }
+
+  function payFor(what){
+    const p = bubblePrices()[what];
+    const price = !p || p.free ? 0 : p.cost;
     if (!progress.spend(price)){
       deny(what, `costs ${price}, purse holds ${progress.gold}`);
       return false;
@@ -192,6 +222,7 @@ const App = (() => {
     if (what === 'undo') S.undosUsed++;
     if (what === 'hint') S.hintsUsed++;
     $('bubGold').textContent = progress.gold;
+    BubbleApp.paintTools();
     return true;
   }
 
@@ -562,9 +593,29 @@ const App = (() => {
   }
 
   /* ---------- wiring ---------- */
+  /* Drawn rather than typed. An emoji speaker arrives in whatever the platform
+     feels like, which here was a grey plastic blob sitting in a gold and brown
+     header; these are two paths in currentColor, so they are the same ink as
+     everything around them at any size. */
+  const ICON = {
+    sound: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
+    muted: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l4 5M21 9.5l-4 5"/></svg>',
+    install: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8.5 10.5L12 14l3.5-3.5"/><path d="M5 17.5h14"/></svg>'
+  };
+
+  /* The same control in two shapes. In a level it sits in a row of priced
+     buttons and says what it is in words; on the map it is a glyph in the
+     header, where the words were costing the map a strip of its height. What a
+     screen reader is told is the same either way. */
   function paintSound(on){
     document.querySelectorAll('.js-sound').forEach(b => {
-      b.textContent = on ? 'Sound on' : 'Sound off';
+      const glyph = b.classList.contains('icon');
+      if (glyph){
+        b.innerHTML = on ? ICON.sound : ICON.muted;
+        b.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
+      } else {
+        b.textContent = on ? 'Sound on' : 'Sound off';
+      }
       b.classList.toggle('off', !on);
     });
   }
@@ -765,6 +816,15 @@ const App = (() => {
       $('veil').classList.remove('show');
       showGame(S.level + 1);
     };
+    $('install').innerHTML = ICON.install;
+    MapView.onScroll = paintJump;
+    $('mapJump').onclick = () => {
+      Sound.tick();
+      MapView.scrollToCurrent(true);
+      /* hidden at once rather than on the next scroll event, so it does not sit
+         there through the smooth scroll it just started */
+      $('mapJump').hidden = true;
+    };
     document.querySelectorAll('.js-sound').forEach(btn => {
       btn.onclick = () => {
         Sound.unlock();
@@ -773,7 +833,6 @@ const App = (() => {
         if (Sound.enabled) Sound.lift();
       };
     });
-    $('mapPlay').onclick = () => { Sound.unlock(); showGame(Math.min(progress.unlocked, progress.lastLevel)); };
     $('daily').onclick = () => {
       Sound.unlock();
       if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }

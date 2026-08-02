@@ -23,19 +23,30 @@
     <div>
       <p class="eyebrow">Chapter</p>
       <h1 class="wordmark" id="mapChapter">The Cellar</h1>
+      <!-- The two that are only actions live up here, in the space the header
+           already had. That is what lets the map keep the whole bottom of the
+           screen, which is worth about a level and a half on a short phone. -->
+      <div class="mapIcons">
+        <button class="icon js-sound" type="button" aria-label="Sound"></button>
+        <button class="icon" id="install" type="button" hidden aria-label="Install"></button>
+        <!-- Beside the others rather than floating over the map. A control at
+             the bottom centre sits exactly where the road winds, so it covered
+             the thing it was helping you get back to and took back the strip
+             the footer had just given up. -->
+        <button class="icon wide" id="mapJump" type="button" hidden>
+          <span aria-hidden="true">&#8593;</span><small id="mapJumpLevel">1</small>
+        </button>
+      </div>
     </div>
     <div class="mapMeta">
       <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="mapGold">0</b></div>
       <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+      <!-- The draught keeps its number. It is money, and money stays readable. -->
+      <button class="btn priced tiny" id="daily" type="button">Daily<small id="dailyCost">+12</small></button>
     </div>
   </header>
   <div class="mapScroll" id="mapScroll"><div class="mapCanvas"></div></div>
-  <footer class="controls">
-    <button class="btn primary priced" id="mapPlay" type="button">Play<small id="playCost">5</small></button>
-    <button class="btn priced" id="daily" type="button">Daily<small id="dailyCost">+12</small></button>
-    <button class="btn js-sound" type="button">Sound on</button>
-    <button class="btn primary" id="install" type="button" hidden>Install</button>
-  </footer>
+
 </section>
 
 <!-- Some levels are the other game. Its own header rather than the pour game's,
@@ -59,11 +70,13 @@
          inside them is how one of them ends up wrong. -->
     <p class="rule" id="bubbleRule">Match three of a colour to bring them down.<br>Survive <span id="bubbleGoal">35</span> shots to win. If the bubbles reach the line, you lose.</p>
   </main>
+  <!-- Priced, the way the pour game's are. These take gold and were the only
+       controls in either game that did so without saying what they cost. -->
   <div class="tools">
-    <button class="btn tool" id="bubbleUndo" type="button">Undo</button>
-    <button class="btn tool" id="bubbleHint" type="button">Hint</button>
+    <button class="btn tool priced" id="bubbleUndo" type="button">Undo<small id="bubbleUndoCost"></small></button>
+    <button class="btn tool priced" id="bubbleHint" type="button">Hint<small id="bubbleHintCost"></small></button>
     <button class="btn tool" id="bubbleSwap" type="button">Swap</button>
-    <button class="btn tool" id="bubblePick" type="button" aria-expanded="false">Colour</button>
+    <button class="btn tool priced" id="bubblePick" type="button" aria-expanded="false">Colour<small id="bubblePickCost"></small></button>
   </div>
   <div class="palette" id="bubblePalette" hidden></div>
 </section>

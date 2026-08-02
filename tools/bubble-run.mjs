@@ -8,12 +8,12 @@
    row still comes down after the final shot, which is a whole star's worth of
    difference on the runs it touches.
 
-   The board comes from BubbleRules.dealBoard and the greedy shot from
-   BubbleAdvice.bestShot, which are the same deal the player is given and the
-   same shot the hint button offers. */
+   The board comes from BubbleRules.dealBoard, the numbers from BubbleRng and the
+   greedy shot from BubbleAdvice.bestShot, so this is the same deal the player is
+   given, off the same stream, answered with the same shot the hint offers. */
 import { loadBubble } from '../tests/helpers.mjs';
 
-const { BubbleConfig: C, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
+const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
         BubbleAdvice: Adv } = loadBubble();
 
 /* Who is playing.
@@ -52,9 +52,6 @@ export const POLICIES = [
 /* the two that are meant to be people: not the ceiling, not the floor */
 export const HUMAN = ['good', 'ok'];
 
-export const rng = seed => { let s = seed >>> 0 || 1; return () => {
-  s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; };
-
 /* Every cell a bubble can actually be put in from here.
 
    Walked over BubbleAdvice.AIMS rather than a fan of this module's own, so a
@@ -86,7 +83,9 @@ function landings(board){
    answer. Dropping first measures a stricter game than the one being played, and
    thresholds set against it come out too low. */
 export function run(seed, { every = C.ADVANCE_EVERY, length = C.RUN_SHOTS, miss = 0 } = {}){
-  const rnd = rng(seed);
+  /* the game's own stream, not a copy of it: a harness drawing different numbers
+     measures a different game */
+  const rnd = Rng.from(seed);
   const b = R.dealBoard(5, rnd);
 
   /* How many turns had nothing to clear with the colour in hand. About three in
