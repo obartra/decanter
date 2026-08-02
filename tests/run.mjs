@@ -20,6 +20,7 @@ import './bubble.test.mjs';
 import './measure.test.mjs';
 import './casks.test.mjs';
 import './lab.test.mjs';
+import './states.test.mjs';
 import './build.test.mjs';
 import './dead-code.test.mjs';
 import './docs.test.mjs';
