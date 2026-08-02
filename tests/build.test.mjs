@@ -248,12 +248,29 @@ describe('build output', () => {
   it('answers a navigation offline with the shell for that path', () => {
     /* Falling back to the app for every navigation would serve the pour game at
        another game's URL, which reads as the wrong game loading rather than as
-       being offline. */
+       being offline.
+
+       This runs the worker's OWN matching expression rather than restating it.
+       The first version asserted the contents of the SHELLS list and nothing
+       else, and passed while the matcher beside it sent every page to the app
+       shell: './index.html' is a suffix of '/bubble/index.html', so a find by
+       endsWith matched the app first, every time. A list is data. What was
+       broken was the line that read it. */
     const sw = text('sw.js');
-    const shells = JSON.parse(sw.match(/const SHELLS = (\[[\s\S]*?\]);/)[1]);
-    assert(shells.includes('./index.html'), 'the app shell is not a fallback');
+    const SHELLS = JSON.parse(sw.match(/const SHELLS = (\[[\s\S]*?\]);/)[1]);
+    const expr = sw.match(/const hit = (SHELLS\.find\([\s\S]*?\));/);
+    assert(expr, 'the worker no longer picks a shell the way this test drives it');
+    /* `url` is what the worker names it, so that is what it is handed */
+    const run = new Function('SHELLS', 'url',
+      `const hit = ${expr[1]}; return hit ? hit[1] : './index.html';`);
+    const pick = pathname => run(SHELLS, { pathname });
+
+    equal(pick('/'), './index.html', 'the root must get the app shell');
     for (const g of gameDirs()){
-      assert(shells.includes(`./${g}/index.html`), `${g} has no offline fallback of its own`);
+      equal(pick(`/${g}/`), `./${g}/index.html`, `${g} was answered with the wrong shell`);
+      /* the whole build can be served from a project subdirectory */
+      equal(pick(`/decanter/${g}/`), `./${g}/index.html`,
+        `${g} under a subdirectory was answered with the wrong shell`);
     }
   });
 
