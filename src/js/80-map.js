@@ -48,6 +48,10 @@ const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
   let onBuy = () => {};
+  /* What dealing a given board costs. Asked for rather than worked out here: the
+     app is where a board is paid for, and a map that recomputed the fee from
+     CONFIG would be a second place for the price to be decided from. */
+  let feeFor = () => 0;
   /* Which locked level the player has tapped once. Paying is two taps, not one:
      a single tap on the thing you cannot play yet should not spend anything. */
   let armed = null;
@@ -217,24 +221,35 @@ const MapView = (() => {
       const cost = unlockCost();
       const affordable = progress.canAfford(cost);
       const isArmed = buyable && armed === level;
+      /* An open board still has to be paid for, and a purse that cannot cover the
+         fee is a state the game expects: the daily draught is the way back out of
+         it. What it must not do is leave a lit medallion that swallows the tap and
+         says nothing, which looks playable and behaves locked. So it refuses the
+         tap and shows the price it is refusing over, the way the next one along
+         shows the price of opening it. */
+      const fee = locked ? 0 : feeFor(level);
+      const short = !locked && fee > 0 && !progress.canAfford(fee);
 
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '')
-        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '');
+        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '')
+        + (short ? ' short' : '');
       b.style.left = p.x + 'px';
       b.style.bottom = p.y + 'px';
       b.style.setProperty('--tint', Levels.sectionTint(level));
       b.dataset.level = level;
-      b.disabled = locked && (!buyable || !affordable);
+      b.disabled = locked ? (!buyable || !affordable) : short;
       b.setAttribute('aria-label',
         buyable ? `Level ${level}, locked. Open it for ${cost} gold`
         : locked ? `Level ${level}, locked`
+        : short ? `Level ${level}. ${fee} gold to deal, and there is not enough`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
       b.innerHTML = isArmed
         ? `<span class="num">${cost}</span><span class="ns buy">Open?</span>`
         : buyable ? `<span class="num">&#128274;</span><span class="ns buy">${cost} &#9670;</span>`
         : locked ? '<span class="num">&#128274;</span>'
+        : short ? `<span class="num">${level}</span><span class="ns buy">${fee} &#9670;</span>`
         : `<span class="num">${level}</span>${cleared ? starRow(stars) : ''}`;
       if (buyable){
         b.addEventListener('click', () => {
@@ -270,6 +285,7 @@ const MapView = (() => {
     },
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
+    set feeFor(fn){ feeFor = fn; },
     render, scrollToCurrent
   };
 })();

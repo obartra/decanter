@@ -28,6 +28,7 @@ it.
 | [13 Delivery](design/13-delivery.md) | Build, offline, installation, and picking up a new version |
 | [14 Testing](design/14-testing.md) | How this is verified, and what it deliberately cannot verify |
 | [14b CI](design/14b-ci.md) | Which checks gate a change, and why those |
+| [15 Diagnostics](design/15-diagnostics.md) | Answering "it did nothing when I tapped it", offline |
 
 ## Where the seams are
 

@@ -109,6 +109,13 @@
   font-style:normal; opacity:.95;
 }
 .node.buyable:disabled{opacity:.5; cursor:default}
+
+/* Open, but the purse cannot deal it. It keeps its own colours, because it is
+   still the level it was and nothing about it has been lost; what goes is the
+   invitation. The beacon in particular has to stop: a medallion pulsing at
+   someone who cannot press it is the game asking for a tap it will refuse. */
+.node.short{cursor:default; animation:none; opacity:.62; box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.node.short .ns.buy{opacity:1}
 .node.armed{
   border-color:var(--gold-lit);
   background:linear-gradient(180deg,rgba(94,68,28,.85),rgba(38,26,12,.8));

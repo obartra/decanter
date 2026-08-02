@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="3372a3160f">
+<meta name="build" content="01a8f2fc16">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -108,6 +108,157 @@ body[data-view="game"] #gameView{display:flex}
   font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-lit);
 }
 #chapterGo{margin-top:16px}
+
+/* --- Jabari mode ---
+   An Easter egg for one player, and the one thing in this build that is not
+   trying to be tasteful. Everything else here is dark glass and restraint; this
+   is a rainbow with an outline round it, shaking. That is deliberate, so none of
+   it should be borrowed for anything the rest of the game does.
+
+   It takes no pointers at all. A full screen thing that lands unannounced must
+   not be able to eat the tap that was on its way to something else. */
+.jabari{position:fixed; inset:0; z-index:96; display:grid; place-items:center; pointer-events:none}
+.jabariFlash{position:absolute; inset:0; background:#FFF6E2; opacity:0}
+.jabari.go .jabariFlash{animation:jabariStrobe 3s ease-out}
+/* shockwaves, three of them, thrown one after another */
+.jabariRing{
+  position:absolute; width:38vmax; height:38vmax; border-radius:50%;
+  border:2px solid #FFE04A; opacity:0;
+}
+.jabariRing.two{border-color:#FF3DDA}
+.jabariRing.three{border-color:#3DF2FF}
+.jabari.go .jabariRing{animation:jabariRing 1s cubic-bezier(.1,.8,.3,1)}
+.jabari.go .jabariRing.two{animation-delay:.16s}
+.jabari.go .jabariRing.three{animation-delay:.34s}
+
+/* the whole block is shaken, rather than the flash behind it, which would pull
+   the wash off the edges of the screen every frame */
+.jabariShake{position:relative; display:grid; place-items:center; gap:2vh; max-width:100%}
+.jabari.go .jabariShake{animation:jabariShake .09s linear infinite}
+
+.jabariWord{
+  position:relative; margin:0; text-align:center;
+  /* not the game's serif. This one is shouting. */
+  font-family:"Arial Black","Helvetica Neue",Impact,system-ui,sans-serif;
+  font-weight:900; line-height:.86; letter-spacing:-.02em; text-transform:uppercase;
+  /* "Jabari" is the long line, and it has to fit the narrowest screen in the
+     layout suite. Clipped letters read as broken rather than as loud. */
+  font-size:clamp(34px, 15vw, 150px);
+  padding:0 12px; max-width:100%;
+  opacity:0;
+}
+/* The gradient is clipped to the glyphs on an inner span, and the wobble lives
+   there too, so the outer element is left with nothing but the scale.
+
+   Nothing here uses `filter`. A filter puts the element on its own rasterised
+   surface, and this one is scaled from a fifth of its size to twice it:
+   Chromium rasterises that surface once, at the scale it starts at, and
+   stretches the result for the rest of the animation. The word arrived as a
+   smear that got worse as it grew. Text shadow and text stroke are painted with
+   the text, every frame, at the size the frame is actually drawn at.
+
+   No stroke and no shadow on this one, though the number below has both. Both
+   are painted at text time and the clipped gradient is painted at background
+   time, which is behind them: on a face this heavy they buried the rainbow and
+   left dark letters with a coloured rim. A solid colour takes an outline
+   happily, which is why the number keeps one. */
+.jabariWord span{
+  display:inline-block; color:#FFE04A;
+  background:linear-gradient(175deg,#FF3DDA,#FF2D2D 22%,#FFE04A 46%,#5BFF5F 70%,#3DF2FF);
+  -webkit-background-clip:text; background-clip:text;
+}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .jabariWord span{color:transparent}
+}
+.jabari.go .jabariWord{animation:jabariWord 3s cubic-bezier(.16,1.15,.3,1) forwards}
+.jabari.go .jabariWord span{animation:jabariWobble .16s ease-in-out infinite alternate}
+
+/* the number, which is the joke */
+.jabariGold{
+  margin:0; font-family:"Arial Black","Helvetica Neue",Impact,system-ui,sans-serif;
+  font-weight:900; font-size:clamp(20px, 7.4vw, 64px); letter-spacing:-.01em;
+  color:#5BFF5F; -webkit-text-stroke:.05em #16090B; paint-order:stroke fill;
+  text-shadow:0 .06em 0 #16090B, 0 0 .5em rgba(91,255,95,.6);
+  opacity:0; white-space:nowrap;
+}
+.jabari.go .jabariGold{animation:jabariGold 3s cubic-bezier(.16,1.3,.3,1) .18s forwards}
+
+@keyframes jabariStrobe{
+  0%{background:#FFFFFF; opacity:.95}
+  9%{background:#FF3DDA; opacity:.5}
+  18%{background:#3DF2FF; opacity:.44}
+  27%{background:#FFE04A; opacity:.4}
+  36%{background:#5BFF5F; opacity:.34}
+  50%{background:#FF3DDA; opacity:.22}
+  70%{opacity:.12}
+  100%{opacity:0}
+}
+@keyframes jabariRing{
+  0%{transform:scale(.05); opacity:1; border-width:30px}
+  100%{transform:scale(2.8); opacity:0; border-width:1px}
+}
+@keyframes jabariShake{
+  0%{transform:translate(-3px,2px) rotate(-.6deg)}
+  25%{transform:translate(3px,-2px) rotate(.7deg)}
+  50%{transform:translate(-2px,-3px) rotate(-.4deg)}
+  75%{transform:translate(2px,3px) rotate(.5deg)}
+  100%{transform:translate(-3px,1px) rotate(-.7deg)}
+}
+@keyframes jabariWobble{
+  0%{transform:rotate(-3.5deg) scale(.98)}
+  100%{transform:rotate(3.5deg) scale(1.02)}
+}
+@keyframes jabariWord{
+  0%{transform:scale(.2) rotate(-20deg); opacity:0}
+  7%{transform:scale(1.4) rotate(9deg); opacity:1}
+  12%{transform:scale(1) rotate(-7deg)}
+  17%{transform:scale(1.22) rotate(6deg)}
+  23%{transform:scale(1.02) rotate(-4deg)}
+  29%{transform:scale(1.12) rotate(3deg)}
+  36%,78%{transform:scale(1.06) rotate(0deg); opacity:1}
+  100%{transform:scale(2) rotate(14deg); opacity:0}
+}
+@keyframes jabariGold{
+  0%{transform:scale(0) rotate(12deg); opacity:0}
+  10%{transform:scale(1.5) rotate(-8deg); opacity:1}
+  16%{transform:scale(.95) rotate(5deg)}
+  24%,78%{transform:scale(1.08) rotate(-2deg); opacity:1}
+  100%{transform:scale(1.7) rotate(9deg); opacity:0}
+}
+/* The global reduce rule collapses every animation to nothing, which for these
+   would mean landing on their own final frame: gone before they were read. So
+   they are simply shown, and the timer that clears them still does. The strobe
+   goes entirely — a screen flashing five colours a second is the one thing here
+   that can actually hurt somebody, and "reduce" is exactly who is asking. */
+@media (prefers-reduced-motion:reduce){
+  .jabari.go .jabariWord, .jabari.go .jabariGold{animation:none; opacity:1; transform:none}
+  .jabari.go .jabariWord span, .jabari.go .jabariShake{animation:none; transform:none}
+  .jabari .jabariFlash, .jabari .jabariRing{display:none}
+}
+
+/* Gold arriving from outside the game. It is the one number on the screen that
+   changed without the player having done anything to earn it, so it says so. */
+.purse.granted{animation:granted 1.4s cubic-bezier(.2,1.2,.4,1)}
+@keyframes granted{
+  0%{transform:scale(1)}
+  18%{transform:scale(1.35); filter:brightness(1.9) drop-shadow(0 0 14px rgba(238,197,120,.9))}
+  100%{transform:scale(1); filter:none}
+}
+
+/* The diagnostics report. Wider than the other panels and monospaced, because
+   this one is meant to be read out and copied rather than glanced at, and it is
+   the only place in the game where the exact characters matter. It scrolls on
+   its own: nothing else in the game scrolls, but a log that is cut off is a log
+   that lost the line worth having. */
+.diagCard{max-width:min(560px, 92vw)}
+.diagText{
+  margin:12px 0; padding:12px; max-height:52vh; overflow:auto;
+  text-align:left; white-space:pre-wrap; word-break:break-word;
+  border-radius:10px; border:1px solid rgba(224,177,92,.22);
+  background:rgba(6,4,2,.6); color:var(--ink);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; line-height:1.5;
+  -webkit-user-select:text; user-select:text; overscroll-behavior:contain;
+}
 
 /* Reading the board after the run is over. It is drained of colour so it plainly
    is not in play, and it takes no input at all: the next touch anywhere puts the
@@ -526,6 +677,13 @@ body[data-view="game"] #gameView{display:flex}
   font-style:normal; opacity:.95;
 }
 .node.buyable:disabled{opacity:.5; cursor:default}
+
+/* Open, but the purse cannot deal it. It keeps its own colours, because it is
+   still the level it was and nothing about it has been lost; what goes is the
+   invitation. The beacon in particular has to stop: a medallion pulsing at
+   someone who cannot press it is the game asking for a tap it will refuse. */
+.node.short{cursor:default; animation:none; opacity:.62; box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.node.short .ns.buy{opacity:1}
 .node.armed{
   border-color:var(--gold-lit);
   background:linear-gradient(180deg,rgba(94,68,28,.85),rgba(38,26,12,.8));
@@ -582,6 +740,29 @@ body[data-view="game"] #gameView{display:flex}
 </section>
 
 <div id="confetti"></div>
+
+<div class="jabari" id="jabari" aria-hidden="true" hidden>
+  <div class="jabariFlash"></div>
+  <div class="jabariRing"></div>
+  <div class="jabariRing two"></div>
+  <div class="jabariRing three"></div>
+  <div class="jabariShake">
+    <p class="jabariWord"><span>Jabari<br>Mode</span></p>
+    <p class="jabariGold" id="jabariGold"></p>
+  </div>
+</div>
+
+<div class="veil" id="diagVeil">
+  <div class="panel diagCard">
+    <h2>What the game says</h2>
+    <p class="hint">Read this out, or copy it, to whoever is looking into it.</p>
+    <pre class="diagText" id="diagText"></pre>
+    <div class="panelBtns">
+      <button class="btn primary" id="diagCopy" type="button">Copy</button>
+      <button class="btn" id="diagClose" type="button">Close</button>
+    </div>
+  </div>
+</div>
 
 <div class="veil" id="chapterVeil">
   <div class="panel chapterCard">
@@ -769,6 +950,15 @@ const CONFIG = {
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
+  /* A word in the query string that tops the purse up, for handing to a beta
+     player who has run dry mid-report rather than making them wait out a day.
+
+     It guards nothing. The save is localStorage on the player's own device and
+     anyone who wants gold can type it into a console, so this is a convenience
+     with a password-shaped hole in it, not a lock. It is written down here in
+     plain sight for the same reason: pretending otherwise would only make the
+     next person think it was load-bearing. It comes out with the beta. */
+  beta: { word: 'jabarimoneeey', gold: 9999999 },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile
@@ -813,6 +1003,86 @@ const CONFIG = {
   stars: { three: 0, two: 1, one: 2 }
 };
 globalThis.CONFIG = CONFIG;
+
+
+/* ---- 05-trace.js ---- */
+/* What the game was doing when it stopped doing anything.
+
+   This exists because of a bug report that could not be answered: a player said
+   a level did nothing when he tapped it, and there was no way to find out what
+   the game thought had happened. The game runs offline and nothing is sent
+   anywhere, so the only place the answer can be is on the device, in a form the
+   player can read out.
+
+   Two kinds of thing are worth keeping.
+
+   A **refusal** is an action the game declined: a fee it could not take, a pour
+   the rules would not allow, a purchase with nothing behind it. Every one of
+   these is a tap that does nothing, and a tap that does nothing is exactly what
+   gets reported. They are the whole reason this file is here, and they are
+   recorded with the reason rather than just the fact, because "level 15 did
+   nothing" and "level 15 cost 5 and the purse held 4" are different bug reports.
+
+   A **fault** is an exception. One thrown inside a click handler is invisible:
+   the handler stops, the screen stays as it was, and the player sees a dead
+   button. Catching them here is the difference between a mystery and a line of
+   text.
+
+   The log is a ring of the last few dozen entries rather than everything. What
+   matters is the run-up to the thing that went wrong, and a buffer that grows
+   without bound on a device that is never reloaded is its own bug. */
+const Trace = (() => {
+  /* enough to cover the run-up to a report without being a leak */
+  const CAP = 64;
+  const ring = [];
+  let seq = 0;
+  let origin = null;
+
+  /* Times are relative to the first entry, not wall clock. A player reading
+     these out loud does not need the date, and a run of them is easier to read
+     as seconds since the game opened than as six identical timestamps. */
+  function stamp(){
+    const now = Date.now();
+    if (origin == null) origin = now;
+    return ((now - origin) / 1000).toFixed(1);
+  }
+  function push(kind, what, detail){
+    ring.push({ n: ++seq, at: stamp(), kind, what, detail: detail == null ? '' : String(detail) });
+    if (ring.length > CAP) ring.shift();
+    return ring[ring.length - 1];
+  }
+
+  /* counters that outlive the ring, so a report still says how often rather than
+     only what happened most recently */
+  const tally = { note: 0, refused: 0, fault: 0 };
+  const refusals = {};
+
+  return {
+    /* something happened and went as it should */
+    note(what, detail){ tally.note++; return push('·', what, detail); },
+    /* the game declined to do what it was asked, and why */
+    refused(what, why){
+      tally.refused++;
+      refusals[what] = (refusals[what] || 0) + 1;
+      return push('refused', what, why);
+    },
+    /* something threw. `where` says which part was running at the time, because
+       the stack alone does not survive being read down a phone line. */
+    fault(where, err){
+      tally.fault++;
+      const msg = err && err.message ? err.message : String(err);
+      return push('FAULT', where, msg);
+    },
+    get entries(){ return ring.slice(); },
+    get counts(){ return { ...tally, refusals: { ...refusals } }; },
+    /* the log as plain text, oldest first, for a panel or a paste */
+    lines(){
+      return ring.map(e => `${e.at}s ${e.kind === '·' ? '' : e.kind + ' '}${e.what}${e.detail ? ' — ' + e.detail : ''}`);
+    },
+    clear(){ ring.length = 0; seq = 0; origin = null; }
+  };
+})();
+globalThis.Trace = Trace;
 
 
 /* ---- 10-rng.js ---- */
@@ -1206,6 +1476,27 @@ function safeStorage(){
    lock the game to level one. */
 const lastLevel = () => (Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity);
 
+/* How long until the local day rolls over and the draught is ready again. The
+   draught is once per local calendar day, so the wait is until midnight where
+   the player is, not a fixed twenty four hours from when it was drawn. `now` is
+   passed in for the same reason `today` is: so this stays testable, and so a
+   clock that jumps cannot be argued with. */
+function untilNextDay(now){
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return Math.max(0, next - now);
+}
+/* That wait, short enough to sit under a button. A player deciding whether to
+   wait needs to know if it is minutes or most of the evening; they do not need
+   seconds, and a number that ticks every second on a button nobody is watching
+   is only a battery cost. */
+function briefly(ms){
+  const mins = Math.ceil(ms / 60000);
+  if (mins <= 1) return 'soon';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 function blank(){
   return {
     version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
@@ -1215,7 +1506,13 @@ function blank(){
     /* the day the last daily draught was drawn, as a local YYYY-MM-DD */
     dailyOn: null,
     /* chapters whose opening has already been read, so it is shown once */
-    seen: {}
+    seen: {},
+    /* What has gone wrong here, kept across reloads. A player who is stuck
+       reloads, and everything the trace was holding goes with the page, so the
+       counts that answer "has this happened before, and how often" have to
+       outlive it. Deliberately counts and one message rather than a log: this
+       lives in the player's save, and a save is not a place to grow a diary. */
+    diag: { refused: {}, faults: 0, lastFault: '' }
   };
 }
 function createProgress(storage){
@@ -1241,6 +1538,9 @@ function createProgress(storage){
   if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
   if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
   if (!state.seen || typeof state.seen !== 'object') state.seen = {};
+  if (!state.diag || typeof state.diag !== 'object') state.diag = blank().diag;
+  if (!state.diag.refused || typeof state.diag.refused !== 'object') state.diag.refused = {};
+  if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
   /* The boards moved. What a player earned stays earned: stars and best move
      counts are theirs, and taking them away to keep a record tidy is a worse
      trade than leaving a best that the new board happens not to allow.
@@ -1271,6 +1571,20 @@ function createProgress(storage){
        player has got rather than from the level in front of them, so going back
        to an early board does not take the tools away again. */
     perks(){ return Chapters.perksFor(Levels.sectionOf(state.unlocked)); },
+    /* ---- what has gone wrong ----
+       Written straight to the save rather than batched. These are rare by
+       definition, and a count that is lost because the page went away is a
+       count that was not worth keeping. */
+    get diag(){ return state.diag; },
+    recordRefusal(kind){
+      state.diag.refused[kind] = (state.diag.refused[kind] || 0) + 1;
+      save();
+    },
+    recordFault(message){
+      state.diag.faults++;
+      state.diag.lastFault = String(message).slice(0, 200);
+      save();
+    },
     hasSeen: section => !!state.seen[section],
     markSeen(section){
       if (state.seen[section]) return false;
@@ -1297,6 +1611,16 @@ function createProgress(storage){
       return true;
     },
     canAfford: cost => state.gold >= cost,
+    /* Gold from outside the economy. Counted, because a save carrying a purse
+       nobody earned is a debugging trap: the next report from this player has to
+       be able to say that the number was handed over rather than played for. */
+    grant(gold){
+      if (!Number.isInteger(gold) || gold <= 0) return 0;
+      state.gold += gold;
+      state.diag.grants = (state.diag.grants || 0) + 1;
+      save();
+      return gold;
+    },
     /* the draught is once per local day, and the day is passed in so this stays
        testable and so a clock that jumps cannot pay twice for the same date */
     dailyReady: today => state.dailyOn !== today,
@@ -1365,7 +1689,7 @@ function createProgress(storage){
     reset(){ state = blank(); save(); }
   };
 }
-globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank };
+globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank, untilNextDay, briefly };
 
 
 /* ---- 45-panel.js ---- */
@@ -1489,6 +1813,11 @@ const Audio = (() => {
   }
   return {
     get enabled(){ return on; },
+    /* Whether a sound scheduled right now would actually be heard. A page that
+       has not been touched yet is not allowed to make one: the context starts
+       suspended and stays there until a gesture, so anything scheduled before
+       that is played to nobody. */
+    get ready(){ return !!ctx && ctx.state === 'running'; },
     unlock(){ try { init(); if (ctx.state === 'suspended') ctx.resume(); } catch(e){} },
     setEnabled(v){ on = !!v; if (!on) this.pourEnd(); return on; },
     toggle(){ return this.setEnabled(!on); },
@@ -1543,7 +1872,21 @@ const Audio = (() => {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
         tone({ f, type:'triangle', dur:0.45, gain:0.15, delay:i * 0.11 }));
     },
-    unlock2(){ [659.25, 987.77].forEach((f,i) => tone({ f, type:'triangle', dur:0.5, gain:0.13, delay:i*0.13 })); }
+    unlock2(){ [659.25, 987.77].forEach((f,i) => tone({ f, type:'triangle', dur:0.5, gain:0.13, delay:i*0.13 })); },
+    /* An explosion. Nothing in the puzzle makes this noise, and nothing should:
+       it belongs to the one thing here that is not part of the game.
+
+       A bang is three sounds arriving together, and dropping any of them leaves
+       it sounding like a door. The crack is the front of it, a hiss of high
+       noise with no body. The body is a sine falling off the bottom of hearing,
+       which is what makes it felt rather than heard. The tail is low noise
+       decaying slowly underneath, the debris still coming down. */
+    boom(delay = 0){
+      burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay });
+      tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay });
+      burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass' });
+      burst({ freq:950, q:0.5, dur:0.5, gain:0.13, delay:delay + 0.05 });
+    }
   };
 })();
 globalThis.Audio = Audio;
@@ -2750,6 +3093,31 @@ const Confetti = (() => {
         layer.appendChild(p);
       }
     },
+    /* Thrown in every direction rather than up. `burst` fires a cone, which is
+       what a cork does; an explosion has no up. Everything still falls at the
+       end, because paper does. */
+    blast(cx, cy, count, palette, power){
+      if (reduce || !ensure()) return;
+      for (let i = 0; i < count; i++){
+        const p = document.createElement('div');
+        p.className = 'conf';
+        const thin = Math.random() < 0.4;
+        p.style.width = (thin ? 3 : 7) + 'px';
+        p.style.height = (thin ? 10 : 7) + 'px';
+        p.style.background = palette[(Math.random() * palette.length) | 0];
+        p.style.left = cx + 'px'; p.style.top = cy + 'px';
+        const a = Math.random() * Math.PI * 2;
+        const v = power * (0.35 + Math.random() * 0.9);
+        const ux = Math.cos(a) * v, uy = Math.sin(a) * v;
+        p.animate([
+          { transform:'translate(0,0) rotate(0deg) scale(1.3)', opacity:1 },
+          { transform:`translate(${ux}px,${uy}px) rotate(${(Math.random()*720-360)|0}deg) scale(1)`, opacity:1, offset:0.35 },
+          { transform:`translate(${ux*1.15}px,${uy+220+Math.random()*160}px) rotate(${(Math.random()*1200-600)|0}deg) scale(.9)`, opacity:0 }
+        ], { duration: 1100 + Math.random()*900, easing:'cubic-bezier(.1,.7,.3,1)' })
+         .onfinish = () => p.remove();
+        layer.appendChild(p);
+      }
+    },
     rain(palette){
       if (reduce || !ensure()) return;
       const cols = palette.concat(['#F7DEB4', '#D8A76D', '#FFFFFF']);
@@ -2828,6 +3196,10 @@ const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
   let onBuy = () => {};
+  /* What dealing a given board costs. Asked for rather than worked out here: the
+     app is where a board is paid for, and a map that recomputed the fee from
+     CONFIG would be a second place for the price to be decided from. */
+  let feeFor = () => 0;
   /* Which locked level the player has tapped once. Paying is two taps, not one:
      a single tap on the thing you cannot play yet should not spend anything. */
   let armed = null;
@@ -2997,24 +3369,35 @@ const MapView = (() => {
       const cost = unlockCost();
       const affordable = progress.canAfford(cost);
       const isArmed = buyable && armed === level;
+      /* An open board still has to be paid for, and a purse that cannot cover the
+         fee is a state the game expects: the daily draught is the way back out of
+         it. What it must not do is leave a lit medallion that swallows the tap and
+         says nothing, which looks playable and behaves locked. So it refuses the
+         tap and shows the price it is refusing over, the way the next one along
+         shows the price of opening it. */
+      const fee = locked ? 0 : feeFor(level);
+      const short = !locked && fee > 0 && !progress.canAfford(fee);
 
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'node' + (cleared ? ' cleared' : '') + (current ? ' current' : '')
-        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '');
+        + (locked ? ' locked' : '') + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '')
+        + (short ? ' short' : '');
       b.style.left = p.x + 'px';
       b.style.bottom = p.y + 'px';
       b.style.setProperty('--tint', Levels.sectionTint(level));
       b.dataset.level = level;
-      b.disabled = locked && (!buyable || !affordable);
+      b.disabled = locked ? (!buyable || !affordable) : short;
       b.setAttribute('aria-label',
         buyable ? `Level ${level}, locked. Open it for ${cost} gold`
         : locked ? `Level ${level}, locked`
+        : short ? `Level ${level}. ${fee} gold to deal, and there is not enough`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
       b.innerHTML = isArmed
         ? `<span class="num">${cost}</span><span class="ns buy">Open?</span>`
         : buyable ? `<span class="num">&#128274;</span><span class="ns buy">${cost} &#9670;</span>`
         : locked ? '<span class="num">&#128274;</span>'
+        : short ? `<span class="num">${level}</span><span class="ns buy">${fee} &#9670;</span>`
         : `<span class="num">${level}</span>${cleared ? starRow(stars) : ''}`;
       if (buyable){
         b.addEventListener('click', () => {
@@ -3050,10 +3433,145 @@ const MapView = (() => {
     },
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
+    set feeFor(fn){ feeFor = fn; },
     render, scrollToCurrent
   };
 })();
 globalThis.MapView = MapView;
+
+
+/* ---- 85-diagnostics.js ---- */
+/* What to read out when the game does nothing.
+
+   The report that prompted this said a level did nothing when it was tapped, and
+   there was no way to find out what the game thought had happened: which build,
+   which save, how much gold, whether anything had been refused and why. All of
+   that existed, none of it was reachable, and the game sends nothing anywhere,
+   so the only way to get at it is to put it on the screen.
+
+   It is opened by holding the gold count for a moment, on either screen. That is
+   deliberately not a button: it costs no room in a footer that is already full,
+   it cannot be hit by accident, and it is one sentence to describe to someone
+   who is stuck — "press and hold the gold number". Support instructions do not
+   need to be discoverable, they need to be sayable.
+
+   Nothing here is collected, uploaded or timed. It reads state that already
+   exists and formats it. */
+const Diagnostics = (() => {
+  const HOLD_MS = 700;
+  let readState = () => ({});
+  let hold = null;
+
+  const el = id => document.getElementById(id);
+  const buildId = () => {
+    const m = document.querySelector('meta[name="build"]');
+    return (m && m.getAttribute('content')) || 'dev';
+  };
+
+  /* The save as a line rather than as JSON. A player reading this to someone
+     else can say "unlocked 15, gold 4"; they cannot say a brace. */
+  function saveLine(progress){
+    const raw = progress.raw;
+    const seen = Object.keys(raw.seen || {}).sort().join(',') || 'none';
+    return [
+      `layout ${raw.layout}`,
+      `unlocked ${raw.unlocked}`,
+      `gold ${progress.gold}`,
+      `${progress.totalStars()} stars`,
+      `chapters read ${seen}`,
+      `daily ${raw.dailyOn || 'never'}`
+    ].join(' · ');
+  }
+  function perkLine(progress){
+    const p = progress.perks();
+    const on = ['undo', 'hint', 'vessel'].filter(k => p[k]);
+    return `${on.join(' ') || 'none'} · ${p.freeUndos} free undos · hints ${p.hintCost} · ${p.freeHints} free`;
+  }
+  function runLine(state){
+    if (!state || !state.tubes || !state.tubes.length) return 'no board dealt';
+    return [
+      `level ${state.level}`,
+      `${state.tubes.length} bottles`,
+      `${state.moves} pours`,
+      `par ${state.par == null ? 'unknown' : state.par}${state.parExact ? '' : ' (approx)'}`,
+      state.over ? `over: ${state.reason || 'won'}` : 'in play',
+      state.running || state.queue.length ? 'animating' : 'settled'
+    ].join(' · ');
+  }
+  function countLine(){
+    const c = Trace.counts;
+    const kinds = Object.entries(c.refusals).map(([k, n]) => `${k}:${n}`).join(' ') || 'none';
+    return `${c.refused} refused (${kinds}) · ${c.fault} faults`;
+  }
+
+  function compose(){
+    const { progress, state } = readState();
+    const lines = [
+      `Decanter build ${buildId()}`,
+      `${innerWidth}x${innerHeight} dpr${(devicePixelRatio || 1).toFixed(1)} · ${document.body.dataset.view}`,
+      ''
+    ];
+    if (progress){
+      lines.push(`save: ${saveLine(progress)}`);
+      lines.push(`tools: ${perkLine(progress)}`);
+      const d = progress.diag;
+      if (d && d.faults) lines.push(`faults on record: ${d.faults} · last: ${d.lastFault}`);
+      const ever = Object.entries(d && d.refused || {}).map(([k, n]) => `${k}:${n}`).join(' ');
+      if (ever) lines.push(`refused ever: ${ever}`);
+    }
+    lines.push(`run: ${runLine(state)}`);
+    lines.push(`this session: ${countLine()}`);
+    lines.push('', '--- what happened ---');
+    const log = Trace.lines();
+    lines.push(...(log.length ? log : ['nothing recorded']));
+    return lines.join('\n');
+  }
+
+  function open(){
+    el('diagText').textContent = compose();
+    el('diagCopy').textContent = 'Copy';
+    el('diagVeil').classList.add('show');
+  }
+  function close(){ el('diagVeil').classList.remove('show'); }
+
+  /* Copying has to work with no network and no permissions prompt in the way, so
+     a refused clipboard falls back to selecting the text and saying so: someone
+     can always copy a selection by hand. */
+  async function copy(){
+    const text = el('diagText').textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      el('diagCopy').textContent = 'Copied';
+    } catch (e) {
+      const range = document.createRange();
+      range.selectNodeContents(el('diagText'));
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      el('diagCopy').textContent = 'Selected — copy it';
+    }
+  }
+
+  return {
+    /* the app hands over a way to read itself, rather than this reaching into it */
+    set source(fn){ readState = fn; },
+    open,
+    mount(){
+      const cancel = () => { clearTimeout(hold); hold = null; };
+      document.querySelectorAll('.purse').forEach(p => {
+        p.addEventListener('pointerdown', () => {
+          cancel();
+          hold = setTimeout(open, HOLD_MS);
+        });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(e => p.addEventListener(e, cancel));
+      });
+      el('diagClose').onclick = close;
+      el('diagCopy').onclick = copy;
+      el('diagVeil').addEventListener('click', e => { if (e.target === el('diagVeil')) close(); });
+    }
+  };
+})();
+globalThis.Diagnostics = Diagnostics;
 
 
 /* ---- 90-app.js ---- */
@@ -3067,6 +3585,19 @@ const App = (() => {
     undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, reason: null, hinting: false
   };
   const $ = id => document.getElementById(id);
+
+  /* Every refusal in this file goes through here.
+
+     A refused action is a tap that does nothing, and a tap that does nothing is
+     what gets reported: the deny sound is the only thing that marks it, and a
+     player with sound off does not get even that. Recording the reason alongside
+     the sound is what turns "level 15 did nothing" into "level 15 cost 5 and the
+     purse held 4" without anyone having to guess. */
+  function deny(what, why){
+    Trace.refused(what, why);
+    progress.recordRefusal(what);
+    Audio.deny();
+  }
 
   /* ---------- routing ---------- */
   /* The stylesheets colour bands with var(--cN), the pour and the particle sim
@@ -3102,15 +3633,38 @@ const App = (() => {
     $('mapGold').textContent = progress.gold;
     const ready = progress.dailyReady(today());
     $('daily').disabled = !ready;
-    $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
+    /* "Drawn" said the draught was gone without saying it was coming back, which
+       on the one screen a player with nothing left has to look at is the wrong
+       half of the sentence. The wait says when, so waiting is a decision rather
+       than a dead end, and it runs itself down: when it reaches the local
+       midnight, the same repaint finds the draught ready and offers it. */
+    $('dailyCost').textContent = ready
+      ? `+${CONFIG.economy.daily}`
+      : Progress.briefly(Progress.untilNextDay(new Date()));
     /* a board costs gold to deal, so the map has to say so and stop offering one
        that cannot be paid for. A level already beaten is free, and says free
        rather than showing a nought nobody has to think about. */
     const fee = costOf(progress.unlocked);
     $('playCost').textContent = fee > 0 ? fee : 'free';
     $('mapPlay').disabled = !progress.canAfford(fee);
+    /* A purse that cannot deal the next board is not the end of the game, it is
+       a day's wait, and the draught is the only way through it. So when nothing
+       else on this screen can be pressed, it is the thing being offered. */
+    $('daily').classList.toggle('primary', ready && !progress.canAfford(fee));
+  }
+  /* Gold moved while the map is up.
+
+     The purse is what decides which boards can be dealt, so the medallions are
+     stale the moment it changes: repainting the footer alone leaves a level
+     looking unplayable, or worse, looking playable, until something else happens
+     to redraw them. Every place that moves gold on this screen goes through
+     here, so there is one thing to remember rather than three. */
+  function goldChanged(){
+    paintMap();
+    MapView.render(progress);
   }
   function showMap(scrollSmooth){
+    Trace.note('to the map');
     document.body.dataset.view = 'map';
     Backdrop.kind = 'moss';
     Backdrop.setShelf(null);
@@ -3123,7 +3677,12 @@ const App = (() => {
      one just lost. Charging here rather than inside start() keeps the internal
      re-deals free: only a deliberate attempt costs. */
   function attempt(level, keepVessel){
-    if (!progress.spend(costOf(level))){ Audio.deny(); paintMap(); return false; }
+    if (!progress.spend(costOf(level))){
+      deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
+      paintMap();
+      return false;
+    }
+    Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
@@ -3146,6 +3705,10 @@ const App = (() => {
     $('chapterGrant').textContent = grant ? `Unlocked · ${grant}` : '';
     $('chapterVeil').style.setProperty('--tint', Levels.sectionTint(level));
     $('chapterVeil').classList.add('show');
+    /* The opening covers the board and only goes away when it is dismissed, so
+       a report of a level that did nothing has to be able to say whether this
+       was over it at the time. */
+    Trace.note(`chapter ${section + 1} opening`, Levels.sectionName(level));
   }
   function showGame(level){ attempt(level); }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
@@ -3243,7 +3806,12 @@ const App = (() => {
     $('vessel').disabled = busy || S.vesselUsed || !progress.canAfford(CONFIG.economy.vessel);
     $('vessel').classList.toggle('spent', S.vesselUsed);
 
-    $('restart').disabled = (!S.history.length && !S.moves) || busy;
+    /* A restart deals the board again and is charged for like any other deal, so
+       a purse that cannot cover it must not be offered the button. Left live it
+       is the same dead tap the map used to have, and the end-of-run panel already
+       disables Try again for exactly this reason. */
+    $('restart').disabled = (!S.history.length && !S.moves) || busy
+      || !progress.canAfford(costOf(S.level));
 
     /* Tools arrive a chapter at a time, so one that has not been granted yet is
        not there at all. Showing it disabled would advertise something the player
@@ -3279,7 +3847,7 @@ const App = (() => {
     Audio.unlock();
     const sel = Board.selected;
     if (sel === null){
-      if (!canLift(i)){ Board.nudge(i); Audio.deny(); return; }
+      if (!canLift(i)){ Board.nudge(i); deny('lift', `bottle ${i} is empty or finished`); return; }
       lift(i);
       return;
     }
@@ -3297,7 +3865,7 @@ const App = (() => {
     drop();
     if (canLift(i)){ lift(i); return; }
     Board.nudge(i);
-    Audio.deny();
+    deny('pour', `${sel} into ${i} is not a pour the rules allow`);
   }
   function commit(from, to){
     const move = { from, to, n: Rules.pourAmount(S.tubes, from, to), color: S.tubes[from][S.tubes[from].length - 1] };
@@ -3419,22 +3987,29 @@ const App = (() => {
     Board.mount($('board'));
     Board.onTap = tap;
     MapView.mount($('mapScroll'));
+    /* the map shows what a board costs, and this is where that is decided */
+    MapView.feeFor = costOf;
     MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
        and actually beating it still pays what it always would have. */
     MapView.onBuy = level => {
       Audio.unlock();
-      if (!progress.buyUnlock(level - 1, skipCost())){ Audio.deny(); return; }
+      if (!progress.buyUnlock(level - 1, skipCost())){
+        deny('buy', `opening ${level} costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       Audio.tick();
-      paintMap();
-      MapView.render(progress);
+      goldChanged();
     };
 
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;
       /* charge before rolling back, so a refused payment changes nothing */
-      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){ Audio.deny(); return; }
+      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){
+        deny('undo', `costs ${CONFIG.economy.undoCost}, purse holds ${progress.gold}`);
+        return;
+      }
       S.undosUsed++;
       const prev = S.history.pop();
       S.tubes = prev.tubes;
@@ -3447,7 +4022,10 @@ const App = (() => {
     };
     $('vessel').onclick = () => {
       if (S.queue.length || S.running || S.vesselUsed) return;
-      if (!progress.spend(CONFIG.economy.vessel)){ Audio.deny(); return; }
+      if (!progress.spend(CONFIG.economy.vessel)){
+        deny('vessel', `costs ${CONFIG.economy.vessel}, purse holds ${progress.gold}`);
+        return;
+      }
       S.vesselUsed = true;
       S.tubes.push([]);
       Board.view.push([]);
@@ -3468,7 +4046,10 @@ const App = (() => {
        there is a move to show: a search that gives up owes the player nothing. */
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
-      if (!progress.canAfford(hintCost())){ Audio.deny(); return; }
+      if (!progress.canAfford(hintCost())){
+        deny('hint', `costs ${hintCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       Audio.unlock();
       S.hinting = true;
       paintHud();
@@ -3478,7 +4059,11 @@ const App = (() => {
         /* the board moved on while the search ran, so the answer is about a
            position that is no longer in front of anyone */
         if (level !== S.level || moves !== S.moves){ paintHud(); return; }
-        if (!res.first || !progress.spend(hintCost())){ Audio.deny(); paintHud(); return; }
+        if (!res.first || !progress.spend(hintCost())){
+          deny('hint', res.first ? `costs ${hintCost()}, purse holds ${progress.gold}` : 'the search found no move');
+          paintHud();
+          return;
+        }
         S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
         Audio.lift();
@@ -3494,6 +4079,7 @@ const App = (() => {
     $('chapterGo').onclick = () => {
       Audio.unlock(); Audio.tick();
       $('chapterVeil').classList.remove('show');
+      Trace.note('chapter opening read');
       paintHud();
     };
     $('chapterVeil').addEventListener('click', e => {
@@ -3532,13 +4118,19 @@ const App = (() => {
       if (e.target === $('veil')) closePanel();
     });
     $('retry').onclick = () => {
-      if (!progress.canAfford(costOf(S.level))){ Audio.deny(); return; }
+      if (!progress.canAfford(costOf(S.level))){
+        deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       attempt(S.level);
     };
     $('skip').onclick = () => {
-      if (!progress.buyUnlock(S.level, skipCost())){ Audio.deny(); return; }
+      if (!progress.buyUnlock(S.level, skipCost())){
+        deny('skip', `costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show', 'failed');
       /* the fee covered the board too, so this deals it without charging again */
       document.body.dataset.view = 'game';
@@ -3546,8 +4138,11 @@ const App = (() => {
       start(Math.min(S.level + 1, progress.lastLevel));
     };
     $('next').onclick = () => {
-      if (S.level >= progress.lastLevel){ Audio.deny(); return; }
-      if (!progress.canAfford(costOf(S.level + 1))){ Audio.deny(); return; }
+      if (S.level >= progress.lastLevel){ deny('next', 'that was the last graded level'); return; }
+      if (!progress.canAfford(costOf(S.level + 1))){
+        deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show');
       showGame(S.level + 1);
     };
@@ -3562,9 +4157,9 @@ const App = (() => {
     $('mapPlay').onclick = () => { Audio.unlock(); showGame(Math.min(progress.unlocked, progress.lastLevel)); };
     $('daily').onclick = () => {
       Audio.unlock();
-      if (!progress.claimDaily(today())){ Audio.deny(); return; }
+      if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }
       Audio.lift();
-      paintMap();
+      goldChanged();
     };
 
     /* A resize while a pour is in flight cannot rebuild the board: render() wipes
@@ -3592,14 +4187,128 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
     });
   }
+  /* Gold handed over rather than earned, for a beta player who has run dry in
+     the middle of telling us about something else. The word is in the query
+     string; it is spent out of the URL as well as into the purse, so pasting the
+     link again is the only way to get it twice, and a screenshot of the game
+     afterwards does not carry it.
+
+     It arrives with a flash on the purse. A cheat that silently changed a number
+     would be its own small version of the bug this branch is about. */
+  function takeGift(){
+    let url;
+    try { url = new URL(location.href); } catch (e) { return; }
+    if (!url.searchParams.has(CONFIG.beta.word)) return;
+    const gold = progress.grant(CONFIG.beta.gold);
+    url.searchParams.delete(CONFIG.beta.word);
+    try {
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) { /* a page opened from a file has no history to rewrite */ }
+    Trace.note('purse topped up', `+${gold} from the query string`);
+    goldChanged();
+    whenItCanBeHeard(jabariMode);
+  }
+
+  /* The bang is the point, and a page nobody has touched yet is not allowed to
+     make one: the audio context stays suspended until a gesture, so firing this
+     on load would play it to an empty room. The gold is already in the purse
+     either way — only the fanfare waits, and only when there is a sound to wait
+     for. With sound off there is nothing to miss, so it goes off at once. */
+  function whenItCanBeHeard(run){
+    Audio.unlock();
+    if (!Audio.enabled || Audio.ready){ run(); return; }
+    const go = () => {
+      document.removeEventListener('pointerdown', go, true);
+      document.removeEventListener('keydown', go, true);
+      Audio.unlock();
+      run();
+    };
+    document.addEventListener('pointerdown', go, true);
+    document.addEventListener('keydown', go, true);
+  }
+
+  /* It goes off, it says what it is, and it takes itself away. Cleared on a
+     timer rather than on the animation ending, because reduced motion collapses
+     the animation to nothing and there would be no end to wait for. */
+  /* Not the game's palette. That one was chosen so no two liquids are close to
+     the eye on a dark shelf; this is chosen to be as loud as a screen goes. */
+  const JABARI_COLOURS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
+
+  function jabariMode(){
+    const el = $('jabari');
+    $('jabariGold').textContent = `+${CONFIG.beta.gold.toLocaleString('en-US')}`;
+    el.hidden = false;
+    /* forced out of the frame that unhid it, or the animation never starts */
+    void el.offsetWidth;
+    el.classList.add('go');
+
+    /* three bangs rather than one, because one is a sound effect and three is a
+       point being made */
+    Audio.boom();
+    Audio.boom(0.19);
+    Audio.boom(0.44);
+
+    /* Thrown against the short side of the screen, not the long one. Scaled off
+       the height, a phone flings most of the paper out of frame before anyone
+       sees it: the first pass measured particles six hundred pixels left of a
+       screen three hundred and ninety wide. */
+    const reach = Math.min(innerWidth, innerHeight) * 0.5;
+    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, JABARI_COLOURS, reach);
+    throwPaper();
+    setTimeout(throwPaper, 190);
+    setTimeout(throwPaper, 440);
+    setTimeout(throwPaper, 900);
+
+    /* and the number it was all about, once the word is out of the way */
+    const purse = document.querySelector('#mapView .purse');
+    if (purse){
+      setTimeout(() => {
+        purse.classList.add('granted');
+        setTimeout(() => purse.classList.remove('granted'), 1400);
+      }, 2100);
+    }
+    setTimeout(() => {
+      el.classList.remove('go');
+      el.hidden = true;
+    }, 3100);
+  }
+
+  /* An exception inside a click handler is the quietest failure the game has:
+     the handler stops, the screen stays exactly as it was, and what the player
+     sees is a button that does nothing. Nothing here tries to recover — the
+     state is already whatever the half-run handler left — it only makes sure the
+     failure leaves a mark instead of none at all. */
+  function watchForFaults(){
+    addEventListener('error', e => {
+      Trace.fault(e.filename ? `${e.filename}:${e.lineno}` : 'page', e.message || e.error);
+      progress.recordFault(e.message || String(e.error));
+    });
+    addEventListener('unhandledrejection', e => {
+      Trace.fault('a promise', e.reason);
+      progress.recordFault(e.reason && e.reason.message ? e.reason.message : String(e.reason));
+    });
+  }
+
   return {
     boot(){
+      watchForFaults();
+      Trace.note('booted', `unlocked ${progress.unlocked}, purse ${progress.gold}`);
       publishPalette();
       Backdrop.mount();
       bind();
+      Diagnostics.source = () => ({ progress, state: S });
+      Diagnostics.mount();
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);
       showMap(false);
+      takeGift();
+      /* The wait on the draught has to run down on its own, or it is a stale
+         number that only corrects itself when something else happens to repaint.
+         Every half minute is enough for something measured in minutes, and it
+         only touches the screen the player is actually looking at. */
+      setInterval(() => {
+        if (document.body.dataset.view === 'map') paintMap();
+      }, 30_000);
     },
     /* a newer build has taken over the page */
     updateReady(){ updatePending = true; takeUpdate(); },

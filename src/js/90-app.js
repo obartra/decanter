@@ -9,6 +9,19 @@ const App = (() => {
   };
   const $ = id => document.getElementById(id);
 
+  /* Every refusal in this file goes through here.
+
+     A refused action is a tap that does nothing, and a tap that does nothing is
+     what gets reported: the deny sound is the only thing that marks it, and a
+     player with sound off does not get even that. Recording the reason alongside
+     the sound is what turns "level 15 did nothing" into "level 15 cost 5 and the
+     purse held 4" without anyone having to guess. */
+  function deny(what, why){
+    Trace.refused(what, why);
+    progress.recordRefusal(what);
+    Audio.deny();
+  }
+
   /* ---------- routing ---------- */
   /* The stylesheets colour bands with var(--cN), the pour and the particle sim
      read CONFIG.palette. Publishing one from the other keeps a single source:
@@ -43,15 +56,38 @@ const App = (() => {
     $('mapGold').textContent = progress.gold;
     const ready = progress.dailyReady(today());
     $('daily').disabled = !ready;
-    $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
+    /* "Drawn" said the draught was gone without saying it was coming back, which
+       on the one screen a player with nothing left has to look at is the wrong
+       half of the sentence. The wait says when, so waiting is a decision rather
+       than a dead end, and it runs itself down: when it reaches the local
+       midnight, the same repaint finds the draught ready and offers it. */
+    $('dailyCost').textContent = ready
+      ? `+${CONFIG.economy.daily}`
+      : Progress.briefly(Progress.untilNextDay(new Date()));
     /* a board costs gold to deal, so the map has to say so and stop offering one
        that cannot be paid for. A level already beaten is free, and says free
        rather than showing a nought nobody has to think about. */
     const fee = costOf(progress.unlocked);
     $('playCost').textContent = fee > 0 ? fee : 'free';
     $('mapPlay').disabled = !progress.canAfford(fee);
+    /* A purse that cannot deal the next board is not the end of the game, it is
+       a day's wait, and the draught is the only way through it. So when nothing
+       else on this screen can be pressed, it is the thing being offered. */
+    $('daily').classList.toggle('primary', ready && !progress.canAfford(fee));
+  }
+  /* Gold moved while the map is up.
+
+     The purse is what decides which boards can be dealt, so the medallions are
+     stale the moment it changes: repainting the footer alone leaves a level
+     looking unplayable, or worse, looking playable, until something else happens
+     to redraw them. Every place that moves gold on this screen goes through
+     here, so there is one thing to remember rather than three. */
+  function goldChanged(){
+    paintMap();
+    MapView.render(progress);
   }
   function showMap(scrollSmooth){
+    Trace.note('to the map');
     document.body.dataset.view = 'map';
     Backdrop.kind = 'moss';
     Backdrop.setShelf(null);
@@ -64,7 +100,12 @@ const App = (() => {
      one just lost. Charging here rather than inside start() keeps the internal
      re-deals free: only a deliberate attempt costs. */
   function attempt(level, keepVessel){
-    if (!progress.spend(costOf(level))){ Audio.deny(); paintMap(); return false; }
+    if (!progress.spend(costOf(level))){
+      deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
+      paintMap();
+      return false;
+    }
+    Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
     document.body.dataset.view = 'game';
     Backdrop.kind = 'cellar';
     start(level, keepVessel);
@@ -87,6 +128,10 @@ const App = (() => {
     $('chapterGrant').textContent = grant ? `Unlocked · ${grant}` : '';
     $('chapterVeil').style.setProperty('--tint', Levels.sectionTint(level));
     $('chapterVeil').classList.add('show');
+    /* The opening covers the board and only goes away when it is dismissed, so
+       a report of a level that did nothing has to be able to say whether this
+       was over it at the time. */
+    Trace.note(`chapter ${section + 1} opening`, Levels.sectionName(level));
   }
   function showGame(level){ attempt(level); }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
@@ -184,7 +229,12 @@ const App = (() => {
     $('vessel').disabled = busy || S.vesselUsed || !progress.canAfford(CONFIG.economy.vessel);
     $('vessel').classList.toggle('spent', S.vesselUsed);
 
-    $('restart').disabled = (!S.history.length && !S.moves) || busy;
+    /* A restart deals the board again and is charged for like any other deal, so
+       a purse that cannot cover it must not be offered the button. Left live it
+       is the same dead tap the map used to have, and the end-of-run panel already
+       disables Try again for exactly this reason. */
+    $('restart').disabled = (!S.history.length && !S.moves) || busy
+      || !progress.canAfford(costOf(S.level));
 
     /* Tools arrive a chapter at a time, so one that has not been granted yet is
        not there at all. Showing it disabled would advertise something the player
@@ -220,7 +270,7 @@ const App = (() => {
     Audio.unlock();
     const sel = Board.selected;
     if (sel === null){
-      if (!canLift(i)){ Board.nudge(i); Audio.deny(); return; }
+      if (!canLift(i)){ Board.nudge(i); deny('lift', `bottle ${i} is empty or finished`); return; }
       lift(i);
       return;
     }
@@ -238,7 +288,7 @@ const App = (() => {
     drop();
     if (canLift(i)){ lift(i); return; }
     Board.nudge(i);
-    Audio.deny();
+    deny('pour', `${sel} into ${i} is not a pour the rules allow`);
   }
   function commit(from, to){
     const move = { from, to, n: Rules.pourAmount(S.tubes, from, to), color: S.tubes[from][S.tubes[from].length - 1] };
@@ -360,22 +410,29 @@ const App = (() => {
     Board.mount($('board'));
     Board.onTap = tap;
     MapView.mount($('mapScroll'));
+    /* the map shows what a board costs, and this is where that is decided */
+    MapView.feeFor = costOf;
     MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
        and actually beating it still pays what it always would have. */
     MapView.onBuy = level => {
       Audio.unlock();
-      if (!progress.buyUnlock(level - 1, skipCost())){ Audio.deny(); return; }
+      if (!progress.buyUnlock(level - 1, skipCost())){
+        deny('buy', `opening ${level} costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       Audio.tick();
-      paintMap();
-      MapView.render(progress);
+      goldChanged();
     };
 
     $('undo').onclick = () => {
       if (S.queue.length || S.running || !S.history.length) return;
       /* charge before rolling back, so a refused payment changes nothing */
-      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){ Audio.deny(); return; }
+      if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){
+        deny('undo', `costs ${CONFIG.economy.undoCost}, purse holds ${progress.gold}`);
+        return;
+      }
       S.undosUsed++;
       const prev = S.history.pop();
       S.tubes = prev.tubes;
@@ -388,7 +445,10 @@ const App = (() => {
     };
     $('vessel').onclick = () => {
       if (S.queue.length || S.running || S.vesselUsed) return;
-      if (!progress.spend(CONFIG.economy.vessel)){ Audio.deny(); return; }
+      if (!progress.spend(CONFIG.economy.vessel)){
+        deny('vessel', `costs ${CONFIG.economy.vessel}, purse holds ${progress.gold}`);
+        return;
+      }
       S.vesselUsed = true;
       S.tubes.push([]);
       Board.view.push([]);
@@ -409,7 +469,10 @@ const App = (() => {
        there is a move to show: a search that gives up owes the player nothing. */
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
-      if (!progress.canAfford(hintCost())){ Audio.deny(); return; }
+      if (!progress.canAfford(hintCost())){
+        deny('hint', `costs ${hintCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       Audio.unlock();
       S.hinting = true;
       paintHud();
@@ -419,7 +482,11 @@ const App = (() => {
         /* the board moved on while the search ran, so the answer is about a
            position that is no longer in front of anyone */
         if (level !== S.level || moves !== S.moves){ paintHud(); return; }
-        if (!res.first || !progress.spend(hintCost())){ Audio.deny(); paintHud(); return; }
+        if (!res.first || !progress.spend(hintCost())){
+          deny('hint', res.first ? `costs ${hintCost()}, purse holds ${progress.gold}` : 'the search found no move');
+          paintHud();
+          return;
+        }
         S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
         Audio.lift();
@@ -435,6 +502,7 @@ const App = (() => {
     $('chapterGo').onclick = () => {
       Audio.unlock(); Audio.tick();
       $('chapterVeil').classList.remove('show');
+      Trace.note('chapter opening read');
       paintHud();
     };
     $('chapterVeil').addEventListener('click', e => {
@@ -473,13 +541,19 @@ const App = (() => {
       if (e.target === $('veil')) closePanel();
     });
     $('retry').onclick = () => {
-      if (!progress.canAfford(costOf(S.level))){ Audio.deny(); return; }
+      if (!progress.canAfford(costOf(S.level))){
+        deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       attempt(S.level);
     };
     $('skip').onclick = () => {
-      if (!progress.buyUnlock(S.level, skipCost())){ Audio.deny(); return; }
+      if (!progress.buyUnlock(S.level, skipCost())){
+        deny('skip', `costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show', 'failed');
       /* the fee covered the board too, so this deals it without charging again */
       document.body.dataset.view = 'game';
@@ -487,8 +561,11 @@ const App = (() => {
       start(Math.min(S.level + 1, progress.lastLevel));
     };
     $('next').onclick = () => {
-      if (S.level >= progress.lastLevel){ Audio.deny(); return; }
-      if (!progress.canAfford(costOf(S.level + 1))){ Audio.deny(); return; }
+      if (S.level >= progress.lastLevel){ deny('next', 'that was the last graded level'); return; }
+      if (!progress.canAfford(costOf(S.level + 1))){
+        deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
+        return;
+      }
       $('veil').classList.remove('show');
       showGame(S.level + 1);
     };
@@ -503,9 +580,9 @@ const App = (() => {
     $('mapPlay').onclick = () => { Audio.unlock(); showGame(Math.min(progress.unlocked, progress.lastLevel)); };
     $('daily').onclick = () => {
       Audio.unlock();
-      if (!progress.claimDaily(today())){ Audio.deny(); return; }
+      if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }
       Audio.lift();
-      paintMap();
+      goldChanged();
     };
 
     /* A resize while a pour is in flight cannot rebuild the board: render() wipes
@@ -533,14 +610,128 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
     });
   }
+  /* Gold handed over rather than earned, for a beta player who has run dry in
+     the middle of telling us about something else. The word is in the query
+     string; it is spent out of the URL as well as into the purse, so pasting the
+     link again is the only way to get it twice, and a screenshot of the game
+     afterwards does not carry it.
+
+     It arrives with a flash on the purse. A cheat that silently changed a number
+     would be its own small version of the bug this branch is about. */
+  function takeGift(){
+    let url;
+    try { url = new URL(location.href); } catch (e) { return; }
+    if (!url.searchParams.has(CONFIG.beta.word)) return;
+    const gold = progress.grant(CONFIG.beta.gold);
+    url.searchParams.delete(CONFIG.beta.word);
+    try {
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) { /* a page opened from a file has no history to rewrite */ }
+    Trace.note('purse topped up', `+${gold} from the query string`);
+    goldChanged();
+    whenItCanBeHeard(jabariMode);
+  }
+
+  /* The bang is the point, and a page nobody has touched yet is not allowed to
+     make one: the audio context stays suspended until a gesture, so firing this
+     on load would play it to an empty room. The gold is already in the purse
+     either way — only the fanfare waits, and only when there is a sound to wait
+     for. With sound off there is nothing to miss, so it goes off at once. */
+  function whenItCanBeHeard(run){
+    Audio.unlock();
+    if (!Audio.enabled || Audio.ready){ run(); return; }
+    const go = () => {
+      document.removeEventListener('pointerdown', go, true);
+      document.removeEventListener('keydown', go, true);
+      Audio.unlock();
+      run();
+    };
+    document.addEventListener('pointerdown', go, true);
+    document.addEventListener('keydown', go, true);
+  }
+
+  /* It goes off, it says what it is, and it takes itself away. Cleared on a
+     timer rather than on the animation ending, because reduced motion collapses
+     the animation to nothing and there would be no end to wait for. */
+  /* Not the game's palette. That one was chosen so no two liquids are close to
+     the eye on a dark shelf; this is chosen to be as loud as a screen goes. */
+  const JABARI_COLOURS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
+
+  function jabariMode(){
+    const el = $('jabari');
+    $('jabariGold').textContent = `+${CONFIG.beta.gold.toLocaleString('en-US')}`;
+    el.hidden = false;
+    /* forced out of the frame that unhid it, or the animation never starts */
+    void el.offsetWidth;
+    el.classList.add('go');
+
+    /* three bangs rather than one, because one is a sound effect and three is a
+       point being made */
+    Audio.boom();
+    Audio.boom(0.19);
+    Audio.boom(0.44);
+
+    /* Thrown against the short side of the screen, not the long one. Scaled off
+       the height, a phone flings most of the paper out of frame before anyone
+       sees it: the first pass measured particles six hundred pixels left of a
+       screen three hundred and ninety wide. */
+    const reach = Math.min(innerWidth, innerHeight) * 0.5;
+    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, JABARI_COLOURS, reach);
+    throwPaper();
+    setTimeout(throwPaper, 190);
+    setTimeout(throwPaper, 440);
+    setTimeout(throwPaper, 900);
+
+    /* and the number it was all about, once the word is out of the way */
+    const purse = document.querySelector('#mapView .purse');
+    if (purse){
+      setTimeout(() => {
+        purse.classList.add('granted');
+        setTimeout(() => purse.classList.remove('granted'), 1400);
+      }, 2100);
+    }
+    setTimeout(() => {
+      el.classList.remove('go');
+      el.hidden = true;
+    }, 3100);
+  }
+
+  /* An exception inside a click handler is the quietest failure the game has:
+     the handler stops, the screen stays exactly as it was, and what the player
+     sees is a button that does nothing. Nothing here tries to recover — the
+     state is already whatever the half-run handler left — it only makes sure the
+     failure leaves a mark instead of none at all. */
+  function watchForFaults(){
+    addEventListener('error', e => {
+      Trace.fault(e.filename ? `${e.filename}:${e.lineno}` : 'page', e.message || e.error);
+      progress.recordFault(e.message || String(e.error));
+    });
+    addEventListener('unhandledrejection', e => {
+      Trace.fault('a promise', e.reason);
+      progress.recordFault(e.reason && e.reason.message ? e.reason.message : String(e.reason));
+    });
+  }
+
   return {
     boot(){
+      watchForFaults();
+      Trace.note('booted', `unlocked ${progress.unlocked}, purse ${progress.gold}`);
       publishPalette();
       Backdrop.mount();
       bind();
+      Diagnostics.source = () => ({ progress, state: S });
+      Diagnostics.mount();
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);
       showMap(false);
+      takeGift();
+      /* The wait on the draught has to run down on its own, or it is a stale
+         number that only corrects itself when something else happens to repaint.
+         Every half minute is enough for something measured in minutes, and it
+         only touches the screen the player is actually looking at. */
+      setInterval(() => {
+        if (document.body.dataset.view === 'map') paintMap();
+      }, 30_000);
     },
     /* a newer build has taken over the page */
     updateReady(){ updatePending = true; takeUpdate(); },

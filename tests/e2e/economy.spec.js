@@ -38,6 +38,160 @@ test('a locked level nobody can afford refuses the tap', async ({ page }) => {
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(4);
 });
 
+/* The purse running dry on the level you are stuck on is a state the economy
+   plans for: the daily draught is the way back. The map used to keep offering
+   the board anyway, so the tap was taken, the fee refused, and nothing at all
+   happened, on a medallion that was still lit and still beaconing. */
+test('an open level nobody can afford refuses the tap, and says the price', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const fee = await page.evaluate(() => globalThis.CONFIG.economy.attempt);
+  const node = page.locator('[data-level="15"]');
+  await expect(node).toBeDisabled();
+  await expect(node.locator('.ns.buy')).toContainText(String(fee));
+  await expect(node).toHaveAttribute('aria-label', /not enough/);
+  /* and the way out of it is the thing being offered */
+  await expect(page.locator('#daily')).toHaveClass(/primary/);
+
+  await node.click({ force: true });
+  expect(await page.evaluate(() => document.body.dataset.view)).toBe('map');
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(0);
+
+  /* the draught pays for a board, and the map says so without being reloaded */
+  await page.locator('#daily').click();
+  await expect(node).toBeEnabled();
+  await expect(page.locator('#daily')).not.toHaveClass(/primary/);
+  await node.click();
+  await page.waitForFunction(() => globalThis.App._state.level === 15);
+});
+
+/* Restart deals the board again and is charged for like any other deal, so it is
+   the same dead tap the map had: a live button that takes the tap, refuses the
+   fee and leaves the screen exactly as it was. */
+test('restart refuses to offer a board the purse cannot deal again', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 5, seen: { 0: true, 1: true } });
+  await openLevel(page, 15);
+  /* the fee for this board has just been paid, so the purse is empty behind it */
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(0);
+
+  /* restart needs a move behind it before it offers itself at all */
+  await page.locator('#board .glass').nth(0).click();
+  await page.locator('#board .glass').nth(1).click();
+  await settle(page);
+  await expect(page.locator('#restart')).toBeDisabled();
+});
+
+/* The draught is the only way back for a purse that has run dry, so the one
+   screen a stranded player is looking at has to say when it returns rather than
+   only that it has gone. */
+test('the drawn draught says how long until it comes back', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 40, seen: { 0: true, 1: true } });
+  await expect(page.locator('#daily')).toBeEnabled();
+  await expect(page.locator('#dailyCost')).toHaveText(/^\+\d+$/);
+
+  await page.locator('#daily').click();
+  await expect(page.locator('#daily')).toBeDisabled();
+  /* a length of time, not the word "drawn" */
+  await expect(page.locator('#dailyCost')).toHaveText(/^(soon|\d+m|\d+h( \d+m)?)$/);
+});
+
+/* Beta convenience: a word in the query string tops the purse up, so a player
+   who has run dry mid-report does not have to wait out a day to carry on. */
+test('the beta word tops the purse up, once, and leaves the url clean', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const gift = await page.evaluate(() => globalThis.CONFIG.beta.gold);
+
+  await page.goto(`/?${word}`);
+  await page.waitForFunction(g => globalThis.App && globalThis.App._progress.gold >= g, gift);
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(gift);
+  /* the map has to show it, not just the save */
+  await expect(page.locator('#mapGold')).toHaveText(String(gift));
+  /* Spent out of the url as well as into the purse, so a screenshot afterwards
+     does not carry it and a reload cannot pay twice. The reload itself is not
+     asserted here: every navigation re-runs this suite's save fixture, which
+     would overwrite the very purse being checked. What makes the second payment
+     impossible is the empty query string, and that is what this pins. */
+  expect(await page.evaluate(() => location.search)).toBe('');
+
+  /* and the save says the gold was handed over rather than played for */
+  expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(1);
+  /* the level it was blocking is playable now */
+  await expect(page.locator('[data-level="15"]')).toBeEnabled();
+});
+
+test('the beta word goes off with a bang, and clears itself away', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+
+  await page.goto(`/?${word}`);
+  /* caught while it is up: it is on screen for about two seconds by design */
+  await page.waitForFunction(() => {
+    const el = document.getElementById('jabari');
+    return el && !el.hidden && el.classList.contains('go');
+  });
+  const mid = await page.evaluate(() => {
+    const el = document.getElementById('jabari');
+    const w = el.querySelector('.jabariWord');
+    const r = w.getBoundingClientRect();
+    return {
+      says: w.textContent,
+      shouts: el.querySelector('.jabariGold').textContent,
+      /* it lands over everything without being able to eat a tap on its way to
+         something else */
+      pointers: getComputedStyle(el).pointerEvents,
+      /* and it says it at a size worth saying it at, inside the screen */
+      fontPx: parseFloat(getComputedStyle(w).fontSize),
+      overflows: r.left < -0.5 || r.right > innerWidth + 0.5,
+      confetti: document.querySelectorAll('#confetti .conf').length
+    };
+  });
+  expect(mid.says.replace(/\s+/g, '')).toBe('JabariMode');
+  expect(mid.shouts).toBe('+9,999,999');
+  expect(mid.pointers).toBe('none');
+  expect(mid.fontPx).toBeGreaterThan(30);
+  expect(mid.overflows, 'the word must fit the screen it is shouted on').toBe(false);
+  expect(mid.confetti).toBeGreaterThan(50);
+
+  /* nothing to dismiss: it takes itself away and leaves the map alone */
+  await page.waitForFunction(() => document.getElementById('jabari').hidden, null, { timeout: 6000 });
+  await expect(page.locator('#mapGold'))
+    .toHaveText(String(await page.evaluate(() => globalThis.CONFIG.beta.gold)));
+  await expect(page.locator('[data-level="15"]')).toBeEnabled();
+});
+
+test('an ordinary load tops up nothing', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 7, seen: { 0: true, 1: true } });
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(7);
+  expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(undefined);
+});
+
+/* The beta word hands out seven figures, and the purse is a number in a header
+   that has a chapter name beside it. Nothing else in the game can produce one
+   this long, so nothing else would catch it getting too wide. */
+for (const [w, h] of [[375, 812], [380, 300], [320, 700]]) {
+  test(`a seven figure purse still fits the headers at ${w}x${h}`, async ({ page }) => {
+    await start(page, { unlocked: 15, gold: 9999999, seen: { 0: true, 1: true } });
+    await page.setViewportSize({ width: w, height: h });
+    const sideways = () => page.evaluate(() => {
+      const de = document.documentElement;
+      return de.scrollWidth - de.clientWidth;
+    });
+    await expect.poll(sideways, { message: 'the map header pushes the page sideways' })
+      .toBeLessThanOrEqual(0);
+    await openLevel(page, 15);
+    expect(await sideways(), 'the game header pushes the page sideways').toBeLessThanOrEqual(0);
+  });
+}
+
+/* a cleared board is free, so an empty purse must never stand in the way of one */
+test('an empty purse still opens a level already beaten', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, stars: { 4: 3 }, seen: { 0: true, 1: true } });
+  const node = page.locator('[data-level="4"]');
+  await expect(node).toBeEnabled();
+  await node.click();
+  await page.waitForFunction(() => globalThis.App._state.level === 4);
+});
+
 test('a hint costs gold and marks both ends of the pour', async ({ page }) => {
   /* hints are the apothecary's, so this has to be played somewhere it has them */
   await start(page, { unlocked: 11, gold: 400, seen: { 0: true, 1: true } });
