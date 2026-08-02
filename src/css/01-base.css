@@ -87,6 +87,15 @@ body[data-view="game"] #gameView{display:flex}
 }
 #chapterGo{margin-top:16px}
 
+/* Gold arriving from outside the game. It is the one number on the screen that
+   changed without the player having done anything to earn it, so it says so. */
+.purse.granted{animation:granted 1.4s cubic-bezier(.2,1.2,.4,1)}
+@keyframes granted{
+  0%{transform:scale(1)}
+  18%{transform:scale(1.35); filter:brightness(1.9) drop-shadow(0 0 14px rgba(238,197,120,.9))}
+  100%{transform:scale(1); filter:none}
+}
+
 /* The diagnostics report. Wider than the other panels and monospaced, because
    this one is meant to be read out and copied rather than glanced at, and it is
    the only place in the game where the exact characters matter. It scrolls on

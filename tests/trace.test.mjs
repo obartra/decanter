@@ -93,6 +93,24 @@ describe('what a save remembers going wrong', () => {
     assert(progress.diag.lastFault.length <= 200, 'a save is not a place to grow a diary');
   });
 
+  it('counts gold that was handed over rather than earned', () => {
+    /* a save carrying a purse nobody played for is a debugging trap unless the
+       save itself says so */
+    const { progress } = withSave();
+    const before = progress.gold;
+    equal(progress.grant(1000), 1000);
+    equal(progress.gold, before + 1000);
+    equal(progress.diag.grants, 1);
+  });
+
+  it('refuses a grant that is not gold', () => {
+    const { progress } = withSave();
+    const before = progress.gold;
+    for (const bad of [0, -50, 1.5, '1000', null, undefined, NaN]) equal(progress.grant(bad), 0);
+    equal(progress.gold, before);
+    assert(!progress.diag.grants, 'nothing was granted, so nothing should be counted');
+  });
+
   it('gives a save written before any of this existed somewhere to write it', () => {
     const ctx = loadPure();
     const store = ctx.Progress.memoryStorage();

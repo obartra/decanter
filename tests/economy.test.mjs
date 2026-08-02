@@ -172,6 +172,32 @@ describe('gold', () => {
     assert(p.dailyReady('2026-07-31'), 'tomorrow refreshes it');
     equal(p.claimDaily('2026-07-31'), E.daily);
   });
+
+  /* A player with nothing left is looking at the draught to decide whether to
+     wait, so the wait has to be a length of time rather than the word "drawn".
+     It is until the local midnight, because that is when the day rolls over. */
+  it('says how long until the draught comes back, to the local midnight', () => {
+    const at = (h, m) => new Date(2026, 6, 30, h, m, 0);
+    equal(Progress.untilNextDay(at(23, 0)), 60 * 60 * 1000);
+    equal(Progress.untilNextDay(at(0, 0)), 24 * 60 * 60 * 1000, 'just past midnight is a whole day');
+    /* not a fixed span from when it was drawn: two draws at different hours of
+       the same day come back at the same moment */
+    assert(Progress.untilNextDay(at(9, 0)) > Progress.untilNextDay(at(21, 0)));
+  });
+
+  it('puts that wait in something that fits under a button', () => {
+    const { briefly } = Progress;
+    const mins = n => n * 60 * 1000;
+    equal(briefly(mins(0)), 'soon');
+    equal(briefly(mins(1)), 'soon');
+    equal(briefly(mins(45)), '45m');
+    equal(briefly(mins(60)), '1h');
+    equal(briefly(mins(90)), '1h 30m');
+    equal(briefly(mins(60 * 7 + 12)), '7h 12m');
+    /* rounded up, so it never says a wait is over while it is still running */
+    equal(briefly(30 * 1000), 'soon');
+    equal(briefly(mins(44) + 30 * 1000), '45m');
+  });
 });
 
 describe('spending', () => {

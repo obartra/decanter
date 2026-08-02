@@ -28,6 +28,27 @@ function safeStorage(){
    lock the game to level one. */
 const lastLevel = () => (Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity);
 
+/* How long until the local day rolls over and the draught is ready again. The
+   draught is once per local calendar day, so the wait is until midnight where
+   the player is, not a fixed twenty four hours from when it was drawn. `now` is
+   passed in for the same reason `today` is: so this stays testable, and so a
+   clock that jumps cannot be argued with. */
+function untilNextDay(now){
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return Math.max(0, next - now);
+}
+/* That wait, short enough to sit under a button. A player deciding whether to
+   wait needs to know if it is minutes or most of the evening; they do not need
+   seconds, and a number that ticks every second on a button nobody is watching
+   is only a battery cost. */
+function briefly(ms){
+  const mins = Math.ceil(ms / 60000);
+  if (mins <= 1) return 'soon';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 function blank(){
   return {
     version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
@@ -142,6 +163,16 @@ function createProgress(storage){
       return true;
     },
     canAfford: cost => state.gold >= cost,
+    /* Gold from outside the economy. Counted, because a save carrying a purse
+       nobody earned is a debugging trap: the next report from this player has to
+       be able to say that the number was handed over rather than played for. */
+    grant(gold){
+      if (!Number.isInteger(gold) || gold <= 0) return 0;
+      state.gold += gold;
+      state.diag.grants = (state.diag.grants || 0) + 1;
+      save();
+      return gold;
+    },
     /* the draught is once per local day, and the day is passed in so this stays
        testable and so a clock that jumps cannot pay twice for the same date */
     dailyReady: today => state.dailyOn !== today,
@@ -210,4 +241,4 @@ function createProgress(storage){
     reset(){ state = blank(); save(); }
   };
 }
-globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank };
+globalThis.Progress = { SAVE_KEY, createProgress, memoryStorage, blank, untilNextDay, briefly };

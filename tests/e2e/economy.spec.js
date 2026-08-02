@@ -80,6 +80,51 @@ test('restart refuses to offer a board the purse cannot deal again', async ({ pa
   await expect(page.locator('#restart')).toBeDisabled();
 });
 
+/* The draught is the only way back for a purse that has run dry, so the one
+   screen a stranded player is looking at has to say when it returns rather than
+   only that it has gone. */
+test('the drawn draught says how long until it comes back', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 40, seen: { 0: true, 1: true } });
+  await expect(page.locator('#daily')).toBeEnabled();
+  await expect(page.locator('#dailyCost')).toHaveText(/^\+\d+$/);
+
+  await page.locator('#daily').click();
+  await expect(page.locator('#daily')).toBeDisabled();
+  /* a length of time, not the word "drawn" */
+  await expect(page.locator('#dailyCost')).toHaveText(/^(soon|\d+m|\d+h( \d+m)?)$/);
+});
+
+/* Beta convenience: a word in the query string tops the purse up, so a player
+   who has run dry mid-report does not have to wait out a day to carry on. */
+test('the beta word tops the purse up, once, and leaves the url clean', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const gift = await page.evaluate(() => globalThis.CONFIG.beta.gold);
+
+  await page.goto(`/?${word}`);
+  await page.waitForFunction(g => globalThis.App && globalThis.App._progress.gold >= g, gift);
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(gift);
+  /* the map has to show it, not just the save */
+  await expect(page.locator('#mapGold')).toHaveText(String(gift));
+  /* Spent out of the url as well as into the purse, so a screenshot afterwards
+     does not carry it and a reload cannot pay twice. The reload itself is not
+     asserted here: every navigation re-runs this suite's save fixture, which
+     would overwrite the very purse being checked. What makes the second payment
+     impossible is the empty query string, and that is what this pins. */
+  expect(await page.evaluate(() => location.search)).toBe('');
+
+  /* and the save says the gold was handed over rather than played for */
+  expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(1);
+  /* the level it was blocking is playable now */
+  await expect(page.locator('[data-level="15"]')).toBeEnabled();
+});
+
+test('an ordinary load tops up nothing', async ({ page }) => {
+  await start(page, { unlocked: 15, gold: 7, seen: { 0: true, 1: true } });
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(7);
+  expect(await page.evaluate(() => globalThis.App._progress.diag.grants)).toBe(undefined);
+});
+
 /* a cleared board is free, so an empty purse must never stand in the way of one */
 test('an empty purse still opens a level already beaten', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, stars: { 4: 3 }, seen: { 0: true, 1: true } });

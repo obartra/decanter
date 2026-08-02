@@ -56,7 +56,14 @@ const App = (() => {
     $('mapGold').textContent = progress.gold;
     const ready = progress.dailyReady(today());
     $('daily').disabled = !ready;
-    $('dailyCost').textContent = ready ? `+${CONFIG.economy.daily}` : 'drawn';
+    /* "Drawn" said the draught was gone without saying it was coming back, which
+       on the one screen a player with nothing left has to look at is the wrong
+       half of the sentence. The wait says when, so waiting is a decision rather
+       than a dead end, and it runs itself down: when it reaches the local
+       midnight, the same repaint finds the draught ready and offers it. */
+    $('dailyCost').textContent = ready
+      ? `+${CONFIG.economy.daily}`
+      : Progress.briefly(Progress.untilNextDay(new Date()));
     /* a board costs gold to deal, so the map has to say so and stop offering one
        that cannot be paid for. A level already beaten is free, and says free
        rather than showing a nought nobody has to think about. */
@@ -67,6 +74,17 @@ const App = (() => {
        a day's wait, and the draught is the only way through it. So when nothing
        else on this screen can be pressed, it is the thing being offered. */
     $('daily').classList.toggle('primary', ready && !progress.canAfford(fee));
+  }
+  /* Gold moved while the map is up.
+
+     The purse is what decides which boards can be dealt, so the medallions are
+     stale the moment it changes: repainting the footer alone leaves a level
+     looking unplayable, or worse, looking playable, until something else happens
+     to redraw them. Every place that moves gold on this screen goes through
+     here, so there is one thing to remember rather than three. */
+  function goldChanged(){
+    paintMap();
+    MapView.render(progress);
   }
   function showMap(scrollSmooth){
     Trace.note('to the map');
@@ -405,8 +423,7 @@ const App = (() => {
         return;
       }
       Audio.tick();
-      paintMap();
-      MapView.render(progress);
+      goldChanged();
     };
 
     $('undo').onclick = () => {
@@ -565,11 +582,7 @@ const App = (() => {
       Audio.unlock();
       if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }
       Audio.lift();
-      paintMap();
-      /* the purse is what decides which boards can be dealt, so the medallions
-         are stale the moment it changes. Redrawn here for the same reason buying
-         a level redraws them: gold moved, and the map is showing what it buys. */
-      MapView.render(progress);
+      goldChanged();
     };
 
     /* A resize while a pour is in flight cannot rebuild the board: render() wipes
@@ -597,6 +610,32 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.dataset.view === 'game') showMap(false);
     });
   }
+  /* Gold handed over rather than earned, for a beta player who has run dry in
+     the middle of telling us about something else. The word is in the query
+     string; it is spent out of the URL as well as into the purse, so pasting the
+     link again is the only way to get it twice, and a screenshot of the game
+     afterwards does not carry it.
+
+     It arrives with a flash on the purse. A cheat that silently changed a number
+     would be its own small version of the bug this branch is about. */
+  function takeGift(){
+    let url;
+    try { url = new URL(location.href); } catch (e) { return; }
+    if (!url.searchParams.has(CONFIG.beta.word)) return;
+    const gold = progress.grant(CONFIG.beta.gold);
+    url.searchParams.delete(CONFIG.beta.word);
+    try {
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) { /* a page opened from a file has no history to rewrite */ }
+    Trace.note('purse topped up', `+${gold} from the query string`);
+    goldChanged();
+    const purse = document.querySelector('#mapView .purse');
+    if (!purse) return;
+    purse.classList.add('granted');
+    setTimeout(() => purse.classList.remove('granted'), 1400);
+    Audio.lift();
+  }
+
   /* An exception inside a click handler is the quietest failure the game has:
      the handler stops, the screen stays exactly as it was, and what the player
      sees is a button that does nothing. Nothing here tries to recover — the
@@ -625,6 +664,14 @@ const App = (() => {
       Audio.setEnabled(progress.sound);
       paintSound(progress.sound);
       showMap(false);
+      takeGift();
+      /* The wait on the draught has to run down on its own, or it is a stale
+         number that only corrects itself when something else happens to repaint.
+         Every half minute is enough for something measured in minutes, and it
+         only touches the screen the player is actually looking at. */
+      setInterval(() => {
+        if (document.body.dataset.view === 'map') paintMap();
+      }, 30_000);
     },
     /* a newer build has taken over the page */
     updateReady(){ updatePending = true; takeUpdate(); },

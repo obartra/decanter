@@ -74,6 +74,29 @@ being farmed: replaying pays stars only. Five perfect replays pay 5 × 6, not
 **A vessel costs about three well-played new levels**, so the only rescue worth
 buying has to be funded on boards you have not solved yet.
 
+## Running dry
+
+A purse too thin to deal a board is a state this economy plans for rather than
+an error: failing costs the fee and pays nothing, so anyone can be ground down,
+and the draught is the floor that gets them back. That only works if the screen
+says so, which for a while it did not — the frontier medallion stayed lit and
+swallowed the tap, and the draught said "drawn" without saying it was coming
+back. Both of those are the wrong half of the sentence to show someone who has
+nothing left.
+
+So: a board that cannot be paid for refuses the tap and shows its price, the
+draught shows how long until the local midnight brings it back, and it is the
+primary button whenever it is ready and nothing else can be pressed. See
+[09 The map](09-map.md).
+
+**Gold from outside the economy** exists for the beta only: a word in the query
+string, `CONFIG.beta`, tops the purse up so a player who has run dry in the
+middle of telling us about something else does not have to wait out a day. It
+guards nothing — the save is localStorage on the player's own device — so it is
+written down in plain sight rather than dressed up as a lock. It is counted in
+the save, because a purse nobody earned is a debugging trap otherwise, and it
+comes out with the beta.
+
 ## The invariants
 
 Four numbers could quietly break the game, so they are pinned by tests rather
