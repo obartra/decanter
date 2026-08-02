@@ -56,7 +56,12 @@ const MapView = (() => {
   /* Which locked level the player has tapped once. Paying is two taps, not one:
      a single tap on the thing you cannot play yet should not spend anything. */
   let armed = null;
-  const unlockCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
+  /* What paying past a board costs, asked for like the attempt fee above and for
+     exactly the same reason. This worked the price out from CONFIG itself, which
+     is the second copy that comment and 09-map.md and 04-economy.md all say not
+     to keep: the app charges one number and the medallion promised another, and
+     nothing would have caught them parting company. */
+  let unlockFeeOf = () => 0;
   let lastFocus = 1;
 
   /* The road, laid stone by stone along the very spline the nodes sit on. It is
@@ -238,7 +243,7 @@ const MapView = (() => {
          beaten is a way through, not a way to skip the game. */
       const last = Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity;
       const buyable = locked && level === unlocked + 1 && level <= last;
-      const cost = unlockCost();
+      const cost = unlockFeeOf();
       const affordable = progress.canAfford(cost);
       const isArmed = buyable && armed === level;
       /* An open board still has to be paid for, and a purse that cannot cover the
@@ -328,6 +333,7 @@ const MapView = (() => {
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
     set feeFor(fn){ feeFor = fn; },
+    set unlockFeeOf(fn){ unlockFeeOf = fn; },
     render, scrollToCurrent, currentIsVisible,
     /* which level the map considers "yours", so the way back can name it */
     get currentLevel(){ return lastFocus; },

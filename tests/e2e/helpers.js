@@ -117,6 +117,24 @@ export async function settle(page) {
   }, null, { timeout: 30_000 });
 }
 
+/* Lose the run at a pour level, by taking it past the pour budget.
+
+   Not a hand built dead board. Any graded level can be lost this way, which is
+   what a spec about a particular level boundary needs, and running out of pours
+   is the commoner of the two ways to lose anyway. */
+export async function loseAt(page, level) {
+  await openLevel(page, level);
+  const move = await page.evaluate(() => {
+    const S = globalThis.App._state;
+    /* one pour short of the budget, so the next one takes the run past it */
+    S.moves = S.par + globalThis.CONFIG.stars.one;
+    const m = globalThis.Rules.legalMoves(S.tubes)[0];
+    return [m.from, m.to];
+  });
+  await pour(page, move[0], move[1]);
+  await settle(page);
+}
+
 /* The shortest line the solver knows, as [from, to] pairs. Asking the page
    keeps the spec honest: it plays the board the build actually dealt. */
 export async function optimalLine(page) {

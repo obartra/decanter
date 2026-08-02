@@ -7,7 +7,7 @@ import { start, openLevel, settle } from './helpers.js';
 const PORTABLE = join(dirname(fileURLToPath(import.meta.url)), '../../dist/decanter-standalone.html');
 
 test('a level can be bought from the map, and only the next one', async ({ page }) => {
-  await start(page, { unlocked: 5, gold: 400 });
+  await start(page, { unlocked: 5, gold: 400, seen: { 0: true } });
   const buyable = page.locator('.node.buyable');
   await expect(buyable).toHaveCount(1);
   await expect(buyable).toHaveAttribute('data-level', '6');
@@ -30,7 +30,34 @@ test('a level can be bought from the map, and only the next one', async ({ page 
   /* buying past a board is not beating it */
   expect(after.stars).toBe(0);
   expect(after.claimed).toBe(false);
+  /* and back on the map it is the one after that which is for sale */
+  await page.locator('#toMap').click();
   await expect(page.locator('.node.buyable')).toHaveAttribute('data-level', '7');
+});
+
+test('the price of paying past a board buys the same thing from either screen', async ({ page }) => {
+  /* Twice an attempt covers the deal as well, which is why the panel's Move on
+     hands over the board without charging again. The map charged the identical
+     amount and dealt nothing, so a purse holding exactly the skip price came
+     away owning a level it could not afford to open until the next draught. */
+  await start(page, { unlocked: 5, gold: 400, seen: { 0: true } });
+  const e = await page.evaluate(() => globalThis.CONFIG.economy);
+  const skip = e.attempt * e.skipMultiple;
+
+  await start(page, { unlocked: 5, gold: skip, seen: { 0: true } });
+  /* the medallion has to name the number the app is about to charge; the map
+     used to work this out from CONFIG itself, which 09-map.md says not to do */
+  await expect(page.locator('.node.buyable'))
+    .toHaveAttribute('aria-label', new RegExp(`Open it for ${skip} gold`));
+
+  await page.locator('.node.buyable').click();
+  await page.locator('.node.armed').click();
+  await page.waitForFunction(() => globalThis.App._state.level === 6);
+
+  expect(await page.evaluate(() => globalThis.App._progress.gold),
+    'the fee covers the board too, so there is exactly one charge').toBe(0);
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'game');
+  expect(await page.evaluate(() => globalThis.App._state.moves)).toBe(0);
 });
 
 test('a locked level nobody can afford refuses the tap', async ({ page }) => {

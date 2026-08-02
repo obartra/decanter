@@ -181,3 +181,80 @@ test('escape reads a chapter opening rather than stepping round it', async ({ pa
   await expect(page.locator('body'), 'the level itself was thrown away with the card')
     .toHaveAttribute('data-view', 'game');
 });
+
+test('walking off a lost board leaves its panel behind', async ({ page }) => {
+  /* The panel waits a moment before it covers the board, so the pour that ended
+     the run is seen before the verdict lands on it. That wait outlived the run
+     it belonged to: the veil is a sibling of all three views rather than
+     something inside the game, so leaving inside the window brought the panel up
+     over the map, for a run nobody was looking at any more, with a priced Try
+     again on it that dealt a board straight out of the map view. */
+  await start(page, { unlocked: 5, gold: 400, seen: { 0: true } });
+  await openLevel(page, 5);
+  const move = await page.evaluate(() => {
+    const S = globalThis.App._state;
+    S.moves = S.par + globalThis.CONFIG.stars.one;
+    const m = globalThis.Rules.legalMoves(S.tubes)[0];
+    return [m.from, m.to];
+  });
+
+  const after = await page.evaluate(([f, t]) => new Promise(res => {
+    const glass = document.querySelectorAll('#board .glass');
+    glass[f].click();
+    glass[t].click();
+    const tick = () => {
+      /* the frame the run ends on, which is inside the window by construction:
+         finish() schedules the reveal before any later frame can run */
+      if (!globalThis.App._state.finished) return requestAnimationFrame(tick);
+      document.getElementById('toMap').click();
+      setTimeout(() => res({
+        view: document.body.dataset.view,
+        shown: document.getElementById('veil').classList.contains('show')
+      }), 2000);
+    };
+    requestAnimationFrame(tick);
+  }), move);
+
+  expect(after.view).toBe('map');
+  expect(after.shown, 'a scheduled panel arrived over the map').toBe(false);
+});
+
+test('a pour left behind on one board does not land on the next one', async ({ page }) => {
+  /* Nothing cancels an animation. Leave while a pour is tipping, open another
+     level, and a second later that drain wakes up past its await and applies the
+     move it was carrying. start() has re-pointed Board.view by then, so the pour
+     lands on the board now on screen: a bottle drawn a unit short, another drawn
+     past the cap. It is permanent for the level, because taps are read off
+     S.tubes and the drawing off Board.view. */
+  await start(page, { unlocked: 30, gold: 4000, seen: { 0: true, 1: true, 2: true } });
+  await openLevel(page, 1);
+  const move = await page.evaluate(() => {
+    const m = globalThis.Rules.legalMoves(globalThis.App._state.tubes)[0];
+    return [m.from, m.to];
+  });
+
+  const after = await page.evaluate(([f, t]) => new Promise(res => {
+    const glass = document.querySelectorAll('#board .glass');
+    glass[f].click();
+    glass[t].click();
+    const tick = () => {
+      if (!globalThis.App._state.running) return requestAnimationFrame(tick);
+      document.getElementById('toMap').click();
+      document.querySelector('[data-level="3"]').click();
+      setTimeout(() => {
+        const S = globalThis.App._state;
+        res({
+          level: S.level,
+          tubes: JSON.stringify(S.tubes),
+          view: JSON.stringify(globalThis.Board.view),
+          over: S.tubes.some(b => b.length > globalThis.Rules.CAP)
+        });
+      }, 3000);
+    };
+    requestAnimationFrame(tick);
+  }), move);
+
+  expect(after.level).toBe(3);
+  expect(after.view, 'the abandoned pour was applied to the board now on screen').toBe(after.tubes);
+  expect(after.over, 'it pushed a bottle past the cap').toBe(false);
+});

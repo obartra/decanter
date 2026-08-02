@@ -39,6 +39,17 @@ describe('end of run panel', () => {
     equal(p.nextHidden, true, 'a failed run does not open the next level');
     equal(p.hint, `Clear it in ${base.par + CONFIG.stars.one} or fewer.`);
   });
+  it('leaves a level you already own open after a failed replay', () => {
+    /* The other half of the rule above, and the half nothing was checking: every
+       other failed case here has the next level shut, so deciding nextHidden from
+       `failed` alone passed the whole suite. Replaying a cleared level is free,
+       so failing one is the cheapest way to reach this panel, and taking away a
+       level already paid for would be the one move that leaves nothing to press. */
+    const p = decide({ failed: true, stars: 0, nextUnlocked: true });
+    equal(p.nextHidden, false, 'a level already open stays open after a failed replay');
+    equal(p.skipHidden, true, 'nothing to buy past when the next one is already open');
+    equal(p.stuck, false);
+  });
   it('an empty purse outranks everything it would be cruel to say instead', () => {
     const broke = 'Not enough gold. The daily draught is on the map.';
     equal(decide({ canPayFee: false }).hint, broke, 'even on a clean clear');
