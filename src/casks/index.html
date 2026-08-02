@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Cellar Door</title>
+<meta name="theme-color" content="#150E08">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A sliding puzzle. Clear a path and get the gilt cask out through the cellar door.">
+<!--BUILD-->
+<!--HEAD-->
+<!--FONTS-->
+<!--CSS-->
+</head>
+<body data-only="casks">
+<header class="cskBar">
+  <span class="cskMark">Cellar</span>
+  <span class="cskHud">
+    <span class="cskCount"><b id="cskMoves">0</b><span id="cskPar">of 1</span></span>
+    <span class="cskStars" id="cskStars"></span>
+    <small class="cskWhich">Floor <span id="cskLevel">1</span> &middot; <span id="cskCasks">0</span> casks</small>
+  </span>
+  <span class="cskActs">
+    <button class="cskBtn" id="cskSound" type="button" aria-pressed="true">Sound</button>
+    <button class="cskBtn" id="cskSkip" type="button">Next</button>
+  </span>
+</header>
+<main class="cskStage">
+  <canvas id="cskCanvas"></canvas>
+</main>
+<!-- Undo and hint both cap the run at two stars, and the page does not say so
+     here: the panel says it at the moment it costs something, which is the only
+     moment anybody reads it. A warning on the button is read once and then
+     becomes furniture. -->
+<div class="cskTools">
+  <button class="cskBtn" id="cskUndo" type="button">Undo</button>
+  <button class="cskBtn" id="cskHint" type="button">Hint</button>
+  <button class="cskBtn" id="cskRestart" type="button">Restart</button>
+</div>
+<div class="cskVeil" id="cskVeil">
+  <div class="cskCard">
+    <h2 id="cskResult">The door</h2>
+    <p class="cskWhy" id="cskWhy"></p>
+    <p class="cskStars" id="cskStarsOut"></p>
+    <p class="cskNote" id="cskNote"></p>
+    <button class="cskBtn cskPrimary" id="cskNext" type="button">Next floor</button>
+  </div>
+</div>
+<!--JS-->
+</body>
+</html>

@@ -81,20 +81,21 @@ const CasksView = (() => {
 
   /* Where a cask sits, in world units, at a position that need not be an
      integer. The float case is the whole reason this takes a position rather
-     than reading one: mid-slide the drawn position is somewhere between two
-     legal ones, and the renderer has to be able to ask for that without the
-     rules ever seeing it. */
+     than reading one: mid-slide, and mid-drag, the drawn position is somewhere
+     between two legal ones and the renderer has to be able to ask for that
+     without the rules ever seeing it.
+
+     The cross-axis comes from CasksRules.boxOf rather than from `cask.fixed`
+     directly, so there is one statement of which cells a cask covers and the
+     drawing cannot come to disagree with the rules about it. Only the axis it
+     slides along is free to be fractional. */
   function rectFor(cask, p){
     const box = R.boxOf(cask, Math.floor(p));
-    const slack = p - Math.floor(p);
     return {
       x: C.WALL + (cask.horiz ? p : box.c),
       y: C.WALL + (cask.horiz ? box.r : p),
       w: cask.horiz ? cask.len : 1,
-      h: cask.horiz ? 1 : cask.len,
-      /* kept so a caller that wants to know how far off a cell it is does not
-         have to work it out again */
-      slack
+      h: cask.horiz ? 1 : cask.len
     };
   }
 

@@ -279,12 +279,48 @@ const CasksRender = (() => {
      one free and one costly, is an invitation to call the wrong one. */
   function rule(ctx, text){
     const w = V.world;
+    /* a quarter cell of air at each end, so the sentence never runs into a wall */
+    const room = w.w - 0.5;
+    const face = s => `${s}px "Alegreya Sans", ui-sans-serif, sans-serif`;
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.62;
-    ctx.font = '0.4px "Alegreya Sans", ui-sans-serif, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, w.w / 2, w.h - w.wall / 2);
+
+    /* Fitted rather than set at one size. The floor is six cells wide and this
+       sentence is not, so at a fixed size it runs off both ends — and a canvas
+       clips instead of scrolling, so it does not read as overflow. It reads as
+       the first and last words never having been written, which is worse,
+       because nothing on the page reports it: the document is not overflowing,
+       so no layout test can see it and the console stays clean.
+
+       Shrink first, then break. A line that is merely small still reads; a line
+       that is cut does not. */
+    let size = 0.4;
+    ctx.font = face(size);
+    while (size > 0.26 && ctx.measureText(text).width > room){
+      size -= 0.02;
+      ctx.font = face(size);
+    }
+
+    const lines = [];
+    if (ctx.measureText(text).width > room){
+      let line = '';
+      for (const word of text.split(' ')){
+        const next = line ? `${line} ${word}` : word;
+        if (line && ctx.measureText(next).width > room){ lines.push(line); line = word; }
+        else line = next;
+      }
+      if (line) lines.push(line);
+    } else {
+      lines.push(text);
+    }
+
+    /* centred on where the single line used to sit, so two lines grow into the
+       space either side of it rather than pushing down off the floor */
+    const step = size * 1.3;
+    const top = w.h - w.wall / 2 - (lines.length - 1) * step / 2;
+    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], w.w / 2, top + i * step);
     ctx.globalAlpha = 1;
   }
 

@@ -18,6 +18,7 @@
     "difficulty": "node tools/difficulty.mjs",
     "bubble:survival": "node tools/bubble-survival.mjs",
     "measure:field": "node tools/measure-field.mjs",
+    "casks:field": "node tools/casks-field.mjs",
     "serve": "npm run build && cd dist && python3 -m http.server 8080",
     "icons": "python3 tools/make-icons.py"
   },

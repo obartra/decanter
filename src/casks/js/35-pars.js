@@ -13,4 +13,4 @@
    rather than full marks. That is the opposite of what the pour game's
    Rules.rate() does with a missing par, and the inversion is deliberate: see
    45-score.js, which explains which way round it is and why. */
-globalThis.CasksPars = Object.freeze({ last: 20, par: Object.freeze({1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,10:10,11:11,12:12,13:13,14:14,15:15,16:16,17:17,18:18,19:19,20:20}) });
+globalThis.CasksPars = Object.freeze({ last: 60, par: Object.freeze({1:1,2:1,3:2,4:2,5:3,6:3,7:4,8:4,9:5,10:5,11:6,12:6,13:7,14:7,15:8,16:8,17:9,18:9,19:10,20:10,21:11,22:11,23:12,24:12,25:13,26:13,27:14,28:14,29:15,30:15,31:16,32:16,33:17,34:17,35:18,36:18,37:19,38:19,39:20,40:20,41:21,42:21,43:22,44:22,45:23,46:23,47:24,48:24,49:25,50:25,51:26,52:26,53:27,54:27,55:28,56:30,57:31,58:32,59:33,60:42}) });
