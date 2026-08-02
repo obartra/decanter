@@ -13,3 +13,9 @@ dist/
 # browser test output
 test-results/
 playwright-report/
+
+# sound lab: candidates, pack cache and the generated page are all derived,
+# see tools/sound-lab/make.mjs
+tools/sound-lab/audio/
+tools/sound-lab/.packs/
+tools/sound-lab/index.html

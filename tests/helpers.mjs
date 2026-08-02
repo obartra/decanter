@@ -16,7 +16,7 @@ export function loadPure(extra = []){
 }
 
 /* every module of the bubble game that touches neither document nor window */
-const BUBBLE_PURE = ['00-config.js', '20-grid.js', '25-shot.js', '30-rules.js'];
+const BUBBLE_PURE = ['00-config.js', '20-grid.js', '25-shot.js', '30-rules.js', '40-advice.js', '45-score.js'];
 export function loadBubble(extra = []){
   return loadFrom('src/bubble/js', BUBBLE_PURE.concat(extra));
 }

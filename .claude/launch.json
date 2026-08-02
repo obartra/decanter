@@ -4,8 +4,27 @@
     {
       "name": "decanter",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "dist"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8080",
+        "--directory",
+        "dist"
+      ],
       "port": 8080
+    },
+    {
+      "name": "sound-lab",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "http-server",
+        "tools/sound-lab",
+        "-c-1",
+        "--silent"
+      ],
+      "port": 8081,
+      "autoPort": true
     }
   ]
 }

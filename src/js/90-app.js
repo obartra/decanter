@@ -406,7 +406,11 @@ const App = (() => {
     const panel = Panel.decide({
       level: S.level, lastLevel: progress.lastLevel, failed, stars,
       nextUnlocked: progress.isUnlocked(S.level + 1),
-      canPayFee: progress.canAfford(fee), canPaySkip: progress.canAfford(skipCost()),
+      /* the fee for another go at this board, and the fee for the next one,
+         which are not the same number once this one has been beaten */
+      canPayFee: progress.canAfford(fee),
+      canPayNext: progress.canAfford(costOf(S.level + 1)),
+      canPaySkip: progress.canAfford(skipCost()),
       improvedStars: result.improvedStars, hadStars: before,
       par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
       totalStars: progress.totalStars(), reason: S.reason

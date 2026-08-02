@@ -106,7 +106,6 @@ const Audio = (() => {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
         tone({ f, type:'triangle', dur:0.45, gain:0.15, delay:i * 0.11 }));
     },
-    unlock2(){ [659.25, 987.77].forEach((f,i) => tone({ f, type:'triangle', dur:0.5, gain:0.13, delay:i*0.13 })); },
     /* An explosion. Nothing in the puzzle makes this noise, and nothing should:
        it belongs to the one thing here that is not part of the game.
 

@@ -69,6 +69,7 @@ export default [
         ...globals.browser,
         BubbleConfig: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
         BubbleRules: 'writable', BubbleView: 'writable', BubbleRender: 'writable',
+        BubbleAudio: 'writable', BubbleAdvice: 'writable', BubbleScore: 'writable',
         BubbleApp: 'writable'
       }
     },

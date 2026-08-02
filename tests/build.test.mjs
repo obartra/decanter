@@ -205,3 +205,62 @@ describe('build output', () => {
     assert(/location\.reload\(\)/.test(fn), 'it never actually reloads');
   });
 });
+
+describe('the two games do not collide', () => {
+  /* They are separate pages today, so none of this matters yet. It matters the
+     moment they are one, which is the stated plan: bubble levels every fifth
+     board of the graded game. These are the seams that would break silently at
+     that point, and they are far cheaper to hold open now than to discover
+     during the merge. */
+  const classesIn = dir => {
+    const out = new Set();
+    for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.css'))){
+      for (const m of read(`${dir}/${f}`).matchAll(/^\.([a-zA-Z][-\w]*)/gm)) out.add(m[1]);
+    }
+    return out;
+  };
+
+  it('styles nothing by the same class name in both stylesheets', () => {
+    const mine = classesIn('src/css'), theirs = classesIn('src/bubble/css');
+    const shared = [...mine].filter(c => theirs.has(c)).sort();
+    /* Known and deliberate today; the list is here so adding a third is a
+       failing test rather than a surprise. Merging the two pages means renaming
+       every one of these, because the other game has three elements on .veil. */
+    equal(shared, ['btn', 'hud', 'veil'],
+      'the two stylesheets share a class name that is not on the known list');
+  });
+
+  it('gives every bubble global a name the other game cannot take', () => {
+    /* One page, one global scope. `Audio` on the decanter side already shadows
+       the DOM constructor; a second unprefixed name would collide outright. */
+    const js = readdirSync(join(root, 'src/bubble/js')).filter(n => n.endsWith('.js'));
+    for (const f of js){
+      for (const m of read(`src/bubble/js/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
+        assert(m[1].startsWith('Bubble'), `${f} publishes ${m[1]}, which is not namespaced`);
+      }
+    }
+  });
+
+  it('calls every sound it defines', () => {
+    /* Two cues were defined and never called, so the two biggest moments in the
+       game were silent and every test passed. Nothing else here would notice:
+       an uncalled sound is not an error, it is just quiet. */
+    for (const [dir, mod] of [['src/bubble/js', '50-audio.js'], ['src/js', '50-audio.js']]){
+      const src = read(`${dir}/${mod}`);
+      /* Only the object the module returns, not its body: a `if (` at the same
+         indentation reads as a method named `if` otherwise. */
+      const returned = src.slice(src.lastIndexOf('\n  return {'));
+      const cues = [...returned.matchAll(/^\s{4}(\w+)\s*(?:\(|:\s*(?:function\b|\())/gm)]
+        .map(m => m[1])
+        .filter(n => !['get', 'set', 'if', 'for', 'while', 'return', 'switch', 'catch'].includes(n));
+      assert(cues.length > 3, `found only ${cues.length} cues in ${dir}/${mod}, so the scan is wrong`);
+      const callers = readdirSync(join(root, dir))
+        .filter(n => n.endsWith('.js') && n !== mod)
+        .map(n => read(`${dir}/${n}`)).join('\n');
+      for (const cue of cues){
+        assert(new RegExp(`\\.${cue}\\s*\\(`).test(callers),
+          `${dir}/${mod} defines ${cue}() and nothing ever calls it`);
+      }
+    }
+  });
+});

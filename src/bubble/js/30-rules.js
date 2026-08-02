@@ -89,9 +89,58 @@ const BubbleRules = (() => {
   const isWon = board => G.occupied(board).length === 0;
   const isLost = board => G.occupied(board).some(([j]) => j >= C.DEATH_ROW);
 
+  /* Deal a board, a cell at a time, refusing any colour that would complete a
+     group of three where it lands. A board built from independent random colours
+     arrives with a match already sitting on it, so the opening shot clears
+     something the player did not earn; every board generated the naive way had
+     one.
+
+     Lives here rather than in the app because the difficulty harness has to deal
+     the boards it measures, and a harness that deals them differently from the
+     game is measuring a game nobody plays. */
+  function dealBoard(rows, pick){
+    const b = G.create(0);
+    for (let j = 0; j < rows; j++){
+      for (let c = 0; c < C.COLS; c++){
+        const start = Math.floor(pick() * C.COLOURS);
+        let chosen = start;
+        for (let n = 0; n < C.COLOURS; n++){
+          const col = (start + n) % C.COLOURS;
+          b.rows[j][c] = col;
+          if (matchFrom(b, j, c).length < C.MATCH_MIN){ chosen = col; break; }
+        }
+        b.rows[j][c] = chosen;
+      }
+    }
+    /* nothing should be loose on a board nobody has shot at yet */
+    remove(b, detach(b));
+    return b;
+  }
+
+  /* A row to push in at the top, in colours the board still has, so an advance
+     cannot introduce a colour the player has already cleared away. */
+  function freshRow(board, pick){
+    const live = liveColours(board);
+    const from = live.length ? live : [0];
+    return new Array(C.COLS).fill(0).map(() => from[Math.floor(pick() * from.length) % from.length]);
+  }
+
+  /* Can anything be done from here? A board can pack itself so that every
+     contact has no empty neighbour to snap into, and then no shot can land at
+     all. That is a real ending and the game has to notice it rather than let
+     the player fire into a board that silently eats every bubble. */
+  function anyLanding(board, resolve){
+    for (let deg = -80; deg <= 80; deg += 2){
+      const a = deg * Math.PI / 180;
+      if (resolve(board, { x: Math.sin(a), y: -Math.cos(a) })) return true;
+    }
+    return false;
+  }
+
   /* One strict order, and the grid reaches its final state before anything is
-     animated. The animator is handed the lists of what popped and what fell and
-     never reads the grid, so a slow animation cannot desynchronise the board. */
+     animated. The animator is handed the lists of what was matched and what came
+     away with it and never reads the grid, so a slow animation cannot
+     desynchronise the board. */
   /* Cells are handed back with the colour they held, because by the time anyone
      wants to draw them falling they are no longer on the board to ask. */
   const withColour = (board, cells) => cells.map(([j, c]) => [j, c, board.rows[j][c]]);
@@ -99,21 +148,26 @@ const BubbleRules = (() => {
   function resolveTurn(board, landing, colour){
     board.rows[landing.j][landing.c] = colour;
 
+    /* Both lists leave the board the same way, by falling off the bottom of it.
+       They stay separate because they are separate shots: `matched` is the group
+       you completed, `cut` is everything that was only hanging from it, and the
+       second is the one worth aiming for, so it scores differently. */
     const cluster = matchFrom(board, landing.j, landing.c);
-    const popped = cluster.length >= C.MATCH_MIN ? withColour(board, cluster) : [];
-    if (popped.length) remove(board, popped);
+    const matched = cluster.length >= C.MATCH_MIN ? withColour(board, cluster) : [];
+    if (matched.length) remove(board, matched);
 
-    const dropped = popped.length ? withColour(board, detach(board)) : [];
-    if (dropped.length) remove(board, dropped);
+    const cut = matched.length ? withColour(board, detach(board)) : [];
+    if (cut.length) remove(board, cut);
 
     return {
-      popped,
-      dropped,
+      matched,
+      cut,
       won: isWon(board),
       lost: isLost(board)
     };
   }
 
-  return { matchFrom, detach, remove, liveColours, isWon, isLost, resolveTurn };
+  return { matchFrom, detach, remove, liveColours, isWon, isLost, resolveTurn,
+           dealBoard, freshRow, anyLanding };
 })();
 globalThis.BubbleRules = BubbleRules;

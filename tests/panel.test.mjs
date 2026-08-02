@@ -4,7 +4,7 @@ const { Panel, CONFIG } = loadPure();
 /* a cleared run, mid-game, with money in the purse */
 const base = {
   level: 10, lastLevel: 120, failed: false, stars: 3, nextUnlocked: true,
-  canPayFee: true, canPaySkip: true, improvedStars: false, hadStars: 0,
+  canPayFee: true, canPayNext: true, canPaySkip: true, improvedStars: false, hadStars: 0,
   par: 20, parExact: true, moves: 20, best: null, totalStars: 24
 };
 const decide = over => Panel.decide({ ...base, ...over });
@@ -98,7 +98,40 @@ describe('end of run panel', () => {
     equal(decide({ stars: 0, failed: true }).retryHidden, false);
   });
   it('disables what cannot be paid for', () => {
-    const p = decide({ canPayFee: false, canPaySkip: false, failed: true, stars: 0, nextUnlocked: false });
+    /* all three fees, named separately: retry, the next board and the skip are
+       three different prices and an empty purse fails all of them */
+    const p = decide({ canPayFee: false, canPayNext: false, canPaySkip: false,
+                       failed: true, stars: 0, nextUnlocked: false });
     assert(p.retryDisabled && p.nextDisabled && p.skipDisabled, 'nothing affordable should be clickable');
+  });
+
+  it('refuses the next board when the purse cannot pay for that board', () => {
+    /* The bug this pins: retry and next are two different fees. A cleared level
+       replays for nothing, so `canPayFee` is true for the rest of the run, and
+       deciding next from it left the button enabled on an empty purse. It then
+       fell through to the guard in the click handler and refused silently, which
+       is a button that lies rather than one that is disabled. */
+    const p = decide({ canPayFee: true, canPayNext: false });
+    equal(p.nextDisabled, true, 'offered a board the purse cannot pay for');
+    equal(p.retryDisabled, false, 'a free replay is still affordable');
+    assert(/Not enough gold/.test(p.hint), 'said nothing about why next is dead');
+  });
+
+  it('does not cry poverty about a board it is not offering', () => {
+    /* past the last level there is no next board, so being unable to afford one
+       is not a thing worth telling anybody */
+    const p = decide({ level: 120, canPayNext: false });
+    equal(p.nextHidden, true);
+    assert(!/Not enough gold/.test(p.hint),
+      'warned about the price of a button that is not on screen');
+  });
+
+  it('keeps retry and next disabled independently', () => {
+    const broke = decide({ canPayFee: false, canPayNext: false });
+    equal(broke.retryDisabled, true);
+    equal(broke.nextDisabled, true);
+    const onlyNext = decide({ canPayFee: false, canPayNext: true });
+    equal(onlyNext.retryDisabled, true);
+    equal(onlyNext.nextDisabled, false, 'one fee must not decide the other');
   });
 });

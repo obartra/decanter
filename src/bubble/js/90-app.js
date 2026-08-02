@@ -2,8 +2,8 @@
 
    The state machine is deliberately small: aiming, flying, settling. The board
    reaches its final state the instant a shot resolves, before anything is
-   animated, and the animation is handed lists of what popped and what fell. So
-   a slow frame, a backgrounded tab or a long pop cannot leave the board and the
+   animated, and the animation is handed the lists of what came off it. So a
+   slow frame, a backgrounded tab or a long fall cannot leave the board and the
    screen disagreeing about what is on it. */
 const BubbleApp = (() => {
   const C = BubbleConfig;
@@ -12,6 +12,9 @@ const BubbleApp = (() => {
   const S = BubbleShot;
   const V = BubbleView;
   const D = BubbleRender;
+  const A = BubbleAudio;
+  const Adv = BubbleAdvice;
+  const Sc = BubbleScore;
 
   const S_AIM = 'aim', S_FLY = 'fly';
 
@@ -24,19 +27,50 @@ const BubbleApp = (() => {
     flown: 0,            /* distance travelled along it */
     loaded: 0,           /* the colour in hand */
     next: 0,
-    pops: [],            /* what is popping, with the time each started */
     drops: [],           /* what is falling, in world units, with velocity */
     shots: 0,
+    sinceDrop: 0,        /* shots since the board last came down */
+    score: 0,
+    /* Whether this run leaned on something that made the board easier than the
+       thresholds it is graded against. Only picking a colour sets it; see
+       AID_CAP in the config for why undo, hint and swap do not. */
+    aided: false,
+    hint: null,          /* the landing the hint is pointing at, until the next shot */
+    collapsing: false,   /* the lost board is on its way down, panel waiting on it */
+    past: [],            /* what undo restores, newest last */
+    /* null while the game is live, then 'won' or 'lost'. The board is frozen
+       either way: a run that has ended stops taking shots rather than letting
+       the player fire into a result. */
+    over: null,
     seed: 1
   };
 
-  const rand = (() => {
+  /* Two streams, not one.
+
+     There was one, and it fed the board, the bubble sequence, the incoming rows
+     and the little random velocities the falling bubbles are thrown with. That
+     last one is the problem: how many bubbles fell decided how far the stream
+     advanced, so a cosmetic detail changed which colour was dealt next. Two runs
+     from the same seed diverged the moment their clears differed, undo could not
+     put the sequence back, and the difficulty harness was measuring a game
+     nobody could reproduce.
+
+     So `game` decides everything the player is graded on and nothing else draws
+     from it, and `fx` throws the debris around. */
+  const stream = () => {
     let s = 1;
-    return { seed(n){ s = n >>> 0 || 1; }, next(){
-      s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
-      return s / 4294967296;
-    } };
-  })();
+    return {
+      seed(n){ s = n >>> 0 || 1; },
+      get state(){ return s; },
+      set state(v){ s = v >>> 0 || 1; },
+      next(){
+        s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+        return s / 4294967296;
+      }
+    };
+  };
+  const rand = stream();
+  const fx = stream();
 
   function deal(){
     const live = R.liveColours(st.board);
@@ -46,23 +80,112 @@ const BubbleApp = (() => {
 
   function newBoard(seed){
     rand.seed(seed);
+    fx.seed(seed * 7919 + 1);
     st.seed = seed;
-    const b = G.create(0);
-    for (let j = 0; j < 5; j++){
-      for (let c = 0; c < C.COLS; c++){
-        b.rows[j][c] = Math.floor(rand.next() * C.COLOURS);
-      }
-    }
-    st.board = b;
-    /* nothing should be loose on a board nobody has shot at yet */
-    R.remove(b, R.detach(b));
+    st.board = R.dealBoard(5, rand.next);
     st.loaded = deal();
     st.next = deal();
     st.mode = S_AIM;
     st.path = null;
-    st.pops = [];
     st.drops = [];
     st.shots = 0;
+    st.sinceDrop = 0;
+    st.score = 0;
+    st.aided = false;
+    st.hint = null;
+    st.collapsing = false;
+    st.past = [];
+    st.over = null;
+    show(null);
+    paintHud();
+    /* the rules, on a board nobody has shot at yet. It goes away on the first
+       shot and stays away, because it is an explanation and not a status. */
+    const rule = document.getElementById('bubbleRule');
+    if (rule) rule.classList.remove('gone');
+  }
+
+  /* ---- taking it back ----
+
+     Everything the turn will change, including where the sequence had got to.
+     Without that last part undo puts the board back and then deals a different
+     bubble, which is not the same position and is worse than no undo at all. */
+  function remember(){
+    st.past.push({
+      rows: st.board.rows.map(r => r.slice()),
+      parity: st.board.parity,
+      loaded: st.loaded, next: st.next,
+      shots: st.shots, sinceDrop: st.sinceDrop, score: st.score,
+      rand: rand.state
+    });
+    if (st.past.length > C.UNDO_DEPTH) st.past.shift();
+  }
+
+  function undo(){
+    if (st.mode !== S_AIM || !st.past.length) return false;
+    const was = st.past.pop();
+    st.board.rows = was.rows.map(r => r.slice());
+    st.board.parity = was.parity;
+    st.loaded = was.loaded;
+    st.next = was.next;
+    st.shots = was.shots;
+    st.sinceDrop = was.sinceDrop;
+    st.score = was.score;
+    rand.state = was.rand;
+    /* A run that was over is not over any more, which is the whole point of
+       being able to take back the shot that ended it. */
+    st.over = null;
+    st.hint = null;
+    st.collapsing = false;
+    st.drops = [];
+    show(null);
+    paintHud();
+    A.stick();
+    return true;
+  }
+
+  /* ---- the three that leave the run gradeable ---- */
+
+  /* Swap what is loaded for what is next. Changes the order of two bubbles the
+     player was going to be handed anyway, so the board it produces is one the
+     sequence could have produced on its own. */
+  function swap(){
+    if (st.mode !== S_AIM || st.over) return false;
+    const was = st.loaded;
+    st.loaded = st.next;
+    st.next = was;
+    st.hint = null;
+    A.shoot();
+    paintHud();
+    return true;
+  }
+
+  /* Point at the shot the game would take. Withheld when nothing clears, because
+     a hint that names a bubble which merely lands somewhere is not advice. */
+  function hint(){
+    if (st.mode !== S_AIM || st.over) return null;
+    const best = Adv.bestShot(st.board, st.loaded, S.resolveShot);
+    if (!best || !best.matched) return null;
+    st.hint = best.landing;
+    A.stick();
+    paintHud();
+    return best;
+  }
+
+  /* ---- and the one that does not ----
+
+     Choosing the colour outright is the extra bottle of this game: from here the
+     board is easier than the thresholds the run is graded against, so the run is
+     capped exactly the way a bought vessel caps one. */
+  function pickColour(colour){
+    if (st.mode !== S_AIM || st.over) return false;
+    const live = R.liveColours(st.board);
+    if (!live.includes(colour)) return false;
+    st.loaded = colour;
+    st.aided = true;
+    st.hint = null;
+    paintHud();
+    A.matched(3);
+    return true;
   }
 
   /* ---- input. Aiming is never locked, even mid flight, so the guide always
@@ -73,50 +196,274 @@ const BubbleApp = (() => {
   }
 
   function fire(){
-    if (st.mode !== S_AIM) return;
+    if (st.mode !== S_AIM || st.over) return;
+    /* before anything moves, so undo has the position as it was asked */
+    remember();
     const shot = S.resolveShot(st.board, C.MUZZLE, st.aim);
     st.path = shot;
     st.flown = 0;
     st.mode = S_FLY;
+    st.hint = null;
+    A.shoot();
+    paintHud();
+    const rule = document.getElementById('bubbleRule');
+    if (rule) rule.classList.add('gone');
   }
 
   /* ---- the turn, once the bubble has arrived ---- */
   function land(){
     const shot = st.path;
-    if (shot.landing){
-      const res = R.resolveTurn(st.board, shot.landing, st.loaded);
-      const now = performance.now();
-      st.pops = res.popped.map(([j, c, was], i) => ({ cell: [j, c], at: now + i * 25,
-        colour: C.PALETTE[was % C.PALETTE.length] }));
-      st.drops = res.dropped.map(([j, c, was]) => {
-        const p = G.centreOf(st.board, j, c);
-        return { x: p.x, y: p.y, vx: (rand.next() - 0.5) * 1.5, vy: -1 - rand.next(),
-                 colour: C.PALETTE[was % C.PALETTE.length] };
-      });
-      if (res.won) newBoard(st.seed + 1);
-    }
-    st.shots++;
     st.path = null;
     st.mode = S_AIM;
+    st.shots++;
+
+    if (shot.landing){
+      const res = R.resolveTurn(st.board, shot.landing, st.loaded);
+      /* Nothing is deleted where it sat. The group you matched is knocked off
+         the board and falls, and so does everything it was holding up, because
+         a clear the player watches come down is worth more than a gap that
+         appears. The two are thrown differently on purpose: the matched group
+         is kicked outward from the bubble that landed, so the burst reads as
+         the shot doing it, while what was cut free was hit by nothing and
+         simply lets go. */
+      const hit = G.centreOf(st.board, shot.landing.j, shot.landing.c);
+      /* Thrown from `fx`, never from the game stream. How many bubbles fell must
+         not decide which colour comes next. */
+      st.drops = res.matched.map(([j, c, was]) => {
+        const p = G.centreOf(st.board, j, c);
+        const dx = p.x - hit.x, dy = p.y - hit.y;
+        const away = Math.hypot(dx, dy) || 1;
+        return falling(p, was,
+          (dx / away) * C.KICK_OUT + (fx.next() - 0.5),
+          (dy / away) * C.KICK_OUT - C.KICK_UP - fx.next());
+      }).concat(res.cut.map(([j, c, was]) =>
+        falling(G.centreOf(st.board, j, c), was,
+          (fx.next() - 0.5) * C.CUT_DRIFT, -1 - fx.next())));
+
+      st.score += res.matched.length * C.SCORE_MATCH + res.cut.length * C.SCORE_CUT;
+      if (res.matched.length) A.matched(res.matched.length); else A.stick();
+      if (res.cut.length) A.cut(res.cut.length);
+      paintHud();
+      if (res.won) return finish('won');
+      if (res.lost) return finish('lost');
+    }
+
+    /* The board comes down on a cadence, which is the only thing that makes the
+       death line mean anything. Without it the line is decoration: a player can
+       take as long as they like and only reach it through their own bad shots.
+
+       Counted against a running total rather than with a modulo, because the
+       cadence tightens as the run goes on: `shots % cadence` against a shrinking
+       cadence skips drops and doubles others at every change. */
+    if (++st.sinceDrop >= Sc.cadenceAt(st.shots)){
+      st.sinceDrop = 0;
+      G.advance(st.board, R.freshRow(st.board, rand.next));
+      R.remove(st.board, R.detach(st.board));
+      A.advance();
+      if (R.isLost(st.board)) return finish('lost');
+    }
+
     st.loaded = st.next;
     st.next = deal();
-    /* a board with nothing left on it has no colour to deal, so start another */
-    if (!R.liveColours(st.board).length) newBoard(st.seed + 1);
+    paintHud();
+
+    if (!R.liveColours(st.board).length) return finish('won');
+    /* A board can pack itself so that every contact has its neighbours full and
+       no shot can land anywhere. Without noticing, the player fires into a board
+       that silently eats every bubble and nothing happens again, forever. */
+    if (!canPlay()) return finish('lost');
   }
+
+  const canPlay = () => R.anyLanding(st.board,
+    (b, dir) => S.resolveShot(b, C.MUZZLE, dir).landing);
+
+  /* ---- the tool row ----
+
+     Every button reports whether it did anything, and the row is repainted from
+     the state afterwards rather than from what was just pressed. A button that
+     looks pressable and does nothing is the bug this shape exists to prevent:
+     undo with nothing to take back, or a hint on a board where nothing clears. */
+  function wireTools(){
+    const $ = id => document.getElementById(id);
+    const palette = $('bubblePalette');
+    const pick = $('bubblePick');
+
+    const closePalette = () => {
+      palette.hidden = true;
+      pick.setAttribute('aria-expanded', 'false');
+      pick.classList.remove('armed');
+    };
+
+    $('bubbleUndo').onclick = () => { A.unlock(); undo(); closePalette(); paintTools(); };
+    $('bubbleHint').onclick = () => { A.unlock(); hint(); closePalette(); paintTools(); };
+    $('bubbleSwap').onclick = () => { A.unlock(); swap(); closePalette(); paintTools(); };
+
+    pick.onclick = () => {
+      A.unlock();
+      if (!palette.hidden) return closePalette();
+      /* Built fresh each time from the colours actually left on the board. */
+      palette.innerHTML = '';
+      for (const colour of R.liveColours(st.board)){
+        const b = document.createElement('button');
+        b.className = 'swatch';
+        b.type = 'button';
+        b.style.background = C.PALETTE[colour % C.PALETTE.length];
+        b.title = `load this colour`;
+        b.onclick = () => { pickColour(colour); closePalette(); paintTools(); };
+        palette.appendChild(b);
+      }
+      palette.hidden = false;
+      pick.setAttribute('aria-expanded', 'true');
+      pick.classList.add('armed');
+    };
+    paintTools();
+  }
+
+  /* What can be pressed right now, decided from the state every time it changes.
+     The hint is the interesting one: it is disabled when nothing clears, so the
+     button never charges for advice it cannot give. */
+  function paintTools(){
+    const $ = id => document.getElementById(id);
+    if (!$('bubbleUndo')) return;
+    const live = st.mode === S_AIM && !st.over;
+    $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length);
+    $('bubbleSwap').disabled = !live || st.loaded === st.next;
+    $('bubblePick').disabled = !live || R.liveColours(st.board).length < 2;
+    $('bubbleHint').disabled = !live || !Adv.hasClearingShot(st.board, st.loaded, S.resolveShot);
+    $('bubbleHint').classList.toggle('armed', !!st.hint);
+  }
+
+  function finish(how){
+    st.over = how;
+    st.mode = S_AIM;
+    st.hint = null;
+    /* A lost board goes over before the result is read out. The panel waits for
+       it, because a verdict shown over a board still standing is the game saying
+       the run is finished while showing that it is not. */
+    if (how === 'lost' && G.occupied(st.board).length){
+      collapse();
+      paintHud();
+      return;
+    }
+    show(how);
+    paintHud();
+  }
+
+  /* Everything still on the board, let go from the bottom up.
+
+     The grid itself is left exactly as it was. The drops are drawn from a copy
+     and `collapsing` tells the renderer to stop drawing the board behind them,
+     so this is a picture of the board leaving rather than the board being
+     emptied. That matters for one reason: undo has to be able to take back the
+     shot that lost the run, and it cannot put back a grid that was cleared to
+     make an animation look good. */
+  function collapse(){
+    const cells = G.occupied(st.board);
+    const deepest = Math.max(...cells.map(([j]) => j));
+    st.collapsing = true;
+    st.drops = cells.map(([j, c]) => {
+      const p = G.centreOf(st.board, j, c);
+      const d = falling(p, st.board.rows[j][c],
+        (fx.next() - 0.5) * C.CUT_DRIFT * 2, -1 - fx.next());
+      d.wait = (deepest - j) * C.COLLAPSE_STAGGER;
+      return d;
+    });
+    A.advance();
+  }
+
+  /* The one place the result is written, so the panel cannot say one thing while
+     the state says another.
+
+     Said plainly, in the same voice as the other game. The first version of this
+     reported the internal condition that had been met, which is what the code
+     knows rather than what the player did: "Blocked" is true and reads like a
+     log line. The correction is not to get chatty about it. A player who has
+     just lost wants to be told the run is over and then, in the same breath,
+     what ended it. */
+  const starsNow = () => Sc.stars({ cleared: st.over === 'won', shots: st.shots, aided: st.aided });
+
+  function show(how){
+    const veil = document.getElementById('bubbleVeil');
+    if (!veil) return;
+    veil.classList.toggle('show', !!how);
+    veil.classList.toggle('lost', how === 'lost');
+    if (!how) return;
+    /* Said here rather than in finish(), because a lost run does not reach this
+       point until the board has finished falling: the sting belongs with the
+       verdict, a beat after the crash, not on top of it. */
+    if (how === 'won') A.won(); else A.lost();
+    const stars = starsNow();
+    document.getElementById('bubbleResult').textContent = how === 'won' ? 'Board cleared' : 'Game over';
+    document.getElementById('bubbleWhy').textContent = how === 'won'
+      ? `Every bubble gone, in ${st.shots} shots.`
+      : R.isLost(st.board) ? 'The bubbles reached the line.' : 'No room left to shoot.';
+    document.getElementById('bubbleScore').textContent = st.score;
+    document.getElementById('bubbleStars').innerHTML =
+      [0, 1, 2].map(i => i < stars ? '★' : '<span class="dim">★</span>').join('');
+    /* A capped run has to say so, or the player reads three stars' worth of work
+       ending in two as the game losing count. */
+    const note = document.getElementById('bubbleNote');
+    note.textContent = st.aided && stars === C.AID_CAP
+      ? 'Picking a colour caps a run at two stars.'
+      : how === 'lost' ? `Lasted ${st.shots} shots.` : '';
+  }
+
+  /* The score, the stars in hand, and how long there is before the board comes
+     down again. The countdown is the whole reason the drop is fair: a row that
+     arrives on a cadence is a rule, one that arrives unannounced is a surprise. */
+  function paintHud(){
+    const live = document.getElementById('bubbleLive');
+    if (live) live.textContent = st.score;
+    const drop = document.getElementById('bubbleDrop');
+    if (!drop) return;
+    const left = Sc.cadenceAt(st.shots) - st.sinceDrop;
+    drop.textContent = left <= 1 ? 'drops next shot' : `drops in ${left}`;
+    drop.classList.toggle('soon', left <= 2);
+
+    /* Stars while the run is live, not only once it is over. They are earned by
+       lasting, so a player who cannot see them accumulating has no way to know
+       that hanging on is the thing being rewarded. */
+    const run = document.getElementById('bubbleRunStars');
+    if (!run) return;
+    const held = Sc.stars({ cleared: false, shots: st.shots, aided: st.aided });
+    run.innerHTML = [0, 1, 2].map(i => i < held ? '★' : '<span class="dim">★</span>').join('');
+    const at = Sc.nextStarAt(st.shots);
+    run.title = at ? `next star at ${at} shots` : 'all three earned';
+    /* one entry point, so the row can never be repainted without the readouts
+       beside it or the other way round */
+    paintTools();
+  }
+
+  /* One bubble on its way off the board, in world units per second. Purely
+     cosmetic: the grid already has it gone, so however long this takes it can
+     never disagree with the board. */
+  const falling = (p, was, vx, vy) => ({ x: p.x, y: p.y, vx, vy, wait: 0,
+    colour: C.PALETTE[was % C.PALETTE.length] });
 
   function step(dt){
     if (st.mode === S_FLY){
       st.flown += C.SPEED * dt;
       if (arrived()) land();
     }
-    const now = performance.now();
-    st.pops = st.pops.filter(p => now - p.at < 160);
     for (const d of st.drops){
-      d.vy += 55 * dt;
+      /* held where it is until its turn, which is how the collapse cascades */
+      if (d.wait > 0){ d.wait -= dt; continue; }
+      d.vy += C.GRAVITY * dt;
       d.x += d.vx * dt;
       d.y += d.vy * dt;
     }
     st.drops = st.drops.filter(d => d.y < C.WORLD_H + 2);
+
+    /* The last of it has gone off the bottom. The crash lands on an empty screen
+       on purpose: a break heard while the glass is still visible reads as a
+       sound effect, and heard just after it has gone it reads as the thing
+       hitting the floor somewhere below. */
+    if (st.collapsing && !st.drops.length){
+      st.collapsing = false;
+      A.crash();
+      show(st.over);
+      paintHud();
+    }
   }
 
   /* how far along the resolved path the bubble has flown */
@@ -147,20 +494,21 @@ const BubbleApp = (() => {
   function draw(now){
     const ctx = V.frame();
     D.walls(ctx);
-    D.board(ctx, st.board);
+    /* nothing behind the collapse: the drops are the board now */
+    if (!st.collapsing) D.board(ctx, st.board);
 
+    /* Drawn over the board, because a bubble on its way down passes in front of
+       the ones still attached. */
     for (const d of st.drops) D.bubble(ctx, d.x, d.y, d.colour, C.DRAW_R, 0.9);
 
-    for (const p of st.pops){
-      const t = Math.max(0, Math.min(1, (now - p.at) / 110));
-      if (now < p.at) continue;
-      const q = G.centreOf(st.board, p.cell[0], p.cell[1]);
-      D.bubble(ctx, q.x, q.y, p.colour, C.DRAW_R * (1 + 0.35 * t), 1 - t);
-    }
+    if (!st.over) D.target(ctx, st.board, st.hint, now);
 
-    if (st.mode === S_AIM){
+    if (st.over){
+      D.muzzle(ctx, null);
+    } else if (st.mode === S_AIM){
       const preview = S.resolveShot(st.board, C.MUZZLE, st.aim);
-      D.guide(ctx, preview.points, C.PALETTE[st.loaded % C.PALETTE.length], (now / 100) % C.GUIDE_DOT_GAP);
+      D.guide(ctx, preview.points, C.PALETTE[st.loaded % C.PALETTE.length],
+        (now / 1000 * C.GUIDE_SPEED) % C.GUIDE_DOT_GAP);
       D.muzzle(ctx, st.aim);
       D.bubble(ctx, C.MUZZLE.x, C.MUZZLE.y, C.PALETTE[st.loaded % C.PALETTE.length]);
     } else {
@@ -169,8 +517,10 @@ const BubbleApp = (() => {
       D.bubble(ctx, p.x, p.y, C.PALETTE[st.loaded % C.PALETTE.length]);
     }
     /* what is coming, tucked beside the muzzle */
-    D.bubble(ctx, C.MUZZLE.x + 1.9, C.MUZZLE.y + 0.35,
-      C.PALETTE[st.next % C.PALETTE.length], C.DRAW_R * 0.62, 0.75);
+    if (!st.over){
+      D.bubble(ctx, C.MUZZLE.x + 1.9, C.MUZZLE.y + 0.35,
+        C.PALETTE[st.next % C.PALETTE.length], C.DRAW_R * 0.62, 0.75);
+    }
   }
 
   function boot(){
@@ -180,6 +530,9 @@ const BubbleApp = (() => {
 
     cv.addEventListener('pointerdown', e => {
       cv.setPointerCapture(e.pointerId);
+      /* The audio context is not allowed to start until the page has been
+         touched, so every gesture asks. It is cheap after the first. */
+      A.unlock();
       st.pointing = true;
       point(e);
     });
@@ -192,7 +545,25 @@ const BubbleApp = (() => {
     });
     addEventListener('resize', () => V.resize());
 
-    document.getElementById('bubbleAgain').onclick = () => newBoard(st.seed + 1);
+    document.getElementById('bubbleAgain').onclick = () => { A.unlock(); newBoard(st.seed + 1); };
+    document.getElementById('bubbleRetry').onclick = () => { A.unlock(); newBoard(st.seed + 1); };
+
+    wireTools();
+
+    const sound = document.getElementById('bubbleSound');
+    const paintSound = () => {
+      sound.textContent = A.enabled ? 'Sound' : 'Muted';
+      sound.setAttribute('aria-pressed', String(A.enabled));
+      sound.classList.toggle('off', !A.enabled);
+    };
+    sound.onclick = () => {
+      A.unlock();
+      A.setEnabled(!A.enabled);
+      paintSound();
+      /* say so, so the button proves itself the moment it is pressed */
+      if (A.enabled) A.matched(3);
+    };
+    paintSound();
 
     let last = performance.now();
     const loop = now => {
@@ -205,7 +576,8 @@ const BubbleApp = (() => {
     requestAnimationFrame(loop);
   }
 
-  return { boot, _state: st, newBoard, fire, step, land };
+  return { boot, _state: st, newBoard, fire, step, land, canPlay, finish,
+           undo, hint, swap, pickColour, paintHud, paintTools };
 })();
 globalThis.BubbleApp = BubbleApp;
 

@@ -1,31 +1,152 @@
-/* A different room from the other game on purpose: this one is meant to read as
-   its own thing while it is being tried out at its own URL. */
-:root{ --ink:#E6ECFF; --ink-dim:rgba(230,236,255,.55); }
+/* The same room as the other game. This started as its own cold blue space,
+   which was right while the mechanic was being tried out at its own URL and
+   wrong once it became part of the same cellar: two games under one roof should
+   not disagree about what the light is like. The ink, the gold and the glass
+   line are that game's, verbatim, so the two cannot drift. */
+:root{
+  --ink:#EFE4D2; --ink-dim:#A2907A;
+  --gold:#E0B15C; --gold-lit:#F4D9A0;
+  --glass-line:rgba(246,234,212,.42);
+}
+/* The same reset the other game uses. Without it a padded box is its width plus
+   its padding, which is how the result card came out 366px wide inside a 327px
+   slot and hung off the right of a phone. */
+*{box-sizing:border-box}
 html,body{height:100%}
 html{overflow:hidden; overscroll-behavior:none}
 body{
   margin:0; display:flex; flex-direction:column;
   font-family:"Alegreya Sans",ui-sans-serif,system-ui,sans-serif;
   color:var(--ink); overflow:hidden; overscroll-behavior:none;
-  background:radial-gradient(120% 80% at 50% 0%, #1B2547 0%, #0C1020 55%, #070A16 100%);
+  -webkit-font-smoothing:antialiased;
+  /* The other game draws its room to a canvas so the shelf can meet the bottles
+     at any size. There is no shelf here and nothing to meet, so the cellar is a
+     gradient: the same warm near-black it settles to, lit from above. */
+  background:radial-gradient(125% 85% at 50% 0%, #2A1E13 0%, #150E08 52%, #0B0805 100%);
 }
 .bubbleBar{
   display:flex; align-items:center; justify-content:space-between;
   padding:10px 14px calc(10px + env(safe-area-inset-top));
   padding-top:calc(10px + env(safe-area-inset-top));
 }
+/* Cinzel is inscriptional Roman caps, so it wants to be spaced out, and it is
+   the gilt of the other game's wordmark rather than a flat colour. */
 .mark{
-  font-family:"Cinzel",serif; font-size:15px; letter-spacing:.2em;
-  text-transform:uppercase; color:#9FB6FF;
+  font-family:"Cinzel",Georgia,serif; font-weight:700;
+  font-size:15px; letter-spacing:.2em; text-transform:uppercase;
+  background:linear-gradient(180deg,#FBEBC8 0%, var(--gold) 52%, #A9762F 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
 }
 .btn{
-  font-family:inherit; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  font-family:inherit; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
   color:var(--ink); padding:8px 12px; border-radius:999px; cursor:pointer;
-  border:1px solid rgba(159,182,255,.3);
-  background:linear-gradient(180deg,rgba(60,78,140,.5),rgba(20,28,58,.5));
+  border:1px solid rgba(224,177,92,.26);
+  background:linear-gradient(180deg,rgba(60,44,26,.62),rgba(24,17,10,.52));
+  backdrop-filter:blur(5px);
+  transition:transform .15s, border-color .2s, opacity .2s;
 }
+.btn:hover{border-color:rgba(244,217,160,.55)}
 .btn:active{transform:translateY(1px)}
-.stage{flex:1; min-height:0; display:flex; padding:0 8px calc(8px + env(safe-area-inset-bottom))}
+.btn.off{opacity:.5}
+.acts{display:flex; gap:6px}
+
+/* The score, and how many shots until the board comes down. The countdown is
+   what makes the drop a rule rather than an ambush, so it sits next to the
+   score rather than somewhere it has to be looked for, and it turns warm when
+   there is nearly no time left. */
+.hud{display:flex; flex-direction:column; align-items:center; line-height:1.15}
+.hud b{font-family:"Cinzel",Georgia,serif; font-size:17px; color:var(--gold-lit)}
+.hud small{
+  font-size:8px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-dim); transition:color .2s ease;
+}
+.hud small.soon{color:#FF9E75}
+.runStars{font-size:9px; letter-spacing:.1em; color:var(--gold-lit); line-height:1}
+.runStars .dim{color:rgba(224,177,92,.22)}
+
+/* The tools, on the bottom edge where a thumb already is. They sit under the
+   canvas rather than in the bar because the bar is read and these are pressed,
+   and a control that is pressed mid-run should not be at the far end of the
+   reach from the thing being aimed. */
+.tools{
+  position:fixed; left:0; right:0; z-index:20;
+  bottom:calc(10px + env(safe-area-inset-bottom));
+  display:flex; justify-content:center; gap:8px; padding:0 12px;
+  pointer-events:none;
+}
+.tools .btn{pointer-events:auto; padding:9px 13px}
+.btn.tool:disabled{opacity:.28; cursor:default}
+.btn.tool.armed{border-color:var(--gold); color:var(--gold-lit)}
+
+/* The colour picker, opened from the tool row and closed by choosing. Only the
+   colours still on the board are offered: picking one the player has already
+   cleared away would be a purchase that buys a bubble nothing can match. */
+.palette{
+  position:fixed; left:0; right:0; z-index:21;
+  bottom:calc(58px + env(safe-area-inset-bottom));
+  display:flex; justify-content:center; gap:10px; padding:0 12px;
+}
+.palette[hidden]{display:none}
+.swatch{
+  width:34px; height:34px; border-radius:50%; cursor:pointer; padding:0;
+  border:1px solid var(--glass-line);
+  box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 -6px 10px rgba(0,0,0,.35),
+             inset 0 5px 9px rgba(255,255,255,.28);
+}
+.swatch:active{transform:translateY(1px)}
+
+.stage{
+  flex:1; min-height:0; display:flex; position:relative;
+  padding:0 8px calc(8px + env(safe-area-inset-bottom));
+}
 /* The canvas is the game. It takes the whole stage and the one transform inside
    it decides how the world maps onto whatever size that turns out to be. */
 #bubbleCanvas{flex:1; width:100%; height:100%; display:block; touch-action:none}
+
+/* The rules, said once on a board nobody has shot at yet. It sits in the empty
+   middle of a fresh board, where there is nothing to cover, and leaves on the
+   first shot: a player who is playing has stopped needing it. */
+.rule{
+  position:absolute; left:0; right:0; top:38%; margin:0; padding:0 28px;
+  text-align:center; font-size:12px; line-height:1.7; color:var(--ink-dim);
+  pointer-events:none; transition:opacity .4s ease;
+}
+.rule.gone{opacity:0}
+
+/* The result. One panel for both endings, tinted by which it was, because a
+   cleared board and a blocked one are the same moment from the player's side:
+   the run is over and the only question is whether to start another. */
+.veil{
+  position:fixed; inset:0; z-index:40; display:grid; place-items:center; padding:24px;
+  background:linear-gradient(180deg,rgba(14,9,5,.86),rgba(6,4,2,.94));
+  backdrop-filter:blur(6px);
+  opacity:0; pointer-events:none; transition:opacity .3s ease;
+}
+.veil.show{opacity:1; pointer-events:auto}
+.card{
+  width:min(320px,86vw); padding:26px 22px; border-radius:18px; text-align:center;
+  border:1px solid rgba(224,177,92,.26);
+  background:linear-gradient(180deg,rgba(60,44,26,.72),rgba(24,17,10,.86));
+  box-shadow:0 10px 34px rgba(0,0,0,.55), 0 0 30px rgba(224,177,92,.10);
+  transform:translateY(10px); transition:transform .3s cubic-bezier(.2,1,.3,1);
+}
+.veil.show .card{transform:none}
+.veil.lost .card{border-color:rgba(226,84,111,.38)}
+.card h2{
+  margin:0; font-family:"Cinzel",Georgia,serif; font-size:24px; letter-spacing:.05em;
+  color:var(--gold-lit);
+}
+.veil.lost .card h2{color:#E2546F}
+.why{margin:8px 0 0; font-size:13px; color:var(--ink-dim)}
+.card .stars{margin:14px 0 0; font-size:19px; letter-spacing:.16em; color:var(--gold-lit)}
+.card .stars .dim{color:rgba(224,177,92,.2)}
+.note{margin:0 0 16px; font-size:11px; color:var(--ink-dim); min-height:1em}
+.score{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:12px 0 6px}
+.score b{font-family:"Cinzel",Georgia,serif; font-size:30px; color:var(--gold-lit)}
+.score span{font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-dim)}
+.btn.primary{
+  border-color:rgba(250,232,190,.5);
+  background:linear-gradient(180deg,#F6E0B0,var(--gold) 60%,#B8823A);
+  color:#2A1B08; font-weight:600;
+  box-shadow:0 6px 22px rgba(224,177,92,.35);
+}
