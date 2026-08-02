@@ -25,7 +25,7 @@
    The standalone build concatenates this and the real module into one script,
    and two lexical declarations of the same name in one script is a syntax
    error — so this one takes the property and lets 50-audio.js own the name. */
-globalThis.Audio = (() => {
+globalThis.Sound = (() => {
   let on = true;
   const quiet = () => {};
   return {
@@ -35,7 +35,6 @@ globalThis.Audio = (() => {
     get ready(){ return false; },
     unlock: quiet,
     setEnabled(v){ on = !!v; return on; },
-    toggle(){ return this.setEnabled(!on); },
     lift: quiet,
     drop: quiet,
     deny: quiet,
@@ -46,6 +45,12 @@ globalThis.Audio = (() => {
     glug: quiet,
     cork: quiet,
     win: quiet,
+    /* A promise, because the caller waits on it before firing: the bang is
+       asked for and then fired after the wait, so that the three explosions land
+       on the recording rather than racing the fetch. Resolving immediately here
+       is right — there is no recording to wait for yet, and the fallback bang is
+       what a cue in this window would have got anyway. */
+    loadBoom(){ return Promise.resolve(); },
     boom: quiet
   };
 })();

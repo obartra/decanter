@@ -8,10 +8,10 @@
    though it mattered, and it is the reason `unlock2` sat in the audio module
    for months making a sound nobody could hear.
 
-   Seven things are checked, each a different way of being unused. The first
-   four came from here; the last three were folded in from a second detector
-   written on the same day, which is recorded because two tools doing one job
-   is how a check ends up switched off:
+   Eight things are checked. The first four came from here; three were folded in
+   from a second detector written on the same day, which is recorded because two
+   tools doing one job is how a check ends up switched off; and the last is not
+   about deadness at all:
 
      exports    a key on a module's published object that nothing reads
      helpers    a top level function in a module that nothing in it calls
@@ -20,12 +20,16 @@
      config     a tunable in a config object that nothing reads
      globals    a module published on globalThis that nothing names
      unstyled   markup wearing a class no stylesheet defines
+     scope      a name a module leaves in the page's own top level
 
-   The last is the odd one out and is the only check that runs the other way
-   round: everything above finds something written and never reached, that one
-   finds something reached and never written. It is here because it fails for
-   the same reason — a name on one side of a line and not the other — and
-   because a class that styles nothing looks exactly like a typo in the markup.
+   The last two are the odd ones out and both run the other way round. `unstyled`
+   finds something reached and never written, where everything above it finds
+   something written and never reached; it is here because it fails for the same
+   reason — a name on one side of a line and not the other — and because a class
+   that styles nothing looks exactly like a typo in the markup. `scope` is not
+   deadness but collision: the app page is one script, so a module's top level is
+   the page's, and the same name twice is either a silent overwrite or a parse
+   error that shows as a blank screen.
 
    Deliberately conservative. Anything reached dynamically is invisible to a
    textual scan, so a name that appears anywhere at all counts as used, and
@@ -224,6 +228,36 @@ for (const file of js){
     /* it may still be published, which the export check above already covers */
     if (new RegExp(`\\b${name}\\b`).test(publishedSurface(src))) continue;
     add('helper', name, file, 'declared in this module and nothing in it calls');
+  }
+}
+
+/* ---- names a module puts in the page's scope ----
+
+   Not deadness, collision. Every source file in both games is concatenated into
+   a single `<script>`, so the top level of a module is the top level of the
+   page, and two modules declaring one name is a defect rather than a smell.
+   Which defect depends on the keyword: `function` and `var` overwrite in
+   silence, the later definition winning for everybody, while `const` and `let`
+   are a redeclaration error, and a page that is one script failing to parse is a
+   blank screen.
+
+   The suite already forbids the other game publishing an unprefixed `globalThis`
+   name for exactly this reason, which was watching one of the two doors. Six
+   modules declared their functions here and published a namespace afterwards,
+   putting `shape`, `deal`, `make`, `at` and `rate` into the same scope the other
+   game is parsed in. Nothing collided yet, which is the only reason it was
+   possible to keep not noticing.
+
+   So: one name per module, the one it publishes. Everything else goes inside the
+   IIFE, where a duplicate is somebody else's business. */
+for (const file of js){
+  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
+  const src = read(file);
+  const published = [...src.matchAll(/^globalThis\.(\w+)\s*=/gm)].map(m => m[1]);
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  for (const m of bare.matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
+    if (published.includes(m[1])) continue;
+    add('scope', m[1], file, "declared at the page's top level, where the other game's sources also live");
   }
 }
 

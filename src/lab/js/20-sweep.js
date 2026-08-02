@@ -14,11 +14,12 @@
      answer, and a step that goes down is a real fault in the ordering rather
      than noise to be squinted at.
    - **survival**, for the game that cannot have a par. Play whole runs with the
-     same shot-chooser the hint button offers and report the spread, which is
-     what a threshold set at a percentile actually means. */
+     same shot-chooser the hint button offers, at a given miss rate, and report
+     how often each bar is cleared. Pass rates rather than percentiles, because
+     that is what the bars were set from: a bot's tenth percentile is not a
+     person's, and the bars read off one sat where a real player cleared the
+     first star — the one that opens the next level — barely half the time. */
 const LabSweep = (() => {
-
-  const percentile = (sorted, p) => sorted[Math.floor((sorted.length - 1) * p)];
 
   /* Par for every level in a range, using the game's own level table and its own
      search. `shipped` is what the game says the par is; `found` is what the
@@ -79,75 +80,134 @@ const LabSweep = (() => {
     };
   }
 
-  /* How long a run lasts, played by the game's own shot-chooser.
+  /* A batch of bubble runs, played the way tools/bubble-run.mjs plays them.
 
-     `greedy` is the line the hint button would offer; random aim is the floor.
-     The gap between them is how much the game rewards playing well, and a board
-     where that gap is small is a luck readout however hard it happens to be —
-     which is the thing worth being able to see the moment a cadence knob moves. */
-  function survival(mods, seeds, greedy){
-    const { C, grid, shot, rules, advice, score, rng: Rng } = mods;
+     That file exists because the survival tool and the difficulty test had a run
+     loop each, and the two disagreed about whether a row comes down after the
+     final shot — a whole star's worth of difference on the runs it touches. This
+     is the third such measurer and cannot import it: it is a browser page, and
+     that is a node module. So the loop is written out here and
+     tests/lab.test.mjs runs both over the same seeds and requires the same
+     answers, seed for seed, which is the guard rather than the hope.
+
+     `miss` is who is playing. 0 is the bot that takes the shot the hint would
+     offer; 1 is somebody aiming at any reachable cell at all. A slip lands the
+     bubble in a *different cell*, not at a random angle, because a random angle
+     buries itself in the first thing it meets and is a worse player than any
+     person — measured, that difference moved every threshold in the game.
+
+     The order of the checks is BubbleApp.land's order and has to stay that way:
+     the run is survived BEFORE the board comes down, or a row arriving after the
+     final shot kills a player who was never given a shot to answer it with. */
+  function runOne(mods, seed, { every, length, miss }){
+    const { C, grid, shot, rules, advice, rng: Rng } = mods;
     /* The game's own stream, not a copy of it. src/bubble/js/10-rng.js exists
        because there were three copies of this xorshift that were all meant to be
        the same and nothing made them so, and the reason that mattered is exactly
        this one: a harness that draws its numbers differently from the game
-       measures a game nobody plays. Writing a fourth copy here would have
-       falsified that file's opening paragraph from inside the tool built to
-       check the game against itself. */
-    const rng = seed => Rng.from(seed);
-    const CAP = 600;
-    const shots = [];
-    const how = {};
-    for (let seed = 1; seed <= seeds; seed++){
-      const rnd = rng(seed * 2654435761);
-      const board = rules.dealBoard(5, rnd);
-      let since = 0, ended = 'capped', lasted = CAP;
-      for (let n = 1; n <= CAP; n++){
-        const live = rules.liveColours(board);
-        if (!live.length){ ended = 'cleared'; lasted = n - 1; break; }
-        const colour = live[Math.floor(rnd() * live.length)];
-        let landing = null;
-        if (greedy){
-          const best = advice.bestShot(board, colour, shot.resolveShot);
-          landing = best && best.landing;
-        } else {
-          const a = (rnd() * 160 - 80) * Math.PI / 180;
-          landing = shot.resolveShot(board, C.MUZZLE, { x: Math.sin(a), y: -Math.cos(a) }).landing;
-        }
-        if (!landing){ ended = 'blocked'; lasted = n - 1; break; }
-        const res = rules.resolveTurn(board, landing, colour);
-        if (res.won){ ended = 'cleared'; lasted = n; break; }
-        if (res.lost){ ended = 'line'; lasted = n; break; }
-        if (++since >= score.cadenceAt(n)){
-          since = 0;
-          grid.advance(board, rules.freshRow(board, rnd));
-          rules.remove(board, rules.detach(board));
-          if (rules.isLost(board)){ ended = 'line'; lasted = n; break; }
-        }
+       measures a game nobody plays. */
+    const rnd = Rng.from(seed);
+    const b = rules.dealBoard(5, rnd);
+
+    /* Every cell a bubble can be put in from here, one entry per cell rather
+       than per angle: a dozen angles reach the same cell, and counting each
+       would weight the cells a wide fan happens to reach as if a player were
+       likelier to pick them. */
+    const landings = board => {
+      const out = [], seen = new Set();
+      for (const { dir } of advice.AIMS){
+        const s = shot.resolveShot(board, C.MUZZLE, dir);
+        if (!s.landing) continue;
+        const k = `${s.landing.j},${s.landing.c}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(s.landing);
       }
-      shots.push(lasted);
-      how[ended] = (how[ended] || 0) + 1;
+      return out;
+    };
+
+    let turns = 0, forced = 0, sinceDrop = 0;
+    for (let n = 1; n <= length; n++){
+      const live = rules.liveColours(b);
+      if (!live.length) return { shots: n - 1, how: 'cleared', turns, forced };
+      const colour = live[Math.floor(rnd() * live.length)];
+
+      /* Asked for on every turn whether or not it is taken, so the stream
+         advances the same way at every miss rate and the forced count is a
+         property of the board rather than of the policy. */
+      const best = advice.bestShot(b, colour, shot.resolveShot);
+      if (!best) return { shots: n - 1, how: 'blocked', turns, forced };
+      turns++;
+      if (best.matched === 0) forced++;
+
+      let landing = best.landing;
+      if (rnd() < miss){
+        const cells = landings(b);
+        if (cells.length) landing = cells[Math.floor(rnd() * cells.length)];
+      }
+
+      const res = rules.resolveTurn(b, landing, colour);
+      if (res.won) return { shots: n, how: 'cleared', turns, forced };
+      if (res.lost) return { shots: n, how: 'line', turns, forced };
+      if (n >= length) return { shots: n, how: 'survived', turns, forced };
+
+      if (++sinceDrop >= every){
+        sinceDrop = 0;
+        grid.advance(b, rules.freshRow(b, rnd));
+        rules.remove(b, rules.detach(b));
+        if (rules.isLost(b)) return { shots: n, how: 'line', turns, forced };
+      }
     }
-    const sorted = shots.slice().sort((a, b) => a - b);
-    const p10 = percentile(sorted, 0.1), p50 = percentile(sorted, 0.5), p90 = percentile(sorted, 0.9);
+    return { shots: length, how: 'survived', turns, forced };
+  }
+
+  /* A run that emptied the board got as far as anything can, so it passes every
+     bar. Grading it on shots alone would score the best available ending as the
+     shortest run in the set. */
+  const passed = (o, at) => o.how === 'cleared' || o.shots >= at;
+  /* The third star is an ending, not a count, exactly as BubbleScore has it. A
+     run whose final shot loses reads RUN_SHOTS on the clock and did not survive,
+     so counting shots for it would report a pass rate the game never pays. */
+  const finished = o => o.how === 'cleared' || o.how === 'survived';
+
+  function survival(mods, seeds, miss = 0){
+    const { C } = mods;
+    const opts = { every: C.ADVANCE_EVERY, length: C.RUN_SHOTS, miss };
+    const outs = [];
+    for (let seed = 1; seed <= seeds; seed++) outs.push(runOne(mods, seed, opts));
+    const shots = outs.map(o => o.shots).sort((a, b) => a - b);
+    const how = {};
+    for (const o of outs) how[o.how] = (how[o.how] || 0) + 1;
+    const rate = at => outs.filter(o => passed(o, at)).length / outs.length;
+    const turns = outs.reduce((n, o) => n + o.turns, 0);
     return {
-      kind: 'survival', shots, how, p10, p50, p90,
-      max: sorted[sorted.length - 1],
-      /* A run that can go several times longer than typical cannot be graded,
-         because any threshold is either trivial for the lucky or unreachable for
-         everyone else. */
-      spread: +(p90 / Math.max(1, p10)).toFixed(2)
+      kind: 'survival', miss, seeds, shots, how,
+      median: shots[shots.length >> 1],
+      max: shots[shots.length - 1],
+      /* Three turns in five have nothing to clear with the colour in hand, which
+         is the least obvious thing about this game and the reason a run is not a
+         string of decisions. If it ever climbs towards nine in ten the game has
+         become a dumping exercise and no test of the rules would notice. */
+      forced: turns ? outs.reduce((n, o) => n + o.forced, 0) / turns : 0,
+      at: {
+        one: rate(C.STAR_SHOTS.one),
+        two: rate(C.STAR_SHOTS.two),
+        three: outs.filter(finished).length / outs.length
+      }
     };
   }
 
-  /* Whether the shipped thresholds still describe the game the knobs now make.
-     The same claim tools/bubble-survival.mjs prints, said here while the knob is
-     still under the finger. */
-  function tracks(stars, run){
-    const near = (a, b) => Math.abs(a - b) <= Math.max(6, b * 0.2);
-    return near(stars.one, run.p10) && near(stars.two, run.p50) && near(stars.three, run.p90);
+  /* Whether the bars still separate playing from flailing, which is the claim
+     they were set from and the one tools/bubble-survival.mjs prints. A bar a
+     random aim clears is not a bar, and one the bot misses is not reachable. */
+  function tracks(good, random){
+    return good.at.one >= 0.8 && random.at.one <= 0.45
+        && good.at.two >= 0.5 && random.at.two <= 0.2
+        && good.at.three >= 0.2;
   }
 
-  return { pars, survival, tracks, percentile };
+  /* runOne is published for tests/lab.test.mjs, which plays it against
+     tools/bubble-run.mjs seed for seed. Nothing in the page calls it directly. */
+  return { pars, survival, tracks, runOne };
 })();
 globalThis.LabSweep = LabSweep;

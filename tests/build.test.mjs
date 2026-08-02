@@ -1,6 +1,11 @@
 import { describe, it, assert, equal, read, root } from './helpers.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+/* the same list the linter is configured from, so "what a browser defines" has
+   one answer here and there rather than a copy that drifts */
+import globals from 'globals';
+
+const browserGlobals = globals.browser;
 
 const dist = join(root, 'dist');
 const has = f => existsSync(join(dist, f));
@@ -28,7 +33,8 @@ describe('build output', () => {
                      'decanter-standalone.html', 'fonts/cinzel.woff2',
                      'fonts/alegreyasans.woff2', 'fonts/alegreyasans-bold.woff2',
                      'icons/icon-192.png',
-                     'icons/icon-512.png', 'icons/maskable-512.png']){
+                     'icons/icon-512.png', 'icons/maskable-512.png',
+                     'audio/boom.mp3']){
       assert(has(f), `dist/${f} is missing, run npm run build`);
     }
     for (const name of ['app', 'audio', 'solver']){
@@ -48,8 +54,8 @@ describe('build output', () => {
   it('leaves no unfilled template slots', () => {
     for (const f of built().filter(n => n.endsWith('.html'))){
       const html = text(f);
-      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->',
-                          '<!--BUILD-->', '<!--PWAHEAD-->', '<!--DEFERRED-->', '<!--HEAD-->']){
+      for (const slot of ['<!--CSS-->', '<!--JS-->', '<!--SOLVER-->', '<!--FONTS-->', '<!--BUILD-->',
+                          '<!--PWAHEAD-->', '<!--DEFERRED-->', '<!--HEAD-->', '<!--BOOM-->']){
         assert(!html.includes(slot), `dist/${f} still contains ${slot}`);
       }
     }
@@ -224,6 +230,29 @@ describe('build output', () => {
     for (const g of gameDirs()){
       assert(listed.includes(`./${g}/index.html`), `${g} is not precached, so it cannot work offline`);
     }
+  });
+
+  it('hands each build the bang it can actually reach', () => {
+    /* The two outputs answer this differently and both answers are easy to get
+       wrong in the direction nobody notices: a missing or unreachable recording
+       falls back to the synthesised bang, which still sounds, so the portable
+       file would go on working and simply stop being the sound it shipped with.
+
+       The portable one has to carry the bytes. A file:// page fetching a sibling
+       path is a cross origin request, so a data URI is the only form of this
+       that survives the file leaving the folder it was built in. */
+    const app = text('index.html').match(/<meta name="boom" content="([^"]+)">/);
+    assert(app, 'index.html says nothing about where the bang is');
+    equal(app[1], './audio/boom.mp3', 'the installable build should point at the cached file');
+
+    const solo = text('decanter-standalone.html').match(/<meta name="boom" content="([^"]+)">/);
+    assert(solo, 'the portable file says nothing about where the bang is');
+    assert(solo[1].startsWith('data:audio/mpeg;base64,'),
+      'the portable file must carry the bang, not point at it');
+    /* the whole recording, not a truncated one */
+    const bytes = Buffer.from(solo[1].slice('data:audio/mpeg;base64,'.length), 'base64');
+    equal(bytes.length, statSync(join(dist, 'audio/boom.mp3')).size,
+      'the inlined bang is not the file that shipped');
   });
 
   it('changes its cache name when the app changes', () => {
@@ -442,6 +471,27 @@ describe('the games do not collide', () => {
     }
   });
 
+  it('takes no name the browser already uses', () => {
+    /* The sound module was called `Audio` and so replaced the DOM constructor on
+       the page. Nothing broke, because nothing in any of these games builds an
+       `new Audio()`, which is exactly what makes it worth a test rather than a
+       comment: the collision is silent until the day some line wants the real
+       one, and then it fails somewhere else entirely.
+
+       Checked against the `globals` package rather than a list kept here, so it
+       covers everything a browser defines instead of everything somebody
+       remembered. */
+    const taken = [];
+    for (const dir of ['src/js', ...gameDirs().map(g => `src/${g}/js`)]){
+      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+        for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
+          if (m[1] in browserGlobals) taken.push(`${dir}/${f} publishes ${m[1]}`);
+        }
+      }
+    }
+    equal(taken, [], 'a module publishes a name the browser already defines');
+  });
+
   it('calls every sound it defines', () => {
     /* Two cues were defined and never called, so the two biggest moments in the
        game were silent and every test passed. Nothing else here would notice:
@@ -451,8 +501,14 @@ describe('the games do not collide', () => {
       .filter(([dir, mod]) => existsSync(join(root, dir, mod)));
     for (const [dir, mod] of modules){
       const src = read(`${dir}/${mod}`);
+      /* Only the object the module returns, not its body: an `if (` at the same
+         indentation reads as a method named `if` otherwise.
+
+         Shorthand (`  loadBoom,`) counts as well as a method. It reads as an
+         ordinary property and so used to be skipped, which meant a cue could go
+         uncalled simply by being exposed under the name it already had. */
       const returned = src.slice(src.lastIndexOf('\n  return {'));
-      const cues = [...returned.matchAll(/^\s{4}(\w+)\s*(?:\(|:\s*(?:function\b|\())/gm)]
+      const cues = [...returned.matchAll(/^\s{4}(\w+)\s*(?:\(|,\s*$|:\s*(?:function\b|\())/gm)]
         .map(m => m[1])
         .filter(n => !['get', 'set', 'if', 'for', 'while', 'return', 'switch', 'catch'].includes(n));
       assert(cues.length > 3, `found only ${cues.length} cues in ${dir}/${mod}, so the scan is wrong`);
@@ -464,58 +520,5 @@ describe('the games do not collide', () => {
           `${dir}/${mod} defines ${cue}() and nothing ever calls it`);
       }
     }
-  });
-});
-
-/* Numbers the prose states about the repo itself.
-
-   Six of one review's findings were a figure in a comment or a doc that had
-   quietly stopped being true — a test count, a document count, a list of what a
-   tool checks. None of them break anything, which is exactly why they survive:
-   the only thing that reads them is the next person, and they read them as
-   fact. Three of these had already drifted twice on the branch that added them,
-   so they are checked rather than watched. */
-describe('what the docs claim about this repo', () => {
-  const testFiles = () => readdirSync(join(root, 'tests'))
-    .filter(n => n.endsWith('.test.mjs'));
-
-  it('states the number of unit tests there actually are', () => {
-    const real = testFiles()
-      .reduce((n, f) => n + [...read(`tests/${f}`).matchAll(/^\s*it\(/gm)].length, 0);
-    const said = Number((read('docs/design/14b-ci.md').match(/\*\*Unit\*\*[^.]*\.\s*(\d+) tests/) || [])[1]);
-    equal(said, real, `14b-ci.md says ${said} tests and there are ${real}`);
-  });
-
-  /* The list in the doc and the list in the tool's own header both went stale
-     when three checks were folded in from a second detector and neither was
-     updated. A detector whose description omits a check is one nobody thinks to
-     plant a corpse for. */
-  it('names every kind the dead code detector can report', () => {
-    const tool = read('tools/verify-live.mjs');
-    const kinds = [...new Set([...tool.matchAll(/\badd\('(\w+)'/g)].map(m => m[1]))];
-    assert(kinds.length > 4, `only found ${kinds.length} kinds, so the scan is wrong`);
-    const doc = read('docs/design/14b-ci.md');
-    /* the header's own list, indented under "things are checked" */
-    const listed = [...tool.matchAll(/^ {5}(\w+) {2,}\w/gm)].map(m => m[1]);
-    for (const kind of kinds){
-      assert(doc.includes(`\`${kind}\``), `14b-ci.md never mentions the ${kind} check`);
-      assert(listed.some(l => l.startsWith(kind)),
-        `verify-live.mjs reports ${kind} and its own header does not list it`);
-    }
-    equal(listed.length, kinds.length,
-      'the header lists a different number of checks than the tool reports');
-  });
-
-  it('counts the design documents the index actually holds', () => {
-    const docs = readdirSync(join(root, 'docs/design')).filter(n => n.endsWith('.md'));
-    const rows = [...read('docs/DESIGN.md').matchAll(/^\| \[[^\]]+\]\(design\/([\w.-]+)\)/gm)].map(m => m[1]);
-    equal(rows.length, docs.length, 'DESIGN.md lists a different number of documents than exist');
-    for (const f of docs) assert(rows.includes(f), `docs/design/${f} is in no index`);
-
-    const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
-      'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
-      'seventeen', 'eighteen', 'nineteen', 'twenty'];
-    const said = (read('README.md').match(/an index over (\w+) documents/) || [])[1];
-    equal(said, WORDS[docs.length], `the README says ${said} documents and there are ${docs.length}`);
   });
 });

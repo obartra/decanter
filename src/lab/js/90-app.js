@@ -255,9 +255,15 @@ const LabApp = (() => {
         showPars(S.pars(m, from, Math.min(to, from + 199)));
       } else {
         const seeds = Math.max(5, Math.min(400, Number($('labSeeds').value) || 60));
-        const run = S.survival(m, seeds, true);
-        const floor = S.survival(m, Math.min(seeds, 40), false);
-        showSurvival(run, floor, m.C.STAR_SHOTS);
+        /* Three players, because one number cannot say what you need to know:
+           the bot that always takes the hint's shot, somebody who misjudges
+           three shots in ten, and somebody aiming at any reachable cell at all.
+           A bar is only a bar if the gap between the middle one and the last one
+           is the whole of it. */
+        const good = S.survival(m, seeds, 0.3);
+        const bot = S.survival(m, Math.min(seeds, 60), 0);
+        const random = S.survival(m, Math.min(seeds, 60), 1);
+        showSurvival({ good, bot, random }, m.C.STAR_SHOTS);
       }
     } catch (e) {
       out.replaceChildren(el('p', 'labWait', 'The sweep threw: ' + e.message));
@@ -284,19 +290,25 @@ const LabApp = (() => {
     }
   }
 
-  function showSurvival(run, floor, stars){
+  function showSurvival(runs, stars){
     const out = $('labSweepOut');
     out.replaceChildren();
-    out.append(chart(run.shots.slice().sort((a, b) => a - b), null));
-    out.append(el('p', 'labStat', `p10 ${run.p10} · p50 ${run.p50} · p90 ${run.p90} · longest ${run.max}`));
-    out.append(el('p', 'labStat', `spread ${run.spread}x · random aim reaches p50 ${floor.p50}`));
-    out.append(el('p', 'labStat', Object.entries(run.how).map(([k, v]) => `${k} ${v}`).join(' · ')));
-    if (stars){
-      const ok = S.tracks(stars, run);
-      out.append(el('p', 'labStat' + (ok ? '' : ' bad'),
-        ok ? `thresholds ${stars.one}/${stars.two}/${stars.three} still track this`
-           : `thresholds ${stars.one}/${stars.two}/${stars.three} have drifted from this`));
+    const pct = x => Math.round(x * 100) + '%';
+    out.append(chart(runs.good.shots.slice(), null));
+    out.append(el('p', 'labStat',
+      `bars ${stars.one} / ${stars.two} / finish, over ${runs.good.seeds} runs`));
+    for (const [name, run] of [['bot', runs.bot], ['player', runs.good], ['random', runs.random]]){
+      out.append(el('p', 'labStat',
+        `${name.padEnd(6)} ${pct(run.at.one)} · ${pct(run.at.two)} · ${pct(run.at.three)}` +
+        `  (median ${run.median}, longest ${run.max})`));
     }
+    out.append(el('p', 'labStat',
+      `${pct(runs.good.forced)} of turns have nothing to clear with · ` +
+      Object.entries(runs.good.how).map(([k, v]) => `${k} ${v}`).join(' · ')));
+    const ok = S.tracks(runs.good, runs.random);
+    out.append(el('p', 'labStat' + (ok ? '' : ' bad'),
+      ok ? 'the bars still separate playing from flailing'
+         : 'the bars no longer separate playing from flailing'));
   }
 
   /* A chart rather than a table, because the shape of a difficulty curve is the
@@ -355,8 +367,11 @@ const LabApp = (() => {
 
   return { boot, sweep, _state: st };
 })();
-globalThis.LabApp = LabApp;
 
+/* Not published. Every other 90-app.js parks itself on globalThis because
+   something outside it reaches in — the app hands the bubble game its purse, and
+   this page reaches into all three. Nothing reaches into the lab, so a name here
+   would be one more thing on the page that nothing looks up. */
 if (document.body.dataset.only === 'lab'){
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', LabApp.boot);
   else LabApp.boot();

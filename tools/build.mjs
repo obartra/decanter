@@ -84,6 +84,10 @@ function sourcesOf(dir, { skip = [] } = {}){
 
 const app = sourcesOf('src', { skip: DEFERRED });
 const solver = read('src/worker/solver.js');
+/* The only recording anything here ships, and only Jabari mode plays it. Read
+   once because both builds want the same bytes and the build id wants its
+   hash. */
+const boom = readFileSync(join(root, 'assets/audio/boom.mp3'));
 const games = GAMES.map(g => ({ ...g, src: sourcesOf(`src/${g.path}`) }));
 
 /* One id for the build, over every source that ships anywhere in dist.
@@ -95,13 +99,15 @@ const games = GAMES.map(g => ({ ...g, src: sourcesOf(`src/${g.path}`) }));
    install would grow a little every release, forever. The build stamp on that
    game's own page would be wrong too, which is the one thing the stamp exists
    to be right about. */
-const buildId = hash([app.all, solver, ...games.map(g => g.src.css + g.src.all)].join('\n'));
+const buildId = hash([app.all, solver, ...games.map(g => g.src.css + g.src.all)].join('\n')
+  + boom.toString('base64'));
 
 /* ---------- emitting ---------- */
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(join(dist, 'assets'), { recursive: true });
 cpSync(join(root, 'assets/fonts'), join(dist, 'fonts'), { recursive: true });
 cpSync(join(root, 'assets/icons'), join(dist, 'icons'), { recursive: true });
+cpSync(join(root, 'assets/audio'), join(dist, 'audio'), { recursive: true });
 
 /* A hashed file, written once and referred to by name. The hash is of the
    contents, so an unchanged file keeps its name across builds and stays in
@@ -165,6 +171,11 @@ const deferredFor = () => {
 const appPage = page('src/index.html', {
   '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
   '<!--PWAHEAD-->': pwaHead,
+  /* Where the bang is. A tag rather than a fetch of a known path, so the two
+     builds can answer it differently and nothing in the audio module has to know
+     which kind of build it is running in. Not a preload: almost nobody ever
+     hears it, and it is fetched on demand. */
+  '<!--BOOM-->': `<meta name="boom" content="./audio/boom.mp3">`,
   '<!--FONTS-->': fontFiles(0),
   /* The worker is a file now rather than a script tag to be turned into a blob,
      so it caches like everything else. The page names it here and
@@ -186,6 +197,11 @@ const dataFont = p => 'data:font/woff2;base64,' + readFileSync(join(root, p)).to
 const standalone = page('src/index.html', {
   '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
   '<!--PWAHEAD-->': '',
+  /* Inlined for the same reason the fonts are: to a browser, a file:// page
+     fetching a sibling path is a cross origin request, so a portable file that
+     pointed at ./audio/ would fall silently back to the synthesised bang the
+     moment it left the folder it was built in. */
+  '<!--BOOM-->': `<meta name="boom" content="data:audio/mpeg;base64,${boom.toString('base64')}">`,
   '<!--FONTS-->': fontFace(dataFont('assets/fonts/cinzel.woff2'),
                            dataFont('assets/fonts/alegreyasans.woff2'),
                            dataFont('assets/fonts/alegreyasans-bold.woff2')),

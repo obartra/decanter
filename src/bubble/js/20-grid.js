@@ -57,8 +57,6 @@ const BubbleGrid = (() => {
     return { rows, parity };
   }
 
-  const clone = board => ({ rows: board.rows.map(r => r.slice()), parity: board.parity });
-
   /* Push a row in at the top. The parity flip and the insertion are one
      operation on purpose: either without the other leaves every bubble on the
      board half a diameter from where it is drawn. */
@@ -68,7 +66,6 @@ const BubbleGrid = (() => {
     board.rows.length = C.ROWS;
     return board;
   }
-
 
   /* A cheap stable summary of the board, for asserting that the same seed and
      the same shots produce the same game twice. */
@@ -92,6 +89,6 @@ const BubbleGrid = (() => {
   };
 
   return { EMPTY, centreOf, inBounds, at, isEmpty, neighbours,
-           create, clone, advance, hash, occupied, emptyRow };
+           create, advance, hash, occupied, emptyRow };
 })();
 globalThis.BubbleGrid = BubbleGrid;

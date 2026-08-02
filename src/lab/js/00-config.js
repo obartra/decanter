@@ -92,9 +92,10 @@ const LabConfig = {
       config: 'BubbleConfig',
       app: 'BubbleApp',
       /* No par and no level table: this board is dealt at random, so there is
-         nothing to solve and the sweep runs the shot-chooser instead and reports
-         the spread. That is the same measurement tools/bubble-survival.mjs makes
-         and the one STAR_SHOTS was set from.
+         nothing to solve. The sweep plays whole runs with the shot-chooser the
+         hint button offers, at a few miss rates, and reports how often each bar
+         is cleared — the same measurement tools/bubble-survival.mjs makes and the
+         one STAR_SHOTS was set from.
 
          Which modules that takes, named HERE. They were hard-coded in the lab's
          app, which quietly made a second file that knows another game's
@@ -104,7 +105,7 @@ const LabConfig = {
       sweep: 'survival',
       survivalMods: {
         grid: 'BubbleGrid', shot: 'BubbleShot', rules: 'BubbleRules',
-        advice: 'BubbleAdvice', score: 'BubbleScore', rng: 'BubbleRng'
+        advice: 'BubbleAdvice', rng: 'BubbleRng'
       },
       firstLevel: 1,
       /* The world is derived from COLS and ROWS once, at the bottom of the
@@ -122,11 +123,9 @@ const LabConfig = {
         { key: 'COLOURS', min: 2, max: 6, step: 1,
           note: 'How many of the palette get dealt. Every one of them does, so this is also how many the shooter can hand you.' },
         { key: 'ADVANCE_EVERY', min: 3, max: 25, step: 1,
-          note: 'Shots between the board coming down a row. The whole reason the death line is a threat rather than a decoration.' },
-        { key: 'RAMP_EVERY', min: 5, max: 80, step: 1,
-          note: 'One shot comes off that cadence every this many shots. It is what pulls the longest runs in far enough for a threshold to mean anything.' },
-        { key: 'ADVANCE_MIN', min: 2, max: 12, step: 1,
-          note: 'Floor the ramp descends to, not a cadence to play at: held flat, four already collapses the spread to 1.3x and the board wins whatever the player does.' },
+          note: 'Shots between the board coming down a row. The whole reason the death line is a threat rather than a decoration, and at three the board wins whatever anyone does.' },
+        { key: 'RUN_SHOTS', min: 10, max: 120, step: 1,
+          note: 'How long a run is. Reaching it is a win, and it is also the third star, so moving this moves the top grade with it.' },
         { key: 'SPEED', min: 5, max: 60, step: 1,
           note: 'Diameters a second. Feel only: the shot is resolved analytically at launch.' },
         { key: 'GUIDE_LEN', min: 0, max: 20, step: 1,

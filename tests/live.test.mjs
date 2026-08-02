@@ -81,11 +81,18 @@ describe('the dead code detector', () => {
   });
 
   it('checks the modules that publish a plain object too', () => {
-    /* Two shapes are in use. Only the IIFE one was looked at, so every key on
-       the smaller modules was unchecked and could rot unnoticed. */
+    /* Two shapes can be published, an IIFE's return and a plain object literal,
+       and only the IIFE one used to be looked at, so every key on the smaller
+       modules was unchecked and could rot unnoticed.
+
+       The plant used to be an edit to `10-rng.js`, which was one of those
+       modules. None are any more: they all became IIFEs so that nothing but a
+       namespace is declared in the page's one shared scope. So the shape is
+       planted whole rather than borrowed from whichever file still happens to
+       have it, which is what this was always really asserting. */
     const found = withPlant('src/js/10-rng.js',
-      s => s.replace('globalThis.RNG = { mulberry32,', 'function plantedFlat(){ return 1; }\nglobalThis.RNG = { plantedFlat, mulberry32,'));
-    assert(found.some(f => /plantedFlat/.test(f.name)),
+      s => `${s}\nfunction plantedFlat(){ return 1; }\nglobalThis.PlantedFlat = { plantedFlat };\n`);
+    assert(found.some(f => f.kind === 'export' && /plantedFlat/.test(f.name)),
       `a dead key on a plain-object module went unnoticed; found ${JSON.stringify(found)}`);
   });
 

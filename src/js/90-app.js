@@ -19,7 +19,7 @@ const App = (() => {
   function deny(what, why){
     Trace.refused(what, why);
     progress.recordRefusal(what);
-    Audio.deny();
+    Sound.deny();
   }
 
   /* ---------- routing ---------- */
@@ -183,10 +183,7 @@ const App = (() => {
      everyone the same way every pour level is. */
   let bubbleReady = false;
   function startBubble(level){
-    S.level = level;
-    S.undosUsed = 0;
-    S.hintsUsed = 0;
-    S.vesselUsed = false;
+    newRun(level);
     /* The view goes up before the game is booted, because booting measures the
        canvas to work out how the world maps onto it, and a canvas inside a
        hidden section measures zero. Mounting into that produces a board scaled
@@ -211,6 +208,9 @@ const App = (() => {
         BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
         BubbleApp.onEnd = banked => finishBubble(banked);
         BubbleApp.charge = what => payFor(what);
+        /* The setting applySound() could not hand over during boot, because this
+           object did not exist then. */
+        BubbleApp.sound = progress.sound;
         bubbleReady = true;
       }
       /* The chapters hand these over the same way they hand over the pour game's,
@@ -268,14 +268,12 @@ const App = (() => {
     const result = progress.complete(S.level, run.shots, run.stars);
     S.over = true;
     S.finished = true;
-    S.par = null;
-    S.parExact = false;
-    S.reason = null;
     showPanel({
       stars: run.stars, failed: run.stars <= 0, result, before,
-      line: run.cleared
-        ? `Every bubble gone, in ${run.shots} shots.`
-        : `Lasted ${run.shots} shots.` + (run.aided ? ' Picking a colour caps a run at two stars.' : '')
+      line: (run.cleared ? `Every bubble gone, in ${run.shots} shots.`
+        : run.survived ? `Survived all ${run.shots} shots.`
+        : `Lasted ${run.shots} shots.`)
+        + (run.aided ? ' Picking a colour caps a run at two stars.' : '')
     });
   }
   const skipCost = () => CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
@@ -286,27 +284,45 @@ const App = (() => {
   const hintCost = () => (S.hintsUsed < progress.perks().freeHints ? 0 : progress.perks().hintCost);
 
   /* ---------- a level ---------- */
+  /* Everything a run owns, cleared before either game deals one.
+
+     One function because both games run out of this one state object: they share
+     the purse, the panel and the chapter card, so they share the fields those
+     read. A bubble level used to clear the four it obviously touched and leave
+     the rest as the last pour level left them, which meant the panel was still
+     building a sentence out of that level's pours, par and best before throwing
+     it away. Nothing showed, because the bubble path always passes a line of its
+     own, so the whole thing rested on an argument at one call site. Clearing in
+     one place is what stops the next reader having to know that. */
+  function newRun(level){
+    S.level = level;
+    S.tubes = [];
+    S.moves = 0;
+    S.history = [];
+    S.queue = [];
+    S.running = false;
+    S.par = null;
+    S.parExact = false;
+    S.undosUsed = 0;
+    S.hintsUsed = 0;
+    S.vesselUsed = false;
+    S.over = false;
+    S.finished = false;
+    S.reason = null;
+    S.hinting = false;
+    S.saying = null;
+  }
+
   /* A restart deals the level from scratch, and that includes the extra bottle:
      restarting is starting again, and a board that quietly keeps a vessel is not
      the board the level is. The purchase is not refunded, because a restart is
      not an undo. Nothing is laundered by this either, since a run that ever had
      a vessel is capped at two stars whether or not it still has one. */
   function start(level, keepVessel){
-    S.level = level;
+    newRun(level);
     S.tubes = Levels.make(level);
     if (keepVessel) S.tubes.push([]);
     S.vesselUsed = !!keepVessel;
-    S.undosUsed = 0;
-    S.hintsUsed = 0;
-    S.over = false;
-    S.finished = false;
-    S.saying = null;
-    S.reason = null;
-    S.hinting = false;
-    S.moves = 0;
-    S.history = [];
-    S.queue = [];
-    S.running = false;
     /* the baked table is exact, and so is anything progress kept */
     S.par = PARS[level] ?? progress.parFor(level);
     S.parExact = S.par != null;
@@ -442,7 +458,7 @@ const App = (() => {
   function lift(i){
     Board.selected = i;
     Board.el(i)?.classList.add('lifted');
-    Audio.lift();
+    Sound.lift();
   }
   function drop(){
     if (Board.selected != null) Board.el(Board.selected)?.classList.remove('lifted');
@@ -451,14 +467,14 @@ const App = (() => {
 
   function tap(i){
     if (S.over) return;                 /* the run is decided; stop taking pours */
-    Audio.unlock();
+    Sound.unlock();
     const sel = Board.selected;
     if (sel === null){
       if (!canLift(i)){ Board.nudge(i); deny('lift', `bottle ${i} is empty or finished`); return; }
       lift(i);
       return;
     }
-    if (sel === i){ drop(); Audio.drop(); return; }
+    if (sel === i){ drop(); Sound.drop(); return; }
     if (Rules.canPour(S.tubes, sel, i)){
       drop();
       commit(sel, i);
@@ -597,10 +613,10 @@ const App = (() => {
     setTimeout(() => {
       if (failed){
         /* the shelf takes it too, but only when there is a shelf */
-        Audio.deny();
+        Sound.deny();
         if (!bubble) Board.nudge(S.level % Math.max(1, S.tubes.length));
       } else {
-        Audio.win();
+        Sound.win();
         Confetti.rain(CONFIG.palette.slice(0, bubble ? 6 : Levels.shape(S.level).colors));
       }
       $('veil').classList.add('show');
@@ -618,11 +634,37 @@ const App = (() => {
     install: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8.5 10.5L12 14l3.5-3.5"/><path d="M5 17.5h14"/></svg>'
   };
 
-  /* The same control in two shapes. In a level it sits in a row of priced
-     buttons and says what it is in words; on the map it is a glyph in the
-     header, where the words were costing the map a strip of its height. What a
-     screen reader is told is the same either way. */
-  function paintSound(on){
+  /* One preference, both games, one place that applies it.
+
+     There are two sound modules on this page, one per game, each with its own
+     idea of whether it is muted: this game's lives in the save, the other's in a
+     key of its own, because it also ships as a page of its own where there is no
+     save to read. On that page it is right. Here it meant a player who muted the
+     game still got noise out of the two boards a chapter that are the other one,
+     on a screen with no button to stop it, having already done the only thing
+     the game offers for stopping it.
+
+     So the save is the preference and this hands it to both. The other game's
+     own key still gets written, which is what its own page will read next time,
+     and nothing here reads it.
+
+     Through `BubbleApp` rather than its audio module directly. The coupling
+     between the two games is one object wide on purpose, and a boolean is not a
+     reason to make it two.
+
+     The button it repaints is the same control in two shapes. In a level it sits
+     in a row of priced buttons and says what it is in words; on the map it is a
+     glyph in the header, where the words were costing the map a strip of its
+     height. What a screen reader is told is the same either way. */
+  function applySound(on){
+    Sound.setEnabled(on);
+    /* Guarded, because this runs during boot and the bubble game is fetched
+       after the page opens: at that moment the name genuinely does not exist
+       yet, and an unguarded assignment is a ReferenceError in boot() — a blank
+       screen, from the sound preference. startBubble() hands it the current
+       setting when it does arrive, which is the same value read from the same
+       save, so nothing is lost by the wait. */
+    if (typeof BubbleApp !== 'undefined') BubbleApp.sound = on;
     document.querySelectorAll('.js-sound').forEach(b => {
       const glyph = b.classList.contains('icon');
       if (glyph){
@@ -633,6 +675,7 @@ const App = (() => {
       }
       b.classList.toggle('off', !on);
     });
+    return on;
   }
   function bind(){
     Board.mount($('board'));
@@ -640,17 +683,17 @@ const App = (() => {
     MapView.mount($('mapScroll'));
     /* the map shows what a board costs, and this is where that is decided */
     MapView.feeFor = costOf;
-    MapView.onPick = level => { Audio.unlock(); Audio.tick(); showGame(level); };
+    MapView.onPick = level => { Sound.unlock(); Sound.tick(); showGame(level); };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
        and actually beating it still pays what it always would have. */
     MapView.onBuy = level => {
-      Audio.unlock();
+      Sound.unlock();
       if (!progress.buyUnlock(level - 1, skipCost())){
         deny('buy', `opening ${level} costs ${skipCost()}, purse holds ${progress.gold}`);
         return;
       }
-      Audio.tick();
+      Sound.tick();
       goldChanged();
     };
 
@@ -667,7 +710,7 @@ const App = (() => {
       S.moves = prev.moves;
       Board.view = Rules.clone(prev.tubes);
       Board.selected = null;
-      Audio.drop();
+      Sound.drop();
       Board.render();
       paintHud();
     };
@@ -684,7 +727,7 @@ const App = (() => {
          this board and undoing into one would quietly take the vessel back */
       S.history = [];
       Board.selected = null;
-      Audio.lift();
+      Sound.lift();
       Board.render();
       paintHud();
     };
@@ -701,7 +744,7 @@ const App = (() => {
         deny('hint', `costs ${hintCost()}, purse holds ${progress.gold}`);
         return;
       }
-      Audio.unlock();
+      Sound.unlock();
       S.hinting = true;
       paintHud();
       const level = S.level, moves = S.moves;
@@ -734,21 +777,21 @@ const App = (() => {
         }
         if (fee > 0) S.hintsUsed++;
         Board.showHint(res.first[0], res.first[1]);
-        Audio.lift();
+        Sound.lift();
         if (!proven) say('A way on, not the shortest');
         paintHud();
       });
     };
-    $('toMap').onclick = () => { Audio.tick(); showMap(false); };
+    $('toMap').onclick = () => { Sound.tick(); showMap(false); };
     /* the other game's way out, which is the same way out */
-    $('bubToMap').onclick = () => { Audio.tick(); showMap(false); };
+    $('bubToMap').onclick = () => { Sound.tick(); showMap(false); };
     const closePanel = () => {
       $('veil').classList.remove('show');
       $('veil').classList.remove('failed');
       showMap(true);
     };
     $('chapterGo').onclick = () => {
-      Audio.unlock(); Audio.tick();
+      Sound.unlock(); Sound.tick();
       $('chapterVeil').classList.remove('show');
       Trace.note('chapter opening read');
       paintHud();
@@ -832,7 +875,7 @@ const App = (() => {
     $('install').innerHTML = ICON.install;
     MapView.onScroll = paintJump;
     $('mapJump').onclick = () => {
-      Audio.tick();
+      Sound.tick();
       MapView.scrollToCurrent(true);
       /* hidden at once rather than on the next scroll event, so it does not sit
          there through the smooth scroll it just started */
@@ -840,16 +883,16 @@ const App = (() => {
     };
     document.querySelectorAll('.js-sound').forEach(btn => {
       btn.onclick = () => {
-        Audio.unlock();
-        paintSound(Audio.toggle());
-        progress.setSound(Audio.enabled);
-        if (Audio.enabled) Audio.lift();
+        Sound.unlock();
+        const on = applySound(!Sound.enabled);
+        progress.setSound(on);
+        if (on) Sound.lift();
       };
     });
     $('daily').onclick = () => {
-      Audio.unlock();
+      Sound.unlock();
       if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }
-      Audio.lift();
+      Sound.lift();
       goldChanged();
     };
 
@@ -920,23 +963,39 @@ const App = (() => {
      the same timer that clears the message calls it.
 
      Three bangs rather than one, because one is a sound effect and three is a
-     point being made. */
+     point being made.
+
+     The recording is asked for here and waited on before anything fires, which
+     is the only way the three land on the sound they were written for: asking
+     and firing in the same breath would race the fetch, and the race would be
+     won by the fetch on a warm cache and lost on a cold one, so the same word
+     would open on a different explosion depending on whether it had been opened
+     before. The wait is over long before the touch that ends the other one. */
   function bang(){
-    Audio.unlock();
-    const fire = () => { Audio.boom(); Audio.boom(0.19); Audio.boom(0.44); };
-    if (Audio.ready){ fire(); return () => {}; }
+    Sound.unlock();
+    const loaded = Sound.loadBoom();
     let over = false;
-    const standDown = () => {
-      over = true;
+    /* `over` is read after the wait as well as before it, so a message that
+       takes itself away mid-fetch takes the bang with it. */
+    const fire = () => loaded.then(() => {
+      if (over) return;
+      Sound.boom(); Sound.boom(0.19); Sound.boom(0.44);
+    });
+    const deafen = () => {
       document.removeEventListener('pointerdown', go, true);
       document.removeEventListener('keydown', go, true);
     };
+    /* Calling off the bang and being done listening for it are two different
+       things now that firing takes a moment: the touch that fires it stops the
+       listening, and only the message going away calls it off. */
+    const standDown = () => { over = true; deafen(); };
     const go = () => {
       if (over) return;
-      standDown();
-      Audio.unlock();
+      deafen();
+      Sound.unlock();
       fire();
     };
+    if (Sound.ready){ fire(); return standDown; }
     document.addEventListener('pointerdown', go, true);
     document.addEventListener('keydown', go, true);
     return standDown;
@@ -1011,8 +1070,7 @@ const App = (() => {
       bind();
       Diagnostics.source = () => ({ progress, state: S });
       Diagnostics.mount();
-      Audio.setEnabled(progress.sound);
-      paintSound(progress.sound);
+      applySound(progress.sound);
       showMap(false);
       takeGift();
       /* The wait on the draught has to run down on its own, or it is a stale

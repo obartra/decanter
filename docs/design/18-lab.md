@@ -67,17 +67,26 @@ Collapsing those two would train somebody to ignore the one that matters.
   a real fault in the ordering rather than noise. The panel says the range, how
   many steps go down and where, and whether the shipped table still agrees.
 - **Survival**, for the bubble game, which has no par and cannot have one. Whole
-  runs are played with the same shot-chooser the hint button offers, and the
-  spread is reported — plus a random-aim floor, because the gap between the two is
-  how much the game rewards playing well, and a board where that gap is small is
-  a luck readout however hard it happens to be. It finishes by saying whether
-  `STAR_SHOTS` still describes the run, which is the claim
+  runs are played with the same shot-chooser the hint button offers, three times
+  over: the bot that always takes its shot, somebody who misjudges three shots in
+  ten, and somebody aiming at any reachable cell at all. What is reported is how
+  often each of them clears each bar, because pass rates are what the bars were
+  set from — a bot's tenth percentile is not a person's. It finishes by saying
+  whether the bars still separate playing from flailing, which is the claim
   `tools/bubble-survival.mjs` prints, now available while the knob is still moving.
 
 The sweep is handed the game's own modules and does arithmetic on what they
 return. It has no rules and no geometry of its own — the mistake
 `bubble-survival.mjs` records having made and corrected is a harness with its own
 copy of the deal, which measured a game nobody played.
+
+The one thing it does have to write out is the run loop, because
+`tools/bubble-run.mjs` — the module the survival tool and the difficulty test
+share for exactly this reason — is a node module and this is a browser page. That
+file exists because two run loops disagreed about whether a row comes down after
+the final shot, a whole star's worth of difference on the runs it touches, so the
+lab's copy is not left to be careful: `tests/lab.test.mjs` plays both over the
+same seeds at three miss rates and requires the same answer, seed for seed.
 
 ## What it is not
 

@@ -47,14 +47,21 @@ jobs:
       - name: the build fits its budget
         run: npm run verify:budget
 
+      # Nothing is tree shaken, because there is no bundler: a member left on a
+      # public object or a class left in a stylesheet ships to the player whether
+      # or not anything reaches it. Neither the linter nor the tests can see it.
+      - name: nothing in the build is unreachable
+        run: npm run verify:dead
+
+      # The same question from the source end: an export nothing reads, a helper
+      # nothing calls, a tunable nothing tunes, a rule nothing wears, an id
+      # nothing reaches, plus the rule that keeps the games out of each other's
+      # scope. None of it throws, so none of it is visible any other way.
+      - name: nothing dead, nothing sharing a scope
+        run: npm run verify:live
+
       - name: Unit tests
         run: npm test
-
-      # An export nothing reads, a helper nothing calls, a tunable nothing
-      # tunes, a rule nothing wears, an id nothing reaches. None of it throws,
-      # so none of it is visible any other way.
-      - name: Nothing here is dead
-        run: npm run verify:live
 
       # Par is the number the whole scoring rests on. This replays every level
       # against the independent rules and fails if any of them cannot be

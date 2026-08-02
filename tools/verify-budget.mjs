@@ -50,7 +50,7 @@ const BUDGET = {
 
      This cap was originally about ten percent above the bubble game, which was
      the only one there was. Two more have arrived since and each is larger than
-     the last: bubble 83.4kb, the measure 97.4kb, the cellar door 103.0kb. The
+     the last: bubble 89.6kb, the measure 97.9kb, the cellar door 103.3kb. The
      measure fitting inside a cap set from bubble was luck, not headroom.
 
      None of that growth is code. These bundles are unminified source and the
@@ -58,7 +58,7 @@ const BUDGET = {
      style and is deliberate — so a per-game byte cap set from the smallest game
      is really a cap on how much a game is allowed to explain itself. That is not
      what this check is for. It exists to notice a game DOUBLING, and at 120,000
-     it still does for all three: the smallest of them doubled is 166.8kb, well
+     it still does for all three: the smallest of them doubled is 179.3kb, well
      past it. The shell and critical-path budgets above are the ones that
      actually protect a page load. */
   game: 120_000,

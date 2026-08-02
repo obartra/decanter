@@ -82,39 +82,50 @@ const BubbleConfig = {
 
   /* Shots between the board coming down a row. This is what makes the death line
      a threat rather than a decoration: without it a player can take as long as
-     they like and the line is never reached except by their own bad shots. */
-  ADVANCE_EVERY: 10,
+     they like and the line is never reached except by their own bad shots.
 
-  /* The board comes down harder the longer a run lasts, one shot off the cadence
-     every RAMP_EVERY shots, never below ADVANCE_MIN.
+     Constant, and at the floor of what still measures the player: at a cadence
+     of three the board wins whatever anyone does. There is no ramp any more
+     because there is nothing left for one to do. The ramp existed to pull in the
+     tail of an unbounded run so that its length could be graded at all, and a
+     run that ends at RUN_SHOTS has no tail to pull in. */
+  ADVANCE_EVERY: 4,
 
-     Not there to make the game harder, and specifically not there to make a bad
-     run worse. Measured over 300 greedy seeds at this cadence, turning the ramp
-     on leaves the floor where it was — p10 70 shots to 68 — and pulls everything
-     above it in: the median 100 to 75, p90 196 to 127, the longest 501 to 238,
-     and the p90/p10 spread from 2.8x to 1.87x. It compresses the top of the
-     distribution, which is the half that cannot be graded: a run that
-     occasionally goes three times longer than typical makes any threshold either
-     trivial for the lucky or unreachable for everyone else. The ramp is what
-     makes "survived N shots" a number worth putting stars on.
+  /* How long a run is. Reaching it is a win, the way clearing the board is.
 
-     ADVANCE_MIN is where that descent stops, and it is low on purpose. Played
-     FLAT, a cadence of four is already past measuring anybody — spread 1.33x on
-     a median of 38 shots, and three is 1.22x on 30 — so this is not a cadence
-     anyone is meant to play at. It is the bottom of a ramp a run only reaches
-     after about 120 shots, by which point the stars are long since decided and
-     the only job left is ending the tail. See tools/bubble-survival.mjs. */
-  RAMP_EVERY: 20,
-  ADVANCE_MIN: 4,
+     The run used to be unbounded and could only end in a loss. Measured over 300
+     seeds against a player who takes the shot the hint would offer but misses
+     three times in ten, which is a nearer model of a person than the flawless
+     bot the old thresholds were read off, that shape ran a median of 67 shots,
+     ended in death 99% of the time, and reached the one star that unlocks the
+     next level only 53% of the time. Long, then a loss, and then half the time
+     nothing to show for it either.
 
-  /* Stars. Clearing the board is the par moment, rare and wholly earned, and it
-     pays three whatever else happened. Every other run is graded on how long it
-     lasted, against the measured distribution of a competent run rather than
-     against a number somebody liked the look of. These are p10, p50 and p90 of
-     the bot at this cadence and ramp — 68, 75 and 127 over 300 seeds, rounded
-     off. tools/bubble-survival.mjs re-measures and says plainly whether they
-     still track. */
-  STAR_SHOTS: { one: 65, two: 80, three: 130 },
+     At this cadence the same player finishes all 35 shots 46% of the time and a
+     good one 70%, while a player putting the bubble in any reachable cell at all
+     never gets past 30. Thirty five is also where the
+     board wins: the share of runs that reach 38 is barely half the share that
+     reach 35, at every level of play, because the board passes the point where
+     clearing keeps up with the drops. Ending the run on that edge is what makes
+     finishing worth something. See tools/bubble-survival.mjs. */
+  RUN_SHOTS: 35,
+
+  /* Stars, from measured pass rates rather than percentiles of a bot nobody
+     plays like. Over 300 seeds a competent run reaches the first on 98% of
+     boards, the second on 83%, and finishes 46% of the time; one aiming at any
+     reachable cell at all manages 19%, 0% and 0%.
+
+     Those two rows are what put the bars where they are rather than at rounder
+     numbers. Twenty five was the first choice and a player aiming at nothing in
+     particular cleared it on a third of boards, which is not a bar, and the
+     second star at thirty sat where the same player still got through 2% of the
+     time. Both moved up until the gap between playing and flailing was the whole
+     of it.
+
+     The third is not written here. Finishing the run is the top grade by
+     definition, so it is taken from RUN_SHOTS below and the two cannot drift
+     apart. */
+  STAR_SHOTS: { one: 28, two: 32 },
 
   /* Scoring. A bubble cut loose is worth more than one you matched, because
      cutting a chunk free is the shot worth aiming for. */
@@ -157,6 +168,10 @@ const BubbleConfig = {
      the game telling you it is over while showing you that it is not. */
   COLLAPSE_STAGGER: 0.045
 };
+
+/* Surviving the run is the third star, by definition rather than by coincidence,
+   so it is one number here rather than two somebody has to keep in step. */
+BubbleConfig.STAR_SHOTS.three = BubbleConfig.RUN_SHOTS;
 
 /* Derived, so the walls and the muzzle cannot drift apart from the grid. */
 BubbleConfig.WORLD_W = BubbleConfig.COLS + 0.5;

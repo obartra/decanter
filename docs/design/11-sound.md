@@ -1,7 +1,7 @@
 # 11 · Sound
 
-Every sound is synthesised at runtime with WebAudio. The app ships no audio
-files.
+Every sound the game makes is synthesised at runtime with WebAudio. The app
+ships exactly one audio file, and it is not one of the game's sounds.
 
 ## Why synthesised
 
@@ -30,15 +30,85 @@ Lift and drop for selection, a refusal for anything illegal, a cork for a sealed
 bottle, and a short flourish on a win. A failed run gets the refusal rather than
 the flourish, which is the whole audio treatment of failure and is enough.
 
+## The one recording
+
+`assets/audio/boom.mp3`, 17KB, played only by Jabari mode
+(see [04 Economy](04-economy.md)). It is `explosionCrunch_001` from Kenney's
+sci-fi pack, CC0, mono at 96k, and the argument above does not apply to it:
+
+- **It is not the game.** Nothing in the puzzle makes this noise, so the bytes
+  are only ever fetched by someone who typed the secret word. Everyone else
+  downloads a page that mentions it and no more.
+- **It is never pitched.** The pour and the glug are driven by the fill level,
+  which is why a fixed recording cannot play them. A bang is fired once at one
+  size.
+- **Its whole job is to be bigger than the game.** That is the one job a
+  synthesised imitation of an explosion cannot do, however carefully it is
+  tuned, and the synthesised one was tuned carefully.
+
+The synthesised bang is still in `50-audio.js` and still fires when the
+recording does not arrive, which is what a page served unbuilt does. It sounds
+like a bang, so nothing looks broken, and that is exactly why a test pins the
+recording as the thing that played rather than only checking that something did:
+the recording is one buffer source per bang and the fallback is three.
+
+To swap it, audition in the sound lab and copy the winner across:
+
+```bash
+node tools/sound-lab/make.mjs && cp tools/sound-lab/audio/<name>.mp3 assets/audio/boom.mp3
+```
+
+The shipped file is byte for byte what the lab produces, so that is a swap
+rather than a re-encode. The build id covers the recording, so installed copies
+pick up a new one without a code change.
+
 ## Unlocking
 
 Browsers will not start an audio context without a gesture, so the context is
-created lazily on the first tap. Every entry point calls `Audio.unlock()` before
+created lazily on the first tap. Every entry point calls `Sound.unlock()` before
 doing anything else, and the sound preference is persisted with the rest of the
 save.
 
-## Not tested
+The module is `Sound` and not `Audio` because the page has one global scope and
+`Audio` is a constructor the browser already defines. Nothing here ever built an
+`new Audio()`, so the collision was silent, which is what made it worth a name
+change and a test rather than a comment.
 
-There is no meaningful automated check here. Sound is judged by ear, and the
-suite does not pretend otherwise. See [14 Testing](14-testing.md) for what else
-falls in that category.
+## One preference, two modules
+
+There are two audio modules on the app page, one per game, and the other one
+remembers its own preference in a key of its own, because it also ships as a
+page of its own where there is no save to read. On the app page the save wins:
+`applySound` in `90-app.js` is the only thing that applies it, at boot and on
+every toggle, and it reaches the other game through `BubbleApp.sound` rather
+than its audio module, because the coupling between the two games is one object
+wide on purpose.
+
+That was a bug before it was a rule. Muting reached one module, so the two
+boards a chapter that are the other game stayed loud, on a screen with no sound
+button, for a player who had already done the only thing the game offers for
+making it stop.
+
+## What can be checked, and what cannot
+
+Whether it sounds good cannot be. Nothing here pretends otherwise, and the sound
+lab exists because that judgement is made by ear.
+
+Nearly everything around it can be, and the reason to bother is that this is the
+subsystem where failure is silent by construction: a sound that stops playing
+throws nothing, renders nothing, and fails no test that was not written for it.
+So the suites check that a cue actually reached the audio graph, by counting the
+nodes it built, which is the only thing a browser will tell you about whether a
+sound happened:
+
+- the bang plays the recording rather than the synthesised fallback, by node
+  count, because the fallback still sounds and would hide the difference forever
+- three of them overlapping neither clip nor come out quieter than the bang they
+  replaced, measured by rendering the actual mix
+- the portable file still has its bang when opened off disk
+- muting reaches both games, and a game muted in an earlier sitting comes back
+  muted in both
+- every cue a module defines is called by something
+
+See [14 Testing](14-testing.md) for what else is judged by eye rather than by
+the suite.

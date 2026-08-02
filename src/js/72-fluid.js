@@ -313,8 +313,9 @@ const Fluid = (() => {
   function start(){ if (running) return; running = true; last = performance.now(); loop(); }
   function stop(){ running = false; cancelAnimationFrame(raf); }
 
-  /* No `resize` here. There was one, and nothing had ever called it: a resize
-     goes through Board.render(), which calls sync(), which measures. */
+  /* Neither `resize` nor `draw` is published, and both were. A resize goes
+     through Board.render(), which calls sync(), which measures; the frame loop
+     below is the only thing that ever draws. */
   return { supported, mount, sync, transfer, wake };
 })();
 globalThis.Fluid = Fluid;

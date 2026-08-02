@@ -28,10 +28,11 @@ of the bundles.
 
 | | | |
 | --- | --- | --- |
-| `index.html` | ~7kb | the shell. Revalidated every navigation |
-| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~200kb | the pour game. Cached forever |
-| `assets/audio-<hash>.js` | ~7kb | the sound, fetched after the page opens |
+| `index.html` | ~8kb | the shell. Revalidated every navigation |
+| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~210kb | the pour game. Cached forever |
+| `assets/audio-<hash>.js` | ~10kb | the sound, fetched after the page opens |
 | `assets/solver-<hash>.js` | ~6kb | the A\* worker, fetched on the first solve |
+| `./audio/boom.mp3` | 17kb | the one recording, copied from `assets/audio/`, fetched the first time it is needed |
 | `assets/<game>-<hash>.{css,js}` | | one game each |
 | `<game>/index.html` | ~3kb | a shell per game, at its own path |
 | `decanter-standalone.html` | | one portable file, everything inlined |
@@ -74,6 +75,20 @@ will not execute, and the three fonts as data URIs. It is the one build where
 splitting would be the wrong answer, because there is nowhere to fetch from. It
 opens straight off disk but cannot install, since service workers need HTTPS or
 localhost.
+
+### The one recording
+
+There is no art to ship at all, since the room is drawn (see
+[08 The room](08-room.md)), and the only recording is the 17KB bang behind the
+secret word (see [11 Sound](11-sound.md)). The installable build points a
+`<meta name="boom">` at `./audio/boom.mp3`, a cacheable file like any other; the
+portable file carries the same bytes as a data URI in the same tag, so nothing in
+the audio module has to know which kind of build it is running in.
+
+It has to be inlined there rather than pointed at, for the same reason the fonts
+are: a `file://` page fetching a sibling path is a cross origin request, so a
+portable file naming `./audio/` would fall silently back to the synthesised bang
+the moment it left the folder it was built in.
 
 Everything uses relative paths, so `dist/` works from any subdirectory.
 

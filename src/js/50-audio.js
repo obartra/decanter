@@ -1,7 +1,10 @@
-/* All sound is synthesised at runtime, so the app ships with no audio files.
-   The pour is broadband noise shaped by two resonant peaks that rise in pitch
-   as the receiving bottle fills, which is the cue an ear uses to hear "filling". */
-const Audio = (() => {
+/* Every sound the game itself makes is synthesised at runtime. The pour is
+   broadband noise shaped by two resonant peaks that rise in pitch as the
+   receiving bottle fills, which is the cue an ear uses to hear "filling".
+
+   One recording ships alongside, and it belongs to the one thing here that is
+   not the game. See `loadBoom` for why that one is worth the bytes. */
+const Sound = (() => {
   let ctx, master, noise, pourNode, on = true;
 
   function init(){
@@ -45,6 +48,53 @@ const Audio = (() => {
     s.connect(f).connect(g).connect(master);
     s.start(t); s.stop(t + dur + 0.05);
   }
+  /* Plays a decoded recording, forced like the rest of the bang and loud on
+     purpose. Not full scale, because three of these overlap: at 0.8 the three
+     together peak at 0.49 of full scale against the synthesised bang's 0.25, so
+     it is twice the peak and three times the loudness of what it replaces and
+     still has half the headroom left. A recording swapped in hotter than this
+     one is what would spend that headroom, which is why a test measures the mix
+     rather than trusting the number. */
+  function shot(buf, gain, delay){
+    init();
+    const t = ctx.currentTime + delay;
+    const s = ctx.createBufferSource(); s.buffer = buf;
+    const g = ctx.createGain(); g.gain.value = gain;
+    s.connect(g).connect(master);
+    s.start(t);
+  }
+  /* The one recorded sound in the game.
+
+     Samples are the heaviest thing a small game carries, and every cue the game
+     itself makes has a reason not to be one: the pour is a parameter rather than
+     a sound, the glug is pitched off the same fill level, and the interface cues
+     want to be nearly nothing. A bang is where all of that stops applying.
+     Nothing in the puzzle makes this noise, it is never pitched, and its entire
+     job is to be bigger than the game around it, which is the one job a
+     synthesised imitation of an explosion cannot do, however carefully it is
+     tuned.
+
+     Fetched when the bang is called for rather than at startup, so a player who
+     never types the word never pays for it. Failure is not handled because there
+     is nothing to handle: the synthesised bang below is still there, and a
+     celebration that falls back to it is a celebration nobody notices was
+     downgraded. */
+  let boomBuf = null, boomFetch = null;
+  function loadBoom(){
+    if (boomFetch) return boomFetch;
+    /* The build writes this, as a path or as the bytes themselves. Sources
+       served unbuilt have no such tag, and neither would a build whose file went
+       missing; both land on the synthesised bang. */
+    const src = document.querySelector('meta[name="boom"]')?.content;
+    if (!src) return (boomFetch = Promise.resolve());
+    init();
+    boomFetch = fetch(src)
+      .then(r => r.arrayBuffer())
+      .then(b => ctx.decodeAudioData(b))
+      .then(buf => { boomBuf = buf; })
+      .catch(() => {});
+    return boomFetch;
+  }
   return {
     get enabled(){ return on; },
     /* Whether a sound scheduled right now would actually be heard. A page that
@@ -54,7 +104,6 @@ const Audio = (() => {
     get ready(){ return !!ctx && ctx.state === 'running'; },
     unlock(){ try { init(); if (ctx.state === 'suspended') ctx.resume(); } catch(e){} },
     setEnabled(v){ on = !!v; if (!on) this.pourEnd(); return on; },
-    toggle(){ return this.setEnabled(!on); },
     lift(){ tone({ f:660, f2:880, dur:0.09, gain:0.14 }); },
     drop(){ tone({ f:520, f2:340, dur:0.1, gain:0.11 }); },
     deny(){ tone({ f:150, f2:90, type:'triangle', dur:0.14, gain:0.15 }); },
@@ -106,15 +155,21 @@ const Audio = (() => {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
         tone({ f, type:'triangle', dur:0.45, gain:0.15, delay:i * 0.11 }));
     },
+    /* Waited on before the bang goes off, so the recording is what plays rather
+       than what arrives after it. */
+    loadBoom,
     /* An explosion. Nothing in the puzzle makes this noise, and nothing should:
        it belongs to the one thing here that is not part of the game.
 
-       A bang is three sounds arriving together, and dropping any of them leaves
+       The recording plays when it is there. What follows is what happens when it
+       is not, and it stays because a bang is the one cue that cannot simply be
+       skipped: three sounds arriving together, since dropping any of them leaves
        it sounding like a door. The crack is the front of it, a hiss of high
        noise with no body. The body is a sine falling off the bottom of hearing,
        which is what makes it felt rather than heard. The tail is low noise
        decaying slowly underneath, the debris still coming down. */
     boom(delay = 0){
+      if (boomBuf){ shot(boomBuf, 0.8, delay); return; }
       burst({ freq:3400, q:0.7, dur:0.05, gain:0.34, delay, force:true });
       tone({ f:230, f2:30, type:'triangle', dur:0.9, gain:0.5, delay, force:true });
       burst({ freq:240, q:0.4, dur:0.75, gain:0.3, delay:delay + 0.01, type:'lowpass', force:true });
@@ -123,9 +178,12 @@ const Audio = (() => {
   };
 })();
 /* 49-audio.js has been taking every cue until now, and the app read the save and
-   set the sound preference on it during boot — before this file existed. Taking
-   the name without reading that back would un-mute a player who plays muted, a
-   second or so after they opened the game and with nothing to explain it. */
-const stub = globalThis.Audio;
-globalThis.Audio = Audio;
-if (stub && stub !== Audio && typeof stub.enabled === 'boolean') Audio.setEnabled(stub.enabled);
+   set the sound preference on it during boot — before this file existed. So the
+   setting is read off the stand-in before the name is taken: without that, a
+   player who plays muted is un-muted a second or so after opening the game, by
+   their own preference arriving too late.
+
+   No local for the stand-in, because the top level of this file is the top level
+   of the page and one module may leave exactly one name there. */
+Sound.setEnabled(globalThis.Sound?.enabled ?? true);
+globalThis.Sound = Sound;

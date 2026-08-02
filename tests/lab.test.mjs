@@ -80,9 +80,10 @@ describe('lab knobs', () => {
   });
 
   /* The lab's claim about itself is that 00-config.js is the ONE file naming
-     another game's internals. The survival sweep needs six of the bubble game's
-     modules, and they were hard-coded in the app until a review pointed out that
-     this made a second such file and quietly falsified the first one's header. */
+     another game's internals. The survival sweep needs several of the bubble
+     game's modules, and they were hard-coded in the app until a review pointed
+     out that this made a second such file and quietly falsified the first one's
+     header. */
   it('names every module the survival sweep reaches for', () => {
     for (const game of LabConfig.games){
       if (game.sweep !== 'survival') continue;
@@ -168,16 +169,50 @@ describe('lab sweep', () => {
     equal(res.drops, [], 'the shipped curve goes backwards');
   });
 
-  it('says when a threshold has drifted from the run it describes', () => {
-    const stars = { one: 65, two: 80, three: 130 };
-    assert(LabSweep.tracks(stars, { p10: 66, p50: 82, p90: 128 }), 'a run this close should track');
-    assert(!LabSweep.tracks(stars, { p10: 20, p50: 30, p90: 40 }), 'a run this far off should not');
+  /* The lab is the third thing measuring this game, after the survival tool and
+     the difficulty test, and it cannot import the module those two share: it is
+     a browser page and that is a node module. tools/bubble-run.mjs exists because
+     two run loops disagreed about whether a row comes down after the final shot,
+     which is a whole star's worth of difference. So the two loops are run over
+     the same seeds and required to give the same answers, seed for seed. */
+  it('plays a bubble run exactly the way the offline harness plays it', async () => {
+    const { run: offline } = await import('../tools/bubble-run.mjs');
+    const b = loadFrom('src/bubble/js',
+      ['00-config.js', '10-rng.js', '20-grid.js', '25-shot.js', '30-rules.js', '40-advice.js']);
+    const mods = { C: b.BubbleConfig, grid: b.BubbleGrid, shot: b.BubbleShot,
+                   rules: b.BubbleRules, advice: b.BubbleAdvice, rng: b.BubbleRng };
+    const opts = { every: b.BubbleConfig.ADVANCE_EVERY, length: b.BubbleConfig.RUN_SHOTS };
+
+    for (const miss of [0, 0.3, 1]){
+      for (let seed = 1; seed <= 25; seed++){
+        equal(LabSweep.runOne(mods, seed, { ...opts, miss }), offline(seed, { ...opts, miss }),
+          `seed ${seed} at miss ${miss} plays differently in the lab`);
+      }
+    }
   });
 
-  it('takes a percentile off a sorted list the way the harness does', () => {
-    const xs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    equal(LabSweep.percentile(xs, 0), 1);
-    equal(LabSweep.percentile(xs, 1), 10);
-    equal(LabSweep.percentile(xs, 0.5), 5);
+  it('reports the pass rates the thresholds were set from', async () => {
+    const b = loadFrom('src/bubble/js',
+      ['00-config.js', '10-rng.js', '20-grid.js', '25-shot.js', '30-rules.js', '40-advice.js']);
+    const mods = { C: b.BubbleConfig, grid: b.BubbleGrid, shot: b.BubbleShot,
+                   rules: b.BubbleRules, advice: b.BubbleAdvice, rng: b.BubbleRng };
+    const { measure } = await import('../tools/bubble-run.mjs');
+    const mine = LabSweep.survival(mods, 40, 0.3);
+    const theirs = measure({ seeds: 40, miss: 0.3 });
+    equal(mine.at, theirs.at, 'the lab and the harness disagree about the pass rates');
+    equal(mine.median, theirs.median, 'and about the median run');
+    assert(mine.forced > 0.2 && mine.forced < 0.9, `forced turns out of range: ${mine.forced}`);
+  });
+
+  /* An empty verdict is what success looks like AND what asking nothing looks
+     like, so both directions are driven. */
+  it('says when the bars have stopped separating playing from flailing', () => {
+    const good = { at: { one: 0.98, two: 0.83, three: 0.46 } };
+    const random = { at: { one: 0.19, two: 0, three: 0 } };
+    assert(LabSweep.tracks(good, random), 'the shipped shape should track');
+    assert(!LabSweep.tracks(good, { at: { one: 0.9, two: 0.6, three: 0.3 } }),
+      'a bar a flailing player clears is not a bar');
+    assert(!LabSweep.tracks({ at: { one: 0.4, two: 0.1, three: 0 } }, random),
+      'a bar the player misses is not reachable');
   });
 });

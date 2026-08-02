@@ -19,4 +19,6 @@ import './casks.test.mjs';
 import './lab.test.mjs';
 import './build.test.mjs';
 import './live.test.mjs';
+import './dead-code.test.mjs';
+import './docs.test.mjs';
 await run();
