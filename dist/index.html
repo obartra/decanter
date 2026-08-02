@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Decanter">
-<meta name="build" content="01a8f2fc16">
+<meta name="build" content="32d1c68201">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -4093,20 +4093,28 @@ const App = (() => {
     $('peek').onclick = () => {
       $('veil').classList.remove('show');
       document.body.classList.add('peeking');
-      /* On the next tick, so the tap that opened this does not also close it.
-         Captured on the document rather than left to bubble: while the board is
-         being read every part of it is pointer-events:none, so which element a
-         tap actually lands on depends on what happens to be underneath, and a
-         listener waiting for it to bubble up is waiting on that accident. */
+      /* On the next tick, so the press that opened this does not also close it.
+
+         Restored on the click rather than on the pointerdown, and that is the
+         whole trick. One press is a pointerdown, then a pointerup, then a
+         click. Restoring on the pointerdown puts the panel back underneath a
+         click that has not happened yet, and the panel closes when clicked
+         outside itself, so the gesture would open it and shut it again. On the
+         click there is nothing left of the gesture to misread, and the event's
+         target was settled before the panel returned, so the panel's own
+         backdrop handler is not even on its path.
+
+         Captured on the document because while the board is being read almost
+         everything ignores pointers, so which element the press lands on
+         depends on what happens to be underneath it. */
       setTimeout(() => {
-        const back = () => {
-          document.removeEventListener('pointerdown', back, true);
+        const back = e => {
           document.removeEventListener('click', back, true);
           document.removeEventListener('keydown', back, true);
+          if (e) e.stopPropagation();
           document.body.classList.remove('peeking');
           $('veil').classList.add('show');
         };
-        document.addEventListener('pointerdown', back, true);
         document.addEventListener('click', back, true);
         document.addEventListener('keydown', back, true);
       }, 0);
