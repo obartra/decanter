@@ -685,9 +685,7 @@ const App = (() => {
     $('peek').onclick = () => {
       $('veil').classList.remove('show');
       document.body.classList.add('peeking');
-      /* On the next tick, so the press that opened this does not also close it.
-
-         Restored on the click rather than on the pointerdown, and that is the
+      /* Restored on the click rather than on the pointerdown, and that is the
          whole trick. One press is a pointerdown, then a pointerup, then a
          click. Restoring on the pointerdown puts the panel back underneath a
          click that has not happened yet, and the panel closes when clicked
@@ -698,18 +696,26 @@ const App = (() => {
 
          Captured on the document because while the board is being read almost
          everything ignores pointers, so which element the press lands on
-         depends on what happens to be underneath it. */
-      setTimeout(() => {
-        const back = e => {
-          document.removeEventListener('click', back, true);
-          document.removeEventListener('keydown', back, true);
-          if (e) e.stopPropagation();
-          document.body.classList.remove('peeking');
-          $('veil').classList.add('show');
-        };
-        document.addEventListener('click', back, true);
-        document.addEventListener('keydown', back, true);
-      }, 0);
+         depends on what happens to be underneath it.
+
+         Put on here and now rather than a tick later. The tick was left over
+         from the pointerdown attempt, where the press that opened this really
+         could close it again, and once the way back moved to the click it
+         guarded nothing: this runs while that same click is at the button, so
+         the document's capture pass is already behind it and no listener added
+         now can be handed it. What the tick did leave was a moment in which the
+         board was grey and the prompt was asking for a tap that would land on
+         nothing, which is a thin thing to look at but a real one to tap, and a
+         moment the browser spec had to guess the length of. */
+      const back = e => {
+        document.removeEventListener('click', back, true);
+        document.removeEventListener('keydown', back, true);
+        if (e) e.stopPropagation();
+        document.body.classList.remove('peeking');
+        $('veil').classList.add('show');
+      };
+      document.addEventListener('click', back, true);
+      document.addEventListener('keydown', back, true);
     };
     /* Tapping the dark outside the panel does what the panel's own way out does.
        Only the backdrop itself counts, so a tap that lands on the panel or on a
