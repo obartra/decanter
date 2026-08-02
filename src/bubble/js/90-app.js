@@ -57,20 +57,8 @@ const BubbleApp = (() => {
 
      So `game` decides everything the player is graded on and nothing else draws
      from it, and `fx` throws the debris around. */
-  const stream = () => {
-    let s = 1;
-    return {
-      seed(n){ s = n >>> 0 || 1; },
-      get state(){ return s; },
-      set state(v){ s = v >>> 0 || 1; },
-      next(){
-        s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
-        return s / 4294967296;
-      }
-    };
-  };
-  const rand = stream();
-  const fx = stream();
+  const rand = BubbleRng.stream();
+  const fx = BubbleRng.stream();
 
   function deal(){
     const live = R.liveColours(st.board);
@@ -338,6 +326,18 @@ const BubbleApp = (() => {
     $('bubbleHint').hidden = !allow.hint;
     $('bubbleSwap').hidden = !allow.swap;
     $('bubblePick').hidden = !allow.colour;
+    /* The price on the button, from the same place the charge comes from. */
+    if (prices){
+      const p = prices();
+      const say = (id, v) => {
+        const el = $(id);
+        if (!el) return;
+        el.textContent = !v ? '' : v.free ? (v.left ? `${v.left} free` : 'free') : `${v.cost} \u25C6`;
+      };
+      say('bubbleUndoCost', p.undo);
+      say('bubbleHintCost', p.hint);
+      say('bubblePickCost', p.colour);
+    }
     $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length);
     $('bubbleSwap').disabled = !live || st.loaded === st.next;
     $('bubblePick').disabled = !live || R.liveColours(st.board).length < 2;
@@ -361,6 +361,9 @@ const BubbleApp = (() => {
      defaults to everything, which is what the standalone page wants. */
   let allow = { undo: true, hint: true, swap: true, colour: true };
   let charge = null;
+  /* What the host says each tool costs, so the row can say so too. Nothing here
+     knows what gold is; it is handed a shape to print. */
+  let prices = null;
   const afford = what => !charge || charge(what);
 
   function finish(how){
@@ -637,6 +640,7 @@ const BubbleApp = (() => {
            set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, ...v }; },
            get allow(){ return allow; },
            set charge(fn){ charge = fn; }, get charge(){ return charge; },
+           set prices(fn){ prices = fn; }, get prices(){ return prices; },
            /* the host hides this game's own panel and shows its own */
            set panelHidden(v){ quiet = !!v; }, get panelHidden(){ return quiet; } };
 })();

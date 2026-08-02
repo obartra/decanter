@@ -136,6 +136,6 @@ function rate(moves, par, exact = true, vesselUsed = false){
                : 0;
   return Math.min(earned, cap);
 }
-globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, runLength, minPours,
+globalThis.Rules = { CAP, clone, isFull, isSolved, keyOf, minPours,
                      canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
                      poursLeft, lostBecause };

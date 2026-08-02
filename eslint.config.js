@@ -79,7 +79,7 @@ export default [
       sourceType: 'script',
       globals: {
         ...globals.browser,
-        BubbleConfig: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
+        BubbleConfig: 'writable', BubbleRng: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
         BubbleRules: 'writable', BubbleView: 'writable', BubbleRender: 'writable',
         BubbleAudio: 'writable', BubbleAdvice: 'writable', BubbleScore: 'writable',
         BubbleApp: 'writable'

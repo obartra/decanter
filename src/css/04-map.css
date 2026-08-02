@@ -123,3 +123,30 @@
 }
 .node.armed .num{font-size:15px; opacity:1; color:var(--gold-lit)}
 .mapRoad{position:absolute; left:0; bottom:0; pointer-events:none}
+
+/* The two controls that are only actions, in the header where there was already
+   room. Icons rather than words because neither carries a number: a price or a
+   payout has to stay readable, but "sound" and "install" are their own glyphs.
+   The draught keeps its words and its +12 for exactly that reason. */
+.mapIcons{display:flex; gap:6px; margin-top:8px}
+.icon{
+  width:34px; height:34px; border-radius:999px; cursor:pointer; padding:0;
+  display:grid; place-items:center; font-size:15px; line-height:1;
+  color:var(--ink); border:1px solid rgba(224,177,92,.26);
+  background:linear-gradient(180deg,rgba(60,44,26,.62),rgba(24,17,10,.52));
+  transition:transform .15s, border-color .2s, opacity .2s;
+}
+.icon:hover{border-color:rgba(244,217,160,.55)}
+.icon:active{transform:translateY(1px)}
+.icon.off{opacity:.45}
+.btn.tiny{padding:6px 10px; font-size:9px; margin-top:6px}
+
+/* Shown only when the level you are on is off screen, and in the header with
+   the rest of the controls rather than floating over the board. A floating one
+   sat at the bottom centre, which is where the road actually is, so it covered
+   the map and took back the strip the footer had just released. */
+.icon.wide{width:auto; padding:0 10px; gap:5px; grid-auto-flow:column}
+.icon.wide[hidden]{display:none}
+.icon.wide small{font-size:9px; letter-spacing:.06em; font-weight:700; color:var(--gold-lit)}
+.icon.wide{animation:jumpIn .22s cubic-bezier(.2,1,.3,1)}
+@keyframes jumpIn{from{opacity:0; transform:translateY(-4px)}}
