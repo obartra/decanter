@@ -160,8 +160,12 @@ test('a bubble level shows the board its run opens on', async ({ page }) => {
   });
   expect(level, 'no bubble level inside the seeded range').not.toBeNull();
 
+  /* The other game rides in a bundle that is not on the critical path, so the
+     card for one of its levels waits for that bundle before it draws. On a cold
+     load that wait is real, which is exactly what a spec that taps the moment
+     the map appears reproduces. */
   await page.locator(`[data-level="${level}"]`).click();
-  expect(await shown(page)).toBe(true);
+  await expect(card(page)).toHaveClass(/show/);
   await expect(page.locator('#previewKind')).toHaveText('Bubble run');
   const rows = await page.locator('#previewStill .stillRow').count();
   expect(rows, 'the card drew no board at all').toBeGreaterThan(0);

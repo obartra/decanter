@@ -16,7 +16,13 @@ const BubbleGrid = (() => {
 
   /* 0 for a flush row, 1 for one indented by half a bubble. The board's parity
      is folded in here so that an advance is a single flip rather than a rewrite
-     of every row. */
+     of every row.
+
+     Published, because the answer is wanted outside the drawing this module does
+     itself: the host draws a still of an opening board on the card before a
+     replay, and it has to stagger the rows the way this board says rather than
+     from the row index. `j % 2` outside here is the bug at the top of this
+     file. */
   const indent = (board, j) => (j + board.parity) & 1;
 
   /* Exact and total: computed from the indices every time, never accumulated by
@@ -88,7 +94,7 @@ const BubbleGrid = (() => {
     return out;
   };
 
-  return { EMPTY, centreOf, inBounds, at, isEmpty, neighbours,
+  return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
            create, advance, hash, occupied, emptyRow };
 })();
 globalThis.BubbleGrid = BubbleGrid;

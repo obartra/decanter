@@ -803,10 +803,13 @@ const BubbleApp = (() => {
   }
 
   return { boot, _state: st, newBoard, still, fire, step, land, finish, result,
-           /* the length of a full run, which is what the third star costs. The
-              host quotes it on the card before a replay; it is not the host's
-              number to know. */
+           /* Two numbers this game owns that the host has to quote: how long a
+              full run is, which is what the third star costs and which the card
+              before a replay names, and how many colours are in play, which is
+              how much of the palette the host throws as confetti when a bubble
+              level ends. The host had that second one written down as a 6. */
            get runShots(){ return C.RUN_SHOTS; },
+           get colours(){ return C.COLOURS; },
            undo, hint, swap, pickColour, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
            set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, bomb: true, ...v }; },

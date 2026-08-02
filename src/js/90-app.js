@@ -162,26 +162,26 @@ const App = (() => {
      score against, a pour count in the HUD, and a best recorded through
      progress.complete, which reads Levels.isBubble to decide which direction
      better is and would have filed a twelve pour clear as a twelve shot run. */
-  function deal(level, keepVessel){
+  function deal(level){
     if (Levels.isBubble(level)){
       startBubble(level);
     } else {
       document.body.dataset.view = 'game';
       Backdrop.kind = 'cellar';
-      start(level, keepVessel);
+      start(level);
     }
     /* after the board, so what the card is talking about is already behind it */
     openChapter(level);
   }
 
-  function attempt(level, keepVessel){
+  function attempt(level){
     if (!progress.spend(costOf(level))){
       deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
       paintMap();
       return false;
     }
     Trace.note(`dealt level ${level}`, `paid ${costOf(level)}, purse now ${progress.gold}`);
-    deal(level, keepVessel);
+    deal(level);
     return true;
   }
 
@@ -223,7 +223,33 @@ const App = (() => {
   /* which level the card is about, so Play deals that one rather than whatever
      the map happens to consider current */
   let previewLevel = null;
+  /* Which tap the card being drawn belongs to, the way `parRequest` marks which
+     search a par belongs to. A bubble level's card waits for a bundle, and a
+     player who taps a second medallion during that wait must not be handed the
+     first one's card when it lands. */
+  let previewRequest = 0;
+
   function showPreview(level){
+    const token = ++previewRequest;
+    /* The other game's numbers are not on the critical path. It is fetched as
+       soon as the page opens, so by the time anybody taps a medallion it has
+       been on the device for minutes and this resolves at once; on the one load
+       where it has not, the card waits rather than throwing, which is the trade
+       `startBubble` already makes for the board itself.
+
+       If it never arrives the card is still worth showing. What it is for is
+       what a replay pays, and that is this game's arithmetic: only the picture
+       and the shot count come from over there, and both know how to be absent. */
+    if (!Levels.isBubble(level)) return paintPreview(level, true);
+    Deferred.ready('bubble').then(() => {
+      if (token !== previewRequest) return;
+      const loaded = typeof BubbleApp !== 'undefined';
+      if (!loaded) deny('preview', 'the bubble game could not be loaded');
+      paintPreview(level, loaded);
+    });
+  }
+
+  function paintPreview(level, loaded){
     const bubble = Levels.isBubble(level);
     const stars = progress.starsFor(level);
     const fee = costOf(level);
@@ -235,7 +261,7 @@ const App = (() => {
       level, stars, bubble,
       best: progress.bestFor(level),
       par, parExact: par != null,
-      goal: bubble ? BubbleApp.runShots : null,
+      goal: bubble && loaded ? BubbleApp.runShots : null,
       fee, canPayFee: progress.canAfford(fee),
       /* what a perfect run would pay on this save, answered by the same
          arithmetic that will pay it out */
@@ -247,9 +273,11 @@ const App = (() => {
     $('previewKind').hidden = !card.kind;
     $('previewKind').textContent = card.kind;
     $('previewStars').innerHTML = starRow(stars);
-    $('previewStill').innerHTML = bubble
-      ? Still.bubbles(BubbleApp.still(level))
-      : Still.pour(tubes);
+    /* no picture rather than a wrong one, on the one load where the other game's
+       bundle never arrived */
+    $('previewStill').innerHTML = !bubble ? Still.pour(tubes)
+      : loaded ? Still.bubbles(BubbleApp.still(level))
+      : '';
     $('previewLine').textContent = card.line;
     $('previewPayout').hidden = card.payoutHidden;
     $('previewGold').textContent = card.earnedLabel;
@@ -418,11 +446,6 @@ const App = (() => {
     S.saying = null;
   }
 
-  /* A restart deals the level from scratch, and that includes the extra bottle:
-     restarting is starting again, and a board that quietly keeps a vessel is not
-     the board the level is. The purchase is not refunded, because a restart is
-     not an undo. Nothing is laundered by this either, since a run that ever had
-     a vessel is capped at two stars whether or not it still has one. */
   /* The par this board is scored against, which is not simply the one written
      down for the level.
 
@@ -442,11 +465,19 @@ const App = (() => {
     return par != null && par >= Rules.minPours(tubes) ? par : null;
   }
 
-  function start(level, keepVessel){
+  /* A restart deals the level from scratch, and that includes anything bought:
+     restarting is starting again, and a board that quietly keeps a vessel or
+     stays a bottle short is not the board the level is. The purchase is not
+     refunded, because a restart is not an undo, and nothing is laundered by it
+     either: what was paid for is gone along with the run it was paid into.
+
+     This used to be a choice. `start` took a `keepVessel` and threaded it up
+     through `deal` and `attempt`, and no caller ever passed it, so all three
+     signatures described a decision the game had already made in `newRun`. It
+     is gone, and the fact that a restart deals clean is pinned by a test. */
+  function start(level){
     newRun(level);
     S.tubes = Levels.make(level);
-    if (keepVessel) S.tubes.push([]);
-    S.vesselUsed = !!keepVessel;
     S.par = parOf(level, S.tubes);
     S.parExact = S.par != null;
     Board.view = Rules.clone(S.tubes);
@@ -725,15 +756,15 @@ const App = (() => {
     for (const i of targets){
       const b = document.createElement('button');
       b.type = 'button';
+      b.className = 'stillBottle';
       b.title = `destroy bottle ${i + 1}`;
       b.setAttribute('aria-label', `Destroy bottle ${i + 1}`);
-      /* bottom of the stack first, and the column reverses in CSS, so what is
-         drawn is the bottle the right way up */
-      for (const colour of S.tubes[i]){
-        const band = document.createElement('i');
-        band.style.background = CONFIG.palette[colour % CONFIG.palette.length];
-        b.appendChild(band);
-      }
+      /* Drawn by the same thing that draws the board on the card before a
+         replay, so the glass on this shelf holds what the bottle holds. The
+         hand-rolled version gave every band an equal share of the glass, which
+         drew a one unit bottle and a full one identically on the one screen
+         where the difference is the whole decision. */
+      b.innerHTML = Still.bottle(S.tubes[i]);
       b.onclick = () => takeBlast(i);
       pick.appendChild(b);
     }
@@ -866,7 +897,10 @@ const App = (() => {
         if (!bubble) Board.nudge(S.level % Math.max(1, S.tubes.length));
       } else {
         Sound.win();
-        Confetti.rain(CONFIG.palette.slice(0, bubble ? 6 : Levels.shape(S.level).colors));
+        /* as many colours as the board actually had, and on a bubble level that
+           is the other game's business rather than a 6 written down here */
+        Confetti.rain(CONFIG.palette.slice(0,
+          bubble ? BubbleApp.colours : Levels.shape(S.level).colors));
       }
       $('veil').classList.add('show');
     }, failed ? 260 : 700);
@@ -1208,11 +1242,26 @@ const App = (() => {
     addEventListener('resize', scheduleResize);
     /* some browsers rotate without firing resize */
     addEventListener('orientationchange', scheduleResize);
+    /* Escape puts away whatever is in front of you, and leaves the level only
+       when nothing is.
+
+       It used to mean one thing, "leave the level", and it meant it whatever was
+       on the screen. A panel is not part of the level though: pressing Escape
+       over the end-of-run panel moved the game to the map and left the panel
+       sitting on top of it, fully live, offering Try again and Next level for a
+       run that had already been banked, over a board that was no longer there.
+       The chapter opening did the same.
+
+       So the panels are listed, topmost concern first, and each is closed the
+       way its own button closes it rather than by peeling off a class here. A
+       panel that grows a way out later gets it here too, in one readable order,
+       instead of four handlers disagreeing about which of them is in front. */
     addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      /* the card sits over the map, so while it is up it is what Escape is
-         about; leaving the level is what it means the rest of the time */
+      if ($('diagVeil').classList.contains('show')){ Diagnostics.close(); return; }
       if ($('previewVeil').classList.contains('show')){ closePreview(); return; }
+      if ($('chapterVeil').classList.contains('show')){ $('chapterGo').click(); return; }
+      if ($('veil').classList.contains('show')){ closePanel(); return; }
       if (document.body.dataset.view === 'game') showMap(false);
     });
   }

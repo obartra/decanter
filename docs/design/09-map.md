@@ -104,6 +104,12 @@ its number, they remember it by the two greens buried under the pink. It is the
 same rule the road follows: decoration derived from the real thing cannot drift
 off it, and a picture of a board the level does not deal would be believed.
 
+The same drawing serves the shelf the blast offers when a run has been lost, in
+[05 Playing](05-playing.md). It did not: that shelf drew its own bottles, with
+every band taking an equal share of the glass however much was in it, so a bottle
+holding one unit and a bottle holding four were the same picture on the one
+screen whose only question is which bottle to destroy.
+
 A bubble level shows the board its run opens on. That board is dealt from the
 run's own random stream, which everything after it continues from, so a still
 cannot borrow that stream without moving it; it is dealt from a fresh stream

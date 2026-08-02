@@ -38,9 +38,11 @@ bottle again puts it down.
 
 Two details about the vessel are load-bearing:
 
-- **Restarting keeps a vessel already paid for.** Otherwise buy-then-restart
-  would launder the purchase back into a three-star run. Leaving the level and
-  coming back deals a clean board and costs the gold again.
+- **Restarting deals the board the level deals**, vessel and all gone. Restarting
+  is starting again, and a board that quietly keeps a bought bottle is not the
+  board the level is. The gold is not refunded, because a restart is not an undo,
+  and nothing is laundered by that: what was paid for went with the run it was
+  paid into.
 - **Buying one clears the undo history.** The shelf changed shape, so the
   snapshots behind it no longer describe this board, and undoing into one would
   quietly take the vessel back.
@@ -69,10 +71,24 @@ Three things about the money, and they are one decision seen from three sides:
   something can be opened, and this row already carries three.
 
 Both of the vessel's load-bearing details apply unchanged, for the same reasons:
-a blast survives a restart, and it clears the undo history.
+a restart deals the board back whole, and taking a bottle away clears the undo
+history.
 
 What it costs the run is the third star, exactly as a vessel does and through the
 same flag.
+
+### Escape
+
+**Escape puts away whatever is in front of you**, and leaves the level only when
+nothing is: the diagnostics report, then the card before a replay, then a
+chapter's opening, then the end-of-run panel, then the level itself.
+
+It used to mean "leave the level" whatever was on the screen. A panel is not part
+of the level though, so pressing it over the end-of-run panel moved the game to
+the map and left the panel sitting on top of it, fully live, offering Try again
+and Next level for a run already banked and a board no longer there. The order
+lives in one place for the same reason: four handlers each closing their own
+thing would have to agree about which of them is in front.
 
 ## The HUD
 

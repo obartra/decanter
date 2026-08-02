@@ -21,18 +21,28 @@ const Still = (() => {
      fixed card to sit in, so the rule can be arithmetic. */
   const columns = n => (n > 8 ? Math.ceil(n / 2) : n);
 
-  /* One element per unit rather than per band. The board merges touching units
-     of one colour so no seam shows between them; here nothing is drawn between
-     units at all, so there is no seam to hide and no second copy of that rule
-     to keep in step. */
+  /* One bottle, as the liquid it holds, drawn from the bottom up.
+
+     Shared, because two screens draw a board small and they were drawing it two
+     different ways. The shelf the blast offers had its own markup and its own
+     stylesheet rule, and in that one every band took an equal share of the glass
+     however much was in it: a bottle holding one unit looked exactly like a
+     bottle holding four, on the screen whose only question is which bottle to
+     destroy.
+
+     One element per unit rather than per band. The real board merges touching
+     units of one colour so no seam shows between them; here nothing is drawn
+     between units at all, so there is no seam to hide and no second copy of that
+     rule to keep in step. */
+  const bottle = tube => tube
+    .map(c => `<i style="height:${(100 / Rules.CAP).toFixed(3)}%;background:var(--c${c})"></i>`)
+    .join('');
+
   function pour(tubes){
     const cols = columns(tubes.length);
-    const bottles = tubes.map(tube => {
-      const units = tube
-        .map(c => `<i style="height:${(100 / Rules.CAP).toFixed(3)}%;background:var(--c${c})"></i>`)
-        .join('');
-      return `<span class="stillBottle${Rules.isFull(tube) ? ' done' : ''}">${units}</span>`;
-    }).join('');
+    const bottles = tubes.map(tube =>
+      `<span class="stillBottle${Rules.isFull(tube) ? ' done' : ''}">${bottle(tube)}</span>`
+    ).join('');
     return `<div class="still" style="--stillCols:${cols}">${bottles}</div>`;
   }
 
@@ -54,6 +64,6 @@ const Still = (() => {
     return `<div class="still bubbles">${out}</div>`;
   }
 
-  return { pour, bubbles };
+  return { pour, bubbles, bottle };
 })();
 globalThis.Still = Still;

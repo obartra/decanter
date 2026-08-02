@@ -8,6 +8,7 @@ import './chapters.test.mjs';
 import './progress.test.mjs';
 import './panel.test.mjs';
 import './preview.test.mjs';
+import './still.test.mjs';
 import './playthrough.test.mjs';
 import './economy.test.mjs';
 import './blast.test.mjs';
