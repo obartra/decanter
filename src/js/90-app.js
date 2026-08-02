@@ -85,7 +85,14 @@ const App = (() => {
      So a run carries the number it was dealt with and banks nothing if that is
      no longer the number on screen. Leaving a live board has always abandoned
      the run; this only makes a board that happened to be one animation from
-     finishing behave the same way rather than differently by accident. */
+     finishing behave the same way rather than differently by accident.
+
+     The rule is not about those two callers, and the next thing to reach for
+     this will not be a pour queue. Anything that can answer after the tap that
+     asked for it belongs here: the card before a replay waits on a bundle and
+     checks the same number, and a third game joining the graded run will have to
+     do what `finishBubble` does, because eslint gates which game the host can
+     reach and nothing gates whether it stopped when the player walked away. */
   let runId = 0;
   let bubbleRun = 0;
   /* who owns S.running; see drain() for why that is a different question */
@@ -279,8 +286,19 @@ const App = (() => {
        least leaves a reason behind it rather than a medallion that does
        nothing. */
     const want = bubble ? ['preview', 'bubble'] : ['preview'];
+    /* Which board was on screen when the card was asked for.
+
+       `previewRequest` catches a second medallion tapped during the wait, but
+       that is not the only thing a map can do with a tap: one on a level never
+       cleared deals its board there and then. The card would land on top of that
+       board a second later, quoting one level's price and one level's stars over
+       another level's run, with a Play on it that charges again for the board
+       behind it. Every card waits now that the card is a bundle of its own, so
+       this is not just the levels that are the other game. Same wait, same stale
+       answer, so the same token the pour queue and that game's loop check. */
+    const mine = runId;
     Promise.all(want.map(name => Deferred.ready(name))).then(() => {
-      if (token !== previewRequest) return;
+      if (token !== previewRequest || mine !== runId) return;
       if (typeof Preview === 'undefined'){
         deny('preview', 'the card before a replay could not be loaded');
         return;
