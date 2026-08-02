@@ -1,13 +1,12 @@
-import { describe, it, assert, equal, read, loadFrom } from './helpers.mjs';
-import { readdirSync } from 'node:fs';
+import { describe, it, assert, equal, read, loadGame, modulesOf } from './helpers.mjs';
 
-const lab = loadFrom('src/lab/js', ['00-config.js', '20-sweep.js']);
+const lab = loadGame('lab');
 const { LabConfig, LabSweep } = lab;
 
 /* Each game's real config, loaded the way the built page loads it. The lab
    names another game's internals — the only file in the repo allowed to — so
    the whole job here is making sure those names are still real. */
-const configOf = id => loadFrom(`src/${id}/js`, ['00-config.js'])[`${id[0].toUpperCase()}${id.slice(1)}Config`];
+const configOf = id => loadGame(id)[`${id[0].toUpperCase()}${id.slice(1)}Config`];
 
 describe('lab knobs', () => {
   it('names a game that is actually built', () => {
@@ -60,7 +59,7 @@ describe('lab knobs', () => {
      this repo says will drift, so this is the guard rather than the hope. */
   it('restates the derived world exactly as the game computes it', () => {
     const app = read('src/lab/js/90-app.js');
-    const cfg = read('src/bubble/js/00-config.js');
+    const cfg = read('src/bubble/js/pure/00-config.js');
     const derived = ['WORLD_W', 'WORLD_H', 'MUZZLE'];
     for (const key of derived){
       assert(app.includes(`cfg.${key} =`), `the lab does not put ${key} back`);
@@ -90,7 +89,7 @@ describe('lab knobs', () => {
       assert(game.survivalMods, `${game.id} is swept by survival and names no modules`);
       const dir = `src/${game.id}/js`;
       const published = new Set();
-      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+      for (const f of modulesOf(dir)){
         for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)) published.add(m[1]);
       }
       for (const [as, name] of Object.entries(game.survivalMods)){
@@ -103,7 +102,7 @@ describe('lab knobs', () => {
      because three copies of that stream had drifted, and a harness drawing
      different numbers measures a game nobody plays. */
   it('draws its numbers from the game rather than from a copy', () => {
-    const sweep = read('src/lab/js/20-sweep.js');
+    const sweep = read('src/lab/js/pure/20-sweep.js');
     assert(!/<<\s*13|>>>\s*17/.test(sweep),
       'the sweep has an xorshift of its own; it must use the game\'s stream');
     assert(/rng/i.test(sweep), 'the sweep no longer takes a stream at all');
@@ -120,9 +119,7 @@ describe('lab knobs', () => {
            typo in the `pars:` string here would put it straight back. */
         assert(game.levels && game.search && game.pars,
           `${game.id} is swept by par but names no level table, search or par table`);
-        const mods = loadFrom(`src/${game.id}/js`,
-          ['00-config.js', '20-rules.js', '25-search.js', '32-order.js', '32-boards.js', '35-pars.js', '30-levels.js']
-            .filter(f => hasFile(game.id, f)));
+        const mods = loadGame(game.id);
         assert(mods[game.levels], `${game.id} publishes no ${game.levels}`);
         assert(mods[game.search], `${game.id} publishes no ${game.search}`);
         assert(mods[game.pars], `${game.id} publishes no ${game.pars}`);
@@ -131,18 +128,12 @@ describe('lab knobs', () => {
   });
 });
 
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { root } from './helpers.mjs';
-const hasFile = (id, f) => existsSync(join(root, 'src', id, 'js', f));
-
 describe('lab sweep', () => {
   /* The sweep is the reason the lab exists, so it is checked against the two
      games' real modules rather than against a fixture. If this passes, the
      numbers in the panel are the numbers the game would give. */
   it('reads a par curve out of a game and judges it', () => {
-    const m = loadFrom('src/measure/js',
-      ['00-config.js', '20-rules.js', '25-search.js', '32-order.js', '35-pars.js', '30-levels.js']);
+    const m = loadGame('measure');
     const res = LabSweep.pars(
       { levels: m.MeasureLevels, search: m.MeasureSearch, pars: m.MeasurePars }, 1, 12);
     equal(res.kind, 'par');
@@ -159,8 +150,7 @@ describe('lab sweep', () => {
   });
 
   it('reads the cellar door the same way, through a different board shape', () => {
-    const c = loadFrom('src/casks/js',
-      ['00-config.js', '20-rules.js', '25-search.js', '32-boards.js', '35-pars.js', '30-levels.js']);
+    const c = loadGame('casks');
     const res = LabSweep.pars(
       { levels: c.CasksLevels, search: c.CasksSearch, pars: c.CasksPars }, 1, 10);
     equal(res.rows.filter(r => r.shipped != null).length, 10,
@@ -177,8 +167,7 @@ describe('lab sweep', () => {
      the same seeds and required to give the same answers, seed for seed. */
   it('plays a bubble run exactly the way the offline harness plays it', async () => {
     const { run: offline } = await import('../tools/bubble-run.mjs');
-    const b = loadFrom('src/bubble/js',
-      ['00-config.js', '10-rng.js', '20-grid.js', '25-shot.js', '30-rules.js', '40-advice.js']);
+    const b = loadGame('bubble');
     const mods = { C: b.BubbleConfig, grid: b.BubbleGrid, shot: b.BubbleShot,
                    rules: b.BubbleRules, advice: b.BubbleAdvice, rng: b.BubbleRng };
     const opts = { every: b.BubbleConfig.ADVANCE_EVERY, length: b.BubbleConfig.RUN_SHOTS };
@@ -192,8 +181,7 @@ describe('lab sweep', () => {
   });
 
   it('reports the pass rates the thresholds were set from', async () => {
-    const b = loadFrom('src/bubble/js',
-      ['00-config.js', '10-rng.js', '20-grid.js', '25-shot.js', '30-rules.js', '40-advice.js']);
+    const b = loadGame('bubble');
     const mods = { C: b.BubbleConfig, grid: b.BubbleGrid, shot: b.BubbleShot,
                    rules: b.BubbleRules, advice: b.BubbleAdvice, rng: b.BubbleRng };
     const { measure } = await import('../tools/bubble-run.mjs');

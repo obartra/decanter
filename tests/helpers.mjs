@@ -1,6 +1,6 @@
 /* Loads the browser-free source modules into a sandbox so they can be tested
    in Node without a DOM. */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -8,18 +8,50 @@ import vm from 'node:vm';
 export const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const read = p => readFileSync(join(root, p), 'utf8');
 
-/* every module that touches neither document nor window */
-const PURE = ['00-config.js', '05-trace.js', '10-rng.js', '20-rules.js', '30-levels.js', '32-order.js', '35-pars.js', '36-chapters.js', '40-progress.js', '45-panel.js', '46-preview.js'];
+/* Every module of a game that runs without a DOM, in load order.
 
+   Read off the sources rather than written down. There were five copies of this
+   list, two here and three inside individual suites, and one of those had its
+   modules in an order the game never loads them in and passed by luck. Which
+   modules run headless is a fact about the sources, so `pure/` is where they
+   live and this is how you ask.
+
+   Sorted by filename, which is also how the build orders them regardless of the
+   folder they sit in, so a suite loads a game in the order the page does. */
+export const pureOf = dir => readdirSync(join(root, dir, 'pure'))
+  .filter(f => f.endsWith('.js')).sort().map(f => `pure/${f}`);
+
+/* Every module under a directory, `pure/` and all, in the order the page loads
+   them. Anything scanning a game's sources has to go through this: a plain
+   readdir stops at the folder boundary and quietly reports on half a game,
+   which for a check that asserts something is published reads as the thing
+   being missing. Ordered by filename and not by path, for the same reason the
+   build is. */
+/* the name a module is known by, which is what the build's markers carry */
+export const nameOf = p => p.slice(p.lastIndexOf('/') + 1);
+const base = nameOf;
+export const modulesOf = (dir, ext = '.js') => {
+  const out = [];
+  const walkIn = rel => {
+    for (const f of readdirSync(join(root, dir, rel)).sort()){
+      const p = rel ? `${rel}/${f}` : f;
+      if (statSync(join(root, dir, p)).isDirectory()) walkIn(p);
+      else if (f.endsWith(ext)) out.push(p);
+    }
+  };
+  walkIn('');
+  return out.sort((a, b) => (base(a) < base(b) ? -1 : base(a) > base(b) ? 1 : 0));
+};
+
+/* the app, which is the pour game and the shell around every other one */
 export function loadPure(extra = []){
-  return loadFrom('src/js', PURE.concat(extra));
+  return loadFrom('src/js', pureOf('src/js').concat(extra));
 }
-
-/* every module of the bubble game that touches neither document nor window */
-const BUBBLE_PURE = ['00-config.js', '10-rng.js', '20-grid.js', '25-shot.js', '30-rules.js', '40-advice.js', '45-score.js'];
-export function loadBubble(extra = []){
-  return loadFrom('src/bubble/js', BUBBLE_PURE.concat(extra));
+/* any game at its own path: loadGame('bubble'), loadGame('casks') */
+export function loadGame(id, extra = []){
+  return loadFrom(`src/${id}/js`, pureOf(`src/${id}/js`).concat(extra));
 }
+export const loadBubble = (extra = []) => loadGame('bubble', extra);
 
 /* Runs a list of classic scripts into one sandbox, in order, the way the built
    page does. Shared so a second game can be tested the same way as the first

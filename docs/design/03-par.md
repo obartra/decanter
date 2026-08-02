@@ -62,7 +62,7 @@ breadth-first search that applies no pruning at all.
 ## Where par actually comes from
 
 Not from the browser. `tools/pars.mjs` solves every level offline with a budget
-no page load could afford and writes `src/js/35-pars.js`, which is committed. It
+no page load could afford and writes `src/js/pure/35-pars.js`, which is committed. It
 currently holds 120 levels, solved in about twenty seconds.
 
 Levels are deterministic, so par is a fixed property of a level and there is

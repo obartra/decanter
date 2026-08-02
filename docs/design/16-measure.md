@@ -71,7 +71,7 @@ same reason. There is no heuristic to be right about.
 
 ## Where the inversion is
 
-`src/js/20-rules.js` `rate()` returns **full marks** when par is null or inexact.
+`src/js/pure/20-rules.js` `rate()` returns **full marks** when par is null or inexact.
 `MeasureScore.stars()` returns **zero stars**. Exactly the other way round, and
 on purpose:
 
@@ -308,7 +308,7 @@ decisions.
 | --- | --- |
 | `src/measure/js/` | modules, concatenated in filename order. Under 50 is pure logic, 50 and above is browser code |
 | `src/measure/css/00-base.css` | the one stylesheet; every class is prefixed `msr` |
-| `src/measure/js/32-order.js` | generated, committed: `level: [vessels, seed]` |
-| `src/measure/js/35-pars.js` | generated, committed: the exact minimum, and where the table ends |
+| `src/measure/js/pure/32-order.js` | generated, committed: `level: [vessels, seed]` |
+| `src/measure/js/pure/35-pars.js` | generated, committed: the exact minimum, and where the table ends |
 | `tools/measure-field.mjs` | measures the field offline and writes both of the above |
 | `tests/measure.test.mjs` | the rules, the search against a hand-worked par, the deal, and the scorer |

@@ -1,4 +1,4 @@
-/* Precomputes par for every level and writes src/js/35-pars.js.
+/* Precomputes par for every level and writes src/js/pure/35-pars.js.
 
    Levels are deterministic in the level number, so par is a fixed property of
    the level, not something worth rediscovering in the browser on every visit.
@@ -60,8 +60,8 @@ globalThis.PARS = Object.freeze({${entries}});
 globalThis.LAST_LEVEL = ${graded[graded.length - 1]};
 `;
 
-writeFileSync(join(root, 'src/js/35-pars.js'), out);
+writeFileSync(join(root, 'src/js/pure/35-pars.js'), out);
 
-console.log(`\nwrote src/js/35-pars.js with ${LEVELS} levels`);
+console.log(`\nwrote src/js/pure/35-pars.js with ${LEVELS} levels`);
 console.log(`slowest solve: ${worst}ms`);
 if (slow.length) console.log(`over 1s: ${slow.join(', ')}`);

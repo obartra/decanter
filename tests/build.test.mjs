@@ -1,4 +1,4 @@
-import { describe, it, assert, equal, read, root } from './helpers.mjs';
+import { describe, it, assert, equal, read, root, modulesOf, nameOf } from './helpers.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 /* the same list the linter is configured from, so "what a browser defines" has
@@ -128,7 +128,7 @@ describe('build output', () => {
   it('bundles every source module in order', () => {
     const js = text(assetNamed('app', 'js'));
     /* the sound is deliberately not in here; see the deferred test below */
-    for (const f of readdirSync(join(root, 'src/js')).filter(n => n !== '50-audio.js')){
+    for (const f of modulesOf('src/js').map(nameOf).filter(n => n !== '50-audio.js')){
       assert(js.includes(`/* ---- ${f} ---- */`), `${f} was left out of the app bundle`);
     }
     assert(js.indexOf('/* ---- 20-rules.js ---- */') < js.indexOf('/* ---- 90-app.js ---- */'),
@@ -245,7 +245,7 @@ describe('build output', () => {
        is the next one that is not. */
     for (const dir of ['src/js', 'src/bubble/js']){
       const where = new Map();
-      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+      for (const f of modulesOf(dir)){
         for (const m of read(`${dir}/${f}`).matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
           if (!where.has(m[1])) where.set(m[1], new Set());
           where.get(m[1]).add(f);
@@ -502,6 +502,45 @@ describe('build output', () => {
 /* Written for two games and generalized to however many there are, because the
    third and fourth arrived and the pairwise version would have quietly kept
    checking only the first two. */
+describe('what runs without a browser', () => {
+  /* Every game keeps the modules that need no DOM in `pure/`, and that is not
+     filing: it is what the whole unit suite loads. There used to be seven
+     written-down lists of which modules those were, two in the helpers and five
+     inside individual suites, and one of them named them in an order the game
+     never loads them in and passed on luck. The folder is the list now, so the
+     only way to keep it true is to check that what is in it really is pure. */
+  const dirs = ['src/js', ...gameDirs().map(g => `src/${g}/js`)];
+
+  it('keeps a pure folder in every game', () => {
+    for (const dir of dirs){
+      assert(existsSync(join(root, dir, 'pure')),
+        `${dir} has no pure/, so nothing there can be unit tested`);
+    }
+  });
+
+  it('lets nothing into pure that needs a page', () => {
+    /* Comments and strings are stripped first: several of these modules explain
+       at length why they do not touch the document, and a scan that counted the
+       explanation would make the honest ones look like the offenders.
+
+       `localStorage` is not on the list on purpose. The save reaches for it
+       through `globalThis`, inside a try, and falls back to memory, which is
+       what lets it run headless and is tested to. */
+    const banned = /\b(document|window|requestAnimationFrame|addEventListener|navigator|caches)\b/;
+    const guilty = [];
+    for (const dir of dirs){
+      for (const f of modulesOf(`${dir}/pure`)){
+        const bare = read(`${dir}/pure/${f}`)
+          .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+          .replace(/`[^`]*`/g, '').replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '');
+        const hit = banned.exec(bare);
+        if (hit) guilty.push(`${dir}/pure/${f} reaches for ${hit[1]}`);
+      }
+    }
+    equal(guilty, [], 'a module in pure/ needs a browser, so the unit suite cannot load it');
+  });
+});
+
 describe('the games do not collide', () => {
   const classesIn = dir => {
     const out = new Set();
@@ -529,7 +568,7 @@ describe('the games do not collide', () => {
     const claimed = new Map();
     for (const g of gameDirs()){
       const want = prefixOf(g);
-      for (const f of readdirSync(join(root, `src/${g}/js`)).filter(n => n.endsWith('.js'))){
+      for (const f of modulesOf(`src/${g}/js`)){
         for (const m of read(`src/${g}/js/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
           assert(m[1].startsWith(want),
             `${g}/${f} publishes ${m[1]}, which is not prefixed ${want}`);
@@ -552,7 +591,7 @@ describe('the games do not collide', () => {
        remembered. */
     const taken = [];
     for (const dir of ['src/js', ...gameDirs().map(g => `src/${g}/js`)]){
-      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+      for (const f of modulesOf(dir)){
         for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
           if (m[1] in browserGlobals) taken.push(`${dir}/${f} publishes ${m[1]}`);
         }
@@ -581,9 +620,8 @@ describe('the games do not collide', () => {
         .map(m => m[1])
         .filter(n => !['get', 'set', 'if', 'for', 'while', 'return', 'switch', 'catch'].includes(n));
       assert(cues.length > 3, `found only ${cues.length} cues in ${dir}/${mod}, so the scan is wrong`);
-      const callers = readdirSync(join(root, dir))
-        .filter(n => n.endsWith('.js') && n !== mod)
-        .map(n => read(`${dir}/${n}`)).join('\n');
+      const callers = modulesOf(dir).filter(p => nameOf(p) !== mod)
+        .map(p => read(`${dir}/${p}`)).join('\n');
       for (const cue of cues){
         assert(new RegExp(`\\.${cue}\\s*\\(`).test(callers),
           `${dir}/${mod} defines ${cue}() and nothing ever calls it`);

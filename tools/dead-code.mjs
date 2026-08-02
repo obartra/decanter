@@ -231,7 +231,7 @@ for (const [file, src] of files){
    One level of nesting, so `economy.blast` is reached rather than only
    `economy`. Deeper is the palette and the star brackets, which are read by
    index and by spread and cannot be seen by a scan either way. */
-const CONFIG_FILES = ['src/js/00-config.js', 'src/bubble/js/00-config.js'];
+const CONFIG_FILES = ['src/js/pure/00-config.js', 'src/bubble/js/pure/00-config.js'];
 for (const file of CONFIG_FILES){
   const src = files.get(file);
   if (!src) continue;

@@ -154,7 +154,7 @@ same reason. There is no heuristic to be right about.
 
 ## Where the inversion is
 
-`src/js/20-rules.js` `rate()` returns **full marks** when par is null or inexact.
+`src/js/pure/20-rules.js` `rate()` returns **full marks** when par is null or inexact.
 `CasksScore.stars()` returns **zero stars**. Exactly the other way round, and on
 purpose:
 
@@ -316,7 +316,7 @@ lost the touch; the state never goes there.
 | --- | --- |
 | `src/casks/js/` | modules, concatenated in filename order. Under 50 is pure logic, 50 and above is browser code |
 | `src/casks/css/00-base.css` | the one stylesheet; every class is prefixed `csk` |
-| `src/casks/js/32-boards.js` | generated, committed: the floor of every level |
-| `src/casks/js/35-pars.js` | generated, committed: the exact minimum, and where the cellar ends |
+| `src/casks/js/pure/32-boards.js` | generated, committed: the floor of every level |
+| `src/casks/js/pure/35-pars.js` | generated, committed: the exact minimum, and where the cellar ends |
 | `tools/casks-field.mjs` | measures the field offline and writes both of the above |
 | `tests/casks.test.mjs` | the rules, the sweep against a hand-worked par, every shipped board, and the scorer |

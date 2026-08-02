@@ -30,10 +30,21 @@ const gameDirs = readdirSync(join(root, 'src'), { withFileTypes: true })
 /* What a game publishes, read off the sources rather than repeated here, so the
    two cannot disagree. A module that stops publishing something stops declaring
    it in the same commit. */
+/* Walked rather than listed, because the modules that run without a DOM sit in a
+   `pure/` folder beside the ones that do. A readdir that stops at the folder
+   boundary sees half a game and calls the other half's names undefined. */
+function jsUnder(dir){
+  const out = [];
+  for (const f of readdirSync(join(root, dir), { withFileTypes: true })){
+    if (f.isDirectory()) out.push(...jsUnder(join(dir, f.name)));
+    else if (f.name.endsWith('.js')) out.push(join(dir, f.name));
+  }
+  return out;
+}
 function publishedBy(dir){
   const out = {};
-  for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
-    for (const m of readFileSync(join(root, dir, f), 'utf8').matchAll(/^globalThis\.(\w+)\s*=/gm)){
+  for (const f of jsUnder(dir)){
+    for (const m of readFileSync(join(root, f), 'utf8').matchAll(/^globalThis\.(\w+)\s*=/gm)){
       out[m[1]] = 'writable';
     }
   }

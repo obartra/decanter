@@ -7,7 +7,17 @@ Building, shipping, working offline, and picking up a new version.
 `tools/build.mjs` is the entire build. Files in a game's `js` and `css`
 directories are concatenated in **filename order**, which is why modules are
 numbered: the number is the dependency order, and there is no import graph to
-resolve. Under 50 is pure logic that runs anywhere; above is browser code.
+resolve.
+
+Ordering is by filename and never by path, because the modules that run without
+a DOM live in a pure folder beside the ones that do, as in `src/js/pure/`.
+Sorting by path would put that whole folder after everything else, which is a
+different program.
+
+The folder is not filing: it is exactly what the unit suite loads, so it replaced
+seven written-down lists of which modules run headless, one of which named them
+in an order the game never loads them in and passed by luck. A test checks that
+nothing in it reaches for a document, a window or a frame.
 
 The project has **no dependencies at all**, so there is nothing to install before
 building or testing. That is a constraint worth defending: it is what makes the
