@@ -47,10 +47,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      # A published global nothing names, an export nothing calls, a tunable
-      # nothing reads. None of it throws, so none of it is visible any other way.
+      # An export nothing reads, a helper nothing calls, a tunable nothing
+      # tunes, a rule nothing wears, an id nothing reaches. None of it throws,
+      # so none of it is visible any other way.
       - name: Nothing here is dead
-        run: npm run dead
+        run: npm run verify:live
 
       # Par is the number the whole scoring rests on. This replays every level
       # against the independent rules and fails if any of them cannot be

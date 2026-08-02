@@ -32,25 +32,30 @@ from numbers: rules, solver, levels, par, ordering, economy, progress, the
 end-of-run panel, and the same for each of the other games. This is the bulk of
 the game and the cheapest place to catch things.
 
-**Dead code** (`npm run dead`). Fails on a published global nothing names, an
-export nothing calls, a config key nothing reads, or a style with no markup —
-and on markup wearing a class no stylesheet defines.
+**Dead code** (`npm run verify:live`). Fails on an export nothing reads, a
+module-level helper nothing calls, a config key nothing tunes against, a style
+nothing wears, an id nothing reaches, and markup wearing a class no stylesheet
+defines.
 
 An uncalled function is not an error. It does not throw, it does not slow
 anything down, and it reads exactly like code that works, which is why it
-survives review and why it needs a machine. This generalises a test that already
-existed for one case: sounds, written after two of the biggest moments in the
-bubble game turned out to be silent while everything passed.
+survives review and why it needs a machine. It is the reason `unlock2` sat in the
+audio module for months making a sound nobody could hear.
 
-It found three things the day it was written, and one of them had been sitting in
-plain sight through several reviews — `CONFIG.bubblePerChapter`, a tunable with a
-paragraph of reasoning above it that nothing read, so moving it did nothing at
-all. That is now wired to the function it describes.
+**There is no allowlist**, and that is the interesting decision. There was one,
+covering two exports, forty-odd class names and two ids, all written defensively
+before anyone knew whether they were needed — and emptying it one entry at a time
+changed nothing. What it would have done is forgive the first genuinely dead
+`.armed` rule for ever, which is the opposite of the job. Something reached in a
+way a textual scan cannot see goes back in with the evidence that it is real.
 
-Everything it does is string matching, with no parser, so it errs toward silence:
-a name built at runtime looks used. A detector that cries wolf gets turned off.
-Deliberate exceptions live in an `ALLOW` table in the tool, each with the reason
-it is one.
+The config-key check found `CONFIG.bubblePerChapter`: a tunable with a paragraph
+of reasoning above it, and a function beside it that returned two whatever the
+number said. That is now wired to the function it describes.
+
+Everything here is string matching, with no parser, so it errs toward silence —
+a name built at runtime looks used. A detector that cries wolf gets switched off,
+and one that is switched off finds nothing.
 
 **Size budget** (`npm run verify:budget`). Builds and fails if what matters has
 outgrown its budget. Three numbers rather than one, because the page stopped

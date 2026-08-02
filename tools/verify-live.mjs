@@ -131,7 +131,7 @@ for (const file of js){
      `new Function` with an internals export appended, so its private helpers are
      reachable and tested. Scoped by how a file is loaded rather than by a list of
      names, because the exception is structural and a name list would drift. */
-  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
+  if (!/^src\/(?:js|[a-z]+\/js)\//.test(file)) continue;
   const src = read(file);
   for (const m of src.matchAll(/^ {0,2}function (\w+)\s*\(/gm)){
     const name = m[1];
@@ -161,6 +161,65 @@ for (const file of html){
     const id = m[1];
     if (new RegExp(`['"\`#]${id}\\b`).test(scripts)) continue;
     add('id', `#${id}`, file, 'in the markup and nothing reaches it');
+  }
+}
+
+/* ---- config keys nothing reads ----
+
+   A tunable nobody tunes against is a comment with a number in it, and the
+   comments above these numbers are the most load-bearing prose in the repo — so
+   the difference between a setting and a decoration is worth a check.
+
+   This found `CONFIG.bubblePerChapter`, which had a paragraph explaining why two
+   boards a chapter and not every fifth, and a `bubbleSlots` beside it that
+   returned two whatever the number said. */
+for (const file of js.filter(f => /\/00-config\.js$/.test(f))){
+  const src = read(file);
+  const readers = [...js, ...html, ...tools, ...tests].filter(f => f !== file).map(read).join('\n');
+  for (const m of src.matchAll(/^ {2}(\w+):/gm)){
+    const key = m[1];
+    /* `.KEY` covers C.KEY, CONFIG.KEY and BubbleConfig.KEY alike; a value the
+       config derives further down its own file is read by definition */
+    if (new RegExp(`\\.${key}\\b`).test(readers)) continue;
+    if (new RegExp(`\\.${key}\\s*=`).test(src)) continue;
+    add('config', key, file, 'a tunable and nothing reads it');
+  }
+}
+
+/* ---- globals nothing names ----
+
+   Distinct from an unread export: this is the whole object being published into
+   a scope where nobody looks it up. The module is talking to itself through the
+   global namespace. */
+for (const file of js){
+  const src = read(file);
+  for (const m of src.matchAll(/^globalThis\.(\w+)\s*=/gm)){
+    const name = m[1];
+    const others = [...js, ...html, ...tools, ...tests].filter(f => f !== file).map(read).join('\n');
+    if (new RegExp(`\\b${name}\\b`).test(others)) continue;
+    /* still alive if its own file uses it after publishing — an entry point does */
+    const own = src.replace(/^globalThis\.\w+\s*=.*$/gm, '');
+    if (new RegExp(`\\b${name}\\b`).test(own)) continue;
+    add('global', name, file, 'published and nothing names it');
+  }
+}
+
+/* ---- markup wearing a class no stylesheet defines ----
+
+   The other direction from the css check above, and it fails for the opposite
+   reason: a rule that was deleted, or renamed, leaves markup that looks styled
+   and is not. `js-` is exempt by convention — a class the scripts query and
+   nothing paints is the convention working, and the prefix is what says so. */
+const styled = new Set();
+for (const file of css){
+  for (const m of read(file).matchAll(/\.([a-zA-Z][-\w]*)/g)) styled.add(m[1]);
+}
+for (const file of html){
+  for (const m of read(file).matchAll(/class="([^"]+)"/g)){
+    for (const cls of m[1].split(/\s+/)){
+      if (!cls || cls.startsWith('js-') || styled.has(cls)) continue;
+      add('unstyled', `.${cls}`, file, 'worn in the markup and no stylesheet defines it');
+    }
   }
 }
 

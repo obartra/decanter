@@ -12,7 +12,7 @@
     "verify:budget": "node tools/verify-budget.mjs",
     "verify:live": "node tools/verify-live.mjs",
     "verify:pars": "node tools/verify-pars.mjs 120",
-    "check": "npm run lint && npm run build && npm test && npm run dead && npm run verify:budget",
+    "check": "npm run lint && npm run build && npm test && npm run verify:live && npm run verify:budget",
     "check:all": "npm run check && npm run verify:pars && npm run test:e2e",
     "pars": "node tools/pars.mjs",
     "order": "node tools/order.mjs",
@@ -21,8 +21,7 @@
     "measure:field": "node tools/measure-field.mjs",
     "casks:field": "node tools/casks-field.mjs",
     "serve": "npm run build && cd dist && python3 -m http.server 8080",
-    "icons": "python3 tools/make-icons.py",
-    "dead": "node tools/dead-code.mjs"
+    "icons": "python3 tools/make-icons.py"
   },
   "engines": {
     "node": ">=18"
