@@ -90,17 +90,24 @@ primary button whenever it is ready and nothing else can be pressed. See
 [09 The map](09-map.md).
 
 **Gold from outside the economy** exists for the beta only: a word in the query
-string, `CONFIG.beta`, tops the purse up so a player who has run dry in the
+string, `CONFIG.beta`, fills the purse so a player who has run dry in the
 middle of telling us about something else does not have to wait out a day. It
 guards nothing — the save is localStorage on the player's own device — so it is
 written down in plain sight rather than dressed up as a lock. It is counted in
 the save, because a purse nobody earned is a debugging trap otherwise, and it
 comes out with the beta.
 
-It is spent out of the URL as well as into the purse, so pasting the link again
-is the only way to be paid twice and a screenshot taken afterwards does not carry
-the word. The amount is absurd on purpose: it is not a top-up that has to be
-balanced against anything, it is the end of the economy for one save.
+The figure is what the purse is **brought up to**, not what is added to it, and
+that is what lets the word stay in the address bar. Adding stacked a second
+payment on every reload, so the word had to be deleted from the URL to stop it —
+which made it a link that worked once, quietly, which is not what a link is for.
+Bringing the purse up to a number can be done any number of times and lands in
+the same place, so the link keeps working and every load sets it off again. It is
+a floor rather than an assignment, so it can never take gold away from a save
+already holding more.
+
+The amount is absurd on purpose: it is not a top-up that has to be balanced
+against anything, it is the end of the economy for one save.
 
 And it goes off rather than sliding in — a strobe, three shockwaves, three bangs,
 and **JABARI MODE** shaking across the screen in rainbow over a neon

@@ -27,8 +27,13 @@ const CONFIG = {
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
-  /* A word in the query string that tops the purse up, for handing to a beta
+  /* A word in the query string that fills the purse, for handing to a beta
      player who has run dry mid-report rather than making them wait out a day.
+
+     The figure is what the purse is brought up to, not what is added to it, so
+     the link can be opened as many times as you like and always lands on the
+     same number. It is absurd on purpose: this is not a top-up to be balanced
+     against anything, it is the end of the economy for one save.
 
      It guards nothing. The save is localStorage on the player's own device and
      anyone who wants gold can type it into a console, so this is a convenience
