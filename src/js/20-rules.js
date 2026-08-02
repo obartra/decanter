@@ -138,7 +138,7 @@ const Rules = (() => {
     return Math.min(earned, cap);
   }
 
-  return { CAP, clone, isFull, isSolved, keyOf, runLength, minPours,
+  return { CAP, clone, isFull, isSolved, keyOf, minPours,
            canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
            poursLeft, lostBecause };
 })();

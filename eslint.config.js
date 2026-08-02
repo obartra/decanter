@@ -16,7 +16,7 @@ const published = {
   CONFIG: 'writable', Trace: 'writable', RNG: 'writable', Rules: 'writable', Levels: 'writable',
   Diagnostics: 'writable',
   ORDER: 'writable', PARS: 'writable', Chapters: 'writable', LAST_LEVEL: 'writable', Progress: 'writable',
-  Panel: 'writable', Audio: 'writable', MapGeom: 'writable', MapView: 'writable',
+  Panel: 'writable', Sound: 'writable', MapGeom: 'writable', MapView: 'writable',
   Backdrop: 'writable', Board: 'writable', Fluid: 'writable', Confetti: 'writable',
   SolverClient: 'writable', App: 'writable'
 };
@@ -79,7 +79,7 @@ export default [
       sourceType: 'script',
       globals: {
         ...globals.browser,
-        BubbleConfig: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
+        BubbleConfig: 'writable', BubbleRng: 'writable', BubbleGrid: 'writable', BubbleShot: 'writable',
         BubbleRules: 'writable', BubbleView: 'writable', BubbleRender: 'writable',
         BubbleAudio: 'writable', BubbleAdvice: 'writable', BubbleScore: 'writable',
         BubbleApp: 'writable'

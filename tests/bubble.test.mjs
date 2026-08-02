@@ -10,20 +10,16 @@
    "best" that records the worst run of every level because longer is better here
    and shorter is better in the other game. */
 import { describe, it, assert, equal, loadBubble } from './helpers.mjs';
+/* The same loop the survival tool measures, so a green difficulty test and a red
+   table cannot both be true. */
+import { run, measure } from '../tools/bubble-run.mjs';
 
-const { BubbleConfig: C, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
+const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRules: R,
         BubbleAdvice: Adv, BubbleScore: Sc } = loadBubble();
 
-/* a small deterministic stream, so a failure can be reproduced from its seed */
-function rng(seed){
-  let s = seed >>> 0;
-  return () => {
-    s ^= s << 13; s >>>= 0;
-    s ^= s >>> 17;
-    s ^= s << 5; s >>>= 0;
-    return s / 4294967296;
-  };
-}
+/* The game's own stream, so a failure can be reproduced from its seed and so
+   these boards are the boards the game deals rather than lookalikes. */
+const rng = seed => Rng.from(seed);
 
 function board(seed, rows, colours = 4){
   const r = rng(seed);
@@ -289,8 +285,7 @@ describe('bubble board', () => {
     /* the property that matters most now: a run terminates, by clearing the
        board, by reaching the line, or by having nowhere left to put anything */
     const run = seed => {
-      let s = seed >>> 0 || 1;
-      const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      const rnd = rng(seed);
       const b = board(seed, 5);
       for (let shots = 1; shots <= 500; shots++){
         const live = R.liveColours(b);
@@ -322,8 +317,7 @@ describe('bubble board', () => {
        it and the opening shot clears something nobody earned */
     for (let seed = 1; seed <= 20; seed++){
       const b = G.create(0);
-      let s = seed >>> 0 || 1;
-      const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      const rnd = rng(seed);
       for (let j = 0; j < 5; j++){
         for (let c = 0; c < C.COLS; c++){
           const start = Math.floor(rnd() * C.COLOURS);
@@ -464,24 +458,41 @@ describe('bubble advice', () => {
 
 describe('bubble scoring', () => {
   it('pays three for a cleared board however short the run', () => {
-    equal(Sc.stars({ cleared: true, shots: 1, aided: false }), 3,
+    equal(Sc.stars({ cleared: true, survived: false, shots: 1, aided: false }), 3,
       'clearing is the par moment and pays in full');
   });
 
-  it('grades an unfinished run by how long it lasted', () => {
-    const { one, two, three } = C.STAR_SHOTS;
-    equal(Sc.stars({ cleared: false, shots: one - 1, aided: false }), 0);
-    equal(Sc.stars({ cleared: false, shots: one, aided: false }), 1, 'on the threshold, not past it');
-    equal(Sc.stars({ cleared: false, shots: two, aided: false }), 2);
-    equal(Sc.stars({ cleared: false, shots: three, aided: false }), 3);
-    equal(Sc.stars({ cleared: false, shots: three * 4, aided: false }), 3, 'three is the ceiling');
+  it('pays three for surviving the run', () => {
+    equal(Sc.stars({ cleared: false, survived: true, shots: C.RUN_SHOTS, aided: false }), 3,
+      'lasting the whole run is the other way to finish it');
+  });
+
+  it('grades an unfinished run by how far through it got', () => {
+    const { one, two } = C.STAR_SHOTS;
+    const got = shots => Sc.stars({ cleared: false, survived: false, shots, aided: false });
+    equal(got(one - 1), 0);
+    equal(got(one), 1, 'on the threshold, not past it');
+    equal(got(two), 2);
+    equal(got(C.RUN_SHOTS), 2, 'two is the ceiling for a run that did not finish');
+  });
+
+  it('does not pay for finishing a run that ended on its last shot', () => {
+    /* The bug this pins is one shot wide and worth a whole star. The run stops
+       at RUN_SHOTS and the third threshold is RUN_SHOTS, so grading the third
+       star on the count looks identical to grading it on the ending, right up
+       until the final shot is the one that loses: the clock reads RUN_SHOTS, the
+       bubbles are over the line, and the player is told they earned three. */
+    equal(C.STAR_SHOTS.three, C.RUN_SHOTS,
+      'the third star is the whole run, so these are one number and not two');
+    equal(Sc.stars({ cleared: false, survived: false, shots: C.RUN_SHOTS, aided: false }), 2,
+      'a run that reached the last shot and lost it did not survive');
   });
 
   it('caps a run that picked its colours, exactly like a bought vessel', () => {
-    equal(Sc.stars({ cleared: false, shots: C.STAR_SHOTS.three, aided: true }), C.AID_CAP);
-    equal(Sc.stars({ cleared: true, shots: 200, aided: true }), C.AID_CAP,
+    equal(Sc.stars({ cleared: false, survived: true, shots: C.RUN_SHOTS, aided: true }), C.AID_CAP);
+    equal(Sc.stars({ cleared: true, survived: false, shots: 200, aided: true }), C.AID_CAP,
       'even clearing the board does not buy back the third star');
-    equal(Sc.stars({ cleared: false, shots: C.STAR_SHOTS.one, aided: true }), 1,
+    equal(Sc.stars({ cleared: false, survived: false, shots: C.STAR_SHOTS.one, aided: true }), 1,
       'the cap is a ceiling, not a penalty');
   });
 
@@ -492,19 +503,15 @@ describe('bubble scoring', () => {
      the longest run on a bubble level. This one was checking a second
      implementation that no run ever reached. */
 
-  it('tightens the cadence as the run goes on, and then stops', () => {
-    equal(Sc.cadenceAt(0), C.ADVANCE_EVERY, 'the first shots are at the opening cadence');
-    equal(Sc.cadenceAt(C.RAMP_EVERY), C.ADVANCE_EVERY - 1);
-    equal(Sc.cadenceAt(C.RAMP_EVERY * 3), C.ADVANCE_EVERY - 3);
-    equal(Sc.cadenceAt(C.RAMP_EVERY * 500), C.ADVANCE_MIN,
-      'the ramp has a floor, or the board eventually beats every player equally');
-    /* never rises again, which a modulo-based cadence would do */
-    let last = Infinity;
-    for (let s = 0; s < 2000; s += 7){
-      const now = Sc.cadenceAt(s);
-      assert(now <= last, `cadence went back up at shot ${s}`);
-      last = now;
-    }
+  it('keeps the thresholds inside the run they grade', () => {
+    /* Three numbers that only mean anything in order, and nothing else notices
+       if they stop being in it: a two-star bar past the end of the run is simply
+       a star nobody can earn, and no test of the game itself would fail. */
+    const { one, two, three } = C.STAR_SHOTS;
+    assert(one < two && two < three, `stars out of order: ${one}, ${two}, ${three}`);
+    equal(three, C.RUN_SHOTS, 'the last star is the end of the run');
+    assert(C.ADVANCE_EVERY >= 4,
+      'below four the board wins whatever the player does, and the run stops measuring anyone');
   });
 
   it('reports the next star as something the run can still reach', () => {
@@ -525,8 +532,7 @@ describe('bubble deal', () => {
 
   it('deals nothing already matched, and nothing already floating', () => {
     for (let seed = 1; seed <= 20; seed++){
-      let s = seed >>> 0 || 1;
-      const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      const rnd = rng(seed);
       const b = R.dealBoard(5, rnd);
       for (const [j, c] of G.occupied(b)){
         assert(R.matchFrom(b, j, c).length < C.MATCH_MIN,
@@ -538,45 +544,65 @@ describe('bubble deal', () => {
 });
 
 describe('bubble difficulty', () => {
-  it('still grades the run the thresholds were measured against', () => {
-    /* The bubble analogue of verify:pars. STAR_SHOTS is set from the measured
-       distribution in tools/bubble-survival.mjs, and nothing else fails if
-       someone changes the cadence or the ramp and leaves the thresholds behind:
-       the game simply keeps grading against numbers that no longer describe it.
+  /* The bubble analogue of verify:pars, and the same three claims the survival
+     tool prints. STAR_SHOTS and the cadence are set from measured pass rates,
+     and nothing else in the suite fails if someone moves one and leaves the
+     other behind: the game simply carries on grading against numbers that no
+     longer describe it, which is how it got a one-star bar a real player cleared
+     half the time.
 
-       Thirty seeds rather than the tool's three hundred, and it asserts only
-       that a competent run lands inside the band rather than pinning a
-       percentile. That is enough to catch a cadence change that moves the
-       median past a threshold, and loose enough not to fail on noise. */
-    const shots = [];
-    for (let seed = 1; seed <= 30; seed++){
-      const rnd = rng(seed);
-      const b = R.dealBoard(5, rnd);
-      let sinceDrop = 0, n = 0;
-      for (; n < 400; n++){
-        const live = R.liveColours(b);
-        if (!live.length) break;
-        const colour = live[Math.floor(rnd() * live.length)];
-        const best = Adv.bestShot(b, colour, S.resolveShot);
-        if (!best) break;
-        const res = R.resolveTurn(b, best.landing, colour);
-        if (res.won || res.lost) { n++; break; }
-        if (++sinceDrop >= Sc.cadenceAt(n + 1)){
-          sinceDrop = 0;
-          G.advance(b, R.freshRow(b, rnd));
-          R.remove(b, R.detach(b));
-          if (R.isLost(b)) { n++; break; }
-        }
-      }
-      shots.push(n);
+     Runs come from tools/bubble-run.mjs, the same loop the tool measures, so a
+     green test and a red table cannot both be true. Forty seeds rather than the
+     tool's three hundred, and the bands are wide enough to survive the sampling
+     noise that comes with that: the true rates are near 98%, 18% and 48%, and
+     the bars below are set far enough off each to fail on a real change and not
+     on a different day. */
+  const rate = (miss, of) => {
+    const m = measure({ seeds: 40, miss });
+    return m.at[of];
+  };
+
+  it('puts the stars above aiming at nothing, where the first one unlocks', () => {
+    /* A bubble level that banks no stars does not unlock the one after it, so
+       the first bar is the difference between a level and a wall. It has to be
+       clearable by anyone playing properly and out of reach of anyone not.
+
+       The floor is a player putting the bubble in some reachable cell, not one
+       firing at a random angle. That distinction is the whole reason these
+       numbers moved: a random angle mostly buries itself in the first thing it
+       meets and dies around 21, so measuring against it made every bar look far
+       more earned than it was. */
+    const competent = rate(0.30, 'one');
+    const loose = rate(1, 'one');
+    assert(competent >= 0.85,
+      `a competent run reaches the first star ${(competent * 100).toFixed(0)}% of the time: the level is a wall`);
+    assert(loose <= 0.35,
+      `aiming at nothing reaches the first star ${(loose * 100).toFixed(0)}% of the time: the bar grades nothing`);
+    /* the second bar has room for a tighter claim, and it is the one that says
+       the run rewards playing rather than merely turning up */
+    assert(rate(1, 'two') <= 0.10,
+      'aiming at nothing reaches the second star too often for it to mean anything');
+  });
+
+  it('makes finishing the run worth playing for, and not a formality', () => {
+    const competent = rate(0.30, 'three');
+    const good = rate(0.15, 'three');
+    assert(competent >= 0.15,
+      `a competent run finishes ${(competent * 100).toFixed(0)}% of the time: the run is too long to be won`);
+    assert(good <= 0.85,
+      `a good run finishes ${(good * 100).toFixed(0)}% of the time: the run is too short to be lost`);
+  });
+
+  it('ends every run, one way or another', () => {
+    /* The property that stops mattering quietly. A fixed length is what caps the
+       run, so a run that reports more shots than RUN_SHOTS means the cap is not
+       being applied and the game is unbounded again. */
+    for (let seed = 1; seed <= 40; seed++){
+      const o = run(seed, { miss: 0.30 });
+      assert(['cleared', 'survived', 'line', 'blocked'].includes(o.how),
+        `seed ${seed} ended as ${o.how}`);
+      assert(o.shots <= C.RUN_SHOTS,
+        `seed ${seed} ran ${o.shots} shots against a run of ${C.RUN_SHOTS}`);
     }
-    const median = shots.slice().sort((a, b) => a - b)[shots.length >> 1];
-    const { one, three } = C.STAR_SHOTS;
-    assert(median > one * 0.6,
-      `a competent run medians ${median} shots against a one-star bar of ${one}: the bar is out of reach`);
-    assert(median < three,
-      `a competent run medians ${median} shots against a three-star bar of ${three}: every run earns full marks`);
-    /* and the run has to end on its own, or survival grades nothing */
-    assert(shots.every(s => s < 400), 'a run never ended, so the ramp is not biting');
   });
 });

@@ -159,9 +159,9 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
     return el && !el.hidden && el.classList.contains('go');
   });
   /* the picture is up before anything has been touched, which is the point */
-  expect(await page.evaluate(() => globalThis.Audio.ready),
+  expect(await page.evaluate(() => globalThis.Sound.ready),
     'a pasted link is not a gesture, so the context cannot be running yet').toBe(false);
-  expect(await page.evaluate(() => globalThis.Audio.enabled), 'and the game is muted').toBe(false);
+  expect(await page.evaluate(() => globalThis.Sound.enabled), 'and the game is muted').toBe(false);
 
   /* the first touch is the first moment a sound can be heard, so that is when
      it goes off — muted or not */
@@ -243,9 +243,9 @@ test('the portable file still has the bang when it is opened off disk', async ({
     const make = AC.prototype.createBufferSource;
     AC.prototype.createBufferSource = function(){ srcs++; return make.apply(this, arguments); };
     const src = document.querySelector('meta[name="boom"]')?.content || '';
-    await globalThis.Audio.loadBoom();
-    globalThis.Audio.unlock();
-    globalThis.Audio.boom(); globalThis.Audio.boom(0.19); globalThis.Audio.boom(0.44);
+    await globalThis.Sound.loadBoom();
+    globalThis.Sound.unlock();
+    globalThis.Sound.boom(); globalThis.Sound.boom(0.19); globalThis.Sound.boom(0.44);
     return { carriesItsOwnBytes: src.startsWith('data:audio/mpeg;base64,'), srcs };
   });
 
@@ -503,7 +503,9 @@ test('a vessel adds a bottle, and restarting takes it away', async ({ page }) =>
 
 test('going back to a cleared level is free, and pays nothing', async ({ page }) => {
   await start(page, { unlocked: 3, gold: 400, stars: { 1: 3 }, claimed: { 1: true } });
-  await expect(page.locator('#playCost')).toBeVisible();
+  /* The price used to live on a Play button in a footer. It lives on the
+     medallion now, and a cleared level is free, so it carries no price at all. */
+  await expect(page.locator('.node[data-level="1"] .buy')).toHaveCount(0);
   const before = await page.evaluate(() => globalThis.App._progress.gold);
   await page.locator('[data-level="1"]').click();
   await page.waitForFunction(() => globalThis.App._state.level === 1);

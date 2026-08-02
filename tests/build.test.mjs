@@ -1,6 +1,11 @@
 import { describe, it, assert, equal, read, root } from './helpers.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+/* the same list the linter is configured from, so "what a browser defines" has
+   one answer here and there rather than a copy that drifts */
+import globals from 'globals';
+
+const browserGlobals = globals.browser;
 
 const dist = join(root, 'dist');
 const has = f => existsSync(join(dist, f));
@@ -267,14 +272,35 @@ describe('the two games do not collide', () => {
   });
 
   it('gives every bubble global a name the other game cannot take', () => {
-    /* One page, one global scope. `Audio` on the decanter side already shadows
-       the DOM constructor; a second unprefixed name would collide outright. */
+    /* One page, one global scope, so an unprefixed name on this side would
+       collide with the other game outright. */
     const js = readdirSync(join(root, 'src/bubble/js')).filter(n => n.endsWith('.js'));
     for (const f of js){
       for (const m of read(`src/bubble/js/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
         assert(m[1].startsWith('Bubble'), `${f} publishes ${m[1]}, which is not namespaced`);
       }
     }
+  });
+
+  it('takes no name the browser already uses', () => {
+    /* The sound module was called `Audio` and so replaced the DOM constructor on
+       the page. Nothing broke, because nothing in either game builds an
+       `new Audio()`, which is exactly what makes it worth a test rather than a
+       comment: the collision is silent until the day some line wants the real
+       one, and then it fails somewhere else entirely.
+
+       Checked against the `globals` package rather than a list kept here, so it
+       covers everything a browser defines instead of everything somebody
+       remembered. */
+    const taken = [];
+    for (const dir of ['src/js', 'src/bubble/js']){
+      for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+        for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
+          if (m[1] in browserGlobals) taken.push(`${dir}/${f} publishes ${m[1]}`);
+        }
+      }
+    }
+    equal(taken, [], 'a module publishes a name the browser already defines');
   });
 
   it('calls every sound it defines', () => {

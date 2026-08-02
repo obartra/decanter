@@ -273,6 +273,6 @@ const Progress = (() => {
     };
   }
 
-  return { SAVE_KEY, createProgress, memoryStorage, blank, untilNextDay, briefly };
+  return { SAVE_KEY, createProgress, memoryStorage, untilNextDay, briefly };
 })();
 globalThis.Progress = Progress;

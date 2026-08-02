@@ -4,7 +4,7 @@
 
    One recording ships alongside, and it belongs to the one thing here that is
    not the game. See `loadBoom` for why that one is worth the bytes. */
-const Audio = (() => {
+const Sound = (() => {
   let ctx, master, noise, pourNode, on = true;
 
   function init(){
@@ -177,4 +177,4 @@ const Audio = (() => {
     }
   };
 })();
-globalThis.Audio = Audio;
+globalThis.Sound = Sound;

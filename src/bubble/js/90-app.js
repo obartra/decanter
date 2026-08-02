@@ -38,9 +38,13 @@ const BubbleApp = (() => {
     hint: null,          /* the landing the hint is pointing at, until the next shot */
     collapsing: false,   /* the lost board is on its way down, panel waiting on it */
     past: [],            /* what undo restores, newest last */
-    /* null while the game is live, then 'won' or 'lost'. The board is frozen
-       either way: a run that has ended stops taking shots rather than letting
-       the player fire into a result. */
+    /* null while the game is live, then 'won', 'survived' or 'lost'. The board
+       is frozen whichever it is: a run that has ended stops taking shots rather
+       than letting the player fire into a result.
+
+       'won' is the board emptied and 'survived' is the run outlasted. They pay
+       the same three stars and are kept apart anyway, because they are different
+       things to have done and the panel says so. */
     over: null,
     seed: 1
   };
@@ -57,20 +61,8 @@ const BubbleApp = (() => {
 
      So `game` decides everything the player is graded on and nothing else draws
      from it, and `fx` throws the debris around. */
-  const stream = () => {
-    let s = 1;
-    return {
-      seed(n){ s = n >>> 0 || 1; },
-      get state(){ return s; },
-      set state(v){ s = v >>> 0 || 1; },
-      next(){
-        s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
-        return s / 4294967296;
-      }
-    };
-  };
-  const rand = stream();
-  const fx = stream();
+  const rand = BubbleRng.stream();
+  const fx = BubbleRng.stream();
 
   function deal(){
     const live = R.liveColours(st.board);
@@ -99,7 +91,11 @@ const BubbleApp = (() => {
     show(null);
     paintHud();
     /* the rules, on a board nobody has shot at yet. It goes away on the first
-       shot and stays away, because it is an explanation and not a status. */
+       shot and stays away, because it is an explanation and not a status. The
+       length of a run is filled in from the config rather than written into the
+       markup, so the rules cannot describe a game the code is not running. */
+    const goal = document.getElementById('bubbleGoal');
+    if (goal) goal.textContent = C.RUN_SHOTS;
     const rule = document.getElementById('bubbleRule');
     if (rule) rule.classList.remove('gone');
   }
@@ -253,14 +249,26 @@ const BubbleApp = (() => {
       if (res.lost) return finish('lost');
     }
 
+    /* The run is a fixed length and this was the last shot of it.
+
+       Checked here, before the board comes down, and that placement is the rule
+       rather than an accident of ordering. A row arriving is pressure on the
+       next shot, and after the final shot there is no next shot for it to press
+       on: a player killed by that row was killed by a threat they were never
+       given the chance to answer. Taking RUN_SHOTS shots without being beaten is
+       what surviving means, so surviving is decided the moment the last one
+       resolves. */
+    if (st.shots >= C.RUN_SHOTS) return finish('survived');
+
     /* The board comes down on a cadence, which is the only thing that makes the
        death line mean anything. Without it the line is decoration: a player can
        take as long as they like and only reach it through their own bad shots.
 
-       Counted against a running total rather than with a modulo, because the
-       cadence tightens as the run goes on: `shots % cadence` against a shrinking
-       cadence skips drops and doubles others at every change. */
-    if (++st.sinceDrop >= Sc.cadenceAt(st.shots)){
+       Counted against a running total rather than with a modulo. The cadence is
+       constant now and the two would agree, but undo restores `sinceDrop` to
+       what it was, and a modulo would ignore that and drop on its own schedule
+       regardless of what was taken back. */
+    if (++st.sinceDrop >= C.ADVANCE_EVERY){
       st.sinceDrop = 0;
       G.advance(st.board, R.freshRow(st.board, rand.next));
       R.remove(st.board, R.detach(st.board));
@@ -338,6 +346,18 @@ const BubbleApp = (() => {
     $('bubbleHint').hidden = !allow.hint;
     $('bubbleSwap').hidden = !allow.swap;
     $('bubblePick').hidden = !allow.colour;
+    /* The price on the button, from the same place the charge comes from. */
+    if (prices){
+      const p = prices();
+      const say = (id, v) => {
+        const el = $(id);
+        if (!el) return;
+        el.textContent = !v ? '' : v.free ? (v.left ? `${v.left} free` : 'free') : `${v.cost} \u25C6`;
+      };
+      say('bubbleUndoCost', p.undo);
+      say('bubbleHintCost', p.hint);
+      say('bubblePickCost', p.colour);
+    }
     $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length);
     $('bubbleSwap').disabled = !live || st.loaded === st.next;
     $('bubblePick').disabled = !live || R.liveColours(st.board).length < 2;
@@ -361,6 +381,9 @@ const BubbleApp = (() => {
      defaults to everything, which is what the standalone page wants. */
   let allow = { undo: true, hint: true, swap: true, colour: true };
   let charge = null;
+  /* What the host says each tool costs, so the row can say so too. Nothing here
+     knows what gold is; it is handed a shape to print. */
+  let prices = null;
   const afford = what => !charge || charge(what);
 
   function finish(how){
@@ -382,9 +405,9 @@ const BubbleApp = (() => {
   /* What the run was worth, in the bubble game's own terms. The host turns this
      into stars and gold; nothing here knows what those are. */
   const result = () => ({
-    how: st.over, cleared: st.over === 'won', shots: st.shots,
-    score: st.score, aided: st.aided,
-    stars: Sc.stars({ cleared: st.over === 'won', shots: st.shots, aided: st.aided })
+    how: st.over, cleared: st.over === 'won', survived: st.over === 'survived',
+    shots: st.shots, score: st.score, aided: st.aided,
+    stars: starsNow()
   });
 
   /* Everything still on the board, let go from the bottom up.
@@ -409,6 +432,15 @@ const BubbleApp = (() => {
     A.advance();
   }
 
+  /* One reading of the run, used by the panel and by what is handed to the host,
+     so the stars on screen and the stars banked cannot be computed differently.
+     Both endings that finish the run are passed through: `stars` decides what
+     they are worth, and nothing here decides it twice. */
+  const starsNow = () => Sc.stars({
+    cleared: st.over === 'won', survived: st.over === 'survived',
+    shots: st.shots, aided: st.aided
+  });
+
   /* The one place the result is written, so the panel cannot say one thing while
      the state says another.
 
@@ -418,7 +450,6 @@ const BubbleApp = (() => {
      log line. The correction is not to get chatty about it. A player who has
      just lost wants to be told the run is over and then, in the same breath,
      what ended it. */
-  const starsNow = () => Sc.stars({ cleared: st.over === 'won', shots: st.shots, aided: st.aided });
 
   function show(how){
     const veil = document.getElementById('bubbleVeil');
@@ -430,7 +461,7 @@ const BubbleApp = (() => {
     /* Said here rather than in finish(), because a lost run does not reach this
        point until the board has finished falling: the sting belongs with the
        verdict, a beat after the crash, not on top of it. */
-    if (how === 'won') A.won(); else A.lost();
+    if (how === 'lost') A.lost(); else A.won();
     /* after the board has finished falling, so a host that replaces this panel
        with its own does not put one up over a board still coming down */
     if (onEnd) onEnd(result());
@@ -439,9 +470,11 @@ const BubbleApp = (() => {
        run over and with the run already banked. */
     if (!veil || quiet) return;
     const stars = starsNow();
-    document.getElementById('bubbleResult').textContent = how === 'won' ? 'Board cleared' : 'Game over';
-    document.getElementById('bubbleWhy').textContent = how === 'won'
-      ? `Every bubble gone, in ${st.shots} shots.`
+    document.getElementById('bubbleResult').textContent =
+      how === 'won' ? 'Board cleared' : how === 'survived' ? 'You survived' : 'Game over';
+    document.getElementById('bubbleWhy').textContent =
+      how === 'won' ? `Every bubble gone, in ${st.shots} shots.`
+      : how === 'survived' ? `All ${C.RUN_SHOTS} shots, and the line never got you.`
       : R.isLost(st.board) ? 'The bubbles reached the line.' : 'No room left to shoot.';
     document.getElementById('bubbleScore').textContent = st.score;
     document.getElementById('bubbleStars').innerHTML =
@@ -454,29 +487,56 @@ const BubbleApp = (() => {
       : how === 'lost' ? `Lasted ${st.shots} shots.` : '';
   }
 
-  /* The score, the stars in hand, and how long there is before the board comes
-     down again. The countdown is the whole reason the drop is fair: a row that
-     arrives on a cadence is a rule, one that arrives unannounced is a surprise. */
+  /* The score, the stars in hand, how much of the run is left, and how long
+     before the board comes down again.
+
+     The drop countdown is what makes the drop fair: a row that arrives on a
+     cadence is a rule, one that arrives unannounced is a surprise. The shots
+     left is what makes the run a goal rather than a wait. A fixed length nobody
+     can see is indistinguishable from an unbounded one, and an unbounded one is
+     a player hanging on until they lose, which is the thing this run stopped
+     being. The two count opposite ways on purpose and are coloured to match:
+     the drop turns warm as a warning, the run turns gold as an arrival. */
   function paintHud(){
     const live = document.getElementById('bubbleLive');
     if (live) live.textContent = st.score;
+
+    const togo = document.getElementById('bubbleLeft');
+    if (togo){
+      const n = Math.max(0, C.RUN_SHOTS - st.shots);
+      togo.textContent = n === 1 ? 'last shot' : `${n} shots left`;
+      togo.classList.toggle('nearly', n <= 3);
+    }
+
     const drop = document.getElementById('bubbleDrop');
-    if (!drop) return;
-    const left = Sc.cadenceAt(st.shots) - st.sinceDrop;
-    drop.textContent = left <= 1 ? 'drops next shot' : `drops in ${left}`;
-    drop.classList.toggle('soon', left <= 2);
+    if (drop){
+      const left = C.ADVANCE_EVERY - st.sinceDrop;
+      drop.textContent = left <= 1 ? 'drops next shot' : `drops in ${left}`;
+      drop.classList.toggle('soon', left <= 2);
+    }
 
     /* Stars while the run is live, not only once it is over. They are earned by
        lasting, so a player who cannot see them accumulating has no way to know
        that hanging on is the thing being rewarded. */
     const run = document.getElementById('bubbleRunStars');
-    if (!run) return;
-    const held = Sc.stars({ cleared: false, shots: st.shots, aided: st.aided });
-    run.innerHTML = [0, 1, 2].map(i => i < held ? '★' : '<span class="dim">★</span>').join('');
-    const at = Sc.nextStarAt(st.shots);
-    run.title = at ? `next star at ${at} shots` : 'all three earned';
-    /* one entry point, so the row can never be repainted without the readouts
-       beside it or the other way round */
+    if (run){
+      /* What the run has banked if it stopped here, which is why neither ending
+         is passed: the third star is for finishing and the run has not finished.
+         So this row fills to two and holds there while the shots-left readout
+         counts down beside it, which is the tension the run is for. */
+      const held = Sc.stars({ cleared: false, survived: false,
+                              shots: st.shots, aided: st.aided });
+      run.innerHTML = [0, 1, 2].map(i => i < held ? '★' : '<span class="dim">★</span>').join('');
+      const at = Sc.nextStarAt(st.shots);
+      run.title = at ? `next star at ${at} shots` : 'all three earned';
+    }
+
+    /* One entry point, so the row can never be repainted without the readouts
+       beside it or the other way round. Each readout is guarded on its own
+       rather than returning early, because the early returns meant a page
+       missing one element silently stopped painting the ones after it and the
+       tool row with them, which is the exact thing this line claims cannot
+       happen. */
     paintTools();
   }
 
@@ -631,12 +691,13 @@ const BubbleApp = (() => {
     requestAnimationFrame(loop);
   }
 
-  return { boot, _state: st, newBoard, fire, step, land, canPlay, finish, result,
+  return { boot, _state: st, newBoard, fire, step, land, finish, result,
            undo, hint, swap, pickColour, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
            set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, ...v }; },
            get allow(){ return allow; },
            set charge(fn){ charge = fn; }, get charge(){ return charge; },
+           set prices(fn){ prices = fn; }, get prices(){ return prices; },
            /* the host hides this game's own panel and shows its own */
            set panelHidden(v){ quiet = !!v; }, get panelHidden(){ return quiet; },
            /* Muting, when this game is running inside the other one.

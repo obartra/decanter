@@ -65,9 +65,14 @@ pick up a new one without a code change.
 ## Unlocking
 
 Browsers will not start an audio context without a gesture, so the context is
-created lazily on the first tap. Every entry point calls `Audio.unlock()` before
+created lazily on the first tap. Every entry point calls `Sound.unlock()` before
 doing anything else, and the sound preference is persisted with the rest of the
 save.
+
+The module is `Sound` and not `Audio` because the page has one global scope and
+`Audio` is a constructor the browser already defines. Nothing here ever built an
+`new Audio()`, so the collision was silent, which is what made it worth a name
+change and a test rather than a comment.
 
 ## One preference, two modules
 

@@ -152,6 +152,6 @@ const BubbleRender = (() => {
     ctx.stroke();
   }
 
-  return { bubble, board, guide, walls, muzzle, target, shade };
+  return { bubble, board, guide, walls, muzzle, target };
 })();
 globalThis.BubbleRender = BubbleRender;
