@@ -66,7 +66,6 @@ const BubbleScore = (() => {
      worst run of every bubble level forever. Anything comparing two results goes
      through this. */
   const better = (a, b) => (a == null ? b : b == null ? a : Math.max(a, b));
-  const improved = (was, now) => was == null || now > was;
 
   /* The cadence at a given point in a run: one shot faster every RAMP_EVERY,
      never below the floor. Pure so the harness, the HUD and the turn all get
@@ -76,6 +75,6 @@ const BubbleScore = (() => {
     return Math.max(C.ADVANCE_MIN, C.ADVANCE_EVERY - off);
   }
 
-  return { stars, progress, nextStarAt, better, improved, cadenceAt };
+  return { stars, progress, nextStarAt, better, cadenceAt };
 })();
 globalThis.BubbleScore = BubbleScore;

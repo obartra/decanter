@@ -27,16 +27,37 @@ scope, so the config declares what each file publishes and what it expects to
 find; a linter that assumes modules calls all of that undefined. It found two
 pieces of genuinely dead code the first time it ran.
 
-**Unit** (`npm test`). 139 tests, no dependencies, covering everything decidable
+**Unit** (`npm test`). 291 tests, no dependencies, covering everything decidable
 from numbers: rules, solver, levels, par, ordering, economy, progress, the
-end-of-run panel. This is the bulk of the game and the cheapest place to catch
-things.
+end-of-run panel, and the same for each of the other games. This is the bulk of
+the game and the cheapest place to catch things.
 
-**Size budget** (`npm run verify:budget`). Builds the page and fails if it has
-outgrown its budget. Everything is inlined so the whole game is a single download
-that works offline, which is the point of it — and which also makes it very easy
-not to notice that download growing, since nothing about adding a module tells
-you the page just got forty kilobytes heavier.
+**Dead code** (`npm run dead`). Fails on a published global nothing names, an
+export nothing calls, a config key nothing reads, or a style with no markup —
+and on markup wearing a class no stylesheet defines.
+
+An uncalled function is not an error. It does not throw, it does not slow
+anything down, and it reads exactly like code that works, which is why it
+survives review and why it needs a machine. This generalises a test that already
+existed for one case: sounds, written after two of the biggest moments in the
+bubble game turned out to be silent while everything passed.
+
+It found three things the day it was written, and one of them had been sitting in
+plain sight through several reviews — `CONFIG.bubblePerChapter`, a tunable with a
+paragraph of reasoning above it that nothing read, so moving it did nothing at
+all. That is now wired to the function it describes.
+
+Everything it does is string matching, with no parser, so it errs toward silence:
+a name built at runtime looks used. A detector that cries wolf gets turned off.
+Deliberate exceptions live in an `ALLOW` table in the tool, each with the reason
+it is one.
+
+**Size budget** (`npm run verify:budget`). Builds and fails if what matters has
+outgrown its budget. Three numbers rather than one, because the page stopped
+being the download when the code moved into hashed bundles: the shells, which
+every load revalidates forever; the critical path, which a first paint waits for
+on a cold cache; and each game, plus the whole build. See
+[13 Delivery](13-delivery.md).
 
 This used to also check that a committed `dist/` matched the sources. `dist/` is
 no longer committed: the deploy has always rebuilt from source, so the copy in

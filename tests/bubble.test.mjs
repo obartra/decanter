@@ -484,9 +484,6 @@ describe('bubble scoring', () => {
     equal(Sc.better(90, 40), 90);
     equal(Sc.better(null, 12), 12, 'a first run is always the best so far');
     equal(Sc.better(12, null), 12);
-    equal(Sc.improved(40, 90), true);
-    equal(Sc.improved(90, 40), false, 'a shorter run must not overwrite a longer one');
-    equal(Sc.improved(null, 1), true);
   });
 
   it('tightens the cadence as the run goes on, and then stops', () => {

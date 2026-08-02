@@ -62,10 +62,22 @@ const sectionOf = level => Math.floor((level - 1) / CONFIG.sectionSize);
    Scattered rather than on a stride, and derived from the chapter number so the
    answer is fixed forever without being written down anywhere.
 
-   The second is drawn at least two places from the first, in both directions
-   round the chapter. Merely making them distinct is not enough: it put pairs
-   like 13 and 14 back to back, and two of the other game in consecutive boards
-   reads as the game having changed rather than as a break in it. */
+   Each is drawn at least two places from the last, in both directions round the
+   chapter. Merely making them distinct is not enough: it put pairs like 13 and
+   14 back to back, and two of the other game in consecutive boards reads as the
+   game having changed rather than as a break in it.
+
+   How many is CONFIG.bubblePerChapter, which for a long time it was not. The
+   number sat in the config with a paragraph explaining the choice, and this
+   function returned two whatever it said — so the setting was a comment with a
+   number in it, and moving it did nothing at all. A tool now looks for exactly
+   that (tools/dead-code.mjs) and this is the first thing it found.
+
+   Generalised without moving a single board: at two, the arithmetic below is
+   character for character what it always was, the spacing guard cannot fire, and
+   a test pins the slots of the first two hundred chapters to prove it. Levels
+   are a pure function of their number and that promise does not bend for a
+   refactor. */
 function bubbleSlots(section){
   const mix = n => {
     let x = Math.imul(n + 0x9e3779b9, 2654435761) >>> 0;
@@ -73,9 +85,22 @@ function bubbleSlots(section){
     x ^= x >>> 13; return x >>> 0;
   };
   const size = CONFIG.sectionSize;
-  const first = mix(section) % size;
-  const second = (first + 2 + mix(section * 7919 + 11) % (size - 3)) % size;
-  return [first, second];
+  /* No more than the chapter has room for at two apart, or the guard below
+     would spin looking for somewhere to put the last one. */
+  const want = Math.max(0, Math.min(CONFIG.bubblePerChapter | 0, Math.floor(size / 2)));
+  if (want < 1) return [];
+  const slots = [mix(section) % size];
+  const apart = (a, b) => { const d = Math.abs(a - b); return Math.min(d, size - d); };
+  for (let k = 1; k < want; k++){
+    let at = (slots[k - 1] + 2 + mix(section * 7919 + 11 * k) % (size - 3)) % size;
+    /* At two this never runs: the offset is 2 + r with r under size - 3, so the
+       gap is between 2 and size - 2 whichever way round it is measured. It is
+       here for the third onwards, which can land beside something already
+       placed. */
+    for (let guard = 0; guard < size && slots.some(s => apart(s, at) < 2); guard++) at = (at + 1) % size;
+    slots.push(at);
+  }
+  return slots;
 }
 
 /* Which game a level number is. Everything that deals, scores, prices or draws a
