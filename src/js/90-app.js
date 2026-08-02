@@ -648,31 +648,32 @@ const App = (() => {
      moment the link opens, every time, no conditions. So the picture never waits
      and only the noise does.
 
-     It gives up after a few seconds rather than going off in somebody's ear
-     minutes later, next to nothing on the screen to explain it.
+     The wait ends with the picture. A bang belongs to something on the screen,
+     and one that arrives after the screen has gone back to the map is not a
+     celebration, it is a noise from nowhere. Returns the way to call it off, and
+     the same timer that clears the message calls it.
 
      Three bangs rather than one, because one is a sound effect and three is a
      point being made. */
   function bang(){
     Audio.unlock();
     const fire = () => { Audio.boom(); Audio.boom(0.19); Audio.boom(0.44); };
-    if (Audio.ready){ fire(); return; }
-    let done = false;
-    const drop = () => {
-      done = true;
+    if (Audio.ready){ fire(); return () => {}; }
+    let over = false;
+    const standDown = () => {
+      over = true;
       document.removeEventListener('pointerdown', go, true);
       document.removeEventListener('keydown', go, true);
     };
     const go = () => {
-      if (done) return;
-      clearTimeout(gaveUp);
-      drop();
+      if (over) return;
+      standDown();
       Audio.unlock();
       fire();
     };
-    const gaveUp = setTimeout(drop, 8000);
     document.addEventListener('pointerdown', go, true);
     document.addEventListener('keydown', go, true);
+    return standDown;
   }
 
   /* It goes off, it says what it is, and it takes itself away. Cleared on a
@@ -690,7 +691,7 @@ const App = (() => {
     void el.offsetWidth;
     el.classList.add('go');
 
-    bang();
+    const quiet = bang();
 
     /* Thrown against the short side of the screen, not the long one. Scaled off
        the height, a phone flings most of the paper out of frame before anyone
@@ -714,6 +715,8 @@ const App = (() => {
     setTimeout(() => {
       el.classList.remove('go');
       el.hidden = true;
+      /* and the bang goes with it: a tap from here is a tap on the map */
+      quiet();
     }, 3100);
   }
 

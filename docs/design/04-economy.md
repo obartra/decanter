@@ -140,10 +140,14 @@ audio blocked. That is the thing the word is for.
 The bang is the only part that can wait, and only because it has to. A page
 nobody has touched is not allowed to make a sound — the context stays suspended
 until then — and opening a pasted link is not a touch, which is precisely how
-this arrives. So the noise goes off on the first touch instead, and gives up
-after a few seconds rather than arriving in somebody's ear long after there is
-anything on screen to explain it. An earlier pass made the whole celebration wait
-for that touch, which bought the sound at the price of the picture.
+this arrives. So the noise goes off on the first touch instead. An earlier pass
+made the whole celebration wait for that touch, which bought the sound at the
+price of the picture.
+
+**The wait ends with the picture.** A bang belongs to something on the screen,
+so once the message has taken itself away the noise stands down with it: a tap
+from then on is a tap on the map, and an explosion out of nowhere is not a
+celebration.
 
 ## The invariants
 
