@@ -101,14 +101,20 @@ export const BubbleRules = (() => {
      Lives here rather than in the app because the difficulty harness has to deal
      the boards it measures, and a harness that deals them differently from the
      game is measuring a game nobody plays. */
-  function dealBoard(rows, pick){
+  /* `colours` narrows the palette a board is dealt from, and it is the strongest
+     lever this game has on how hard a board is: with three in play a match is
+     nearly always available and with six it often is not. The graded game always
+     passes all of them; only the sandbox asks for fewer. Defaulted rather than
+     required so every existing caller keeps dealing the board it always did. */
+  function dealBoard(rows, pick, colours){
+    const palette = Math.max(2, Math.min(C.COLOURS, colours || C.COLOURS));
     const b = G.create(0);
     for (let j = 0; j < rows; j++){
       for (let c = 0; c < C.COLS; c++){
-        const start = Math.floor(pick() * C.COLOURS);
+        const start = Math.floor(pick() * palette);
         let chosen = start;
-        for (let n = 0; n < C.COLOURS; n++){
-          const col = (start + n) % C.COLOURS;
+        for (let n = 0; n < palette; n++){
+          const col = (start + n) % palette;
           b.rows[j][c] = col;
           if (matchFrom(b, j, c).length < C.MATCH_MIN){ chosen = col; break; }
         }

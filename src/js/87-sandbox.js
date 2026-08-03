@@ -11,30 +11,50 @@
    board and how to say what happened, and its host knows how to deal one. It has
    no idea what a level is or what the map is.
 
-   THE PACES ARE MEASURED, not chosen for sounding like difficulty levels.
-   Clearing a board is a far harder win than surviving one: rows keep arriving
-   forever, so emptying the board means out-clearing the feed indefinitely, and
-   at the graded cadence of four nothing clears at all, ever, in any of several
-   hundred runs. Even at a row every forty the best play clears barely half.
+   THE FOUR ARE MEASURED, and the first thing the measuring said was that one
+   dial cannot do this. Slowing the drops is the obvious lever and it is the
+   weakest: clear rates climb to about a row every sixteen and then flatten near
+   half however slow it gets, because past that what ends a run is not the feed,
+   it is the board silting up with the player's own misses. An Easy built out of
+   cadence alone tops out at a coin flip, which is not what the word says.
 
-   So these four are not easy-to-impossible. They are the four cadences where the
-   odds still differ before they flatten. Clear rates for the shot the hint would
-   take: 57%, 55%, 39%, 11%. For a competent player about 41%, 23%, 15% and 4%,
-   and a winning run is long, a median well over a hundred shots. This is a
-   workbench, and Ultra is a joke you are meant to lose.
-   See tools/bubble-sandbox.mjs. */
+   So a setting is three numbers, and `colours` does most of the work: it decides
+   how often a match is available at all, and four against six is the difference
+   between nearly always and often not. `rows` is what a clear costs, and `every`
+   is the pressure, which still bites at the hard end.
+
+   What a competent player clears: 100%, 77%, 43%, 12%. Ultra drops back to five
+   rows rather than climbing to seven, because six colours is punishing enough on
+   its own and seven rows of it is not a harder game, it is the same game lost
+   sooner. See tools/bubble-sandbox.mjs. */
 export const Sandbox = (() => {
   const $ = id => document.getElementById(id);
 
   const PACES = [
-    { id: 'easy',   name: 'Easy',   every: 36 },
-    { id: 'normal', name: 'Normal', every: 24 },
-    { id: 'hard',   name: 'Hard',   every: 16 },
-    { id: 'ultra',  name: 'Ultra',  every: 10 }
+    { id: 'easy',   name: 'Easy',   colours: 4, rows: 4, every: 20 },
+    { id: 'normal', name: 'Normal', colours: 5, rows: 5, every: 18 },
+    { id: 'hard',   name: 'Hard',   colours: 5, rows: 6, every: 11 },
+    { id: 'ultra',  name: 'Ultra',  colours: 6, rows: 5, every: 16 }
   ];
 
+  /* Which one was taken last time, kept across reloads.
+
+     A key of its own rather than a field in the save, the way this game's sound
+     preference is: the beta leaves as a set of files, and a schema the states
+     suite enumerates is not the place to put something that goes away. An
+     unreadable or unrecognised value falls back to Normal, which is also what a
+     player who has never picked one gets, so there is one answer to "what is
+     selected" rather than one for a fresh device and another for a bad read. */
+  const KEY = 'decanter.sandbox.pace';
+  const NORMAL = PACES[1];
+  const remembered = () => {
+    try { return PACES.find(p => p.id === localStorage.getItem(KEY)) || NORMAL; }
+    catch (e){ return NORMAL; }
+  };
+  const remember = p => { try { localStorage.setItem(KEY, p.id); } catch (e){} };
+
   /* the pace the last board was dealt at, so Again means again */
-  let pace = PACES[1];
+  let pace = remembered();
   /* which board, stepped so Again at one pace is a different board rather than
      the same one replayed */
   let seed = 1;
@@ -90,10 +110,12 @@ export const Sandbox = (() => {
       const b = document.createElement('button');
       b.className = `btn${p.id === pace.id ? ' primary' : ''}`;
       b.type = 'button';
-      /* the cadence as well as the word, because "Hard" is a label and "a row
-         every 16" is the thing it is a label for */
-      b.innerHTML = `${p.name}<small>a row every ${p.every}</small>`;
-      b.onclick = () => { pace = p; hide(); deal(); };
+      /* The word and nothing else. What each one is made of is four numbers
+         that only mean something together, and printing one of them invites the
+         reading that it is the setting: "a row every 16" says nothing about the
+         three colours or the four rows that do most of the work. */
+      b.textContent = p.name;
+      b.onclick = () => { pace = p; remember(p); hide(); deal(); };
       picks.appendChild(b);
     }
     $('sandboxEnd').classList.remove('show');
@@ -106,10 +128,11 @@ export const Sandbox = (() => {
   function deal(){
     host.openBubble({
       level: host.level(), seed, sandbox: true,
-      rules: { every: pace.every, runShots: null },
+      rules: { every: pace.every, runShots: null,
+               colours: pace.colours, rows: pace.rows },
       allow: { undo: true, hint: true, swap: true, colour: true, bomb: true },
       prices: () => ({ undo: FREE, hint: FREE, colour: FREE, bomb: FREE }),
-      note: `${pace.name}, a row every ${pace.every}`
+      note: `${pace.name}: ${pace.colours} colours, ${pace.rows} rows, a row every ${pace.every}`
     });
   }
 

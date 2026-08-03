@@ -29,21 +29,33 @@ export const BubbleApp = (() => {
 
   const S_AIM = 'aim', S_FLY = 'fly';
 
+  /* How much board a seed opens with. The graded game has always dealt five. */
+  const OPENING_ROWS = 5;
+
   /* What this run is played under.
 
      The graded run's numbers are the defaults and the config is still the only
      place they are decided; this exists so a sandbox can ask for something else
-     without any of it leaking back. Two knobs and no more, because these are the
-     two that change what the game *is*: how hard the board pushes, and whether
-     there is an end to reach other than an empty board.
+     without any of it leaking back.
 
-     `runShots: null` means no limit, and then the only way to win is to clear
-     the board. That is a different game and it is deliberately not gradeable:
-     the star thresholds are measured against a 35 shot run at a cadence of four,
-     so a run played under anything else is not a run those numbers describe. The
+     Four knobs, because difficulty in this game is not one dial. How often the
+     board comes down is the obvious one and it is the weakest: past about a row
+     every twenty it stops mattering, since what ends runs by then is the board
+     filling with the player's own misses rather than the feed. How many colours
+     are in play is the strongest, because it decides how often a match is
+     available at all. Rows dealt sets how much there is to undo before an empty
+     board, which is what a clear costs. And the limit decides whether there is
+     any way to win other than emptying it.
+
+     `runShots: null` means no limit, and then clearing is the only win. That is
+     a different game and deliberately not gradeable: the star thresholds are
+     measured against 35 shots, a cadence of four, six colours and five rows, so
+     a run played under anything else is not a run those numbers describe. The
      host keeps that honest by not banking a sandbox run at all. */
-  const rules = { every: C.ADVANCE_EVERY, runShots: C.RUN_SHOTS };
-  const graded = () => rules.every === C.ADVANCE_EVERY && rules.runShots === C.RUN_SHOTS;
+  const rules = { every: C.ADVANCE_EVERY, runShots: C.RUN_SHOTS,
+                  colours: C.COLOURS, rows: OPENING_ROWS };
+  const graded = () => rules.every === C.ADVANCE_EVERY && rules.runShots === C.RUN_SHOTS
+    && rules.colours === C.COLOURS && rules.rows === OPENING_ROWS;
 
   const st = {
     board: null,
@@ -110,8 +122,8 @@ export const BubbleApp = (() => {
      one behind it, the rows that come down later), and undo puts it back. A
      still cannot borrow that stream without moving it, so it is handed a fresh
      one seeded the same way, which deals the same board. */
-  const OPENING_ROWS = 5;
-  const opening = (seed, pick) => R.dealBoard(OPENING_ROWS, pick || BubbleRng.from(seed));
+  const opening = (seed, pick) =>
+    R.dealBoard(rules.rows, pick || BubbleRng.from(seed), rules.colours);
 
   /* What a seed opens on, as rows of colours rather than as a board.
 
@@ -887,9 +899,11 @@ export const BubbleApp = (() => {
               back, which is what the graded path does on every level so that a
               sandbox cannot leak into a board that pays. */
            set rules(v){
-             rules.every = Number(v && v.every) > 0 ? Number(v.every) : C.ADVANCE_EVERY;
-             rules.runShots = v && v.runShots === null ? null
-               : Number(v && v.runShots) > 0 ? Number(v.runShots) : C.RUN_SHOTS;
+             const n = (k, fallback) => (Number(v && v[k]) > 0 ? Number(v[k]) : fallback);
+             rules.every = n('every', C.ADVANCE_EVERY);
+             rules.runShots = v && v.runShots === null ? null : n('runShots', C.RUN_SHOTS);
+             rules.colours = Math.max(2, Math.min(C.COLOURS, n('colours', C.COLOURS)));
+             rules.rows = Math.max(1, Math.min(C.DEATH_ROW - 1, n('rows', OPENING_ROWS)));
            },
            get rules(){ return { ...rules, graded: graded() }; },
            undo, hint, swap, pickColour, paintHud, paintTools,
