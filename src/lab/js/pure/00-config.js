@@ -133,10 +133,6 @@ export const LabConfig = {
       knobs: [
         { key: 'SEARCH_CAP', min: 1000, max: 400000, step: 1000,
           note: 'States the sweep will walk before giving up on a layout.' },
-        { key: 'AID_CAP', min: 0, max: 3, step: 1,
-          note: 'Most stars a run that leaned on something can still earn.' },
-        { key: 'UNDO_DEPTH', min: 1, max: 200, step: 1,
-          note: 'How many slides back the run remembers.' },
         { key: 'SLIDE_PER_CELL', min: 0.02, max: 0.5, step: 0.01,
           note: 'Seconds a cask takes per cell traveled.' },
         { key: 'SLIDE_MAX', min: 0.1, max: 2, step: 0.05,

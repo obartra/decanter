@@ -29,7 +29,6 @@
    the state never goes there and the drawing springs back. */
 import { CasksConfig } from './pure/00-config.js';
 import { CasksRules } from './pure/20-rules.js';
-import { CasksSearch } from './pure/25-search.js';
 import { CasksLevels } from './pure/30-levels.js';
 import { CasksScore } from './pure/45-score.js';
 import { CasksAudio } from './50-audio.js';
@@ -39,7 +38,6 @@ import { CasksRender } from './70-render.js';
 export const CasksApp = (() => {
   const C = CasksConfig;
   const R = CasksRules;
-  const Se = CasksSearch;
   const L = CasksLevels;
   const Sc = CasksScore;
   const A = CasksAudio;
@@ -63,18 +61,12 @@ export const CasksApp = (() => {
     rated: false,
     /* the cask in hand, or -1 */
     picked: -1,
-    /* the move a hint named, drawn until it is played or the selection changes */
-    advice: null,
     /* {cask, at, from, run, offset, moved, hadPicked} while a finger is down */
     grab: null,
     /* {cask, from, to, t, dur, thud} while a cask is traveling */
     sliding: null,
     /* {t} while the gilt cask is leaving through the door */
     escaping: null,
-    /* Whether this run leaned on something. Both tools set it, as in the
-       measure; C.AID_CAP explains why neither is free here. */
-    aided: false,
-    past: [],
     /* null while the board is live, then 'open' */
     over: null,
     /* Fewest moves this session has taken on each level. In memory only: there
@@ -102,12 +94,9 @@ export const CasksApp = (() => {
     st.drawn = board.start.slice();
     st.moves = 0;
     st.picked = -1;
-    st.advice = null;
     st.grab = null;
     st.sliding = null;
     st.escaping = null;
-    st.aided = false;
-    st.past = [];
     st.over = null;
     st.par = L.par(level);
     st.rated = Sc.rated(st.par);
@@ -119,14 +108,6 @@ export const CasksApp = (() => {
 
   /* ---- the turn ---- */
 
-  /* Everything a move changes, including the move count, so undo restores the
-     position AND what it cost to get there. Half an undo — the floor back but
-     the count kept — would be a game quietly charging for a mis-drag. */
-  function remember(){
-    st.past.push({ pos: st.pos.slice(), moves: st.moves });
-    if (st.past.length > C.UNDO_DEPTH) st.past.shift();
-  }
-
   /* One move. ONE MOVE IS ONE MOVE WHATEVER IT CARRIES: shoving a cask four
      cells and nudging it one both cost exactly one, exactly as a pour does in
      the other two games. `drawnFrom` is where the cask currently appears, which
@@ -136,11 +117,9 @@ export const CasksApp = (() => {
 
     const run = R.runOf(st.layout, st.pos, cask);
     const from = st.pos[cask];
-    remember();
     st.pos = R.apply(st.layout, st.pos, { cask, to });
     st.moves++;
     st.picked = -1;
-    st.advice = null;
 
     const traveled = Math.abs(to - from);
     st.sliding = {
@@ -209,7 +188,6 @@ export const CasksApp = (() => {
       };
       if (!hadPicked){
         st.picked = i;
-        st.advice = null;
         A.take();
       }
       paintHud();
@@ -259,57 +237,17 @@ export const CasksApp = (() => {
                      dur: C.SLIDE_PER_CELL * 2, thud: false };
       return false;
     }
-    /* A tap on the cask that was already in hand puts it down — and the advice
-       goes down with it. The advice belongs to a selection, and once nothing is
-       in hand there is no run drawn under it, so the gold outline was left
-       floating over a cask that was no longer picked. */
-    if (g.hadPicked){ st.picked = -1; st.advice = null; }
+    /* A tap on the cask that was already in hand puts it down. Once nothing is
+       in hand there is no run drawn under it, so the gold outline would be left
+       floating over a cask that is no longer picked. */
+    if (g.hadPicked) st.picked = -1;
     paintHud();
     return true;
-  }
-
-  function undo(){
-    if (st.sliding || st.escaping || !st.past.length) return false;
-    const was = st.past.pop();
-    st.pos = was.pos.slice();
-    st.drawn = was.pos.slice();
-    st.moves = was.moves;
-    st.picked = -1;
-    st.advice = null;
-    /* A board that was open is not open any more, which is the whole point of
-       being able to take back the move that opened it. */
-    st.over = null;
-    st.escaping = null;
-    st.aided = true;
-    show(null);
-    A.undo();
-    paintHud();
-    return true;
-  }
-
-  /* The move the search would play FROM WHERE THE PLAYER ACTUALLY IS, not from
-     the opening position: by move four they are not on that line any more, and
-     advice about a board they are no longer looking at is worse than none.
-
-     This is the one search the page ever runs, and it is asked for rather than
-     paid on every deal — which is the whole reason 30-levels.js can read par out
-     of a table instead. Asked before it is charged for, so a hint with nothing
-     to say never costs the run its third star. */
-  function hint(){
-    if (st.over || st.sliding || st.escaping) return null;
-    const got = Se.solve(st.layout, st.pos, C.SEARCH_CAP);
-    if (!got.first) return null;
-    st.advice = got.first;
-    st.picked = got.first.cask;
-    st.aided = true;
-    paintHud();
-    return got.first;
   }
 
   function finish(how){
     st.over = how;
     st.picked = -1;
-    st.advice = null;
     st.grab = null;
     /* Through Sc.better rather than a Math.min written here, because best is the
        FEWEST moves in this game and the LONGEST run in the bubble one. Two
@@ -384,7 +322,6 @@ export const CasksApp = (() => {
     for (let i = st.layout.length - 1; i >= 1; i--){
       D.cask(ctx, st.layout[i], st.drawn[i], {
         lit: st.picked === i,
-        advice: !!(st.advice && st.advice.cask === i)
       });
     }
     if (st.escaping){
@@ -394,7 +331,7 @@ export const CasksApp = (() => {
       ctx.restore();
     } else {
       D.cask(ctx, gilt, st.drawn[0], {
-        gilt: true, lit: st.picked === 0, advice: !!(st.advice && st.advice.cask === 0)
+        gilt: true, lit: st.picked === 0
       });
     }
 
@@ -422,7 +359,7 @@ export const CasksApp = (() => {
     par.textContent = st.rated ? `of ${st.par}` : 'unrated';
     par.classList.toggle('cskUnrated', !st.rated);
 
-    const held = st.rated ? Sc.stars(st.moves, st.par, st.aided) : 0;
+    const held = st.rated ? Sc.stars(st.moves, st.par) : 0;
     $('cskStars').innerHTML = [0, 1, 2]
       .map(i => (i < held ? '★' : '<span class="cskDim">★</span>')).join('');
     /* left() counts the moves until the run is worth nothing, and the LAST of
@@ -436,8 +373,6 @@ export const CasksApp = (() => {
           : 'past the last move that scores')
       : 'this floor is not in the par table, so it cannot be rated';
 
-    $('cskUndo').disabled = !st.past.length || !!st.sliding || !!st.escaping;
-    $('cskHint').disabled = !!st.over || !!st.sliding || !!st.escaping;
   }
 
   /* The one place the result is written, so the panel cannot say one thing while
@@ -447,7 +382,7 @@ export const CasksApp = (() => {
     if (veil) veil.classList.toggle('cskShow', !!how);
     if (!how || !veil) return;
 
-    const stars = Sc.stars(st.moves, st.par, st.aided);
+    const stars = Sc.stars(st.moves, st.par);
     const last = L.last();
     $('cskResult').textContent = 'The door';
     $('cskWhy').textContent = `Out in ${st.moves} ${st.moves === 1 ? 'move' : 'moves'}.`;
@@ -461,8 +396,6 @@ export const CasksApp = (() => {
     const note = $('cskNote');
     if (!st.rated){
       note.textContent = 'This floor is not in the par table, so there is nothing to measure the run against.';
-    } else if (st.aided && stars === C.AID_CAP){
-      note.textContent = 'Undo and hint both cap a run at two stars.';
     } else if (st.moves === st.par){
       note.textContent = 'The fewest moves there are.';
     } else {
@@ -522,8 +455,6 @@ export const CasksApp = (() => {
     });
 
     const onClick = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
-    onClick('cskUndo', () => { A.unlock(); undo(); });
-    onClick('cskHint', () => { A.unlock(); hint(); });
     /* Restart deals the same floor again, because a level is a fixed board:
        there is no "another board of this difficulty" to offer, and pretending
        there is would hand out a layout nobody swept. */
@@ -567,7 +498,7 @@ export const CasksApp = (() => {
     return newBoard(L.make(next) ? next : 1);
   }
 
-  return { boot, newBoard, press, drag, release, play, undo, hint, step, paintHud, _state: st };
+  return { boot, newBoard, press, drag, release, play, step, paintHud, _state: st };
 })();
 
 /* Booted on sight, because this page is nothing but this game. The other two

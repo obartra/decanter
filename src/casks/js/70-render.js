@@ -196,9 +196,8 @@ export const CasksRender = (() => {
      shape — which matters for the two-cell casks, where the rectangle is nearly
      square and its aspect says almost nothing.
 
-     `lit` is the cask in hand, `gilt` is the one that has to reach the door, and
-     `advice` is the one a hint named. */
-  function cask(ctx, piece, p, { gilt = false, lit = false, advice = false } = {}){
+     `lit` is the cask in hand and `gilt` is the one that has to reach the door. */
+  function cask(ctx, piece, p, { gilt = false, lit = false } = {}){
     const rect = V.rectFor(piece, p);
     const m = 0.08;
     const x = rect.x + m, y = rect.y + m, w = rect.w - 2 * m, h = rect.h - 2 * m;
@@ -266,8 +265,8 @@ export const CasksRender = (() => {
     box(ctx, x, y, w, h, 0.24);
     ctx.stroke();
 
-    if (lit || advice){
-      ctx.strokeStyle = advice ? 'rgba(244,217,160,.9)' : 'rgba(255,247,232,.55)';
+    if (lit){
+      ctx.strokeStyle = 'rgba(255,247,232,.55)';
       ctx.lineWidth = 0.06;
       box(ctx, x - 0.04, y - 0.04, w + 0.08, h + 0.08, 0.27);
       ctx.stroke();
@@ -284,7 +283,7 @@ export const CasksRender = (() => {
     const w = V.world;
     /* a quarter cell of air at each end, so the sentence never runs into a wall */
     const room = w.w - 0.5;
-    const face = s => `${s}px "Alegreya Sans", ui-sans-serif, sans-serif`;
+    const face = s => `${s}px "Alegraya Sans", ui-sans-serif, sans-serif`;
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.62;
     ctx.textAlign = 'center';

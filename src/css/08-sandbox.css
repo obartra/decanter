@@ -11,23 +11,22 @@
    of the game already has; what it adds is the row of paces and the small print
    under each one. */
 
-/* Stacked rather than in a row. Four buttons carrying two lines each do not fit
-   across a phone, and a wrapped row puts Ultra on a line of its own where it
-   reads as a different kind of thing. */
+/* A row now that each is one word, which also puts the four side by side where
+   they read as four settings of one thing rather than four separate offers. */
 .sandboxPicks{
-  display:flex; flex-direction:column; gap:8px; margin:14px 0 16px;
+  display:flex; gap:6px; margin:12px 0 10px; justify-content:center;
 }
 .sandboxPicks .btn{
-  display:flex; flex-direction:column; align-items:center; gap:2px;
-  padding:9px 14px; line-height:1.15;
+  flex:1 1 0; padding:8px 4px; min-width:0;
+  font-size:10px; letter-spacing:.1em;
 }
-/* the cadence under the word, because "Hard" is a label and "a row every 16" is
-   the thing it is a label for */
-.sandboxPicks .btn small{
-  font-size:8.5px; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--ink-dim); font-weight:600;
+
+/* What the pick deals, above the button that deals it. */
+#sandboxVeil .stillBox{margin:0 auto 8px; max-width:220px}
+.sandboxBest{
+  font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--gold-lit); margin:0 0 12px;
 }
-.sandboxPicks .btn.primary small{color:#6B4F1E}
 
 /* The sentence above the picker and the one on the result card. Dimmer than the
    panel's own prose, because both are saying "none of this counts" and that is

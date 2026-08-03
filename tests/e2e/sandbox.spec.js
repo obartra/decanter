@@ -22,6 +22,8 @@ async function pick(page, name){
   await page.locator('#sandbox').click();
   await expect(page.locator('#sandboxVeil')).toHaveClass(/show/);
   await page.locator('#sandboxPicks .btn', { hasText: name }).click();
+  /* taking a name previews it; Play is what deals it */
+  await page.locator('#sandboxPlay').click();
   await page.waitForFunction(() => globalThis.BubbleApp
     && globalThis.BubbleApp._state.board
     && globalThis.BubbleApp.rules.runShots === null);
@@ -95,9 +97,10 @@ test('opens on the one taken last time, and on Normal before there is one',
   await page.locator('#sandbox').click();
   await expect(page.locator('#sandboxPicks .btn.primary')).toHaveText('Normal');
 
+  /* Taking a name remembers it there and then. Nothing is dealt until Play, so
+     this never waits on a board: the choice is what is being remembered. */
   await page.locator('#sandboxPicks .btn', { hasText: 'Hard' }).click();
-  await page.waitForFunction(() => globalThis.BubbleApp
-    && globalThis.BubbleApp.rules.runShots === null);
+  await expect(page.locator('#sandboxPicks .btn.primary')).toHaveText('Hard');
 
   await page.reload();
   await page.waitForFunction(() => !!globalThis.App);
@@ -111,6 +114,90 @@ test('opens on the one taken last time, and on Normal before there is one',
   await page.waitForFunction(() => !!globalThis.App);
   await page.locator('#sandbox').click();
   await expect(page.locator('#sandboxPicks .btn.primary')).toHaveText('Normal');
+});
+
+test('gives one of each tool and then takes it off the row', async ({ page }) => {
+  /* Unlimited was a solver and, worse, a lie: the label said free and the charge
+     still went to the purse. One each, free, and gone when spent. */
+  await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
+  await pick(page, 'Easy');
+
+  await expect(page.locator('#bubblePickCost')).toHaveText('1 free');
+  const before = await page.evaluate(() => globalThis.App._progress.gold);
+
+  /* The color, because it charges whenever the board has two colors on it. A
+     hint returns before it charges when nothing clears, which is right and would
+     make this spend nothing on a board nobody has shot at. */
+  const took = await page.evaluate(() => {
+    const live = globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board);
+    return globalThis.BubbleApp.pickColor(live[0]);
+  });
+  expect(took, 'the color was refused, so nothing was spent').toBe(true);
+  await expect(page.locator('#bubblePick'), 'a spent tool stayed on the row').toBeHidden();
+  expect(await page.evaluate(() => globalThis.App._progress.gold),
+    'a sandbox tool took gold out of the purse').toBe(before);
+
+  /* and a second attempt is refused rather than silently taken */
+  expect(await page.evaluate(() => {
+    const live = globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board);
+    return globalThis.BubbleApp.pickColor(live[0]);
+  })).toBe(false);
+
+  /* A fresh board hands them all back. Back to the map first, because the
+     button that opens the picker lives in the map header and a board is over
+     it: clicking it from here is clicking something hidden. */
+  await page.locator('#bubToMap').click();
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'map');
+  await pick(page, 'Easy');
+  await expect(page.locator('#bubblePick')).toBeVisible();
+  await expect(page.locator('#bubblePickCost')).toHaveText('1 free');
+});
+
+test('previews the board a name deals before dealing it', async ({ page }) => {
+  /* A name on its own says nothing and the numbers behind it say less. The board
+     says it at a glance, so taking a name draws one and Play is a second press.
+     Drawn through the game's own dealer, so it is the board Play would give. */
+  await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
+  await page.locator('#sandbox').click();
+
+  await page.locator('#sandboxPicks .btn', { hasText: 'Easy' }).click();
+  const easy = await page.locator('#sandboxStill .stillRow').count();
+  expect(easy, 'no board was drawn for the pick').toBeGreaterThan(0);
+  /* still on the map: previewing is not playing */
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'map');
+
+  /* and a harder name draws a fuller board, because it deals more rows */
+  await page.locator('#sandboxPicks .btn', { hasText: 'Hard' }).click();
+  const hard = await page.locator('#sandboxStill .stillRow').count();
+  expect(hard, 'Hard drew no more board than Easy').toBeGreaterThan(easy);
+
+  /* previewing left the live rules alone */
+  await page.locator('#sandboxPicks .btn', { hasText: 'Easy' }).click();
+  await page.locator('#sandboxPlay').click();
+  await page.waitForFunction(() => globalThis.BubbleApp._state.board);
+  expect(await page.evaluate(() => globalThis.BubbleApp.rules.colors)).toBe(4);
+});
+
+test('remembers a best score for each difficulty on its own', async ({ page }) => {
+  await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
+  await page.locator('#sandbox').click();
+  await page.locator('#sandboxPicks .btn', { hasText: 'Easy' }).click();
+  await expect(page.locator('#sandboxBest')).toHaveText('No easy run yet.');
+
+  await page.locator('#sandboxPlay').click();
+  await page.waitForFunction(() => globalThis.BubbleApp._state.board);
+  await page.evaluate(() => {
+    globalThis.BubbleApp._state.score = 4200;
+    globalThis.BubbleApp.finish('won');
+  });
+  await expect(page.locator('#sandboxEnd')).toHaveClass(/show/);
+
+  await page.locator('#sandboxToMap').click();
+  await page.locator('#sandbox').click();
+  await expect(page.locator('#sandboxBest')).toHaveText('Best on easy: 4200');
+  /* and it belongs to that difficulty, not to the sandbox at large */
+  await page.locator('#sandboxPicks .btn', { hasText: 'Ultra' }).click();
+  await expect(page.locator('#sandboxBest')).toHaveText('No ultra run yet.');
 });
 
 test('says the goal is an empty board, not a number of shots', async ({ page }) => {

@@ -347,14 +347,14 @@ describe('casks scoring', () => {
     equal(Sc.stars(6, 7, false), 3, 'under par cannot happen, and is not punished for it');
   });
 
-  it('caps a run that leaned on undo or hint', () => {
-    /* Both cap here, where the bubble game caps for picking a color only. On a
-       perfect information board with a known minimum, an unlimited free undo is
-       a solver and the hint simply names the answer; the pour game charges gold
-       for both, and this page has no purse to charge. */
-    equal(Sc.stars(7, 7, true), C.AID_CAP, 'a perfect run that used a tool still caps');
-    equal(Sc.stars(9, 7, true), 1, 'the cap is a ceiling, not a penalty');
-    equal(Sc.stars(10, 7, true), 0);
+  it('has nothing to cap, because it offers nothing to lean on', () => {
+    /* The other two games take a star off a run that used a tool. This page has
+       no tools: sliding is reversible so a mistake is undone by sliding back,
+       and the run is scored on moves against an exact par, so a capped tool
+       could never earn the third star it was capping. Uncapped they solve the
+       board and capped they do nothing, which is no setting at all. */
+    equal(Sc.stars.length, 2, 'stars still takes an `aided` argument');
+    equal(C.AID_CAP, undefined, 'the cap outlived the tools it capped');
   });
 
   it('counts down the moves before the run is worth nothing, and stops there', () => {

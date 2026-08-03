@@ -46,6 +46,22 @@ export const Sandbox = (() => {
      player who has never picked one gets, so there is one answer to "what is
      selected" rather than one for a fresh device and another for a bad read. */
   const KEY = 'decanter.sandbox.pace';
+  /* Best score per difficulty, kept beside the pace and for the same reasons: a
+     key of its own rather than a field in the save, because the beta leaves as a
+     set of files and the states suite enumerates that schema. Per difficulty
+     because one number across four settings compares runs that are not the same
+     game: Easy deals four colors and Ultra six. */
+  const BEST_KEY = 'decanter.sandbox.best';
+  const bestAll = () => {
+    try { return JSON.parse(localStorage.getItem(BEST_KEY)) || {}; }
+    catch (e){ return {}; }
+  };
+  const bestFor = id => Number(bestAll()[id]) || 0;
+  const rememberBest = (id, score) => {
+    if (!(score > bestFor(id))) return;
+    try { localStorage.setItem(BEST_KEY, JSON.stringify({ ...bestAll(), [id]: score })); }
+    catch (e){}
+  };
   const NORMAL = PACES[1];
   const remembered = () => {
     try { return PACES.find(p => p.id === localStorage.getItem(KEY)) || NORMAL; }
@@ -61,7 +77,7 @@ export const Sandbox = (() => {
   let built = false;
   /* what the host can do that this cannot: deal a board, say which level is
      current, and leave */
-  let host = { openBubble(){}, toMap(){}, level: () => 1 };
+  let host = { openBubble(){}, toMap(){}, level: () => 1, retool(){}, still: null };
 
   /* Built on the first press rather than shipped as markup. The shell is what
      every load revalidates, and a picker only a beta player can open has no
@@ -72,11 +88,13 @@ export const Sandbox = (() => {
     veil.className = 'veil';
     veil.id = 'sandboxVeil';
     veil.innerHTML = `<div class="panel">
-      <p class="kicker">Bubble sandbox</p>
-      <h2>Pick a pace</h2>
-      <p class="sandboxWhy">A row drops every so many shots, and there is no shot
-        limit at all. Clear the board to win. Nothing here counts.</p>
+      <h2>Bubble Blaster!</h2>
+      <p class="sandboxWhy">No shot limit. Clear the board to win.<br>
+        Games here don't count toward your journey.</p>
       <div class="sandboxPicks" id="sandboxPicks"></div>
+      <div class="stillBox" id="sandboxStill"></div>
+      <p class="sandboxBest" id="sandboxBest"></p>
+      <button class="btn primary" id="sandboxPlay" type="button">Play</button>
       <button class="btn" id="sandboxClose" type="button">Back</button>
     </div>`;
 
@@ -95,11 +113,37 @@ export const Sandbox = (() => {
     document.body.append(veil, end);
     built = true;
 
+    $('sandboxPlay').onclick = () => { hide(); deal(); };
     $('sandboxClose').onclick = close;
     veil.addEventListener('click', e => { if (e.target === veil) close(); });
     $('sandboxAgain').onclick = () => { hide(); seed++; deal(); };
     $('sandboxPace').onclick = () => { hide(); open(); };
     $('sandboxToMap').onclick = () => { hide(); host.toMap(); };
+  }
+
+  /* Taking a name shows what it deals rather than dealing it.
+
+     A difficulty is three numbers that only mean something together, so a name
+     on its own says nothing and the numbers say less. A board does: four colors
+     against six is obvious at a glance in a way "a row every 20" never is. So
+     the pick is a preview and starting is a separate press.
+
+     The board shown is the one the Play button would deal, drawn through the
+     game's own dealer under those rules rather than mocked up here. */
+  function show(){
+    for (const b of $('sandboxPicks').children){
+      b.classList.toggle('primary', b.dataset.pace === pace.id);
+    }
+    const box = $('sandboxStill');
+    if (box && host.still){
+      box.innerHTML = host.still(seed, {
+        colors: pace.colors, rows: pace.rows, every: pace.every, runShots: null
+      });
+    }
+    const best = bestFor(pace.id);
+    $('sandboxBest').textContent = best
+      ? `Best on ${pace.name.toLowerCase()}: ${best}`
+      : `No ${pace.name.toLowerCase()} run yet.`;
   }
 
   function open(){
@@ -108,30 +152,69 @@ export const Sandbox = (() => {
     picks.innerHTML = '';
     for (const p of PACES){
       const b = document.createElement('button');
-      b.className = `btn${p.id === pace.id ? ' primary' : ''}`;
+      b.className = 'btn';
       b.type = 'button';
-      /* The word and nothing else. What each one is made of is four numbers
+      b.dataset.pace = p.id;
+      /* The word and nothing else. What each one is made of is three numbers
          that only mean something together, and printing one of them invites the
          reading that it is the setting: "a row every 16" says nothing about the
-         three colors or the four rows that do most of the work. */
+         colors or the rows that do most of the work. The board below says it
+         all at once. */
       b.textContent = p.name;
-      b.onclick = () => { pace = p; remember(p); hide(); deal(); };
+      b.onclick = () => { pace = p; remember(p); show(); };
       picks.appendChild(b);
     }
+    show();
     $('sandboxEnd').classList.remove('show');
     $('sandboxVeil').classList.add('show');
   }
 
-  /* Every tool, and free. Nothing here is graded, so there is no run to protect
-     and a workbench with the hint switched off is a worse workbench. */
-  const FREE = { free: true };
+  /* One of each, per board.
+
+     Unlimited and free was the first shape and it was wrong twice over. It made
+     the workbench a solver, which is the same objection the cellar door's tools
+     failed: a hint you can press on every shot is not advice, it is the answer,
+     and a board played that way tells you nothing about the setting you picked.
+     And it quietly lied, because saying "free" here only changed the label. The
+     charge still went through the host and took real gold; Jabari mode fills the
+     purse to seven figures, so nobody would have noticed it draining.
+
+     One each is enough to get out of a corner and not enough to be carried, and
+     it costs nothing, which is the honest version of what the label already
+     said. A spent tool is taken off the row rather than left to be pressed and
+     refused, the same way an ungranted one is. */
+  const ALLOWANCE = { undo: 1, hint: 1, color: 1, bomb: 1 };
+  let left = { ...ALLOWANCE };
+  /* Swap is not in here. It costs nothing in the graded game either, because it
+     reorders two bubbles the sequence was going to hand over anyway. */
+  const allowFrom = () => ({ swap: true,
+    undo: left.undo > 0, hint: left.hint > 0,
+    color: left.color > 0, bomb: left.bomb > 0 });
+  const pricesFrom = () => {
+    const say = n => (n > 0 ? { free: true, left: n } : undefined);
+    return { undo: say(left.undo), hint: say(left.hint),
+             color: say(left.color), bomb: say(left.bomb) };
+  };
+
+  /* Asked before the tool acts, so a refusal changes nothing. Spending one
+     re-hands the row to the game, because a tool with none left is a tool the
+     board no longer offers. */
+  function spend(what){
+    if (!(what in left)) return true;
+    if (left[what] <= 0) return false;
+    left[what] -= 1;
+    host.retool(allowFrom(), pricesFrom);
+    return true;
+  }
   function deal(){
+    left = { ...ALLOWANCE };
     host.openBubble({
       level: host.level(), seed, sandbox: true,
       rules: { every: pace.every, runShots: null,
                colors: pace.colors, rows: pace.rows },
-      allow: { undo: true, hint: true, swap: true, color: true, bomb: true },
-      prices: () => ({ undo: FREE, hint: FREE, color: FREE, bomb: FREE }),
+      allow: allowFrom(),
+      prices: pricesFrom,
+      charge: spend,
       note: `${pace.name}: ${pace.colors} colors, ${pace.rows} rows, a row every ${pace.every}`
     });
   }
@@ -155,6 +238,7 @@ export const Sandbox = (() => {
       ? `Every bubble gone, in ${run.shots} shots at ${pace.name.toLowerCase()}.`
       : `${run.shots} shots at ${pace.name.toLowerCase()} before the line.`;
     $('sandboxScore').textContent = run.score;
+    rememberBest(pace.id, run.score);
     $('sandboxEnd').classList.add('show');
   }
 
@@ -169,6 +253,6 @@ export const Sandbox = (() => {
     /* Handed in rather than reached for, the way 86-jabari.js is handed a purse:
        dealing a board means a run id, a view, a boot and a fetch, all of which
        are the host's business and none of which are this file's. */
-    set host(h){ host = { openBubble(){}, toMap(){}, level: () => 1, ...h }; }
+    set host(h){ host = { openBubble(){}, toMap(){}, level: () => 1, retool(){}, still: null, ...h }; }
   };
 })();

@@ -423,7 +423,7 @@ export const App = (() => {
      the sandbox was the only caller that set a pace, so it was the only one that
      put it back, and a level dealt after one carried it. Setting `rules` on
      every board makes that impossible rather than remembered. */
-  function openBubble({ level, rules, sandbox, seed, allow, prices, note }){
+  function openBubble({ level, rules, sandbox, seed, allow, prices, charge, note }){
     bubbleRun = runId;
     newRun(level);
     bubbleSandbox = !!sandbox;
@@ -442,6 +442,11 @@ export const App = (() => {
       BubbleApp.rules = rules;
       BubbleApp.allow = allow;
       BubbleApp.prices = prices;
+      /* Who takes payment for a tool, decided per board rather than once at
+         boot. A level pays out of the purse; a sandbox board pays out of an
+         allowance of its own. Setting only the prices was the bug: the label
+         said free and the charge still went to the purse. */
+      BubbleApp.charge = charge || (what => payFor(what));
       $('bubGold').textContent = progress.gold;
       BubbleApp.newBoard(seed);
       Trace.note(note, sandbox ? 'sandbox board' : 'bubble board');
@@ -477,7 +482,23 @@ export const App = (() => {
         deny('sandbox', 'the bubble sandbox could not be loaded');
         return;
       }
-      Sandbox.host = { openBubble, toMap: () => showMap(false), level: () => S.level };
+      Sandbox.host = {
+        openBubble, toMap: () => showMap(false), level: () => S.level,
+        /* A tool the sandbox has spent is one the board no longer offers, so the
+           row is re-handed rather than left showing a button that refuses. */
+        retool: (allow, prices) => {
+          if (typeof BubbleApp === 'undefined') return;
+          BubbleApp.allow = allow;
+          BubbleApp.prices = prices;
+          BubbleApp.paintTools();
+        },
+        /* The board a difficulty would deal, drawn the way the card before a
+           replay draws one: the game's own dealer under those rules, through the
+           same `Still`. A picture mocked up here would be a picture of a board
+           nobody is ever dealt, which is the one thing a preview must not be. */
+        still: (seed, under) => (typeof BubbleApp === 'undefined'
+          ? '' : Still.bubbles(BubbleApp.still(seed, under)))
+      };
       Sandbox.open();
     });
   }
