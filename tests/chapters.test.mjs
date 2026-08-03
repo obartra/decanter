@@ -3,6 +3,19 @@ import { describe, it, assert, equal, loadPure } from './helpers.mjs';
 const { Chapters, Levels, Progress, CONFIG } = loadPure();
 const fresh = () => Progress.createProgress(Progress.memoryStorage());
 
+/* Playing forward, the way the game is actually walked now: a chapter is not
+   handed over when the last board of the one before it falls, it is entered
+   through the floor of casks standing in front of it. A fixture that only
+   called complete() would stop dead at level 11 with the frontier there and
+   nothing open, which is the game working rather than the test being wrong. */
+function playTo(p, last){
+  for (let level = 1; level <= last; level++){
+    p.openDoor(Levels.sectionOf(level));
+    p.complete(level, 10, 3);
+  }
+  return p;
+}
+
 describe('chapters', () => {
   it('opens with one tool and hands over the rest a chapter at a time', () => {
     /* the point of the whole arrangement: the first minute is not as open as
@@ -62,8 +75,7 @@ describe('chapters', () => {
 
   it('gives the player what they have reached, not what is in front of them', () => {
     /* going back to an early board must not take the tools away again */
-    const p = fresh();
-    for (let level = 1; level <= 25; level++) p.complete(level, 10, 3);
+    const p = playTo(fresh(), 25);
     assert(p.perks().vessel, 'someone who has reached the distillery keeps the vessel');
     equal(p.perks().vessel, Chapters.perksFor(Levels.sectionOf(p.unlocked)).vessel);
   });

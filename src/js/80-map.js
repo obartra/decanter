@@ -45,13 +45,45 @@ export const MapGeom = (() => {
     const cap = Number.isInteger(last) ? last : (Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : Infinity);
     return Math.min(ahead, cap);
   };
-  return { nodes, height, pathThrough, visibleCount, STEP };
+  /* What stands at each place along the road, in order.
+
+     The road used to BE the levels: the nth place was level n, and every part of
+     the map worked in level numbers because the index and the level were the
+     same number wearing two hats. They are not the same number any more. A door
+     stands between the last board of one chapter and the first of the next, so
+     the nth place on the road is the nth THING, and a thing is either a board or
+     a floor of casks.
+
+     One list, read by everything that puts something on the road, rather than
+     each caller doing the arithmetic. Two places working out where the door goes
+     is how a medallion ends up on the road with the wrong number under it. */
+  function stops(unlocked, lookahead, last){
+    const count = visibleCount(unlocked, lookahead, last);
+    const size = CONFIG.sectionSize;
+    const out = [];
+    for (let level = 1; level <= count; level++){
+      if (level > 1 && (level - 1) % size === 0){
+        const section = (level - 1) / size;
+        /* A chapter past the end of the door list has none, and the road runs
+           straight into it the way it does into the first. */
+        if (Levels.doorFor(section) != null) out.push({ door: section });
+      }
+      out.push({ level });
+    }
+    return out;
+  }
+
+  return { nodes, height, pathThrough, visibleCount, stops, STEP };
 })();
 
 export const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
   let onBuy = () => {};
+  /* Told which door was tapped. The map knows where a door is and whether it is
+     open; what happens when one is tapped is the app's business, the same way
+     picking a level is. */
+  let onDoor = () => {};
   let onScroll = null;
   /* What dealing a given board costs. Asked for rather than worked out here: the
      app is where a board is paid for, and a map that recomputed the fee from
@@ -194,9 +226,46 @@ export const MapView = (() => {
   function starRow(n){
     return `<span class="ns">${[0,1,2].map(i => i < n ? '★' : '<i>★</i>').join('')}</span>`;
   }
+
+  /* The cellar door standing in front of a chapter.
+
+     Deliberately not a medallion with a lock on it. A locked medallion means
+     "not yet"; this one means "now, and here is the thing to do", and the two
+     reading the same would make the gate look like more of the wall. It carries
+     no number, no price and no stars, because it has none of those: a floor of
+     casks is out or it is not.
+
+     Reachable only once the frontier arrives at the chapter behind it. Before
+     then it is on the road as something to see coming, which is what the
+     lookahead is for, and tapping it would be starting a chapter out of turn. */
+  function doorNode(progress, section, p){
+    const first = section * CONFIG.sectionSize + 1;
+    const open = progress.isDoorOpen(section);
+    const reached = progress.unlocked >= first;
+    const name = Levels.sectionName(first);
+
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'node door' + (open ? ' opened' : '') + (!open && reached ? ' waiting' : '')
+      + (!reached ? ' far' : '');
+    b.style.left = p.x + 'px';
+    b.style.bottom = p.y + 'px';
+    b.style.setProperty('--tint', Levels.sectionTint(first));
+    b.dataset.door = section;
+    b.disabled = open || !reached;
+    b.setAttribute('aria-label',
+      open ? `The door to ${name}, already open`
+      : reached ? `The door to ${name}. Get the gilt cask out to open it`
+      : `The door to ${name}, further on`);
+    b.innerHTML = `<span class="num" aria-hidden="true">${open ? '&#9727;' : '&#9723;'}</span>`
+      + `<span class="ns doorName">${name}</span>`;
+    if (!b.disabled) b.addEventListener('click', () => { armed = null; onDoor(section); });
+    return b;
+  }
   function render(progress){
     const unlocked = progress.unlocked;
-    const count = MapGeom.visibleCount(unlocked);
+    const stops = MapGeom.stops(unlocked);
+    const count = stops.length;
     const width = scroll.clientWidth || 360;
     const opts = { spacing: Math.min(104, Math.max(80, scroll.clientHeight / 5.4)) };
     const pts = MapGeom.nodes(count + GHOSTS, width, opts);   /* ghosts continue the path */
@@ -230,7 +299,9 @@ export const MapView = (() => {
     canvas.querySelectorAll('.node,.chapter').forEach(n => n.remove());
 
     for (let i = 0; i < count; i++){
-      const p = pts[i], level = p.level;
+      const p = pts[i], stop = stops[i];
+      if (stop.door != null){ canvas.appendChild(doorNode(progress, stop.door, p)); continue; }
+      const level = stop.level;
       if (Levels.isSectionStart(level)){
         const tag = document.createElement('div');
         tag.className = 'chapter';
@@ -241,12 +312,21 @@ export const MapView = (() => {
       }
       const stars = progress.starsFor(level);
       const cleared = stars > 0;
-      const current = level === unlocked;
-      const locked = level > unlocked;
+      /* Behind a door that has not been opened. A different thing from not
+         having got here yet, and it has to look and read differently: this one
+         the player can do something about right now, and what they can do is one
+         node further down the road. */
+      const shut = !progress.isDoorOpen(Levels.sectionOf(level));
+      const current = level === unlocked && !shut;
+      const locked = level > unlocked || shut;
       /* Only the very next one can be bought. Paying past a board you have not
-         beaten is a way through, not a way to skip the game. */
+         beaten is a way through, not a way to skip the game.
+
+         Never a level behind a shut door. `buyUnlock` refuses those too, and the
+         two have to agree: a medallion offering a price the purse would be
+         charged and the save would then reject is worse than no offer at all. */
       const last = Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : Infinity;
-      const buyable = locked && level === unlocked + 1 && level <= last;
+      const buyable = locked && !shut && level === unlocked + 1 && level <= last;
       const cost = unlockFeeOf();
       const affordable = progress.canAfford(cost);
       const isArmed = buyable && armed === level;
@@ -272,6 +352,9 @@ export const MapView = (() => {
       b.setAttribute('aria-label',
         isArmed ? `Open level ${level} for ${cost} gold?`
         : buyable ? `Level ${level}, locked. Open it for ${cost} gold`
+        /* Named, because "locked" on a level the player has already reached is
+           the map declining to say the one thing that would help. */
+        : shut ? `Level ${level}. ${Levels.sectionName(level)} is still behind its door`
         : locked ? `Level ${level}, locked`
         : short ? `Level ${level}. ${fee} gold to deal, and there is not enough`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
@@ -336,6 +419,7 @@ export const MapView = (() => {
     },
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
+    set onDoor(fn){ onDoor = fn; },
     set feeFor(fn){ feeFor = fn; },
     set unlockFeeOf(fn){ unlockFeeOf = fn; },
     render, scrollToCurrent, currentIsVisible,

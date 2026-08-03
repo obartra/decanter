@@ -45,9 +45,26 @@ stones so it does not outlive what is laid on it.
 
 ## Nodes
 
-A node per level: cleared ones tinted by their chapter and showing their stars,
-the current one a lit brass medallion with a slow beacon, locked ones dark. The
-current level is scrolled into view on entry.
+A node per **stop**, and a stop is not the same thing as a level. The road used
+to be the levels — the nth place was level n, and the whole map worked in level
+numbers because the index and the level were one number wearing two hats. A
+cellar door stands between the last board of one chapter and the first of the
+next, so `MapGeom.stops` is the one list that says what is where, and everything
+that puts something on the road reads it rather than doing the arithmetic again.
+Two places working that out is how a medallion ends up under the wrong number.
+
+Levels: cleared ones tinted by their chapter and showing their stars, the current
+one a lit brass medallion with a slow beacon, locked ones dark. The current level
+is scrolled into view on entry.
+
+**A door is drawn as a gate, not as another stone.** Square where a medallion is
+round, wider than it is tall, and carrying the name of the chapter behind it
+instead of a number — a number there would read as a level and send somebody
+looking for it. Three states, and only one of them can be pressed: waiting (the
+chapter before it is finished, so it glows), opened (stands aside, keeps the
+chapter's tint), and far (seen a chapter early in the lookahead, plainly not yet).
+What it does when tapped is the app's business, the same as picking a level. See
+[17 The Cellar Door](17-casks.md).
 
 **A node that cannot be paid for refuses the tap and shows the price.** Every
 board dealt costs an attempt, and a purse too thin to cover one is a state the
@@ -127,8 +144,18 @@ outright, which is an economy decision documented in
 A failed run does not advance it. That is the whole reason paying past a board
 exists, since otherwise a level nobody can crack ends the game.
 
+**But `unlocked` is not on its own the answer to "may I play this".** A chapter
+is entered through the cellar door in front of it, so a level inside a chapter
+whose door is shut is refused however far the frontier has run — and a medallion
+in that state says which chapter is still behind its door rather than just
+"locked", because that one the player can do something about right now, and what
+they can do is one node further down the road. Paying past a board is refused
+there too: a shut door is not a board you cannot beat, and a purse charged for
+one would come away holding a level it still could not enter.
+
 ## Chapters
 
 Sections of ten, named and tinted from `CONFIG`, with a label drawn across the map
-at each boundary. They are presentational only; what they are is
-[02 Levels](02-levels.md).
+at each boundary. The label is presentational; what a chapter IS is
+[02 Levels](02-levels.md), and what it takes to get into one is
+[17 The Cellar Door](17-casks.md).

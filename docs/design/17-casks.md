@@ -5,10 +5,52 @@ casks. Each one is two or three cells long, lies flat, and slides only along its
 own length. One is gilt, lies on the exit row, and has to reach the door in the
 east wall.
 
-It is a standalone page, exactly as `/bubble/` and `/measure/` were when they
-were first added, and it is deliberately not wired into the graded run: nothing
-in `src/js/` may name anything in `src/casks/js/`, and a reference either way is
-a lint error.
+It is also **the door in front of every chapter but the first**. The standalone
+page is still there and is still where the mechanic gets worked on; what changed
+is that eleven of its floors now stand in the graded run, one at each chapter
+boundary, and a chapter cannot be entered until the floor in front of it is out.
+
+The coupling is one name. `src/js/` may reach `CasksApp` and nothing else — the
+same allowance `BubbleApp` has, declared in `eslint.config.js`, and reaching past
+either into another game's rules, search or renderer is still a lint error.
+
+## The doors
+
+Eleven of them, before chapters two to twelve. Chapter one has none: it is where
+somebody finds out what this game is, and a locked door in front of level one is
+a game that will not start.
+
+**A door cannot be failed, and cannot be got through badly.** No par, no stars,
+no best, no first-clear bonus, no fee to attempt and nothing to buy. A floor is
+out or it is not. That is the entire reason it works as a gate — a gate you can
+three-star is a gate you can also one-star past, which makes it a toll.
+
+It follows that there is **no undo and no hint** either, and that rule is not a
+flag. The door view in `src/index.html` carries the canvas and nothing else, so
+the cellar door's own `paintHud()` and result panel find none of the elements
+they paint and quietly do nothing, and no button in that document reaches
+`undo()` or `hint()`. A rule made of missing elements cannot be left switched on
+by a later change. Restart stays, because it is not an aid: without undo, a
+player who has shoved a cask somewhere they regret would otherwise have to leave
+the door and come back, which is the same thing with more steps in front of it.
+
+**Which floor is which door** is a list in `src/js/pure/30-levels.js`, not
+arithmetic. The casks boards are a measured, shipped table and par is a fixed
+property of a floor; that table is not in the critical bundle, so a formula here
+would be a formula over numbers this file cannot see at boot. Eleven numbers
+chosen once are also eleven numbers a test can check, and
+`tests/doors.test.mjs` checks them against the real par table: every door names a
+floor that exists, and every door is strictly harder than the one before it.
+
+**In the save**, doors are their own record, separate from `unlocked`. The two
+answer different questions — how far the player has PLAYED, and whether they may
+go on — and folding them together would lose the difference the moment somebody
+paid past a board. Paying past a board is refused at a shut door for that reason:
+it is a way through a board you cannot beat, and a shut door is not a board.
+
+A save written before any of this had no doors record, and its owner had already
+walked into every chapter they had reached. Those doors are counted as open on
+the load that migrates. See [12 Saving](12-saving.md).
 
 ## The rules
 

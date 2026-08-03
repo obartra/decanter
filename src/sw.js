@@ -49,6 +49,12 @@ self.addEventListener('fetch', e => {
     e.respondWith(
       fetch(req.url, { cache: 'no-cache' })
         .catch(() => caches.match(wanted, { ignoreSearch: true }))
+        /* Not every shell is precached. The lab is built and served but left out
+           of the install, so offline and never visited there is nothing to fall
+           back to — and handing respondWith an undefined is a TypeError, which
+           reaches the player as a broken page rather than as an offline one.
+           A real network error says the true thing: this page is not here. */
+        .then(res => res || Response.error())
     );
     return;
   }

@@ -97,6 +97,26 @@
   <div class="palette" id="bubblePalette" hidden></div>
 </section>
 
+<!-- The door in front of a chapter: a floor of casks, and getting the gilt one
+     out is what opens the chapter. The canvas and nothing else, because the
+     absent readouts ARE the no-aids rule: with no cskUndo, cskHint, cskPar or
+     cskVeil here, that game's own HUD and panel find nothing to paint. See
+     docs/design/17-casks.md. -->
+<section class="view" id="doorView">
+  <header class="gameHeader">
+    <button class="btn ghost" id="doorToMap" type="button">&larr; Map</button>
+    <h1 class="wordmark small">The Cellar Door</h1>
+    <button class="btn ghost" id="doorRestart" type="button">Restart</button>
+  </header>
+  <!-- Not `.rule`, and not how a cask moves: that sentence is drawn on the
+       canvas by the game's own renderer, and `.rule` is positioned for the
+       bubble stage, so saying it here put it twice, once over the casks. -->
+  <p class="doorSays">The way into <b id="doorChapter">the next chapter</b>. No par, no stars &mdash; it is open or it is not.</p>
+  <main class="stage">
+    <canvas id="cskCanvas"></canvas>
+  </main>
+</section>
+
 <section class="view" id="gameView">
   <header class="gameHeader">
     <button class="btn ghost" id="toMap" type="button">&larr; Map</button>

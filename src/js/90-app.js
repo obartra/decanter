@@ -503,6 +503,83 @@ export const App = (() => {
     });
   }
 
+  /* ---------- the door in front of a chapter ----------
+
+     A floor of casks, and getting the gilt one out is what opens the chapter
+     behind it. Eleven of them, one before every chapter but the first, chosen in
+     30-levels.js.
+
+     Nothing about it is graded. No par, no stars, no best, no first-clear bonus,
+     no fee to attempt and nothing to spend: a floor is out or it is not, and a
+     gate that can be got through badly is a toll rather than a gate. That is
+     also why none of it is wired to the purse — there is no transaction here to
+     have gone wrong, which is the whole appeal of it as a gate.
+
+     The no-aids rule is not a flag. The door view in index.html carries the
+     canvas and nothing else, so that game's own paintHud() and panel find none
+     of the elements they paint and quietly do nothing, and there is no button in
+     this document that reaches its undo() or hint(). A rule made of missing
+     elements cannot be left switched on. */
+  let doorReady = false;
+  /* Which chapter the floor on screen is the way into, so the callback cannot
+     open a different one from the one the player is standing at. */
+  let doorSection = null;
+
+  function showDoor(section){
+    const floor = Levels.doorFor(section);
+    if (floor == null) return;
+    if (progress.isDoorOpen(section)){ showMap(); return; }
+    /* The chapter behind it has to be one the player has actually reached.
+       The map disables a door further on than that, and this is the same
+       refusal made where it cannot be got round. */
+    const first = section * CONFIG.sectionSize + 1;
+    if (progress.unlocked < first){
+      deny('door', `the door to chapter ${section + 1} is further on than level ${progress.unlocked}`);
+      return;
+    }
+    runId++;
+    doorSection = section;
+    $('doorChapter').textContent = Levels.sectionName(first);
+    /* Up before the game is booted, for the reason startBubble gives: booting
+       measures the canvas, and a canvas in a hidden section measures zero. */
+    document.body.dataset.view = 'door';
+    Backdrop.kind = 'cellar';
+
+    const mine = runId;
+    Deferred.ready('casks').then(() => {
+      if (mine !== runId || document.body.dataset.view !== 'door') return;
+      if (typeof CasksApp === 'undefined'){
+        deny('door', 'the cellar door could not be loaded');
+        showMap();
+        return;
+      }
+      if (!doorReady){
+        CasksApp.boot();
+        CasksApp.onOut = () => openedDoor();
+        doorReady = true;
+      }
+      CasksApp.newBoard(floor);
+      Trace.note(`opened the door to chapter ${section + 1}`, `casks floor ${floor}`);
+    });
+  }
+
+  /* The gilt cask is out. Read off `doorSection` rather than off the floor
+     number the callback carries: the same floor could stand in front of two
+     chapters one day, and a door that opened whichever chapter happened to use
+     that board is a bug nobody would find twice. */
+  function openedDoor(){
+    const section = doorSection;
+    if (section == null) return;
+    doorSection = null;
+    if (!progress.openDoor(section)) return;
+    Trace.note(`chapter ${section + 1} opened`, 'the door was got through');
+    paintHud();
+    showMap();
+    /* The opening card, now that the chapter it is about is genuinely open.
+       openChapter() marks it seen, so it still shows once and only once. */
+    openChapter(section * CONFIG.sectionSize + 1);
+  }
+
   /* What a bubble tool costs, taken from the purse the same way the pour game's
      are. Undo is free for the first few and priced after, a hint costs what a
      hint costs, and a color costs a vessel. Returning false refuses, and the
@@ -1174,6 +1251,7 @@ export const App = (() => {
       if (progress.starsFor(level) > 0) showPreview(level);
       else showGame(level);
     };
+    MapView.onDoor = section => { Sound.unlock(); Sound.tick(); showDoor(section); };
     /* Paying past a board from the map opens the next one and nothing else: no
        stars, no best, and the first-clear bonus stays unclaimed, so coming back
        and actually beating it still pays what it always would have. */
@@ -1291,6 +1369,14 @@ export const App = (() => {
     $('toMap').onclick = () => { Sound.tick(); showMap(false); };
     /* the other game's way out, which is the same way out */
     $('bubToMap').onclick = () => { Sound.tick(); showMap(false); };
+    /* Leaving a door costs nothing and forfeits nothing, because there was
+       nothing to lose: it is not a run, it has no fee and it banks no score. It
+       will be exactly the same floor when you come back. */
+    $('doorToMap').onclick = () => { Sound.tick(); doorSection = null; showMap(false); };
+    $('doorRestart').onclick = () => {
+      Sound.tick();
+      if (doorSection != null && typeof CasksApp !== 'undefined') CasksApp.newBoard(Levels.doorFor(doorSection));
+    };
     const closePanel = () => { closeVeil(); showMap(true); };
     /* The card is a question, so both answers close it and only one of them
        spends anything. Backing out has to leave the map exactly as it was: no

@@ -290,6 +290,11 @@ export const CasksApp = (() => {
         st.escaping = null;
         paintHud();
         show(st.over);
+        /* Said once the cask is visibly gone rather than the moment the rules
+           agree it is out, for the same reason the panel waits: a chapter that
+           opened over a floor still showing the gilt cask on it would be the
+           game getting ahead of its own picture. */
+        if (st.over === 'open' && onOut) onOut(st.level);
       }
     }
   }
@@ -413,6 +418,19 @@ export const CasksApp = (() => {
   }
 
   /* ---- boot ---- */
+
+  /* Told when the gilt cask is out.
+
+     Null on this page, where the panel is the answer and there is a next floor
+     to go to. Set by the pour game, which stands one of these floors in front of
+     every chapter but the first and has no other way to learn that the door has
+     been got through. See src/js/pure/30-levels.js.
+
+     A callback rather than the pour game reading `_state.over`, because that
+     would be a second place deciding what counts as out, and the escape
+     animation means the rules and the picture agree at different moments. */
+  let onOut = null;
+
   let bound = false;
   function boot(){
     const cv = $('cskCanvas');
@@ -498,7 +516,9 @@ export const CasksApp = (() => {
     return newBoard(L.make(next) ? next : 1);
   }
 
-  return { boot, newBoard, press, drag, release, play, step, paintHud, _state: st };
+  return { boot, newBoard, press, drag, release, play, step, paintHud,
+           set onOut(fn){ onOut = fn; },
+           _state: st };
 })();
 
 /* Booted on sight, because this page is nothing but this game. The other two

@@ -81,14 +81,15 @@ export default [
      imported, so reaching into another game is a resolution error at build time
      rather than a rule somebody keeps writing down.
 
-     Four declared globals, and all four are the same situation: a name that
+     Five declared globals, and all five are the same situation: a name that
      arrives over the network after the page has opened, which no import can
      express. `Sound` is the sound, handed from the stub to the real module once
-     it lands. `BubbleApp` is the other game, `Preview` is the card shown before
-     a replay, and `Sandbox` is Jabari mode's workbench, all fetched after first
-     paint and all reached from the pour game behind a `typeof` guard. Importing
-     any of them would put it in the critical bundle and undo the deferral.
-     49-audio.js says so at length. */
+     it lands. `BubbleApp` is the other game and `CasksApp` is the third one,
+     which is the door standing in front of every chapter but the first;
+     `Preview` is the card shown before a replay, and `Sandbox` is Jabari mode's
+     workbench. All are fetched after first paint and all are reached from the
+     pour game behind a `typeof` guard. Importing any of them would put it in the
+     critical bundle and undo the deferral. 49-audio.js says so at length. */
   {
     files: ['src/js/**/*.js', 'src/bubble/js/**/*.js', 'src/measure/js/**/*.js',
             'src/casks/js/**/*.js', 'src/lab/js/**/*.js'],
@@ -96,7 +97,7 @@ export default [
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: { ...globals.browser, Sound: 'writable', BubbleApp: 'writable',
-                 Preview: 'writable', Sandbox: 'writable' }
+                 CasksApp: 'writable', Preview: 'writable', Sandbox: 'writable' }
     },
     rules: shared
   },

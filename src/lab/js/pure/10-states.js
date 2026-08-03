@@ -139,6 +139,30 @@ export const LabStates = (() => {
       }
     },
     {
+      id: 'atDoor',
+      title: 'Standing at a shut cellar door',
+      kind: PLAY,
+      why: 'A chapter finished and the next one still closed. The frontier has moved onto a board that cannot be dealt, which is the one state where those two facts come apart, and the only screen in the game with no way forward except the other game.',
+      make: env => {
+        const first = env.CONFIG.sectionSize + 1;
+        /* Said outright, against the fill-in above: the frontier has passed the
+           boundary and the door is still shut. That is the whole state. */
+        return { unlocked: first, gold: 400, doors: {},
+                 seen: seenUpTo(env, env.Levels.sectionOf(first) - 1) };
+      }
+    },
+    {
+      id: 'doorJustOpened',
+      title: 'A cellar door just got through',
+      kind: PLAY,
+      why: 'The same save with the floor of casks behind it. Everything the state above refuses, this one allows, so the pair is what says the door is the thing doing the refusing and not something else.',
+      make: env => {
+        const first = env.CONFIG.sectionSize + 1;
+        return { unlocked: first, gold: 400,
+                 seen: seenUpTo(env, env.Levels.sectionOf(first) - 1) };
+      }
+    },
+    {
       id: 'purseDry',
       title: 'Stranded with an empty purse',
       kind: PLAY,
@@ -277,11 +301,45 @@ export const LabStates = (() => {
      Throws rather than returning something half-built: a preset that cannot be
      resolved is a preset describing a game that no longer exists, and quietly
      handing back `{}` would deal a fresh save under the wrong name. */
+  /* The doors a save's own frontier says have been got through.
+
+     Every chapter but the first is entered through a floor of casks, so a player
+     standing on level 15 has been through the door in front of chapter two.
+     There is no other way they could be there.
+
+     Filled in here, once, rather than written into each state, and that is not
+     only to save fifteen edits. A state says one thing — an empty purse, a
+     chapter about to open, a save somebody mangled — and the doors are not that
+     thing in any of them; they are a consequence of the level the state names. A
+     preset that had to restate them would be a preset with a second number to
+     keep in step with its first, which is exactly the drift this file's header
+     is about. `{ unlocked: 15 }` with no door open is not a harder state to test,
+     it is a save no player can be in.
+
+     A state that names `doors` means it, and is taken whole. Not merged: the two
+     states that are ABOUT a door need to describe one that is SHUT behind a
+     frontier that has already passed it, and `{ ...filled, ...{} }` cannot say
+     that — spreading an empty record adds nothing and removes nothing, so the
+     fill-in wins and the state quietly becomes the opposite of itself. Which is
+     exactly what it did: `atDoor` came up with its door open and every
+     assertion about a refusal failed. */
+  function doorsWalked(env, unlocked){
+    const out = {};
+    if (!Number.isInteger(unlocked)) return out;
+    for (let s = 1; s <= env.Levels.sectionOf(unlocked); s++) out[s] = true;
+    return out;
+  }
+
   function make(id, env){
     const state = byId(id);
     if (!state) throw new Error(`no such state: ${id}`);
     const out = state.make(env);
     if (!out || typeof out !== 'object') throw new Error(`${id} produced no save`);
+    /* Not on a recovery state. Those are saves that are wrong on purpose, and
+       repairing one on the way out would be this file quietly fixing the thing
+       the state exists to hand to the game broken. */
+    if (state.kind === PLAY && out.unlocked != null && out.doors == null)
+      out.doors = doorsWalked(env, out.unlocked);
     return out;
   }
 

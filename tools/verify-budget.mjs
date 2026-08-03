@@ -105,9 +105,31 @@ const dist = join(root, 'dist');
    The other thing tried was folding it into 86-jabari.js, which is where the
    rest of the beta lives. That file is on this path too, so it would have moved
    the bytes rather than removed them. */
+/* Both raised again for the cellar doors, and the shell one needs its own
+   sentence because the paragraph above says markup will never approach it. It
+   just did. The doors put a FIFTH view in the app — the floor of casks standing
+   in front of every chapter but the first — and a view is markup. That cap was
+   set when there were four, so it was measuring four views and calling it a
+   ceiling on inlining. 13,000 still trips what it was written to trip: a
+   stylesheet or a script folded back into the page is tens of kilobytes, not
+   two hundred bytes of section.
+
+   What was tried first, since a budget its own author edits to fit is not a
+   budget: the door view's comments were cut down to the two things not written
+   anywhere else, which recovered 0.7kb and moved the rest into
+   docs/design/17-casks.md where it belongs. That was worth doing on its own and
+   it was not enough.
+
+   The critical path takes about four kilobytes. The door SCREEN is not in that
+   number — the cellar door's bundle is deferred, fetched after first paint with
+   the bubble game's. What is here is the GATE, and a gate cannot be deferred:
+   the map draws doors at first paint and `isUnlocked` is asked before anything
+   is dealt. Deferring it would mean drawing a road that cannot place its own
+   doors and then redrawing it, and an `isUnlocked` that answers "ask again",
+   which is a race in the one function deciding whether a player may play. */
 const BUDGET = {
-  shell: 12_000,
-  critical: 200_000,
+  shell: 13_000,
+  critical: 208_000,
   /* This one exists to notice a game DOUBLING, and nothing finer.
 
      It was once about ten percent above the bubble game, which was the only one
@@ -181,8 +203,27 @@ for (const shell of shells){
   if (size > BUDGET.game) fail(`${game} is ${kb(size)}, over its ${kb(BUDGET.game)} budget`);
 }
 
+/* The lab is not shipped weight.
+
+   It is a workbench: a page that opens the games in frames so a knob can be
+   turned against the live modules. No player reaches it, nothing in the product
+   links to it (tests/e2e/lab.spec.js pins that), and as of the same change that
+   wrote this it is left out of the worker's precache too — so it is genuinely
+   fetched only when somebody asks for it, rather than handed to every install.
+   That last part is what makes this exclusion honest rather than convenient: it
+   was precached until now, and a page every install downloads is shipped weight
+   whatever we call it.
+
+   Counting it here made the number answer a different question from the one it
+   asks, and in the direction that matters: the workbench getting better would
+   eat the headroom the game needs to grow.
+
+   Its own bundle is still capped by the per-game check above, so this is not a
+   corner of dist/ where size stops being measured. It is measured against the
+   thing it is. */
+const shipped = f => !f.startsWith('lab/') && !/^assets\/lab-[0-9a-f]+\.(js|css)$/.test(f);
 let total = 0;
-for (const size of built.values()) total += size;
+for (const [f, size] of built) if (shipped(f)) total += size;
 if (total > BUDGET.total)
   fail(`the build is ${kb(total)}, over its ${kb(BUDGET.total)} budget`);
 

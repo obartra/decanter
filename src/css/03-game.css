@@ -52,3 +52,14 @@
 .payout{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:2px 0 10px}
 .payout b{font-family:"Cinzel",serif; font-weight:700; font-size:22px; color:#F4D9A0}
 .payout span{color:var(--ink-dim); font-size:9px; letter-spacing:.16em; text-transform:uppercase}
+
+/* --- the cellar door --- */
+/* One line above the floor, saying the two things the board itself cannot: which
+   chapter is behind it, and that there is nothing here to be scored on. In the
+   flow rather than over the stage, which is where the bubble game's `.rule` sits
+   and why that class is not reused. */
+.doorSays{
+  margin:0 0 6px; text-align:center; font-size:12px; color:var(--ink-dim);
+  letter-spacing:.02em;
+}
+.doorSays b{color:#F4D9A0; font-weight:600}
