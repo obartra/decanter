@@ -97,9 +97,10 @@ test('opens on the one taken last time, and on Normal before there is one',
   await page.locator('#sandbox').click();
   await expect(page.locator('#sandboxPicks .btn.primary')).toHaveText('Normal');
 
+  /* Taking a name remembers it there and then. Nothing is dealt until Play, so
+     this never waits on a board: the choice is what is being remembered. */
   await page.locator('#sandboxPicks .btn', { hasText: 'Hard' }).click();
-  await page.waitForFunction(() => globalThis.BubbleApp
-    && globalThis.BubbleApp.rules.runShots === null);
+  await expect(page.locator('#sandboxPicks .btn.primary')).toHaveText('Hard');
 
   await page.reload();
   await page.waitForFunction(() => !!globalThis.App);
