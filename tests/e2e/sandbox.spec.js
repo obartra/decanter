@@ -129,8 +129,8 @@ test('gives one of each tool and then takes it off the row', async ({ page }) =>
      hint returns before it charges when nothing clears, which is right and would
      make this spend nothing on a board nobody has shot at. */
   const took = await page.evaluate(() => {
-    const live = globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board);
-    return globalThis.BubbleApp.pickColour(live[0]);
+    const live = globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board);
+    return globalThis.BubbleApp.pickColor(live[0]);
   });
   expect(took, 'the color was refused, so nothing was spent').toBe(true);
   await expect(page.locator('#bubblePick'), 'a spent tool stayed on the row').toBeHidden();
@@ -139,8 +139,8 @@ test('gives one of each tool and then takes it off the row', async ({ page }) =>
 
   /* and a second attempt is refused rather than silently taken */
   expect(await page.evaluate(() => {
-    const live = globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board);
-    return globalThis.BubbleApp.pickColour(live[0]);
+    const live = globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board);
+    return globalThis.BubbleApp.pickColor(live[0]);
   })).toBe(false);
 
   /* A fresh board hands them all back. Back to the map first, because the

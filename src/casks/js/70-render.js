@@ -283,7 +283,7 @@ export const CasksRender = (() => {
     const w = V.world;
     /* a quarter cell of air at each end, so the sentence never runs into a wall */
     const room = w.w - 0.5;
-    const face = s => `${s}px "Alegreya Sans", ui-sans-serif, sans-serif`;
+    const face = s => `${s}px "Alegraya Sans", ui-sans-serif, sans-serif`;
     ctx.fillStyle = INK;
     ctx.globalAlpha = 0.62;
     ctx.textAlign = 'center';

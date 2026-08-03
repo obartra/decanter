@@ -90,7 +90,7 @@ export const Sandbox = (() => {
     veil.innerHTML = `<div class="panel">
       <h2>Bubble Blaster!</h2>
       <p class="sandboxWhy">No shot limit. Clear the board to win.<br>
-        Games here don't count towards your journey.</p>
+        Games here don't count toward your journey.</p>
       <div class="sandboxPicks" id="sandboxPicks"></div>
       <div class="stillBox" id="sandboxStill"></div>
       <p class="sandboxBest" id="sandboxBest"></p>
