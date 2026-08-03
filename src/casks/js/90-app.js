@@ -518,6 +518,13 @@ export const CasksApp = (() => {
 
   return { boot, newBoard, press, drag, release, play, step, paintHud,
            set onOut(fn){ onOut = fn; },
+           /* The host sets this and this obeys, without writing it down: the
+              standalone page has its own button and its own stored preference,
+              and a player who reaches a cellar door inside the other game must
+              not have that overwritten. One boolean over the same one-object
+              coupling the door itself uses, rather than the host reaching for
+              `CasksAudio`. */
+           set sound(on){ A.setEnabled(on, false); }, get sound(){ return A.enabled; },
            _state: st };
 })();
 

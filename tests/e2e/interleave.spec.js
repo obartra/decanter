@@ -178,14 +178,17 @@ test('the two games do not tread on each other in one page', async ({ page }) =>
 
 /* Reported as "I turned the sound off and the bubble ones are still loud".
 
-   There are two sound modules on this page, one per game, and they kept two
-   separate answers: this game's in the save, the other's in a key of its own,
-   because it also ships as a page of its own where there is no save to read.
-   Muting therefore reached one game, roughly four boards in five, and the fifth
-   arrived at full volume on a screen with no button to stop it. Nothing failed,
-   nothing errored, and the player had already done the only thing the game
-   offers for making it stop. */
-test('muting the game mutes both of them, including the boards that are the other one', async ({ page }) => {
+   There are three sound modules on this page, one per game, and they kept three
+   separate answers: this game's in the save, the others in keys of their own,
+   because they also ship as pages of their own where there is no save to read.
+   Muting therefore reached one game, and the boards that are another one arrived
+   at full volume on a screen with no button to stop it. Nothing failed, nothing
+   errored, and the player had already done the only thing the game offers for
+   making it stop.
+
+   The cellar door was the third of those and was reached by none of it, so this
+   asks all three rather than the two it was written for. */
+test('muting the game mutes all of them, including the boards that are another one', async ({ page }) => {
   await start(page, { unlocked: 120, gold: 400, sound: true, seen: { 0: true, 1: true, 2: true } });
   const { bubble } = await kinds(page);
 
@@ -193,32 +196,51 @@ test('muting the game mutes both of them, including the boards that are the othe
   const afterTap = await page.evaluate(() => ({
     pour: globalThis.Sound.enabled,
     bubble: globalThis.BubbleAudio.enabled,
+    casks: globalThis.CasksAudio.enabled,
     saved: globalThis.App._progress.sound
   }));
-  expect(afterTap).toEqual({ pour: false, bubble: false, saved: false });
+  expect(afterTap).toEqual({ pour: false, bubble: false, casks: false, saved: false });
 
   /* and it is still off once one of the other game's boards is actually dealt */
   await open(page, bubble[0]);
   expect(await page.evaluate(() => globalThis.BubbleAudio.enabled),
     'a bubble board came up loud in a muted game').toBe(false);
 
-  /* back on again, from the one control the player has, and both hear it */
-  await page.locator('#bubToMap').click();
-  await page.locator('#mapView .js-sound').click();
+  /* back on again, from the control that is now on that screen too, and all
+     three hear it */
+  await page.locator('#bubbleView .js-sound').click();
   expect(await page.evaluate(() => ({
-    pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled
-  }))).toEqual({ pour: true, bubble: true });
+    pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled,
+    casks: globalThis.CasksAudio.enabled
+  }))).toEqual({ pour: true, bubble: true, casks: true });
+});
+
+/* A screen with a game on it and no way to stop the noise is the bug the
+   paragraph above is about, and for two of these screens the fix for it was the
+   button rather than the wiring. Asked of every view that has a game on it,
+   including the map they are reached from. */
+test('every screen carries the same one control for the sound', async ({ page }) => {
+  await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
+  for (const view of ['mapView', 'gameView', 'bubbleView', 'doorView']){
+    const btn = page.locator(`#${view} .js-sound`);
+    expect(await btn.count(), `${view} has no way to stop the sound`).toBe(1);
+    /* the same shape everywhere: a glyph, and a label that says which way it is */
+    await expect(btn).toHaveClass(/icon/);
+    await expect(btn).toHaveAttribute('aria-label', /Sound (on|off)/);
+  }
 });
 
 /* A muted game that was muted in an earlier sitting has to come back muted, in
    both games. The preference is read from the save at boot, and the other game
    reads its own key at that point, so this is the path where the two can
    disagree before anybody has touched anything. */
-test('a game muted in an earlier sitting comes back muted in both', async ({ page }) => {
+test('a game muted in an earlier sitting comes back muted in all of them', async ({ page }) => {
   await start(page, { unlocked: 120, gold: 400, sound: false, seen: { 0: true, 1: true, 2: true } });
+  await page.waitForFunction(() => !!globalThis.CasksAudio && !!globalThis.BubbleAudio);
   expect(await page.evaluate(() => ({
-    pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled
-  }))).toEqual({ pour: false, bubble: false });
+    pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled,
+    casks: globalThis.CasksAudio.enabled
+  }))).toEqual({ pour: false, bubble: false, casks: false });
 });
 
 test('leaving a bubble level goes back to the map', async ({ page }) => {
@@ -359,21 +381,27 @@ test('a bubble run left mid collapse does not follow you to the map', async ({ p
   expect(after.gold, 'and paid out for a run nobody was watching').toBe(before);
 });
 
-test('opening the game does not overwrite what the standalone page remembers', async ({ page }) => {
-  /* The other game keeps its own preference under its own key, which is right on
-     the page that is nothing but that game. The host has to push the save's
-     value in on every boot, and if that wrote through, simply opening the game
-     once, before pressing anything, would silently undo a mute chosen at
-     /bubble/. The value applies; it just does not get written down. */
+test('opening the game does not overwrite what the standalone pages remember', async ({ page }) => {
+  /* The other games keep their own preferences under their own keys, which is
+     right on a page that is nothing but one of them. The host has to push the
+     save's value in on every boot, and if that wrote through, simply opening the
+     game once, before pressing anything, would silently undo a mute chosen at
+     /bubble/ or /casks/. The value applies; it just does not get written down. */
   await start(page, { unlocked: 120, gold: 400, sound: true, seen: { 0: true, 1: true, 2: true } });
-  await page.evaluate(() => localStorage.setItem('bubble.sound', 'off'));
+  await page.evaluate(() => {
+    localStorage.setItem('bubble.sound', 'off');
+    localStorage.setItem('casks.sound', 'off');
+  });
   await page.reload();
-  await page.waitForFunction(() => !!globalThis.App && !!globalThis.BubbleAudio);
+  await page.waitForFunction(() => !!globalThis.App && !!globalThis.BubbleAudio && !!globalThis.CasksAudio);
 
-  expect(await page.evaluate(() => globalThis.BubbleAudio.enabled),
-    'the save decides while the game is up').toBe(true);
-  expect(await page.evaluate(() => localStorage.getItem('bubble.sound')),
-    'and booting the game rewrote the standalone page’s own preference').toBe('off');
+  expect(await page.evaluate(() => ({
+    bubble: globalThis.BubbleAudio.enabled, casks: globalThis.CasksAudio.enabled
+  })), 'the save decides while the game is up').toEqual({ bubble: true, casks: true });
+  expect(await page.evaluate(() => ({
+    bubble: localStorage.getItem('bubble.sound'), casks: localStorage.getItem('casks.sound')
+  })), 'and booting the game rewrote a standalone page’s own preference')
+    .toEqual({ bubble: 'off', casks: 'off' });
 });
 
 test('undo cannot take back a bubble run the game has already paid for', async ({ page }) => {

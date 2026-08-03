@@ -344,6 +344,16 @@ The world is square plus its walls and never stretches to fill the screen. On a
 tall phone there is air above and below, which is correct: oblong flagstones
 would make a cask's length ambiguous at a glance.
 
+**The box comes from the layout, and the bitmap follows it.** Not the other way
+round: a canvas with no size of its own falls back to its bitmap, and a stage
+that shrinks to fit its content then takes its width from that. The two then
+define each other, which resolves differently in different engines. In the app
+this shipped as a floor drawn four times the width of the phone it was on, with
+the room off the side of the screen, because the app carries this game's code
+and not its stylesheet — so `src/css/03-game.css` gives the canvas in the door
+view a box, and `60-view.js` watches that box with a `ResizeObserver` rather
+than waiting for a window resize that a retracting address bar never sends.
+
 There is exactly one world-to-pixel transform, in `60-view.js`, which also owns
 where each cask sits and which flagstone a point is on — because the renderer
 draws a cask where that says it is and the input decides what was grabbed from

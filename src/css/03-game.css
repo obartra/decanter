@@ -2,6 +2,9 @@
   display:flex; align-items:center; justify-content:space-between;
   width:100%; max-width:520px; gap:8px;
 }
+/* The way out and the way to shut it up, together at the left end. One group so
+   the header keeps its three parts and the title stays where it is. */
+.headSide{display:flex; align-items:center; gap:6px}
 .hud{display:flex; gap:6px}
 .stat{
   min-width:62px; padding:6px 10px 7px; text-align:center;
@@ -52,6 +55,20 @@
 .payout{display:flex; align-items:baseline; justify-content:center; gap:8px; margin:2px 0 10px}
 .payout b{font-family:"Cinzel",serif; font-weight:700; font-size:22px; color:#F4D9A0}
 .payout span{color:var(--ink-dim); font-size:9px; letter-spacing:.16em; text-transform:uppercase}
+
+/* --- the stage the other games are played on ---
+
+   The app owns the box those canvases are given, because a game's stylesheet is
+   the styling of its own PAGE and the build carries the casks one no further:
+   `#cskCanvas` had no size here at all and took its bitmap's, which is a floor
+   drawn four times the width of the phone with the room off the screen.
+
+   Stretched, never shrink-to-fit, so the box cannot be read back off the canvas
+   it is measuring. See 17-casks.md. */
+#bubbleView .stage, #doorView .stage{ align-self:stretch }
+#bubbleView #bubbleCanvas, #doorView #cskCanvas{
+  flex:1; width:100%; height:100%; min-width:0; display:block; touch-action:none;
+}
 
 /* --- the cellar door --- */
 /* One line above the floor, saying the two things the board itself cannot: which

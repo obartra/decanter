@@ -77,9 +77,14 @@ export const CasksAudio = (() => {
        context starts suspended and stays there until a gesture, so anything
        scheduled before the first touch is played to nobody. */
     unlock(){ try { init(); if (ctx && ctx.state === 'suspended') ctx.resume(); } catch(e){} },
-    setEnabled(v){
+    /* `persist` is false when a host is applying its own save rather than the
+       player pressing this game's button. Inside the other game there is one
+       preference and it lives in that save, so the host pushes it in on every
+       boot; writing it through here as well would mean simply reaching a cellar
+       door silently overwrote whatever was chosen on the standalone page. */
+    setEnabled(v, persist = true){
       on = !!v;
-      try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch(e){}
+      if (persist){ try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch(e){} }
       return on;
     },
 

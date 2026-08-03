@@ -11,10 +11,28 @@ export const BubbleView = (() => {
   const C = BubbleConfig;
   let cv = null, ctx = null, scale = 1, ox = 0, oy = 0, dpr = 1;
 
+  /* What has to be watched is the CANVAS, not the window.
+
+     The bitmap is sized from the element's box and the browser then stretches it
+     to whatever that box currently is. Those two agree only while nothing moves
+     the box, and plenty moves it without the window changing size at all: a
+     phone's address bar retracting under a `dvh` height, a webfont landing and
+     reflowing the readouts above the stage, a tool row appearing. Every one of
+     those left the last bitmap stretched into a box of a different shape, which
+     is not a subtle artifact — the board is drawn in world units where a bubble
+     is 1 across, so a box an inch shorter than the bitmap draws every one of
+     them as an oval, and the game looks broken rather than mis-sized.
+
+     A ResizeObserver fires for all of it, including the first measurement. The
+     window listeners stay for the one thing it does not see: the pixel ratio
+     changing while the box holds still, which is a window dragged to a second
+     monitor. Nothing here has to ask for a redraw, because this game draws every
+     frame regardless. */
   function mount(canvas){
     cv = canvas;
     ctx = cv.getContext('2d');
     resize();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(resize).observe(cv);
     addEventListener('resize', resize);
     addEventListener('orientationchange', resize);
     return ctx;

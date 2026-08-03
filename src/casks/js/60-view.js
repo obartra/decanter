@@ -40,10 +40,20 @@ export const CasksView = (() => {
     door: { y: C.WALL + C.EXIT_ROW, h: 1, x: C.WALL + C.W, w: C.WALL }
   };
 
+  /* The canvas is watched rather than the window, because the box moves for
+     reasons the window never hears about: an address bar retracting under a
+     `dvh` height, a webfont reflowing the line above the stage, a view swapping
+     in beside it. A bitmap left at the old shape is stretched into the new box,
+     and here that means oblong flagstones and casks whose length is ambiguous,
+     which is the one thing the fit above exists to prevent. The window
+     listeners stay for the pixel ratio changing under a box that did not move.
+     See `src/bubble/js/60-view.js`, where the same watch is set for the same
+     reason and the whole argument is written out. */
   function mount(canvas){
     cv = canvas;
     ctx = cv.getContext('2d');
     resize();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(resize).observe(cv);
     addEventListener('resize', resize);
     addEventListener('orientationchange', resize);
     return ctx;
