@@ -88,6 +88,74 @@ test('a named state loads the real page into it', async ({ page }) => {
   expect(live).toEqual({ gold: 0, unlocked: 15 });
 });
 
+/* Stepping the level, on the save where every board is already beaten.
+
+   The lab drives the map the way a player does, and the map answers a tap on a
+   CLEARED level with the card before a replay rather than with a board. Every
+   level is cleared in this state, so before the lab learned to answer that card
+   the step did nothing at all: the frame kept whichever board it already had
+   while the sidebar's number moved on, and the readout beside it went on
+   describing the old board's par. A workbench reporting a level it never dealt.
+
+   Worst across the boundary between the two games, which is why the step is
+   taken there: a bubble level's number over a shelf of bottles is the one shape
+   of this bug that looks like a fault in the game rather than in the lab.
+
+   Which level that boundary is gets asked of the game rather than written down,
+   so the day the interleave moves this still tests the boundary. */
+test('stepping the level deals every board, across the bubble boundary', async ({ page }) => {
+  await openLab(page);
+  await page.locator('.labState', { hasText: 'Every board beaten' }).click();
+  /* Waited for on the LAST level, not the first. The save this spec seeds with
+     already has three stars on level 1, so waiting on that one is satisfied
+     before the state has applied and before the frame has reloaded — and the
+     steps below then race a document that is about to be replaced. Passed alone
+     and failed in a full run, which is the worst way to learn it. */
+  await page.waitForFunction(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    return w && w.App && w.App._progress && w.LAST_LEVEL
+      && w.App._progress.starsFor(w.LAST_LEVEL) === 3;
+  });
+
+  const bubble = await page.evaluate(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    for (let n = 2; n < 120; n++) if (w.Levels.isBubble(n)) return n;
+    return null;
+  });
+  expect(bubble, 'the interleave deals no bubble level at all').not.toBeNull();
+
+  const first = bubble - 1;
+  await page.fill('#labLevel', String(first));
+  await page.dispatchEvent('#labLevel', 'change');
+
+  const read = () => page.evaluate(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    return { dealt: w.App._state.level, bubble: w.Levels.isBubble(w.App._state.level),
+             view: w.document.body.dataset.view };
+  });
+  const seen = [];
+  for (let level = first; level <= bubble + 1; level++){
+    if (level > first) await page.locator('#labNext').click();
+    /* Swallowed on purpose. A step that never lands is exactly the bug, and
+       letting this throw would report it as a timeout on a wait; letting it
+       settle and asserting below reports it as the level it stopped on. */
+    await page.waitForFunction(
+      n => document.getElementById('labFrame').contentWindow.App._state.level === n,
+      level, { timeout: 8000 }).catch(() => {});
+    seen.push({ asked: level, ...await read() });
+  }
+
+  /* every step dealt the level it was asked for */
+  expect(seen.map(s => s.dealt)).toEqual(seen.map(s => s.asked));
+  /* and the frame is showing the game that level IS */
+  for (const s of seen){
+    expect(s.view, `level ${s.asked}`).toBe(s.bubble ? 'bubble' : 'game');
+  }
+  /* not vacuous: the run really did cross from one game to the other and back */
+  expect(seen.filter(s => s.bubble)).toHaveLength(1);
+  expect(seen.filter(s => !s.bubble)).toHaveLength(2);
+});
+
 /* The one that matters most. Everything else here is a workbench being wrong;
    this is somebody's progress being gone, silently, because they opened a
    developer page out of curiosity. */
