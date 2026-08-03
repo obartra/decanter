@@ -5,9 +5,12 @@
 # no while saying no is still useful. The deploy workflow runs the same gate
 # again, by which point the change has already been merged.
 #
-# Split into two jobs because they fail for different reasons and take very
-# different amounts of time. `checks` needs no browser and finishes in seconds,
-# so a typo does not wait behind a browser download.
+# Split by what a failure means and by what it costs to find out. A typo should
+# not wait behind a browser download, and the browser suite should not wait
+# behind a minute and a half of replaying levels, so lint and the unit suite, par
+# reachability, and the browser suite are three separate things that run at once.
+# Two of them report through gate jobs, because `main` requires two names and
+# there are more than two jobs now; each gate is at the bottom of its group.
 name: CI
 
 # A pull request branch used to match both triggers, so every commit on one ran
@@ -25,7 +28,7 @@ concurrency:
 
 jobs:
   checks:
-    name: lint, unit tests, invariants
+    name: lint and unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,11 +65,45 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      # Par is the number the whole scoring rests on. This replays every level
-      # against the independent rules and fails if any of them cannot be
-      # finished in exactly the par the game advertises.
-      - name: Every par is reachable
-        run: npm run verify:pars
+  # Par on its own runner, because it is not like the checks above.
+  #
+  # Those are seconds each. This replays all 120 levels against the independent
+  # rules in baseline.mjs and takes a minute and a half, which was most of the
+  # job it used to sit in: lint, budget, dead code and the unit suite together
+  # come to under a minute, and par came to ninety five seconds after them. A
+  # typo waited for it for no reason, and once the browser suite was sharded it
+  # was the thing the whole gate was waiting on.
+  #
+  # It stays a required check through the gate below rather than by being in the
+  # same job as everything else. Par is what the scoring rests on, so it must be
+  # able to say no.
+  pars:
+    name: every par is reachable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:pars
+
+  # The name `main`'s protection requires for everything that is not the browser
+  # suite. Two jobs report under their own names now, and this is the one that
+  # says whether both passed. Same reasoning as the e2e gate at the bottom.
+  checks-gate:
+    name: lint, unit tests, invariants
+    runs-on: ubuntu-latest
+    needs: [checks, pars]
+    if: always()
+    steps:
+      - name: Both halves passed
+        run: |
+          echo "lint and unit tests: ${{ needs.checks.result }}"
+          echo "par reachability: ${{ needs.pars.result }}"
+          [ "${{ needs.checks.result }}" = "success" ] || exit 1
+          [ "${{ needs.pars.result }}" = "success" ] || exit 1
 
   # Split across runners rather than across cores.
   #
@@ -74,17 +111,20 @@ jobs:
   # through a software renderer, so two workers is already most of the machine.
   # Asking one runner for more is how the suite starts failing on teardown
   # timeouts that read as flaky specs; asking for another runner is not. The
-  # fixed cost of a shard is about thirty seconds, nearly all of it the browser
-  # download, which is why four of them is worth it and why more stops being so.
+  # fixed cost of a shard is about thirty five seconds, and the browser inside
+  # that is cached, so eight of them still spend most of their time testing.
+  # Measured at four: 209 seconds of execution a shard against 35 of overhead.
+  # Eight halves the first number and leaves the second, which is where this
+  # stops being worth doing again.
   e2e:
-    name: end to end ${{ matrix.shard }}/4
+    name: end to end ${{ matrix.shard }}/8
     runs-on: ubuntu-latest
     strategy:
       # One shard failing must not cancel the others: the budget below needs
       # every report, and a red shard is more useful beside the green ones.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,7 +137,7 @@ jobs:
 
       # Keyed on the resolved playwright version rather than on the lockfile as
       # a whole, so a change to any other dependency does not throw the browser
-      # away. Four shards download it four times without this.
+      # away. Eight shards download it eight times without this.
       - name: Cache the browser
         id: browser-cache
         uses: actions/cache@v4
@@ -109,11 +149,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # `blob` rather than the usual reporters: a shard only ever sees its own
-      # quarter of the suite, so the one thing it must not do is write a report
-      # that looks like the whole thing. The merge below turns four of them back
-      # into one.
+      # eighth of the suite, so the one thing it must not do is write a report
+      # that looks like the whole thing. The merge below turns eight of them
+      # back into one.
       - name: End to end
-        run: npx playwright test --shard=${{ matrix.shard }}/4 --reporter=blob
+        run: npx playwright test --shard=${{ matrix.shard }}/8 --reporter=blob
 
       - if: always()
         uses: actions/upload-artifact@v4
@@ -123,7 +163,7 @@ jobs:
           retention-days: 1
 
   # The budget cannot run on a shard. It measures how the suite's time is
-  # divided, and a quarter of the suite divided up is a different set of numbers:
+  # divided, and an eighth of the suite divided up is a different set of numbers:
   # a spec that lands entirely in one shard reads as a far larger share of it
   # than it is of the whole. So the shards hand back blobs and this puts them
   # together first.
@@ -149,7 +189,7 @@ jobs:
       # reporter writes to stdout only when it has nowhere else to go, and a
       # redirect that silently captured nothing would leave the budget reading
       # the report from whatever ran last.
-      - name: One report out of four
+      - name: One report out of eight
         run: |
           mkdir -p test-results
           PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/report.json \

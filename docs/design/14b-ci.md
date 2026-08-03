@@ -9,14 +9,22 @@ which of them have to pass before a change can land, and why those.
 only on `main`. It used to run only on a push to `main`, which meant the checks
 ran after the decision they were supposed to inform.
 
-Two jobs, because they fail for different reasons and take very different
-amounts of time. A typo should not wait behind a browser download.
+Split by what a failure means and by what it costs to find out. A typo should
+not wait behind a browser download, and the browser suite should not wait behind
+a minute and a half of replaying levels, so all three run at once.
 
 | job | what it runs | roughly |
 | --- | --- | --- |
-| `checks` | lint, size budget, unit tests, dead code, par reachability | seconds |
-| `e2e` | the browser suite, two viewports, in four shards | about a minute a shard |
-| `e2e-budget` | merges the four reports and checks how the suite spends its time | seconds |
+| `checks` | lint, size budget, unit tests, dead code | under a minute |
+| `pars` | every par replayed against the independent rules | a minute and a half |
+| `e2e` | the browser suite, two viewports, in eight shards | about two minutes a shard |
+| `e2e-budget` | merges the eight reports and checks how the suite spends its time | seconds |
+
+Two of those report under names of their own, and `main` requires two names, so
+each group ends in a gate job that carries the required one: `lint, unit tests,
+invariants` over the first two and `end to end` over the shards. A gate runs even
+when what it needs failed, because a required check that is skipped rather than
+failed leaves a pull request that can neither merge nor go red.
 
 `.github/workflows/pages.yml` runs `npm run check` again before publishing.
 Redundant on purpose: it is the last thing between a merge and players.
