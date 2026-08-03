@@ -107,6 +107,11 @@ const DEFERRED = {
      remembers the sound setting until this lands, which is the thing that makes
      deferring it safe at all. */
   audio: { entry: 'audio-entry.js' },
+  /* Jabari mode's bubble workbench, and the only group fetched on a press rather
+     than eagerly. Everything else here is something a player will reach; this is
+     something almost nobody can, because it needs a word in the address bar, so
+     fetching it for everyone would be paying for it on every load twice over. */
+  sandbox: { entry: 'sandbox-entry.js', css: ['08-sandbox.css'] },
   /* The card shown before a replay. Nothing on it is reachable until somebody
      taps a medallion for a level they have already cleared, so on the critical
      path it was downloaded by every player and read by the ones who go back.
