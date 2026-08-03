@@ -28,13 +28,16 @@
 <main class="cskStage">
   <canvas id="cskCanvas"></canvas>
 </main>
-<!-- Undo and hint both cap the run at two stars, and the page does not say so
-     here: the panel says it at the moment it costs something, which is the only
-     moment anybody reads it. A warning on the button is read once and then
-     becomes furniture. -->
+<!-- Restart and nothing else.
+
+     Undo and hint were here and neither could do anything for anybody. Sliding
+     is reversible and no move can strand a floor, so a mistake is undone by
+     sliding back, at the cost of the one move that made it. And the run is
+     scored on moves against an exact par while both tools capped it at two
+     stars, so undo could never earn the third: it could only convert the run
+     that was going to get it into one that was not. A control that is either
+     redundant or self-defeating is worse than no control. -->
 <div class="cskTools">
-  <button class="cskBtn" id="cskUndo" type="button">Undo</button>
-  <button class="cskBtn" id="cskHint" type="button">Hint</button>
   <button class="cskBtn" id="cskRestart" type="button">Restart</button>
 </div>
 <div class="cskVeil" id="cskVeil">

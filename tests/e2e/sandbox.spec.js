@@ -113,6 +113,41 @@ test('opens on the one taken last time, and on Normal before there is one',
   await expect(page.locator('#sandboxPicks .btn.primary')).toHaveText('Normal');
 });
 
+test('gives one of each tool and then takes it off the row', async ({ page }) => {
+  /* Unlimited was a solver and, worse, a lie: the label said free and the charge
+     still went to the purse. One each, free, and gone when spent. */
+  await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
+  await pick(page, 'Easy');
+
+  await expect(page.locator('#bubblePickCost')).toHaveText('1 free');
+  const before = await page.evaluate(() => globalThis.App._progress.gold);
+
+  /* The colour, because it charges whenever the board has two colours on it. A
+     hint returns before it charges when nothing clears, which is right and would
+     make this spend nothing on a board nobody has shot at. */
+  const took = await page.evaluate(() => {
+    const live = globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board);
+    return globalThis.BubbleApp.pickColour(live[0]);
+  });
+  expect(took, 'the colour was refused, so nothing was spent').toBe(true);
+  await expect(page.locator('#bubblePick'), 'a spent tool stayed on the row').toBeHidden();
+  expect(await page.evaluate(() => globalThis.App._progress.gold),
+    'a sandbox tool took gold out of the purse').toBe(before);
+
+  /* and a second attempt is refused rather than silently taken */
+  expect(await page.evaluate(() => {
+    const live = globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board);
+    return globalThis.BubbleApp.pickColour(live[0]);
+  })).toBe(false);
+
+  /* a fresh board hands them all back */
+  await page.locator('#sandbox').click();
+  await page.locator('#sandboxPicks .btn', { hasText: 'Easy' }).click();
+  await page.waitForFunction(() => globalThis.BubbleApp._state.shots === 0);
+  await expect(page.locator('#bubblePick')).toBeVisible();
+  await expect(page.locator('#bubblePickCost')).toHaveText('1 free');
+});
+
 test('says the goal is an empty board, not a number of shots', async ({ page }) => {
   await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
   await pick(page, 'Easy');

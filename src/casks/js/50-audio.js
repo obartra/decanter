@@ -129,13 +129,6 @@ export const CasksAudio = (() => {
       tone({ f: 300, f2: 285, type: 'sine', dur: 0.05, gain: 0.05 });
     },
 
-    /* Taking it back. A slide run backwards — the filter sweeps up where the
-       slide sweeps down — so it is audibly the same event undone rather than a
-       new one. */
-    undo(){
-      burst({ freq: 480, freq2: 1200, q: 0.9, dur: 0.16, gain: 0.06, type: 'bandpass', attack: 0.05 });
-      tone({ f: 90, f2: 130, type: 'triangle', dur: 0.14, gain: 0.05 });
-    },
 
     /* The door. The gilt cask goes out through the wall and this is the only
        moment on the page worth a sound this long: the groan of a heavy door on

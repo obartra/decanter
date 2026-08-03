@@ -63,15 +63,18 @@ export const CasksScore = (() => {
   /* Stars for a finished board: par earns three, one over earns two, two over
      earns one, three or more earns nothing.
 
-     `par == null` is the line the whole header is about. */
-  function stars(moves, par, aided){
+     `par == null` is the line the whole header is about.
+
+     No cap and nothing to cap. The other two games take one off a run that
+     leaned on a tool; this page has no tools to lean on, because neither one
+     could do anything here that the board does not already allow. */
+  function stars(moves, par){
     if (par == null || !Number.isInteger(par)) return 0;
     const over = moves - par;
-    const earned = over <= C.STARS.three ? 3
+    return over <= C.STARS.three ? 3
       : over <= C.STARS.two ? 2
       : over <= C.STARS.one ? 1
       : 0;
-    return aided ? Math.min(earned, C.AID_CAP) : earned;
   }
 
   /* Whether this board can be graded at all. One question asked in one place, so

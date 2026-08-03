@@ -52,21 +52,25 @@ export const CasksConfig = {
      had better be worth the same thing in every room of the same cellar. */
   STARS: { three: 0, two: 1, one: 2 },
 
-  /* What the run is allowed to lean on, and what that costs it.
+  /* There is no undo here and no hint, and the pair of them is why.
 
-     The same call the measure makes, for the same reason. This board is perfect
-     information with a known minimum, so an unlimited free undo is not an aid,
-     it is a solver: slide things about, take back whatever did not work, and
-     hand yourself the optimal line. The hint is worse, because it simply names
-     the next move of it. The pour game charges gold for both; this page has no
-     purse, so a run that used one pays in the only currency it has.
+     The board is perfect information with a known minimum, so a free unlimited
+     undo is not an aid, it is a solver: slide things about, take back whatever
+     did not work, and hand yourself the optimal line. The hint is worse, since
+     it simply names the next move of that line. So both were capped at two
+     stars, the only currency a page with no purse has.
 
-     The bubble game leaves its undo and hint free, and is right to — there,
-     neither changes what the board deals and taking a good shot is what earns
-     stars in the first place. Nothing about that argument survives the move to a
-     board with nothing hidden in it. */
-  AID_CAP: 2,
-  UNDO_DEPTH: 64,
+     And that is the whole problem, seen from the other end. A run is scored on
+     moves against an exact par, three stars for matching it. Capping a tool at
+     two means the tool can never earn the third: it can only take a run that was
+     going to get there and make sure it does not. Meanwhile nothing here can be
+     lost, and sliding is reversible, so a mistake is already undone by sliding
+     back at the cost of the one move that made it.
+
+     Uncapped they break the game and capped they do nothing, which leaves no
+     setting at which either is worth a button. The pour game's undo answers a
+     move that can strand a shelf and the bubble game's answers a deal nobody can
+     see coming; neither situation exists on a cellar floor. */
 
   /* The tripwire on the hint's search, in states.
 

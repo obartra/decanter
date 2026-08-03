@@ -61,7 +61,7 @@ export const Sandbox = (() => {
   let built = false;
   /* what the host can do that this cannot: deal a board, say which level is
      current, and leave */
-  let host = { openBubble(){}, toMap(){}, level: () => 1 };
+  let host = { openBubble(){}, toMap(){}, level: () => 1, retool(){} };
 
   /* Built on the first press rather than shipped as markup. The shell is what
      every load revalidates, and a picker only a beta player can open has no
@@ -122,17 +122,60 @@ export const Sandbox = (() => {
     $('sandboxVeil').classList.add('show');
   }
 
-  /* Every tool, and free. Nothing here is graded, so there is no run to protect
-     and a workbench with the hint switched off is a worse workbench. */
-  const FREE = { free: true };
+  /* One of each, per board.
+
+     Unlimited and free was the first shape and it was wrong twice over. It made
+     the workbench a solver, which is the same objection the cellar door's tools
+     failed: a hint you can press on every shot is not advice, it is the answer,
+     and a board played that way tells you nothing about the setting you picked.
+     And it quietly lied, because saying "free" here only changed the label. The
+     charge still went through the host and took real gold; Jabari mode fills the
+     purse to seven figures, so nobody would have noticed it draining.
+
+     One each is enough to get out of a corner and not enough to be carried, and
+     it costs nothing, which is the honest version of what the label already
+     said. A spent tool is taken off the row rather than left to be pressed and
+     refused, the same way an ungranted one is. */
+  const ALLOWANCE = { undo: 1, hint: 1, colour: 1, bomb: 1 };
+  let left = { ...ALLOWANCE };
+  /* Swap is not in here. It costs nothing in the graded game either, because it
+     reorders two bubbles the sequence was going to hand over anyway. */
+  const allowFrom = () => ({ swap: true,
+    undo: left.undo > 0, hint: left.hint > 0,
+    colour: left.colour > 0, bomb: left.bomb > 0 });
+  const pricesFrom = () => {
+    const say = n => (n > 0 ? { free: true, left: n } : undefined);
+    return { undo: say(left.undo), hint: say(left.hint),
+             colour: say(left.colour), bomb: say(left.bomb) };
+  };
+
+  /* Asked before the tool acts, so a refusal changes nothing. Spending one
+     re-hands the row to the game, because a tool with none left is a tool the
+     board no longer offers. */
+  function spend(what){
+    if (!(what in left)) return true;
+    if (left[what] <= 0) return false;
+    left[what] -= 1;
+    host.retool(allowFrom(), pricesFrom);
+    return true;
+  }
   function deal(){
+    left = { ...ALLOWANCE };
     host.openBubble({
       level: host.level(), seed, sandbox: true,
       rules: { every: pace.every, runShots: null,
+<<<<<<< HEAD
                colors: pace.colors, rows: pace.rows },
       allow: { undo: true, hint: true, swap: true, color: true, bomb: true },
       prices: () => ({ undo: FREE, hint: FREE, color: FREE, bomb: FREE }),
       note: `${pace.name}: ${pace.colors} colors, ${pace.rows} rows, a row every ${pace.every}`
+=======
+               colours: pace.colours, rows: pace.rows },
+      allow: allowFrom(),
+      prices: pricesFrom,
+      charge: spend,
+      note: `${pace.name}: ${pace.colours} colours, ${pace.rows} rows, a row every ${pace.every}`
+>>>>>>> 13dd97f (Take the tools off the cellar door, steepen its ramp, and ration the sandbox)
     });
   }
 
@@ -169,6 +212,6 @@ export const Sandbox = (() => {
     /* Handed in rather than reached for, the way 86-jabari.js is handed a purse:
        dealing a board means a run id, a view, a boot and a fetch, all of which
        are the host's business and none of which are this file's. */
-    set host(h){ host = { openBubble(){}, toMap(){}, level: () => 1, ...h }; }
+    set host(h){ host = { openBubble(){}, toMap(){}, level: () => 1, retool(){}, ...h }; }
   };
 })();
