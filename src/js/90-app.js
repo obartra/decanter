@@ -491,7 +491,13 @@ export const App = (() => {
           BubbleApp.allow = allow;
           BubbleApp.prices = prices;
           BubbleApp.paintTools();
-        }
+        },
+        /* The board a difficulty would deal, drawn the way the card before a
+           replay draws one: the game's own dealer under those rules, through the
+           same `Still`. A picture mocked up here would be a picture of a board
+           nobody is ever dealt, which is the one thing a preview must not be. */
+        still: (seed, under) => (typeof BubbleApp === 'undefined'
+          ? '' : Still.bubbles(BubbleApp.still(seed, under)))
       };
       Sandbox.open();
     });

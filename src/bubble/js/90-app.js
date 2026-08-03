@@ -122,8 +122,8 @@ export const BubbleApp = (() => {
      one behind it, the rows that come down later), and undo puts it back. A
      still cannot borrow that stream without moving it, so it is handed a fresh
      one seeded the same way, which deals the same board. */
-  const opening = (seed, pick) =>
-    R.dealBoard(rules.rows, pick || BubbleRng.from(seed), rules.colors);
+  const opening = (seed, pick, under) =>
+    R.dealBoard((under || rules).rows, pick || BubbleRng.from(seed), (under || rules).colours);
 
   /* What a seed opens on, as rows of colors rather than as a board.
 
@@ -132,8 +132,14 @@ export const BubbleApp = (() => {
      palette. The coupling between the two games is this one object and it stays
      that way. So it asks what the board looks like and is told, including
      which rows are indented, which is the board's answer and never `j % 2`. */
-  function still(seed){
-    const board = opening(seed);
+  /* `under` draws the board some OTHER rules would deal, without becoming them.
+
+     The picker shows what a difficulty looks like before it is taken, and a
+     preview that had to set the live rules to draw itself would leave them set
+     when the player backed out. Passing them through is the difference between
+     asking and doing. */
+  function still(seed, under){
+    const board = opening(seed, null, under);
     let last = -1;
     board.rows.forEach((row, j) => { if (row.some(c => c !== G.EMPTY)) last = j; });
     return board.rows.slice(0, last + 1).map((row, j) => ({
