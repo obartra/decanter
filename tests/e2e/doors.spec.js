@@ -19,7 +19,7 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { start, state, SAVE_KEY } from './helpers.js';
+import { start, state, openLevel, endRun, SAVE_KEY } from './helpers.js';
 import { loadPure } from '../helpers.mjs';
 
 const { CONFIG, Levels, Chapters } = loadPure();
@@ -42,6 +42,29 @@ const doorSave = section => {
   const seen = {};
   for (let i = 0; i <= Math.min(section - 1, Chapters.count - 1); i++) seen[i] = true;
   return { unlocked: firstLevelOf(section), gold: 400, doors, seen };
+};
+
+/* The same save one purchase earlier: the frontier is the last board of the
+   chapter before, which is the board standing in the way of the gate. */
+const beforeDoorSave = section => ({
+  ...doorSave(section), unlocked: section * CONFIG.sectionSize
+});
+
+/* What paying past a board costs, off the game's own economy rather than
+   written down here. */
+const skipCost = CONFIG.economy.attempt * CONFIG.economy.skipMultiple;
+const gold = page => page.evaluate(() => globalThis.App._progress.gold);
+
+/* A chapter whose last board is a pour level, because the specs below drive one
+   to an ending and the pour game is where an ending can be posed. Two boards in
+   every chapter are the bubble game and which two is decided by a hash, so this
+   asks rather than assumes: the day that hash moves, these follow it instead of
+   failing for a reason that has nothing to do with doors. */
+const pourBoundary = () => {
+  for (const s of doorSections){
+    if (!Levels.isBubble(s * CONFIG.sectionSize)) return s;
+  }
+  throw new Error('no chapter ends on a pour level');
 };
 
 /* The first door: the one in front of chapter two. Read off the game rather
@@ -121,6 +144,124 @@ test('refuses the chapter behind it, by every route in', async ({ page }) => {
   await page.evaluate(n => globalThis.App._progress.buyUnlock(n, 0), first);
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(before);
   expect(await page.evaluate(n => globalThis.App._progress.isUnlocked(n), first)).toBe(false);
+});
+
+/* ---- money reaches the gate and stops ----
+
+   Two rules that only hold together: every board in the run can be paid past,
+   including the last one before a door, and no door can be paid through. Each
+   was broken on its own. The panel is the one screen the map is not on, and its
+   way on from the last board of a chapter dealt the first board of the next,
+   through a gate the map was still refusing, with the fee for it taken on the
+   way. And the map, which owns the only other way to spend gold on progress,
+   put no price on that last board at all, so the one purchase the rules do
+   allow was the one nothing offered. */
+
+test('the way on from the last board of a chapter is the gate, not the board behind it', async ({ page }) => {
+  const section = pourBoundary();
+  const inTheWay = section * CONFIG.sectionSize;
+  await start(page, beforeDoorSave(section));
+  await openLevel(page, inTheWay);
+  await endRun(page, 'clean');
+
+  const next = page.locator('#next');
+  await expect(next).toBeVisible();
+  await expect(next).toBeEnabled();
+  /* Named for what pressing it opens. "Next level" here would be promising a
+     board, and the board is not what is on the other side of this button. */
+  await expect(next).toHaveText(/door/i);
+
+  await next.click();
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+  /* Standing at the gate is not being through it. */
+  expect(await page.evaluate(s => globalThis.App._progress.isDoorOpen(s), section)).toBe(false);
+  expect(await page.evaluate(n => globalThis.App._progress.isUnlocked(n), inTheWay + 1)).toBe(false);
+});
+
+test('and it is free, because a gate that can be too dear is a toll', async ({ page }) => {
+  const section = pourBoundary();
+  const inTheWay = section * CONFIG.sectionSize;
+  /* An empty purse, and that board already beaten so that going back to it costs
+     nothing and pays nothing. Clearing a board pays out, so a save that starts
+     poor is rich again by the time the panel is written; this is the way to
+     reach that decision with no gold at all. */
+  await start(page, { ...doorSave(section), gold: 0,
+    stars: { [inTheWay]: 3 }, claimed: { [inTheWay]: true } });
+  await openLevel(page, inTheWay);
+  await endRun(page, 'clean');
+
+  expect(await gold(page)).toBe(0);
+  await expect(page.locator('#next')).toBeEnabled();
+  await page.locator('#next').click();
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+});
+
+test('paying past that board buys the walk up to the gate and nothing through it', async ({ page }) => {
+  const section = pourBoundary();
+  const inTheWay = section * CONFIG.sectionSize;
+  await start(page, beforeDoorSave(section));
+  await openLevel(page, inTheWay);
+  await endRun(page, 'stuck');
+
+  const before = await gold(page);
+  await expect(page.locator('#skip')).toBeVisible();
+  await page.locator('#skip').click();
+
+  /* The fee moved the frontier one board and landed it at the floor of casks,
+     rather than dealing the board behind the gate the way it used to. */
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+  expect(await gold(page)).toBe(before - skipCost);
+  expect(await page.evaluate(() => globalThis.App._progress.unlocked)).toBe(inTheWay + 1);
+  expect(await page.evaluate(s => globalThis.App._progress.isDoorOpen(s), section)).toBe(false);
+});
+
+test('sells the same walk from the map, on the gate itself', async ({ page }) => {
+  const section = 1;
+  const inTheWay = section * CONFIG.sectionSize;
+  await start(page, beforeDoorSave(section));
+  const door = doorNode(page, section);
+
+  await expect(door).toBeEnabled();
+  await expect(door).toContainText(String(skipCost));
+  /* It says the money is for the board, which is the only thing it is for. */
+  await expect(door).toHaveAttribute('aria-label',
+    new RegExp(`level ${inTheWay} stands in the way`, 'i'));
+
+  const before = await gold(page);
+  await door.click();
+  await expect(door).toHaveClass(/armed/);
+  expect(await gold(page), 'one tap on a priced thing must never spend').toBe(before);
+
+  await door.click();
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+  expect(await gold(page)).toBe(before - skipCost);
+  expect(await page.evaluate(() => globalThis.App._progress.unlocked)).toBe(inTheWay + 1);
+  expect(await page.evaluate(s => globalThis.App._progress.isDoorOpen(s), section)).toBe(false);
+});
+
+test('carries no price from further off than one board', async ({ page }) => {
+  /* The offer is for the board in the way. Two boards back there are two of
+     them, and a gate quoting a price there would be selling a walk it cannot
+     deliver: `buyUnlock` moves the frontier one board and no more. */
+  const section = 1;
+  await start(page, { ...beforeDoorSave(section), unlocked: section * CONFIG.sectionSize - 1 });
+  const door = doorNode(page, section);
+  await expect(door).toBeVisible();
+  await expect(door).toBeDisabled();
+  await expect(door).not.toHaveClass(/buyable/);
+  await expect(door).not.toContainText(String(skipCost));
+});
+
+test('refuses the tap it cannot be paid for, and says what it would cost', async ({ page }) => {
+  /* The state the economy plans for rather than an error. What it must not do is
+     take the tap and quietly do nothing, which is the thing the medallions were
+     fixed for and the same fix has to hold here. */
+  const section = 1;
+  await start(page, { ...beforeDoorSave(section), gold: skipCost - 1 });
+  const door = doorNode(page, section);
+  await expect(door).toBeDisabled();
+  await expect(door).toContainText(String(skipCost));
+  await expect(door).toHaveAttribute('aria-label', /not enough/i);
 });
 
 test('opens a board with nothing to lean on', async ({ page }) => {

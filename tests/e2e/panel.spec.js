@@ -13,48 +13,14 @@
    here restates a rule: the expectation IS the decision, read out of the same
    module the app used.
 
-   Endings are reached through `App._end()`, which is the app's own hook for
-   exactly this: the shelf is built, the ending is asked for, and it then goes
-   through the same finish() as every real run — the same solved check, the same
-   rating, the same panel. Playing to a chosen ending against animated pours
-   takes a minute of real time and lands on whichever ending the board felt like.
+   Endings are reached through `endRun` in the shared helpers, which drives the
+   app's own `_end()` hook rather than playing to a chosen ending against
+   animated pours.
 
    Every state here is a named one. That is the point of naming them: "a failed
    run with an empty purse" is a fixture rather than a paragraph of setup. */
 import { test, expect } from '@playwright/test';
-import { start, openLevel, state } from './helpers.js';
-
-/* End the run on the board that is up, one of the three ways it can end, and
-   wait for the panel. `over` spends the pours, `stuck` leaves no legal move,
-   `short` leaves more work than pours — which is the only one a blast answers. */
-async function endRun(page, how){
-  await page.evaluate(([kind]) => {
-    const S = globalThis.App._state;
-    if (kind === 'clean'){
-      S.tubes = [[0, 0, 0, 0], [1, 1, 1, 1], []];
-      S.par = 20; S.parExact = true; S.moves = 20;
-    } else if (kind === 'short'){
-      /* two colors needing more pours than are left */
-      S.tubes = [[0, 1, 0, 1], [1, 0, 1, 0], []];
-      S.par = 2; S.parExact = true; S.moves = 2; S.history = [];
-    } else {
-      /* Nothing legal and nothing sorted. Three FULL bottles, each holding two
-         colors, so no pour has anywhere to go and no bottle is finished.
-
-         The first version of this was three full bottles of one color each,
-         which is not a stuck board at all — it is a SOLVED one, and the run it
-         produced was scored rather than failed. The test then asserted that a
-         cleared run is not offered Move on, which is true and is not what it
-         said it was checking. */
-      S.tubes = [[0, 1, 0, 1], [1, 0, 1, 0], [2, 3, 2, 3]];
-      S.par = 20; S.parExact = true; S.moves = 3; S.history = [];
-    }
-    globalThis.Board.view = globalThis.Rules.clone(S.tubes);
-    globalThis.Board.render();
-  }, [how]);
-  await page.evaluate(() => globalThis.App._end());
-  await page.waitForFunction(() => document.getElementById('veil').classList.contains('show'));
-}
+import { start, openLevel, state, endRun } from './helpers.js';
 
 /* What the app itself decided, kept on the run state when the panel was written.
 

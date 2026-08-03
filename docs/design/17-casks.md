@@ -55,6 +55,30 @@ A save written before any of this had no doors record, and its owner had already
 walked into every chapter they had reached. Those doors are counted as open on
 the load that migrates. See [12 Saving](12-saving.md).
 
+## Money reaches the door and stops
+
+Gold buys passage past a board and nothing else, so it buys the walk up to a
+gate and never a step through one. Both of those halves have to be true at once,
+and each was wrong on its own before this.
+
+**The way on from the last board of a chapter is the door, not the board behind
+it.** The map refuses a chapter whose door is shut, and the end-of-run panel is
+the one screen the map is not on: its Next dealt level 21 and its Move on paid
+past level 20 and then dealt level 21, and both walked through a gate that was
+still down. So the panel asks whether a shut door stands between this board and
+the next, and when one does, the way on is named for the door, costs nothing
+whatever the purse holds, and leads to the floor of casks.
+
+**And the walk up to the gate is for sale from the map.** The board in the way
+is an ordinary board that can be paid past, so its price stands on the door
+itself. See [09 The map](09-map.md) for why there rather than on the medallion
+behind it. Paying it moves the frontier one board, which turns the door from far
+to waiting, and leaves the floor of casks exactly where it was.
+
+That is the line the two halves draw together: every board in the run can be
+bought past, including the last of a chapter, and the eleven gates cannot be
+bought at all.
+
 ## The rules
 
 - A cask is pinned to one axis. A horizontal one has a row and slides along it; a

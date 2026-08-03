@@ -17,7 +17,7 @@ export const Panel = (() => {
 
   function decide(input){
     const {
-      level, lastLevel, failed, stars, nextUnlocked,
+      level, lastLevel, failed, stars, nextUnlocked, doorNext,
       canPayFee, canPayNext, canPaySkip, canPayBlast,
     blastGranted, blastUsed, blastTargets,
       improvedStars, hadStars, par, parExact, moves, best, totalStars,
@@ -68,7 +68,11 @@ export const Panel = (() => {
   const blastDisabled = !canPayBlast;
 
   const nextHidden = atEnd || (failed && !nextUnlocked);
-    const cannotGoOn = (!nextHidden && !canPayNext) || (stuck && !canPaySkip);
+    /* The way on is a cellar door rather than a board, so it is offered as one:
+       free, and named for the gate. See 17-casks.md. Never on a failed run,
+       which has a board to beat or pay past first: that is `stuck` above. */
+    const nextIsDoor = !nextHidden && !!doorNext;
+    const cannotGoOn = (!nextHidden && !nextIsDoor && !canPayNext) || (stuck && !canPaySkip);
 
     /* Last writer wins, so the order is the priority order. Being told the game is
        over does not help someone who cannot afford another go, so an empty purse
@@ -107,8 +111,10 @@ export const Panel = (() => {
       retryPrimary: !perfect,
       retryDisabled: !canPayFee,
       nextHidden,
+      nextIsDoor,
       nextPrimary: perfect && !atEnd,
-      nextDisabled: !canPayNext,
+      /* a door has no fee, so an empty purse is no reason to refuse one */
+      nextDisabled: nextIsDoor ? false : !canPayNext,
       skipHidden: !stuck,
       skipDisabled: !canPaySkip,
     blastHidden,

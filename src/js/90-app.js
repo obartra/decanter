@@ -1108,6 +1108,10 @@ export const App = (() => {
     const panel = Panel.decide({
       level: S.level, lastLevel: progress.lastLevel, failed, stars,
       nextUnlocked: progress.isUnlocked(S.level + 1),
+      /* Whether a shut cellar door stands between this board and the next. This
+         panel is the one screen the map is not on, and without it the way on
+         from the last board of a chapter dealt the first board of the next. */
+      doorNext: progress.doorBefore(S.level + 1) != null,
       /* the fee for another go at this board, and the fee for the next one,
          which are not the same number once this one has been beaten */
       canPayFee: progress.canAfford(fee),
@@ -1143,6 +1147,9 @@ export const App = (() => {
     $('retry').classList.toggle('primary', panel.retryPrimary);
     $('retry').disabled = panel.retryDisabled;
     $('next').hidden = panel.nextHidden;
+    /* Named for what pressing it opens: at the end of a chapter that is the
+       gate, and "Next level" there promises a board it will not deal. */
+    $('next').textContent = panel.nextIsDoor ? 'The cellar door' : 'Next level';
     $('next').classList.toggle('primary', panel.nextPrimary);
     $('next').disabled = panel.nextDisabled;
     /* Beaten by a board is not the same as stuck on it. Paying past it opens the
@@ -1271,6 +1278,23 @@ export const App = (() => {
          could not afford to enter until the next day's draught. */
       Trace.note(`dealt level ${level}`, `paid past ${level - 1} for ${skipCost()}, purse now ${progress.gold}`);
       deal(level);
+    };
+    /* The same purchase made against the last board of a chapter, so the same
+       price: what is bought is passage past a board, wherever it is bought
+       from. The frontier moves one board and lands at the gate, which is why
+       this ends at the floor of casks and not at a level. See 17-casks.md. */
+    MapView.onDoorBuy = section => {
+      Sound.unlock();
+      const inTheWay = section * CONFIG.sectionSize;
+      if (!progress.buyUnlock(inTheWay, skipCost())){
+        deny('buy', `moving past ${inTheWay} costs ${skipCost()}, purse holds ${progress.gold}`);
+        return;
+      }
+      Sound.tick();
+      goldChanged();
+      Trace.note(`stood at the door to chapter ${section + 1}`,
+        `paid past ${inTheWay} for ${skipCost()}, purse now ${progress.gold}`);
+      showDoor(section);
     };
 
     $('undo').onclick = () => {
@@ -1468,11 +1492,21 @@ export const App = (() => {
         return;
       }
       closeVeil();
-      /* the fee covered the board too, so this deals it without charging again */
-      deal(Math.min(S.level + 1, progress.lastLevel));
+      const next = Math.min(S.level + 1, progress.lastLevel);
+      /* The fee covered the board too, so this deals it without charging again,
+         unless what stands next is a door: money reaches the gate and stops. */
+      if (progress.doorBefore(next) != null){ showDoor(Levels.sectionOf(next)); return; }
+      deal(next);
     };
     $('next').onclick = () => {
       if (S.level >= progress.lastLevel){ deny('next', 'that was the last graded level'); return; }
+      /* The way on at the end of a chapter is the door, and it is free. Dealing
+         the board behind it here walked straight through the gate. */
+      if (progress.doorBefore(S.level + 1) != null){
+        closeVeil();
+        showDoor(Levels.sectionOf(S.level + 1));
+        return;
+      }
       if (!progress.canAfford(costOf(S.level + 1))){
         deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
         return;
