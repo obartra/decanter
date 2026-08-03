@@ -50,7 +50,7 @@ export const Sandbox = (() => {
      key of its own rather than a field in the save, because the beta leaves as a
      set of files and the states suite enumerates that schema. Per difficulty
      because one number across four settings compares runs that are not the same
-     game: Easy deals four colours and Ultra six. */
+     game: Easy deals four colors and Ultra six. */
   const BEST_KEY = 'decanter.sandbox.best';
   const bestAll = () => {
     try { return JSON.parse(localStorage.getItem(BEST_KEY)) || {}; }
@@ -124,7 +124,7 @@ export const Sandbox = (() => {
   /* Taking a name shows what it deals rather than dealing it.
 
      A difficulty is three numbers that only mean something together, so a name
-     on its own says nothing and the numbers say less. A board does: four colours
+     on its own says nothing and the numbers say less. A board does: four colors
      against six is obvious at a glance in a way "a row every 20" never is. So
      the pick is a preview and starting is a separate press.
 
@@ -137,7 +137,7 @@ export const Sandbox = (() => {
     const box = $('sandboxStill');
     if (box && host.still){
       box.innerHTML = host.still(seed, {
-        colours: pace.colours, rows: pace.rows, every: pace.every, runShots: null
+        colors: pace.colors, rows: pace.rows, every: pace.every, runShots: null
       });
     }
     const best = bestFor(pace.id);
@@ -158,7 +158,7 @@ export const Sandbox = (() => {
       /* The word and nothing else. What each one is made of is three numbers
          that only mean something together, and printing one of them invites the
          reading that it is the setting: "a row every 16" says nothing about the
-         colours or the rows that do most of the work. The board below says it
+         colors or the rows that do most of the work. The board below says it
          all at once. */
       b.textContent = p.name;
       b.onclick = () => { pace = p; remember(p); show(); };
@@ -183,17 +183,17 @@ export const Sandbox = (() => {
      it costs nothing, which is the honest version of what the label already
      said. A spent tool is taken off the row rather than left to be pressed and
      refused, the same way an ungranted one is. */
-  const ALLOWANCE = { undo: 1, hint: 1, colour: 1, bomb: 1 };
+  const ALLOWANCE = { undo: 1, hint: 1, color: 1, bomb: 1 };
   let left = { ...ALLOWANCE };
   /* Swap is not in here. It costs nothing in the graded game either, because it
      reorders two bubbles the sequence was going to hand over anyway. */
   const allowFrom = () => ({ swap: true,
     undo: left.undo > 0, hint: left.hint > 0,
-    colour: left.colour > 0, bomb: left.bomb > 0 });
+    color: left.color > 0, bomb: left.bomb > 0 });
   const pricesFrom = () => {
     const say = n => (n > 0 ? { free: true, left: n } : undefined);
     return { undo: say(left.undo), hint: say(left.hint),
-             colour: say(left.colour), bomb: say(left.bomb) };
+             color: say(left.color), bomb: say(left.bomb) };
   };
 
   /* Asked before the tool acts, so a refusal changes nothing. Spending one
@@ -211,11 +211,11 @@ export const Sandbox = (() => {
     host.openBubble({
       level: host.level(), seed, sandbox: true,
       rules: { every: pace.every, runShots: null,
-               colours: pace.colours, rows: pace.rows },
+               colors: pace.colors, rows: pace.rows },
       allow: allowFrom(),
       prices: pricesFrom,
       charge: spend,
-      note: `${pace.name}: ${pace.colours} colours, ${pace.rows} rows, a row every ${pace.every}`
+      note: `${pace.name}: ${pace.colors} colors, ${pace.rows} rows, a row every ${pace.every}`
     });
   }
 

@@ -125,14 +125,14 @@ test('gives one of each tool and then takes it off the row', async ({ page }) =>
   await expect(page.locator('#bubblePickCost')).toHaveText('1 free');
   const before = await page.evaluate(() => globalThis.App._progress.gold);
 
-  /* The colour, because it charges whenever the board has two colours on it. A
+  /* The color, because it charges whenever the board has two colors on it. A
      hint returns before it charges when nothing clears, which is right and would
      make this spend nothing on a board nobody has shot at. */
   const took = await page.evaluate(() => {
     const live = globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board);
     return globalThis.BubbleApp.pickColour(live[0]);
   });
-  expect(took, 'the colour was refused, so nothing was spent').toBe(true);
+  expect(took, 'the color was refused, so nothing was spent').toBe(true);
   await expect(page.locator('#bubblePick'), 'a spent tool stayed on the row').toBeHidden();
   expect(await page.evaluate(() => globalThis.App._progress.gold),
     'a sandbox tool took gold out of the purse').toBe(before);
@@ -175,7 +175,7 @@ test('previews the board a name deals before dealing it', async ({ page }) => {
   await page.locator('#sandboxPicks .btn', { hasText: 'Easy' }).click();
   await page.locator('#sandboxPlay').click();
   await page.waitForFunction(() => globalThis.BubbleApp._state.board);
-  expect(await page.evaluate(() => globalThis.BubbleApp.rules.colours)).toBe(4);
+  expect(await page.evaluate(() => globalThis.BubbleApp.rules.colors)).toBe(4);
 });
 
 test('remembers a best score for each difficulty on its own', async ({ page }) => {

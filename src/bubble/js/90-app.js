@@ -123,7 +123,7 @@ export const BubbleApp = (() => {
      still cannot borrow that stream without moving it, so it is handed a fresh
      one seeded the same way, which deals the same board. */
   const opening = (seed, pick, under) =>
-    R.dealBoard((under || rules).rows, pick || BubbleRng.from(seed), (under || rules).colours);
+    R.dealBoard((under || rules).rows, pick || BubbleRng.from(seed), (under || rules).colors);
 
   /* What a seed opens on, as rows of colors rather than as a board.
 
