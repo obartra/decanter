@@ -17,7 +17,9 @@
 
    The last one is the whole feature. Everything else is scaffolding around it. */
 import { test, expect } from '@playwright/test';
-import { start, state } from './helpers.js';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+import { start, state, SAVE_KEY } from './helpers.js';
 import { loadPure } from '../helpers.mjs';
 
 const { CONFIG, Levels, Chapters } = loadPure();
@@ -277,3 +279,114 @@ for (const section of doorSections){
     expect(await page.evaluate(n => globalThis.App._progress.isUnlocked(n), first)).toBe(true);
   });
 }
+
+/* ---- the finger, not the turn function ----
+
+   Every test above reaches the board through `play()`, which is the turn but is
+   not the input. What sits between a finger and that turn is a hit test, and the
+   door is the first place it has ever run inside the APP page: the canvas is
+   sized by the app's stage there rather than by the cellar door's own page, so
+   the scale and the offsets it measures are different numbers arrived at a
+   different way.
+
+   Get those wrong and nothing throws. Taps land on the cask next to the one
+   under the finger, which 20-rules.js calls the worst bug a game played by
+   touching things can have, and every test that drives `play()` directly goes on
+   passing while it happens. */
+test('a real tap moves the cask that is under it', async ({ page }) => {
+  await start(page, state('atDoor'));
+  await doorNode(page).click();
+  await page.waitForFunction(() => typeof globalThis.CasksApp !== 'undefined'
+    && globalThis.CasksApp._state.layout.length > 0);
+
+  /* Screen coordinates worked out HERE, from the canvas box and the size of the
+     room, rather than by asking the view where a world point is.
+
+     That distinction is the test. Going through the view's own `screenToWorld`
+     reads well and proves almost nothing: the tap would be placed by the same
+     scale and offset the hit test then uses, so any error in them moves the
+     finger and the target together and the assertion passes through it. This is
+     the fit rule restated independently — whole room, one scale for both axes,
+     centered, never cropped — which is the same reason tests/baseline.mjs
+     restates the pour rules instead of importing them. */
+  const plan = await page.evaluate(() => {
+    const V = globalThis.CasksView, R = globalThis.CasksRules, C = globalThis.CasksConfig;
+    const st = globalThis.CasksApp._state;
+    const box = document.getElementById('cskCanvas').getBoundingClientRect();
+    const world = { w: C.W + 2 * C.WALL, h: C.H + 2 * C.WALL };
+    const scale = Math.min(box.width / world.w, box.height / world.h);
+    const ox = (box.width - world.w * scale) / 2;
+    const oy = (box.height - world.h * scale) / 2;
+    const at = (wx, wy) => ({ x: box.left + ox + wx * scale, y: box.top + oy + wy * scale });
+
+    const gilt = st.layout[0];
+    const from = st.pos[0];
+    const run = R.runOf(st.layout, st.pos, 0);
+    /* wherever it can actually go, so this is a legal move rather than a nudge */
+    const to = run.max > from ? run.max : run.min;
+    if (to === from) return null;
+    const here = V.rectFor(gilt, from);
+    const there = V.rectFor(gilt, to);
+    /* the far cell of where it is going, so `destFor` reads the same target
+       whichever direction it travels */
+    const lead = to > from ? there.x + there.w - 0.5 : there.x + 0.5;
+    return { cask: at(here.x + here.w / 2, here.y + here.h / 2),
+             dest: at(lead, there.y + 0.5), from, to };
+  });
+  expect(plan, 'the gilt cask must have somewhere to go on a door floor').toBeTruthy();
+
+  /* Tap one: the cask is taken in hand. This is the hit test on its own, and it
+     is the assertion that fails when the canvas was measured wrong. */
+  await page.mouse.click(plan.cask.x, plan.cask.y);
+  expect(await page.evaluate(() => globalThis.CasksApp._state.picked),
+    'the tap landed on the gilt cask').toBe(0);
+
+  /* Tap two: it goes. One move, whatever distance it covered. */
+  await page.mouse.click(plan.dest.x, plan.dest.y);
+  await page.waitForFunction(() => !globalThis.CasksApp._state.sliding);
+  const after = await page.evaluate(() => ({
+    moves: globalThis.CasksApp._state.moves, at: globalThis.CasksApp._state.pos[0] }));
+  expect(after.moves).toBe(1);
+  expect(after.at).not.toBe(plan.from);
+});
+
+/* ---- off a disk, with nothing beside it ----
+
+   The portable file inlines every byte it can reach, and the doors gave it a
+   third game to reach. Its whole promise is that it works with nothing else
+   there: no worker, no origin, no fetch. A deferred group is a fetch, so the
+   one build where "the cellar door arrives after the page opens" is not an
+   option is exactly this one — and a door that never loads there is a run that
+   stops at level eleven with no way past it and nothing saying why.
+
+   Opened over `file://`, because that is the only form of this that means
+   anything: a sibling path is cross origin to a file page, which is the failure
+   this is watching for. */
+const PORTABLE = join(dirname(fileURLToPath(import.meta.url)), '../../dist/decanter-standalone.html');
+
+test('the portable file carries the doors, and one opens off disk', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+
+  await page.addInitScript(([key, save]) => {
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(save));
+  }, [SAVE_KEY, { version: 1, layout: 5, unlocked: 11, gold: 400, doors: {},
+                  stars: {}, best: {}, pars: {}, claimed: {}, seen: { 0: true }, sound: false }]);
+  await page.goto(`file://${PORTABLE}`);
+  await page.waitForFunction(() => !!globalThis.App && !!globalThis.Levels);
+
+  /* the gate is on the map here too */
+  await expect(page.locator('.node.door[data-door="1"]')).toBeEnabled();
+  await page.locator('.node.door[data-door="1"]').click();
+
+  /* and the floor deals, which is the part that needs the game to be IN the
+     file rather than a fetch away */
+  await page.waitForFunction(() => typeof globalThis.CasksApp !== 'undefined'
+    && globalThis.CasksApp._state.layout.length > 0, null, { timeout: 15000 });
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+
+  await solveTheDoor(page);
+  await page.waitForFunction(() => globalThis.App._progress.isDoorOpen(1));
+  expect(await page.evaluate(() => globalThis.App._progress.isUnlocked(11))).toBe(true);
+  expect(errors).toEqual([]);
+});

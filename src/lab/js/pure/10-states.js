@@ -163,6 +163,25 @@ export const LabStates = (() => {
       }
     },
     {
+      id: 'atUnnamedDoor',
+      title: 'A cellar door into a chapter with no name',
+      kind: PLAY,
+      why: 'The run is twelve chapters long and seven of them have names, so five doors open onto Reserve 1 to Reserve 5. Those carry a name no chapter list provides and there is no opening card behind them, which is two things nothing else here shows.',
+      make: env => {
+        /* The first chapter past the named ones. Found rather than written down:
+           the number of names is a list in CONFIG and the number of chapters
+           follows from where the run ends, so a name added anywhere moves this. */
+        let section = null;
+        for (let s = 1; s < env.Levels.sectionCount(); s++){
+          if (env.Levels.doorFor(s) != null && s >= env.CONFIG.sectionNames.length){ section = s; break; }
+        }
+        if (section == null) return {};
+        const first = section * env.CONFIG.sectionSize + 1;
+        return { unlocked: first, gold: 400, doors: doorsWalked(env, first - 1),
+                 seen: seenUpTo(env, env.Chapters.count - 1) };
+      }
+    },
+    {
       id: 'purseDry',
       title: 'Stranded with an empty purse',
       kind: PLAY,

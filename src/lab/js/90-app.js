@@ -355,6 +355,12 @@ const LabApp = (() => {
       return;
     }
     if (node.disabled){
+      /* A level behind a shut cellar door is not simply refused: the map has
+         something to offer at that point, one node further down the road, and a
+         workbench that only reported the refusal would be the one screen in the
+         build it could not show. So it taps the door, which is what a player at
+         this level does. Still through the map, like everything else here. */
+      if (openTheDoor()) return;
       $('labNote').textContent = `level ${st.level} is refused here: ${node.getAttribute('aria-label') || 'locked'}`;
       return;
     }
@@ -375,6 +381,26 @@ const LabApp = (() => {
        this answers it, rather than reaching past the card into the dealer. */
     if (cardComing()) return playTheCard();
     drawLevel();
+  }
+
+  /* The cellar door standing in front of the chapter the asked-for level is in,
+     tapped. Returns whether there was one to tap, so the caller can fall back to
+     saying why the level was refused when the answer is something else.
+
+     Read off the map rather than worked out here. The lab knows a level number
+     and nothing about which chapter has a door; the map has already drawn the
+     gate or not, and its `data-door` is the answer. That also keeps this honest
+     the day a chapter stops having one. */
+  function openTheDoor(){
+    const m = mods();
+    if (!m || !st.win || !m.levels) return false;
+    const section = m.levels.sectionOf(st.level);
+    const door = st.win.document.querySelector(`.node.door[data-door="${section}"]`);
+    if (!door || door.disabled) return false;
+    door.click();
+    $('labNote').textContent =
+      `level ${st.level} is behind a shut door, so the lab opened the door instead`;
+    return true;
   }
 
   /* Whether the tap just taken opens the card instead of a board, asked of the

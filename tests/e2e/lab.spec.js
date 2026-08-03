@@ -223,3 +223,65 @@ test('is not reachable from the game, and does not reach back', async ({ page })
   });
   expect(linked).toEqual([]);
 });
+
+/* The one screen the workbench could not reach.
+
+   Stepping the level is how everything here is looked at, and a level behind a
+   shut cellar door has no board to deal — so the lab reported the refusal and
+   stopped, which left the door itself, a whole screen of the game, with no way
+   into it from the page built for looking at screens.
+
+   It taps the gate now, which is what the map offers a player standing there.
+   Still through the map: the lab finds the node and clicks it, exactly as it
+   finds a medallion. */
+test('steps into a cellar door rather than only reporting the refusal', async ({ page }) => {
+  await openLab(page);
+  await page.locator('.labState', { hasText: 'Standing at a shut cellar door' }).click();
+  await page.waitForFunction(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    return w && w.App && w.App._progress && !w.App._progress.isDoorOpen(1);
+  });
+
+  const first = await page.evaluate(() =>
+    document.getElementById('labFrame').contentWindow.CONFIG.sectionSize + 1);
+  await page.fill('#labLevel', String(first));
+  await page.dispatchEvent('#labLevel', 'change');
+
+  /* the frame is showing the floor of casks, dealt from the door table */
+  await page.waitForFunction(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    return w.document.body.dataset.view === 'door'
+      && w.CasksApp && w.CasksApp._state.layout.length > 0;
+  });
+  const shown = await page.evaluate(n => {
+    const w = document.getElementById('labFrame').contentWindow;
+    return { floor: w.CasksApp._state.level, wanted: w.Levels.doorFor(w.Levels.sectionOf(n)) };
+  }, first);
+  expect(shown.floor).toBe(shown.wanted);
+
+  /* and it says what it did, rather than leaving a level number that moved and
+     a frame showing something the sidebar never mentions */
+  await expect(page.locator('#labNote')).toContainText('behind a shut door');
+});
+
+test('offers a state for a door into a chapter with no name', async ({ page }) => {
+  /* Five of the eleven doors open onto sections the chapter list does not
+     reach, so they carry a `Reserve` name and show no opening card. Nothing
+     else in the lab reaches one. */
+  await openLab(page);
+  await page.locator('.labState', { hasText: 'chapter with no name' }).click();
+  await page.waitForFunction(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    return w && w.App && w.App._progress && w.App._progress.unlocked > 1;
+  });
+  const seen = await page.evaluate(() => {
+    const w = document.getElementById('labFrame').contentWindow;
+    const at = w.App._progress.unlocked;
+    const section = w.Levels.sectionOf(at);
+    return { name: w.Levels.sectionName(at), hasChapter: !!w.Chapters.at(section),
+             doorShut: !w.App._progress.isDoorOpen(section) };
+  });
+  expect(seen.name).toMatch(/^Reserve /);
+  expect(seen.hasChapter, 'this is the case where there is no chapter entry').toBe(false);
+  expect(seen.doorShut).toBe(true);
+});
