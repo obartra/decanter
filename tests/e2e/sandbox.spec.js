@@ -140,10 +140,12 @@ test('gives one of each tool and then takes it off the row', async ({ page }) =>
     return globalThis.BubbleApp.pickColour(live[0]);
   })).toBe(false);
 
-  /* a fresh board hands them all back */
-  await page.locator('#sandbox').click();
-  await page.locator('#sandboxPicks .btn', { hasText: 'Easy' }).click();
-  await page.waitForFunction(() => globalThis.BubbleApp._state.shots === 0);
+  /* A fresh board hands them all back. Back to the map first, because the
+     button that opens the picker lives in the map header and a board is over
+     it: clicking it from here is clicking something hidden. */
+  await page.locator('#bubToMap').click();
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'map');
+  await pick(page, 'Easy');
   await expect(page.locator('#bubblePick')).toBeVisible();
   await expect(page.locator('#bubblePickCost')).toHaveText('1 free');
 });
