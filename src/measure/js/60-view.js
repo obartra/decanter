@@ -67,10 +67,18 @@ export const MeasureView = (() => {
   let caps = [C.CAP_MAX];
   let world = worldFor(caps, 0.6);
 
+  /* The canvas is watched rather than the window, because the box moves for
+     reasons the window never hears about: an address bar retracting under a
+     `dvh` height, a webfont reflowing the readouts above the bench. A bitmap
+     left at the old shape is stretched into the new box, and a vessel drawn
+     wider than it is tall is a vessel this game is asking you to judge by eye.
+     The window listeners stay for the pixel ratio changing under a box that did
+     not move. See `src/bubble/js/60-view.js` for the whole argument. */
   function mount(canvas){
     cv = canvas;
     ctx = cv.getContext('2d');
     resize();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(resize).observe(cv);
     addEventListener('resize', resize);
     addEventListener('orientationchange', resize);
     return ctx;

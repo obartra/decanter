@@ -1195,28 +1195,27 @@ export const App = (() => {
     install: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8.5 10.5L12 14l3.5-3.5"/><path d="M5 17.5h14"/></svg>'
   };
 
-  /* One preference, both games, one place that applies it.
+  /* One preference, every game, one place that applies it.
 
-     There are two sound modules on this page, one per game, each with its own
-     idea of whether it is muted: this game's lives in the save, the other's in a
-     key of its own, because it also ships as a page of its own where there is no
-     save to read. On that page it is right. Here it meant a player who muted the
-     game still got noise out of the two boards a chapter that are the other one,
-     on a screen with no button to stop it, having already done the only thing
-     the game offers for stopping it.
+     There are three sound modules on this page, one per game, each with its own
+     idea of whether it is muted: this game's lives in the save, the other two in
+     keys of their own, because they also ship as pages of their own where there
+     is no save to read. On those pages that is right. Here it meant a player who
+     muted the game still got noise out of the boards that are another game, on a
+     screen with no button to stop it, having already done the only thing the
+     game offers for stopping it.
 
-     So the save is the preference and this hands it to both. The other game's
-     own key still gets written, which is what its own page will read next time,
-     and nothing here reads it.
+     So the save is the preference and this hands it to all three. Their own keys
+     still get written by their own pages, and nothing here reads them.
 
-     Through `BubbleApp` rather than its audio module directly. The coupling
-     between the two games is one object wide on purpose, and a boolean is not a
-     reason to make it two.
+     Through `BubbleApp` and `CasksApp` rather than their audio modules directly.
+     The coupling to another game is one object wide on purpose, and a boolean is
+     not a reason to make it two.
 
-     The button it repaints is the same control in two shapes. In a level it sits
-     in a row of priced buttons and says what it is in words; on the map it is a
-     glyph in the header, where the words were costing the map a strip of its
-     height. What a screen reader is told is the same either way. */
+     One shape of button, in one place: a glyph at the left of the header, on
+     every screen there is. It used to be words in a level and a glyph on the
+     map, which is two things to find and two to keep in step, and the two
+     screens that are another game had neither. */
   function applySound(on){
     Sound.setEnabled(on);
     /* The bubble game is fetched after the page opens, so during boot this name
@@ -1232,14 +1231,16 @@ export const App = (() => {
     else Deferred.ready('bubble').then(() => {
       if (typeof BubbleApp !== 'undefined') BubbleApp.sound = Sound.enabled;
     });
+    /* And the cellar door, which is a third audio module and was reached by
+       none of this: every gate in the run answered a muted game at full
+       volume. */
+    if (typeof CasksApp !== 'undefined') CasksApp.sound = on;
+    else Deferred.ready('casks').then(() => {
+      if (typeof CasksApp !== 'undefined') CasksApp.sound = Sound.enabled;
+    });
     document.querySelectorAll('.js-sound').forEach(b => {
-      const glyph = b.classList.contains('icon');
-      if (glyph){
-        b.innerHTML = on ? ICON.sound : ICON.muted;
-        b.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
-      } else {
-        b.textContent = on ? 'Sound on' : 'Sound off';
-      }
+      b.innerHTML = on ? ICON.sound : ICON.muted;
+      b.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
       b.classList.toggle('off', !on);
     });
     return on;

@@ -1,6 +1,6 @@
 /* The parts that only exist once a page has been laid out. */
 import { test, expect } from '@playwright/test';
-import { start, openLevel, settle } from './helpers.js';
+import { start, open, openLevel, settle, state } from './helpers.js';
 
 /* sizes chosen for the ways they have actually broken: a tall phone, a phone on
    its side, a short desktop window, and one small enough that the bottles have
@@ -106,6 +106,79 @@ test('the liquid follows the board across a resize', async ({ page }) => {
     const fl = document.querySelector('canvas.fluidLayer');
     return Math.abs(Math.round(fl.getBoundingClientRect().width) - Math.round(root.getBoundingClientRect().width));
   }), { timeout: 15_000 }).toBeLessThanOrEqual(1);
+});
+
+/* ---- a canvas is the shape of its box, and inside it ----
+
+   The two views that are another game are a canvas in a `.stage`, and both of
+   those facts have gone wrong on a phone.
+
+   The canvas is given a box by the layout and sized to it in pixels, and the
+   browser stretches the one into the other. They agree only while nothing moves
+   the box, and the window is not what moves it: an address bar retracting under
+   a `dvh` height, a webfont landing and reflowing the readouts above the stage,
+   a row of tools appearing. What a stale bitmap looks like is not a mis-sized
+   board — the bubble game works in world units where a bubble is 1 across, so a
+   box a little shorter than the bitmap draws every bubble as an oval.
+
+   And the box itself has to come from the layout rather than from the canvas. A
+   canvas with no size of its own falls back to its bitmap, which is how the
+   cellar door came to be drawn four times the width of the phone it was on.
+
+   Both are asked here, of both views, because a game nobody can see is worth two
+   assertions. */
+const shapeOf = (page, id) => page.evaluate(sel => {
+  const cv = document.getElementById(sel);
+  const r = cv.getBoundingClientRect();
+  return { bitmap: cv.width / cv.height, box: r.width / r.height,
+           dealt: cv.width !== 300 || cv.height !== 150,
+           /* Against the window, not against the stage it sits in. The stage
+              takes its width from the canvas when the canvas has none of its
+              own, so the two agreed with each other perfectly while both hung
+              a thousand pixels off the side of the phone. */
+           over: r.width - innerWidth, under: r.height - innerHeight };
+}, id);
+
+async function keepsShape(page, canvas, grow, ready){
+  /* Waited on the game rather than on the canvas having a width, because a
+     canvas nobody has sized already has one: 300 by 150, the size every canvas
+     element is born with. Every assertion below passes against that, and what
+     they would be describing is a board that had not been dealt. */
+  await page.waitForFunction(ready);
+  const before = await shapeOf(page, canvas);
+  expect(before.dealt, 'the canvas is still the size every canvas starts at').toBe(true);
+  expect(before.over, 'the canvas is wider than the screen').toBeLessThanOrEqual(0.5);
+  expect(before.under, 'the canvas is taller than the screen').toBeLessThanOrEqual(0.5);
+  expect(Math.abs(before.bitmap - before.box), 'the bitmap is the wrong shape as dealt')
+    .toBeLessThan(0.02);
+
+  /* A line above the stage goes away, which is a thing the app itself does: the
+     star row is hidden on a board that cannot earn any. The window never changes
+     size, and that is the whole point — this is the class of change that used to
+     go unnoticed until something else happened to fire a resize. */
+  await page.evaluate(sel => { document.querySelector(sel).hidden = true; }, grow);
+  await expect.poll(async () => {
+    const s = await shapeOf(page, canvas);
+    return Math.abs(s.bitmap - s.box);
+  }, { timeout: 5_000 }).toBeLessThan(0.02);
+}
+
+test('the bubble canvas keeps its shape when the box moves under it', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await start(page, state('onBubble'));
+  await open(page, await page.evaluate(() => globalThis.App._progress.unlocked));
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'bubble');
+  await keepsShape(page, 'bubbleCanvas', '.bubHud',
+    () => !!globalThis.BubbleApp && !!globalThis.BubbleApp._state.board);
+});
+
+test('the cellar door canvas keeps its shape when the box moves under it', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await start(page, state('atDoor'));
+  await page.locator('.node.door[data-door="1"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+  await keepsShape(page, 'cskCanvas', '.doorSays',
+    () => !!globalThis.CasksApp && globalThis.CasksApp._state.layout.length > 0);
 });
 
 test('the bottles sit above the HUD and the controls', async ({ page }) => {

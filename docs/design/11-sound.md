@@ -74,20 +74,33 @@ The module is `Sound` and not `Audio` because the page has one global scope and
 `new Audio()`, so the collision was silent, which is what made it worth a name
 change and a test rather than a comment.
 
-## One preference, two modules
+## One preference, three modules
 
-There are two audio modules on the app page, one per game, and the other one
-remembers its own preference in a key of its own, because it also ships as a
-page of its own where there is no save to read. On the app page the save wins:
-`applySound` in `90-app.js` is the only thing that applies it, at boot and on
-every toggle, and it reaches the other game through `BubbleApp.sound` rather
-than its audio module, because the coupling between the two games is one object
-wide on purpose.
+There are three audio modules on the app page, one per game, and the other two
+remember their own preference in keys of their own, because they also ship as
+pages of their own where there is no save to read. On the app page the save
+wins: `applySound` in `90-app.js` is the only thing that applies it, at boot and
+on every toggle, and it reaches the others through `BubbleApp.sound` and
+`CasksApp.sound` rather than their audio modules, because the coupling to
+another game is one object wide on purpose.
 
 That was a bug before it was a rule. Muting reached one module, so the two
 boards a chapter that are the other game stayed loud, on a screen with no sound
 button, for a player who had already done the only thing the game offers for
-making it stop.
+making it stop. The cellar door then arrived as a third module and was wired to
+none of it, which is the same bug a second time and the reason the rule is
+written down here rather than left in the code.
+
+## One button, one place
+
+A glyph at the left of the header, next to the way out, on every screen there
+is. It was two shapes in two places — words in a row of priced buttons in a
+level, a glyph in the header on the map — and the screens that are another game
+had neither, so the one screen a player could not stop a sound from was the
+screen the unfamiliar sound was coming from.
+
+Two shapes is also two things to keep in step. `applySound` paints whatever
+carries `js-sound`, and there is now one kind of thing to paint.
 
 ## What can be checked, and what cannot
 
@@ -106,8 +119,8 @@ sound happened:
 - three of them overlapping neither clip nor come out quieter than the bang they
   replaced, measured by rendering the actual mix
 - the portable file still has its bang when opened off disk
-- muting reaches both games, and a game muted in an earlier sitting comes back
-  muted in both
+- muting reaches all three games, a game muted in an earlier sitting comes back
+  muted in all of them, and every screen with a game on it has the button
 - every cue a module defines is called by something
 
 See [14 Testing](14-testing.md) for what else is judged by eye rather than by

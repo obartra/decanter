@@ -63,7 +63,13 @@
      the bubble game's own readouts are what the run is scored on. -->
 <section class="view" id="bubbleView">
   <header class="gameHeader">
-    <button class="btn ghost" id="bubToMap" type="button">&larr; Map</button>
+    <div class="headSide">
+      <button class="btn ghost" id="bubToMap" type="button">&larr; Map</button>
+      <!-- One shape, one corner, every screen with a game on it. It was on two
+           of four, and the two without it are the two that are another game.
+           See docs/design/11-sound.md. -->
+      <button class="icon js-sound" type="button" aria-label="Sound"></button>
+    </div>
     <h1 class="wordmark small">Bubble</h1>
     <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="bubGold">0</b></div>
   </header>
@@ -104,7 +110,10 @@
      docs/design/17-casks.md. -->
 <section class="view" id="doorView">
   <header class="gameHeader">
-    <button class="btn ghost" id="doorToMap" type="button">&larr; Map</button>
+    <div class="headSide">
+      <button class="btn ghost" id="doorToMap" type="button">&larr; Map</button>
+      <button class="icon js-sound" type="button" aria-label="Sound"></button>
+    </div>
     <h1 class="wordmark small">The Cellar Door</h1>
     <button class="btn ghost" id="doorRestart" type="button">Restart</button>
   </header>
@@ -119,7 +128,10 @@
 
 <section class="view" id="gameView">
   <header class="gameHeader">
-    <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
+    <div class="headSide">
+      <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
+      <button class="icon js-sound" type="button" aria-label="Sound"></button>
+    </div>
     <h1 class="wordmark small">Decanter</h1>
     <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="gold">0</b></div>
   </header>
@@ -137,7 +149,6 @@
     <button class="btn priced" id="hint" type="button">Hint<small id="hintCost">12</small></button>
     <button class="btn priced" id="vessel" type="button">Vessel<small id="vesselCost">45</small></button>
     <button class="btn" id="restart" type="button">Restart</button>
-    <button class="btn js-sound" type="button">Sound on</button>
   </div>
 </section>
 
