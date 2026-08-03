@@ -26,7 +26,7 @@
    The still is not deferred with it. 78-still.js draws the small bottles on the
    shelf the blast offers too, and that shelf is opened mid-run.
 
-   Closed over, the way every module here is except the one this was modelled on.
+   Closed over, the way every module here is except the one this was modeled on.
    All of these files are concatenated into a single script, so two of them
    declaring a top-level `decide` are one function and the later one wins, for
    the whole script, hoisting being what it is. That is not a clash anything
@@ -46,7 +46,7 @@ export const Preview = (() => {
     /* What a third star would take, which is the one thing the star row leaves
        unsaid. Named only where it is actually known: an estimated par is not a
        bar anything is scored against, so quoting it as a target would name a
-       number this game will not honour. */
+       number this game will not honor. */
     const target = perfect ? null
       : bubble ? (goal == null ? null : `all ${goal} shots, or the board cleared`)
       : (parExact && par != null ? `${par} pours` : null);

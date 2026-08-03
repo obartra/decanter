@@ -1,7 +1,7 @@
 # Decanter, design notes
 
-A water sorting puzzle. Bottles hold four units of coloured liquid, stacked. Pour
-between bottles until every bottle holds a single colour. It runs entirely
+A water sorting puzzle. Bottles hold four units of colored liquid, stacked. Pour
+between bottles until every bottle holds a single color. It runs entirely
 offline, installs to a home screen, and makes no network calls.
 
 These notes are split by **decision domain**, not by file, and each domain is
@@ -22,8 +22,8 @@ it.
 | [07 The pour](design/07-pour.md) | What happens on screen during a move, and the queue that sequences it |
 | [08 The room](design/08-room.md) | The drawn backdrop, and how it aligns itself to the board |
 | [09 The map](design/09-map.md) | Getting between levels: geometry, the road, chapters, unlocking |
-| [10 Visual system](design/10-visual-system.md) | Colour and type, and the single sources that keep them consistent |
-| [11 Sound](design/11-sound.md) | Synthesised audio, why it is synthesised, and the one recording that is not |
+| [10 Visual system](design/10-visual-system.md) | Color and type, and the single sources that keep them consistent |
+| [11 Sound](design/11-sound.md) | Synthesized audio, why it is synthesized, and the one recording that is not |
 | [12 Saving](design/12-saving.md) | The save file: schema, migration, and surviving a bad one |
 | [13 Delivery](design/13-delivery.md) | Build, offline, installation, and picking up a new version |
 | [14 Testing](design/14-testing.md) | How this is verified, and what it deliberately cannot verify |

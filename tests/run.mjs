@@ -24,4 +24,5 @@ import './states.test.mjs';
 import './build.test.mjs';
 import './dead-code.test.mjs';
 import './docs.test.mjs';
+import './spelling.test.mjs';
 await run();

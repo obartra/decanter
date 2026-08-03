@@ -44,7 +44,7 @@ import { App } from './90-app.js';
          That first claim is an install, not an update, and must not reload. What
          it must not do either is disqualify the tab forever: tracking the
          controller rather than remembering a flag from load time means the
-         second change is still recognised as the update it is. */
+         second change is still recognized as the update it is. */
       let controller = navigator.serviceWorker.controller;
       let taken = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {

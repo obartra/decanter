@@ -8,7 +8,7 @@
    be a lie about the puzzle.
 
    Two taps make a pour: one to take a vessel in hand, one to say where it goes.
-   Not a drag, deliberately. A drag has to be tracked, can be cancelled halfway,
+   Not a drag, deliberately. A drag has to be tracked, can be canceled halfway,
    and on a phone it fights the browser's own gestures; two taps are the same
    number of decisions with none of that, and they leave the vessel in hand
    visible on screen between them, which a drag does not. */
@@ -264,8 +264,8 @@ export const MeasureApp = (() => {
            hint for the length of a pour, because taking back a move that is
            still in the air has nothing coherent to take back — but the flag it
            reads is cleared here, in the frame loop, and the frame loop does not
-           paint the HUD. Without this the buttons go grey on the first move and
-           stay grey: undo() itself still worked, so nothing threw and nothing
+           paint the HUD. Without this the buttons go gray on the first move and
+           stay gray: undo() itself still worked, so nothing threw and nothing
            looked broken, but the only way to reach it was to tap a vessel first,
            which happens to repaint. The one recovery control in the game, gone
            behind an accident of who repaints. */

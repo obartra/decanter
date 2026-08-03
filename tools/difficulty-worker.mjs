@@ -5,7 +5,7 @@
    itself, which matters because cost varies by orders of magnitude between
    boards of the same shape.
 
-   A job names a board outright, as colours, empties and seed, rather than a
+   A job names a board outright, as colors, empties and seed, rather than a
    level. Candidate boards are compared across shapes, so a level number would
    only be a detour through a lookup that is itself what the caller is trying to
    decide.
@@ -18,7 +18,7 @@
 
    Driven by tools/order.mjs; not useful on its own. */
 import { loadPure, loadSolver } from '../tests/helpers.mjs';
-import { analyse, TOO_DEAR, DEFAULT_BUDGET } from './difficulty-core.mjs';
+import { analyze, TOO_DEAR, DEFAULT_BUDGET } from './difficulty-core.mjs';
 
 const ctx = loadPure();
 const solver = loadSolver();
@@ -30,7 +30,7 @@ function measure({ colors, empties, seed }){
   const got = solver.solve(tubes, colors, { nodeCap: 3_000_000, msCap: 20_000 });
   if (!got.exact || !Number.isInteger(got.par)) return null;
   try {
-    const a = analyse(tubes, got.par, BUDGET);
+    const a = analyze(tubes, got.par, BUDGET);
     /* `slips` rather than `logOdds`: a run's budget for wrong turns is fixed,
        so what matters is how many it will take, not the odds of taking none */
     return a == null ? null : { par: got.par, hard: a.slips, logOdds: -a.logOdds, tight: a.tight };

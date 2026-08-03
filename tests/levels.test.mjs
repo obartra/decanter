@@ -38,8 +38,8 @@ describe('levels', () => {
       equal(tubes.filter(t => t.length === 0).length, empties, `level ${n} empty bottles`);
       const counts = new Map();
       for (const c of tubes.flat()) counts.set(c, (counts.get(c) || 0) + 1);
-      equal(counts.size, colors, `level ${n} colour count`);
-      for (const [c, n2] of counts) equal(n2, Rules.CAP, `level ${n} colour ${c} unit count`);
+      equal(counts.size, colors, `level ${n} color count`);
+      for (const [c, n2] of counts) equal(n2, Rules.CAP, `level ${n} color ${c} unit count`);
       assert(!tubes.some(Rules.isFull), `level ${n} starts with a bottle already done`);
       assert(!Rules.isSolved(tubes), `level ${n} starts solved`);
     }
@@ -51,10 +51,10 @@ describe('levels', () => {
   });
   it('grows the board and then holds at the cap', () => {
     /* The board is what a player watches grow, and it is the bottle count that
-       says how big it is. The colour count is free to move within a bottle
+       says how big it is. The color count is free to move within a bottle
        count, because the ordering picks whichever of that size's two shapes
-       measures closer to the curve, and five colours with three empties is the
-       same eight bottles as six with two. Asserting colours would be asserting
+       measures closer to the curve, and five colors with three empties is the
+       same eight bottles as six with two. Asserting colors would be asserting
        an implementation detail of the old shape formula. */
     let prev = 0;
     for (let n = 1; n <= 40; n++){

@@ -39,7 +39,7 @@ describe('the card before a replay', () => {
       'Three stars needs all 35 shots, or the board cleared.');
   });
 
-  it('does not offer a target it cannot honour', () => {
+  it('does not offer a target it cannot honor', () => {
     /* An estimated par scores nothing at all, so quoting it as the bar for three
        stars would name a number the run will refuse to measure against. */
     equal(decide({ par: 20, parExact: false }).hint, '');
@@ -86,7 +86,7 @@ describe('the card before a replay', () => {
 
   it('names the other game, and does not label the one every level is', () => {
     equal(decide({ bubble: true, par: null, parExact: false, goal: 35 }).kind, 'Bubble run');
-    equal(decide({}).kind, '', 'labelling eight cards in ten "pour game" is furniture');
+    equal(decide({}).kind, '', 'labeling eight cards in ten "pour game" is furniture');
   });
 
   it('shows free as a price rather than as a blank', () => {

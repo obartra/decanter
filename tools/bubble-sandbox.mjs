@@ -16,7 +16,7 @@
 
    So a setting is three numbers and a switch:
 
-   - `colours` is the strongest. It decides how often a match is available at
+   - `colors` is the strongest. It decides how often a match is available at
      all, and four against six is the difference between nearly always and often
      not. This is what makes easy actually easy.
    - `rows` is what a clear costs: how much board there is to get rid of.
@@ -25,7 +25,7 @@
    - the limit is off in all four, so clearing is the only way out.
 
    Ultra drops back to five rows rather than climbing to seven, and the table is
-   why: six colours is punishing enough on its own, and seven rows of it is not a
+   why: six colors is punishing enough on its own, and seven rows of it is not a
    harder game, it is the same game lost sooner.
 
    Run: node tools/bubble-sandbox.mjs [--seeds=N] */
@@ -37,17 +37,17 @@ const ENDLESS = 400;
 
 /* what the picker offers, and it is the only place these live outside the game */
 const PACES = [
-  { name: 'Easy',   colours: 4, rows: 4, every: 20 },
-  { name: 'Normal', colours: 5, rows: 5, every: 18 },
-  { name: 'Hard',   colours: 5, rows: 6, every: 11 },
-  { name: 'Ultra',  colours: 6, rows: 5, every: 16 }
+  { name: 'Easy',   colors: 4, rows: 4, every: 20 },
+  { name: 'Normal', colors: 5, rows: 5, every: 18 },
+  { name: 'Hard',   colors: 5, rows: 6, every: 11 },
+  { name: 'Ultra',  colors: 6, rows: 5, every: 16 }
 ];
 
 const POLICIES = [[0, 'best play'], [0.15, 'good'], [0.30, 'competent']];
 const pc = x => `${(x * 100).toFixed(0)}%`;
 
 console.log(`${SEEDS} seeds, no shot limit, win = board cleared\n`);
-console.log('pace     colours  rows  drop  ' +
+console.log('pace     colors  rows  drop  ' +
             POLICIES.map(([, n]) => n.padStart(11)).join('') + '   median shots');
 for (const p of PACES){
   const cells = [];
@@ -56,14 +56,14 @@ for (const p of PACES){
     const outs = [];
     for (let s = 1; s <= SEEDS; s++)
       outs.push(run(s, { every: p.every, length: ENDLESS, miss,
-                         colours: p.colours, rows: p.rows }));
+                         colors: p.colors, rows: p.rows }));
     cells.push(pc(outs.filter(o => o.how === 'cleared').length / outs.length).padStart(11));
     if (name === 'competent'){
       const shots = outs.map(o => o.shots).sort((a, b) => a - b);
       med = shots[shots.length >> 1];
     }
   }
-  console.log(`${p.name.padEnd(9)}${String(p.colours).padStart(6)}${String(p.rows).padStart(6)}` +
+  console.log(`${p.name.padEnd(9)}${String(p.colors).padStart(6)}${String(p.rows).padStart(6)}` +
               `${String(p.every).padStart(6)}  ${cells.join('')}${String(med).padStart(15)}`);
 }
 

@@ -22,7 +22,7 @@ export const BubbleShot = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
 
-  /* Walls constrain the centre of the bubble, not its edge, so they sit half a
+  /* Walls constrain the center of the bubble, not its edge, so they sit half a
      diameter inside the world on each side. */
   const LEFT = 0.5;
   const RIGHT = C.WORLD_W - 0.5;
@@ -35,7 +35,7 @@ export const BubbleShot = (() => {
     let best = null;
     const cells = G.occupied(board);
     for (const [j, c] of cells){
-      const q = G.centreOf(board, j, c);
+      const q = G.centerOf(board, j, c);
       const dx = p.x - q.x, dy = p.y - q.y;
       const b = u.x * dx + u.y * dy;
       /* moving away from this one, or never close enough */
@@ -59,29 +59,29 @@ export const BubbleShot = (() => {
 
      For a ceiling hit it is the nearest empty cell of row 0, which always
      exists: a full row 0 would have produced a bubble contact first. Otherwise
-     it is the nearest of the six neighbours of whatever was hit.
+     it is the nearest of the six neighbors of whatever was hit.
 
      That cell is provably empty and provably in bounds rather than merely
-     usually so. At contact the centre lies 0.95 from the cell it hit, the six
-     neighbours lie at 1.0 sixty degrees apart, so the nearest is at most thirty
+     usually so. At contact the center lies 0.95 from the cell it hit, the six
+     neighbors lie at 1.0 sixty degrees apart, so the nearest is at most thirty
      degrees away and therefore within 0.508 of the contact point. Anything
      sitting in that cell would have been closer than 0.95 and would have been
      hit first, contradicting the fact that this was the earliest contact. */
-  function snapCell(board, contact, centre){
+  function snapCell(board, contact, center){
     if (contact.kind === 'ceiling'){
       let best = null;
       for (let c = 0; c < C.COLS; c++){
         if (!G.isEmpty(board, 0, c)) continue;
-        const d = Math.abs(G.centreOf(board, 0, c).x - centre.x);
+        const d = Math.abs(G.centerOf(board, 0, c).x - center.x);
         if (!best || d < best.d - 1e-12) best = { j: 0, c, d };
       }
       return best ? { j: best.j, c: best.c } : null;
     }
     let best = null;
-    for (const [j, c] of G.neighbours(board, contact.j, contact.c)){
+    for (const [j, c] of G.neighbors(board, contact.j, contact.c)){
       if (!G.isEmpty(board, j, c)) continue;
-      const q = G.centreOf(board, j, c);
-      const d2 = (q.x - centre.x) ** 2 + (q.y - centre.y) ** 2;
+      const q = G.centerOf(board, j, c);
+      const d2 = (q.x - center.x) ** 2 + (q.y - center.y) ** 2;
       if (!best || d2 < best.d2 - 1e-12 ||
           (Math.abs(d2 - best.d2) <= 1e-12 && (j < best.j || (j === best.j && c < best.c)))){
         best = { j, c, d2 };
@@ -112,7 +112,7 @@ export const BubbleShot = (() => {
       const s = Math.min(sWall, sCeil, sHit);
 
       if (!isFinite(s)){
-        /* nothing ahead at all, which only happens travelling straight down */
+        /* nothing ahead at all, which only happens traveling straight down */
         const far = { x: p.x, y: C.WORLD_H + 1 };
         points.push(far);
         return { points, contact: { kind: 'floor' }, landing: null };
@@ -139,7 +139,7 @@ export const BubbleShot = (() => {
       }
 
       /* A wall. Mirror exactly onto the wall plane and flip only the horizontal
-         component, with no damping and no renormalising: a bounce that loses a
+         component, with no damping and no renormalizing: a bounce that loses a
          little speed or drifts a little in angle turns a predictable board into
          one where the same shot does something different each time. */
       points.push(q);

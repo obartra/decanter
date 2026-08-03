@@ -2,7 +2,7 @@
 /* How often does a run reach each star, and is that a game worth grading?
 
    This game has no par and cannot have one: the next bubble is dealt at random,
-   so the board is not perfect information, and the aim discretises to about
+   so the board is not perfect information, and the aim discretizes to about
    thirty landing cells across a run of thirty-odd shots. There is nothing to
    search. What it has instead is a fixed length and a pass rate, and a threshold
    quoted as "three in four competent runs get this far" is a claim as exact as
@@ -64,10 +64,10 @@ if (AS_JSON){
       `${pc(r.forced).padStart(9)}`);
   }
   /* Said out loud because it is the least obvious thing about this game and
-     nothing else would ever report it: on most turns the colour in hand cannot
+     nothing else would ever report it: on most turns the color in hand cannot
      clear anything, so most shots are being placed rather than played. */
   console.log(`\n"forced" is the share of turns where no shot clears anything with the` +
-    `\ncolour in hand. Those shots are placements, not decisions.`);
+    `\ncolor in hand. Those shots are placements, not decisions.`);
 
   console.log(`\nthe sweep it came out of, ${SWEEP_SEEDS} seeds: share of runs reaching each shot\n`);
   console.log(`drop  player   ` + MARKS.map(n => `${n}`.padStart(6)).join(''));

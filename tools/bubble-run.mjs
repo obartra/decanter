@@ -37,7 +37,7 @@ const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRul
    is why the tables print several and the thresholds have to hold across the
    middle of them rather than at one favoured number.
 
-   What is deliberately *not* modelled is planning. bestShot looks one shot ahead
+   What is deliberately *not* modeled is planning. bestShot looks one shot ahead
    because it is also the hint, and a hint whose reasoning cannot be seen on the
    board reads as arbitrary. A two-ply policy using the next bubble, which the
    game does show the player, finishes 98% of runs against this one's 94%, so the
@@ -83,30 +83,30 @@ function landings(board){
    answer. Dropping first measures a stricter game than the one being played, and
    thresholds set against it come out too low. */
 export function run(seed, { every = C.ADVANCE_EVERY, length = C.RUN_SHOTS, miss = 0,
-                            colours = C.COLOURS, rows = 5 } = {}){
+                            colors = C.COLORS, rows = 5 } = {}){
   /* the game's own stream, not a copy of it: a harness drawing different numbers
      measures a different game */
   const rnd = Rng.from(seed);
-  const b = R.dealBoard(rows, rnd, colours);
+  const b = R.dealBoard(rows, rnd, colors);
 
-  /* How many turns had nothing to clear with the colour in hand. About three in
+  /* How many turns had nothing to clear with the color in hand. About three in
      five, which is the single most surprising thing the harness reports and the
      reason a run cannot be read as a string of decisions: most shots are being
      put somewhere rather than played, and the skill is in where they go. If this
-     ever climbs towards nine in ten the game has become a dumping exercise, and
+     ever climbs toward nine in ten the game has become a dumping exercise, and
      no test of the rules would notice. */
   let turns = 0, forced = 0;
 
   let sinceDrop = 0;
   for (let shot = 1; shot <= length; shot++){
-    const colours = R.liveColours(b);
-    if (!colours.length) return { shots: shot - 1, how: 'cleared', turns, forced };
-    const colour = colours[Math.floor(rnd() * colours.length)];
+    const colors = R.liveColors(b);
+    if (!colors.length) return { shots: shot - 1, how: 'cleared', turns, forced };
+    const color = colors[Math.floor(rnd() * colors.length)];
 
     /* The shot the hint would offer, asked for on every turn whether or not it
        is taken, so the stream advances the same way at every miss rate and the
        forced count is the board's property rather than the policy's. */
-    const best = Adv.bestShot(b, colour, S.resolveShot);
+    const best = Adv.bestShot(b, color, S.resolveShot);
     if (!best) return { shots: shot - 1, how: 'blocked', turns, forced };
     turns++;
     if (best.matched === 0) forced++;
@@ -117,7 +117,7 @@ export function run(seed, { every = C.ADVANCE_EVERY, length = C.RUN_SHOTS, miss 
       if (cells.length) landing = cells[Math.floor(rnd() * cells.length)];
     }
 
-    const res = R.resolveTurn(b, landing, colour);
+    const res = R.resolveTurn(b, landing, color);
     if (res.won) return { shots: shot, how: 'cleared', turns, forced };
     if (res.lost) return { shots: shot, how: 'line', turns, forced };
     if (shot >= length) return { shots: shot, how: 'survived', turns, forced };

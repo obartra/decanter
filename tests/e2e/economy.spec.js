@@ -180,7 +180,7 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
     const make = AC.prototype.createBufferSource;
     AC.prototype.createBufferSource = function () { window.__srcs++; return make.apply(this, arguments); };
     /* Anything that would be heard, whether it came from the recording or from
-       the synthesised fallback. Counting starts, not nodes: a node that is built
+       the synthesized fallback. Counting starts, not nodes: a node that is built
        and never started makes no sound. */
     for (const kind of ['createBufferSource', 'createOscillator']){
       const build = AC.prototype[kind];
@@ -219,7 +219,7 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
      it goes off — muted or not */
   await page.mouse.click(200, 400);
   /* Three, and the number is the point: the recording is one source per bang,
-     and the synthesised fallback is three. Nine here would be a bang that still
+     and the synthesized fallback is three. Nine here would be a bang that still
      sounds, so nothing else in the suite would fail, and the recording could
      have stopped shipping months earlier. */
   await expect.poll(() => page.evaluate(() => window.__srcs),
@@ -236,7 +236,7 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
 
    The floor matters as much as the ceiling. A quiet recording still plays, still
    passes every other test here, and turns the loudest moment in the game into a
-   thud nobody remarks on. 0.3 is just above the synthesised bang it replaced. */
+   thud nobody remarks on. 0.3 is just above the synthesized bang it replaced. */
 test('the three bangs together neither clip nor fizzle', async ({ page }) => {
   await start(page, state('purseDry'));
   const mix = await page.evaluate(async () => {
@@ -268,7 +268,7 @@ test('the three bangs together neither clip nor fizzle', async ({ page }) => {
 
   expect(mix.missing, 'the page does not say where the bang is').toBeFalsy();
   expect(mix.clipped, 'three bangs overlapping drove the mix into the rails').toBe(0);
-  expect(mix.peak, 'the bang is quieter than the synthesised one it replaced').toBeGreaterThan(0.3);
+  expect(mix.peak, 'the bang is quieter than the synthesized one it replaced').toBeGreaterThan(0.3);
   expect(mix.peak, 'no headroom left for the three to overlap in').toBeLessThan(0.85);
 });
 
@@ -277,7 +277,7 @@ test('the three bangs together neither clip nor fizzle', async ({ page }) => {
    nothing about running it off disk that could fail on its own. The bang is: it
    is fetched at the moment it is wanted, and a file:// page is its own origin,
    so the version of this that points at ./audio/ would find nothing and fall
-   through to the synthesised bang without a word. A build test can check the
+   through to the synthesized bang without a word. A build test can check the
    bytes are in the file; only a browser can say they can still be reached from
    there. */
 test('the portable file still has the bang when it is opened off disk', async ({ page }) => {
@@ -303,7 +303,7 @@ test('the portable file still has the bang when it is opened off disk', async ({
 
   expect(played.carriesItsOwnBytes, 'the portable file points at a bang instead of holding one').toBe(true);
   /* one source per bang is the recording, three would be the fallback */
-  expect(played.srcs, 'off disk the bang fell back to the synthesised one').toBe(3);
+  expect(played.srcs, 'off disk the bang fell back to the synthesized one').toBe(3);
   expect(errors, 'the portable file threw on open').toEqual([]);
 });
 
@@ -355,7 +355,7 @@ test('the message shows on every load, whatever the state behind it', async ({ p
       const el = document.getElementById('jabari');
       return el && !el.hidden && el.classList.contains('go');
     }, null, { timeout: 5000 });
-    /* and the purse is reset to the figure, not nudged towards it */
+    /* and the purse is reset to the figure, not nudged toward it */
     expect(await page.evaluate(() => globalThis.App._progress.gold),
       `${c.name}: the purse must read the cap exactly`)
       .toBe(await page.evaluate(() => globalThis.CONFIG.economy.purseCap));
@@ -389,7 +389,12 @@ test('the beta word goes off with a bang, and clears itself away', async ({ page
       }
     }).observe(document, { childList: true, subtree: true });
   });
-  await start(page, state('purseDry'));
+  /* The one test in this file that needs the animation itself rather than what
+     the game decided. Confetti is the first thing reduced motion turns off, and
+     rightly so: `75-confetti.js` returns before it throws anything. Run reduced,
+     this asks for paper that a player who asked for less motion is not supposed
+     to get, and fails saying the bang threw none. */
+  await start(page, state('purseDry'), { reducedMotion: 'no-preference' });
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
   const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
@@ -615,7 +620,7 @@ test('a chapter introduces itself once', async ({ page }) => {
    on the click: by the time the button's own handler runs, the click is already
    past the document, so the listener it adds there cannot be handed the press
    that added it. The assertions between the press and the tap are that claim —
-   the board is grey and the panel is away, rather than back where it started.
+   the board is gray and the panel is away, rather than back where it started.
 
    It used to be kept apart by a tick instead, and that tick was the whole flake:
    the tap below went in before the tick had come round, landed on nothing, and

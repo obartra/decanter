@@ -11,8 +11,8 @@
    the real geometry, so it cannot drift off it. A picture of a board the level
    does not deal would be worse than no picture, because it would be believed.
 
-   Markup rather than canvas, because a bottle here is a stack of coloured
-   rectangles and the stylesheet already knows how to draw one. The colours are
+   Markup rather than canvas, because a bottle here is a stack of colored
+   rectangles and the stylesheet already knows how to draw one. The colors are
    the published --cN properties, so a still cannot show a palette the game no
    longer pours. */
 import { Rules } from './pure/20-rules.js';
@@ -32,7 +32,7 @@ export const Still = (() => {
      destroy.
 
      One element per unit rather than per band. The real board merges touching
-     units of one colour so no seam shows between them; here nothing is drawn
+     units of one color so no seam shows between them; here nothing is drawn
      between units at all, so there is no seam to hide and no second copy of that
      rule to keep in step. */
   const bottle = tube => tube
@@ -48,7 +48,7 @@ export const Still = (() => {
   }
 
   /* The other game's board, from the description it hands over: rows of
-     colours, each saying whether it is indented. Which rows those are is that
+     colors, each saying whether it is indented. Which rows those are is that
      game's answer and never worked out here. A still that staggers the wrong
      way round is a picture of a board nobody is dealt, and the two games are
      coupled through one object precisely so that this file cannot go and look.
@@ -57,8 +57,8 @@ export const Still = (() => {
      board are part of what it looks like. */
   function bubbles(rows){
     const out = rows.map(row => {
-      const dots = row.cells.map(colour => (colour
-        ? `<i class="stillDot" style="background:${colour}"></i>`
+      const dots = row.cells.map(color => (color
+        ? `<i class="stillDot" style="background:${color}"></i>`
         : '<i class="stillDot"></i>')).join('');
       return `<span class="stillRow${row.indent ? ' odd' : ''}">${dots}</span>`;
     }).join('');

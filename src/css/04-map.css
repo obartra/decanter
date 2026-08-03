@@ -110,7 +110,7 @@
 }
 .node.buyable:disabled{opacity:.5; cursor:default}
 
-/* Open, but the purse cannot deal it. It keeps its own colours, because it is
+/* Open, but the purse cannot deal it. It keeps its own colors, because it is
    still the level it was and nothing about it has been lost; what goes is the
    invitation. The beacon in particular has to stop: a medallion pulsing at
    someone who cannot press it is the game asking for a tap it will refuse. */
@@ -143,7 +143,7 @@
 
 /* Shown only when the level you are on is off screen, and in the header with
    the rest of the controls rather than floating over the board. A floating one
-   sat at the bottom centre, which is where the road actually is, so it covered
+   sat at the bottom center, which is where the road actually is, so it covered
    the map and took back the strip the footer had just released. */
 .icon.wide{width:auto; padding:0 10px; gap:5px; grid-auto-flow:column}
 .icon.wide[hidden]{display:none}

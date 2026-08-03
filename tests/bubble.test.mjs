@@ -21,12 +21,12 @@ const { BubbleConfig: C, BubbleRng: Rng, BubbleGrid: G, BubbleShot: S, BubbleRul
    these boards are the boards the game deals rather than lookalikes. */
 const rng = seed => Rng.from(seed);
 
-function board(seed, rows, colours = 4){
+function board(seed, rows, colors = 4){
   const r = rng(seed);
   const b = G.create(seed & 1);
   for (let j = 0; j < rows; j++){
     for (let c = 0; c < C.COLS; c++){
-      if (r() < 0.82) b.rows[j][c] = Math.floor(r() * colours);
+      if (r() < 0.82) b.rows[j][c] = Math.floor(r() * colors);
     }
   }
   /* only what is actually hanging from the ceiling, so the boards under test are
@@ -36,7 +36,7 @@ function board(seed, rows, colours = 4){
 }
 
 describe('bubble lattice', () => {
-  it('says two cells are neighbours exactly when they touch', () => {
+  it('says two cells are neighbors exactly when they touch', () => {
     /* The whole game rests on this. It cannot pass with a wrong parity table,
        with j % 2 in place of the board's parity, with four-way adjacency, or
        with a row height that is not sqrt(3)/2. */
@@ -44,16 +44,16 @@ describe('bubble lattice', () => {
       const b = G.create(parity);
       for (let j = 0; j < C.ROWS; j++){
         for (let c = 0; c < C.COLS; c++){
-          const here = G.centreOf(b, j, c);
+          const here = G.centerOf(b, j, c);
           const touching = [];
           for (let j2 = 0; j2 < C.ROWS; j2++){
             for (let c2 = 0; c2 < C.COLS; c2++){
               if (j2 === j && c2 === c) continue;
-              const q = G.centreOf(b, j2, c2);
+              const q = G.centerOf(b, j2, c2);
               if (Math.abs(Math.hypot(q.x - here.x, q.y - here.y) - 1) < 1e-9) touching.push(`${j2},${c2}`);
             }
           }
-          const claimed = G.neighbours(b, j, c).map(([a, d]) => `${a},${d}`);
+          const claimed = G.neighbors(b, j, c).map(([a, d]) => `${a},${d}`);
           equal(claimed.slice().sort(), touching.slice().sort(),
             `parity ${parity} cell ${j},${c} disagrees about what it touches`);
         }
@@ -66,21 +66,21 @@ describe('bubble lattice', () => {
     for (let n = 0; n < 5; n++){
       G.advance(b, G.emptyRow());
       const j = 3, c = 4;
-      const here = G.centreOf(b, j, c);
-      for (const [nj, nc] of G.neighbours(b, j, c)){
-        const q = G.centreOf(b, nj, nc);
+      const here = G.centerOf(b, j, c);
+      for (const [nj, nc] of G.neighbors(b, j, c)){
+        const q = G.centerOf(b, nj, nc);
         assert(Math.abs(Math.hypot(q.x - here.x, q.y - here.y) - 1) < 1e-9,
-          `after ${n + 1} advances, ${nj},${nc} is called a neighbour but is not touching`);
+          `after ${n + 1} advances, ${nj},${nc} is called a neighbor but is not touching`);
       }
     }
   });
 
-  it('puts every cell centre inside the walls', () => {
+  it('puts every cell center inside the walls', () => {
     for (const parity of [0, 1]){
       const b = G.create(parity);
       for (let j = 0; j < C.ROWS; j++){
         for (let c = 0; c < C.COLS; c++){
-          const p = G.centreOf(b, j, c);
+          const p = G.centerOf(b, j, c);
           assert(p.x >= 0.5 - 1e-9 && p.x <= C.WORLD_W - 0.5 + 1e-9,
             `cell ${j},${c} sits at x=${p.x}, outside the playfield`);
         }
@@ -107,13 +107,13 @@ describe('bubble shot', () => {
         assert(G.inBounds(j, c), `seed ${seed} at ${deg}deg landed out of bounds at ${j},${c}`);
         assert(G.isEmpty(b, j, c), `seed ${seed} at ${deg}deg landed on an occupied cell`);
         if (got.contact.kind === 'bubble'){
-          const touching = G.neighbours(b, got.contact.j, got.contact.c)
+          const touching = G.neighbors(b, got.contact.j, got.contact.c)
             .some(([nj, nc]) => nj === j && nc === c);
           assert(touching, `seed ${seed} at ${deg}deg landed somewhere it did not touch`);
         } else {
           equal(j, 0, `seed ${seed} at ${deg}deg hit the ceiling but did not land on row 0`);
         }
-        const q = G.centreOf(b, j, c);
+        const q = G.centerOf(b, j, c);
         const slide = Math.hypot(q.x - got.contact.x, q.y - got.contact.y);
         assert(slide <= 0.508 + 1e-9,
           `seed ${seed} at ${deg}deg slid ${slide.toFixed(3)} into its cell, which is further than geometry allows`);
@@ -140,7 +140,7 @@ describe('bubble shot', () => {
         if (p.y <= 0.5) return { kind: 'ceiling', x: p.x, y: 0.5 };
         if (p.y > C.WORLD_H) return { kind: 'floor' };
         for (const [j, c] of G.occupied(b)){
-          const q = G.centreOf(b, j, c);
+          const q = G.centerOf(b, j, c);
           if (Math.hypot(q.x - p.x, q.y - p.y) <= C.HIT_K) return { kind: 'bubble', j, c, x: p.x, y: p.y };
         }
       }
@@ -201,13 +201,13 @@ describe('bubble board', () => {
   it('pops a group of three and only a group of three', () => {
     const b = G.create(0);
     b.rows[0][3] = 1; b.rows[0][4] = 1;
-    equal(R.matchFrom(b, 0, 3).length, 2, 'two of a colour is not a match');
+    equal(R.matchFrom(b, 0, 3).length, 2, 'two of a color is not a match');
     b.rows[0][5] = 1;
     equal(R.matchFrom(b, 0, 3).length, 3);
     b.rows[1][3] = 1;
     equal(R.matchFrom(b, 0, 3).length, 4, 'the row below is adjacent and counts');
     b.rows[0][7] = 1;
-    equal(R.matchFrom(b, 0, 3).length, 4, 'a same colour bubble that is not touching does not');
+    equal(R.matchFrom(b, 0, 3).length, 4, 'a same color bubble that is not touching does not');
   });
 
   it('drops what is no longer hanging from the ceiling', () => {
@@ -232,25 +232,25 @@ describe('bubble board', () => {
        floating and nothing is doubled up */
     for (let seed = 300; seed <= 330; seed++){
       const b = board(seed, 6);
-      const colours = R.liveColours(b);
-      if (!colours.length) continue;
+      const colors = R.liveColors(b);
+      if (!colors.length) continue;
       for (let n = 0; n < 12; n++){
         const a = ((seed * 7 + n * 13) % 140 - 70) * Math.PI / 180;
         const got = S.resolveShot(b, C.MUZZLE, { x: Math.sin(a), y: -Math.cos(a) });
         if (!got.landing) continue;
         assert(G.isEmpty(b, got.landing.j, got.landing.c), 'about to write into an occupied cell');
-        R.resolveTurn(b, got.landing, colours[n % colours.length]);
+        R.resolveTurn(b, got.landing, colors[n % colors.length]);
         equal(R.detach(b).length, 0, `seed ${seed} shot ${n} left bubbles floating`);
       }
     }
   });
 
-  it('only ever offers a colour that is still on the board', () => {
+  it('only ever offers a color that is still on the board', () => {
     const b = G.create(0);
     b.rows[0][0] = 2; b.rows[0][1] = 5;
-    equal(R.liveColours(b), [2, 5]);
+    equal(R.liveColors(b), [2, 5]);
     b.rows[0][1] = G.EMPTY;
-    equal(R.liveColours(b), [2], 'a colour that has left the board is not live');
+    equal(R.liveColors(b), [2], 'a color that has left the board is not live');
   });
 
   it('pushes in a row without leaving the board floating', () => {
@@ -263,15 +263,15 @@ describe('bubble board', () => {
     }
   });
 
-  it('never pushes in a colour the board has already lost', () => {
+  it('never pushes in a color the board has already lost', () => {
     const b = G.create(0);
     b.rows[0][0] = 3; b.rows[0][1] = 5;
     const row = R.freshRow(b, (() => { let n = 0; return () => ((n += 0.37) % 1); })());
-    for (const col of row) assert([3, 5].includes(col), `a row arrived carrying colour ${col}`);
+    for (const col of row) assert([3, 5].includes(col), `a row arrived carrying color ${col}`);
   });
 
   it('knows when no shot can land at all', () => {
-    /* A packed board has no empty neighbour to snap into, so every shot would
+    /* A packed board has no empty neighbor to snap into, so every shot would
        vanish silently. The game has to see that coming rather than let a player
        fire into a board that eats bubbles. */
     const full = G.create(0);
@@ -288,7 +288,7 @@ describe('bubble board', () => {
       const rnd = rng(seed);
       const b = board(seed, 5);
       for (let shots = 1; shots <= 500; shots++){
-        const live = R.liveColours(b);
+        const live = R.liveColors(b);
         if (!live.length) return 'won';
         const a = (rnd() * 160 - 80) * Math.PI / 180;
         const got = S.resolveShot(b, C.MUZZLE, { x: Math.sin(a), y: -Math.cos(a) });
@@ -320,10 +320,10 @@ describe('bubble board', () => {
       const rnd = rng(seed);
       for (let j = 0; j < 5; j++){
         for (let c = 0; c < C.COLS; c++){
-          const start = Math.floor(rnd() * C.COLOURS);
+          const start = Math.floor(rnd() * C.COLORS);
           let chosen = start;
-          for (let n = 0; n < C.COLOURS; n++){
-            const col = (start + n) % C.COLOURS;
+          for (let n = 0; n < C.COLORS; n++){
+            const col = (start + n) % C.COLORS;
             b.rows[j][c] = col;
             if (R.matchFrom(b, j, c).length < C.MATCH_MIN){ chosen = col; break; }
           }
@@ -369,7 +369,7 @@ describe('bubble board', () => {
     const rnd = rng(7);
     const b = board(3, 6);
     for (let n = 0; n < 120; n++){
-      const live = R.liveColours(b);
+      const live = R.liveColors(b);
       if (!live.length) break;
       const a = (rnd() * 160 - 80) * Math.PI / 180;
       const got = S.resolveShot(b, C.MUZZLE, { x: Math.sin(a), y: -Math.cos(a) });
@@ -378,11 +378,11 @@ describe('bubble board', () => {
       const res = R.resolveTurn(b, got.landing, live[Math.floor(rnd() * live.length)]);
       equal(G.occupied(b).length, before + 1 - res.matched.length - res.cut.length,
         `shot ${n} lost a different number of bubbles than it reported`);
-      /* and the colour each one is drawn falling in came back with it, because
+      /* and the color each one is drawn falling in came back with it, because
          by then the grid no longer has it to ask */
       for (const cell of res.matched.concat(res.cut)){
         assert(cell.length === 3 && cell[2] >= 0,
-          `shot ${n} reported a cell with no colour to fall in`);
+          `shot ${n} reported a cell with no color to fall in`);
       }
       if (res.won || res.lost) break;
     }
@@ -394,12 +394,12 @@ describe('bubble board', () => {
     const play = () => {
       const b = board(7, 6);
       for (let n = 0; n < 60; n++){
-        const colours = R.liveColours(b);
-        if (!colours.length) break;
+        const colors = R.liveColors(b);
+        if (!colors.length) break;
         const a = ((n * 37) % 150 - 75) * Math.PI / 180;
         const got = S.resolveShot(b, C.MUZZLE, { x: Math.sin(a), y: -Math.cos(a) });
         if (!got.landing) continue;
-        R.resolveTurn(b, got.landing, colours[n % colours.length]);
+        R.resolveTurn(b, got.landing, colors[n % colors.length]);
       }
       return G.hash(b);
     };
@@ -409,7 +409,7 @@ describe('bubble board', () => {
 
 describe('bubble advice', () => {
   it('finds the shot that clears, when one exists', () => {
-    /* two of a colour with a gap under them, and one colour in hand: there is
+    /* two of a color with a gap under them, and one color in hand: there is
        exactly one thing worth doing and the hint has to find it */
     const b = G.create(0);
     for (let c = 0; c < C.COLS; c++) b.rows[0][c] = 1;
@@ -421,14 +421,14 @@ describe('bubble advice', () => {
   });
 
   it('says so when nothing clears, rather than pointing anywhere', () => {
-    /* one colour on the board, a different one in hand: nothing can match, and a
+    /* one color on the board, a different one in hand: nothing can match, and a
        hint that pointed somewhere would be charging for a shrug */
     const b = G.create(0);
     for (let c = 0; c < C.COLS; c++) b.rows[0][c] = 1;
     equal(Adv.hasClearingShot(b, 0, S.resolveShot), false,
-      'claimed a clearing shot for a colour that is not on the board');
+      'claimed a clearing shot for a color that is not on the board');
     equal(Adv.hasClearingShot(b, 1, S.resolveShot), true,
-      'a colour that is on the board three times over must be playable');
+      'a color that is on the board three times over must be playable');
   });
 
   it('never advises a shot that cannot be taken', () => {
@@ -436,8 +436,8 @@ describe('bubble advice', () => {
        that aim, or the hint points at a cell the bubble will not reach */
     for (let seed = 1; seed <= 12; seed++){
       const b = board(seed, 5);
-      for (const colour of R.liveColours(b)){
-        const best = Adv.bestShot(b, colour, S.resolveShot);
+      for (const color of R.liveColors(b)){
+        const best = Adv.bestShot(b, color, S.resolveShot);
         if (!best) continue;
         const shot = S.resolveShot(b, C.MUZZLE, best.dir);
         assert(shot.landing, `seed ${seed} advised an aim that lands nowhere`);
@@ -451,7 +451,7 @@ describe('bubble advice', () => {
     /* it works on clones; if it did not, asking for a hint would play the shot */
     const b = board(5, 5);
     const before = G.hash(b);
-    Adv.bestShot(b, R.liveColours(b)[0], S.resolveShot);
+    Adv.bestShot(b, R.liveColors(b)[0], S.resolveShot);
     equal(G.hash(b), before, 'asking for advice changed the board');
   });
 });
@@ -488,7 +488,7 @@ describe('bubble scoring', () => {
       'a run that reached the last shot and lost it did not survive');
   });
 
-  it('caps a run that picked its colours, exactly like a bought vessel', () => {
+  it('caps a run that picked its colors, exactly like a bought vessel', () => {
     equal(Sc.stars({ cleared: false, survived: true, shots: C.RUN_SHOTS, aided: true }), C.AID_CAP);
     equal(Sc.stars({ cleared: true, survived: false, shots: 200, aided: true }), C.AID_CAP,
       'even clearing the board does not buy back the third star');

@@ -97,13 +97,13 @@ export const CasksConfig = {
   OAK: '#2A1B10',
   OAK_LIT: '#6B4A28',
   /* Iron hoops and the staves between them. The staves are drawn in the shadow
-     colour rather than as lines of their own, so they read as the gaps between
+     color rather than as lines of their own, so they read as the gaps between
      boards rather than as stripes painted on one. */
   HOOP: '#8A7A62',
   STAVE: 'rgba(12,7,3,.55)',
 
   /* The gilt cask. The same two golds the wordmark and the stars use, so the one
-     cask that matters is the same colour as everything else on the page that
+     cask that matters is the same color as everything else on the page that
      matters. It is the only object in the room that is not brown, which is the
      entire reason it needs no label. */
   GILT: '#E0B15C',

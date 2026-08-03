@@ -106,7 +106,7 @@ body[data-view="game"] #gameView{display:flex}
   -webkit-user-select:text; user-select:text; overscroll-behavior:contain;
 }
 
-/* Reading the board after the run is over. It is drained of colour so it plainly
+/* Reading the board after the run is over. It is drained of color so it plainly
    is not in play, and it takes no input at all: the next touch anywhere puts the
    panel back rather than pouring anything. */
 .peeking .board{filter:grayscale(.8) brightness(.72); pointer-events:none}

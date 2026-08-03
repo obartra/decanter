@@ -34,7 +34,7 @@ export const App = (() => {
     par: null, parExact: false, parRequest: 0,
     undosUsed: 0, hintsUsed: 0, vesselUsed: false, over: false, finished: false, reason: null, hinting: false, saying: null,
     /* The blast, as two fields that always move together. `blownUp` is the once
-       a run gate and half of what caps the stars; `spilled` is which colours it
+       a run gate and half of what caps the stars; `spilled` is which colors it
        took units from, which every later judgement about this board has to be
        told or the run is graded by a law it is no longer playing under.
 
@@ -80,10 +80,10 @@ export const App = (() => {
   }
 
   /* ---------- routing ---------- */
-  /* The stylesheets colour bands with var(--cN), the pour and the particle sim
+  /* The stylesheets color bands with var(--cN), the pour and the particle sim
      read CONFIG.palette. Publishing one from the other keeps a single source:
      when the palette moved to jewel tones and the CSS did not, the sim poured
-     the old colours into the new bottles. */
+     the old colors into the new bottles. */
   function publishPalette(){
     const s = document.documentElement.style;
     CONFIG.palette.forEach((hex, i) => s.setProperty(`--c${i}`, hex));
@@ -451,12 +451,12 @@ export const App = (() => {
   function startBubble(level){
     /* The chapters hand these over the same way they hand over the pour game's,
        because they are the same grants: an undo is an undo and a hint is a hint
-       whichever board is in front of you. Picking a colour is the extra bottle,
+       whichever board is in front of you. Picking a color is the extra bottle,
        so it arrives with the vessel and costs what a vessel costs. */
     const perks = progress.perks();
     openBubble({
       level, seed: level, rules: null, sandbox: false,
-      allow: { undo: perks.undo, hint: perks.hint, colour: perks.vessel,
+      allow: { undo: perks.undo, hint: perks.hint, color: perks.vessel,
                swap: perks.undo, bomb: perks.blast },
       prices: () => bubblePrices(),
       note: `dealt level ${level}`
@@ -484,7 +484,7 @@ export const App = (() => {
 
   /* What a bubble tool costs, taken from the purse the same way the pour game's
      are. Undo is free for the first few and priced after, a hint costs what a
-     hint costs, and a colour costs a vessel. Returning false refuses, and the
+     hint costs, and a color costs a vessel. Returning false refuses, and the
      refusal is recorded and heard exactly like every other one in this file. */
   /* What each bubble tool costs right now. One place, so the button and the
      charge cannot disagree: a control that says "free" and then takes eight gold
@@ -495,7 +495,7 @@ export const App = (() => {
       undo: S.undosUsed < perks.freeUndos
         ? { free: true, left: perks.freeUndos - S.undosUsed } : { cost: CONFIG.economy.undoCost },
       hint: S.hintsUsed < perks.freeHints ? { free: true } : { cost: perks.hintCost },
-      colour: { cost: CONFIG.economy.vessel },
+      color: { cost: CONFIG.economy.vessel },
       /* the bomb is this game's blast, so it is priced from the same key */
       bomb: { cost: CONFIG.economy.blast }
     };
@@ -604,7 +604,7 @@ export const App = (() => {
      decides nothing.
 
      Asked here rather than inline, because the card shown before a replay quotes
-     this number as a target and has to quote the one the run will honour. A card
+     this number as a target and has to quote the one the run will honor. A card
      promising three stars for twelve pours, in front of a run that will not
      score at all, is a worse lie than no target. */
   function parOf(level, tubes){
@@ -659,7 +659,7 @@ export const App = (() => {
      refused if it is below what the board plainly still needs — and the search
      that answers it is allowed eight seconds. Pours made during those seconds
      count, so par can arrive already spent, and nothing was asking. The counter
-     relabelled itself to no pours left and the run carried on underneath it.
+     relabeled itself to no pours left and the run carried on underneath it.
 
      So the question is asked wherever the answer can change, and answered in one
      place. */
@@ -772,7 +772,7 @@ export const App = (() => {
       commit(sel, i);
       return;
     }
-    /* The pour will not go: the target is full, or finished, or the colours do
+    /* The pour will not go: the target is full, or finished, or the colors do
        not meet. Rather than making the player tap twice to put one bottle down
        and pick the next one up, the tap is taken as picking that one up, which
        is what someone reaching for it meant. Only if it is not worth picking up
@@ -958,7 +958,7 @@ export const App = (() => {
     }
     const after = Rules.blast(S.tubes, index);
     S.tubes = after.tubes;
-    for (const colour of after.spilled) S.spilled.add(colour);
+    for (const color of after.spilled) S.spilled.add(color);
     S.blownUp = true;
     S.history = [];
     closeBlastPick();
@@ -1070,10 +1070,10 @@ export const App = (() => {
         if (!bubble) Board.nudge(S.level % Math.max(1, S.tubes.length));
       } else {
         Sound.win();
-        /* as many colours as the board actually had, and on a bubble level that
+        /* as many colors as the board actually had, and on a bubble level that
            is the other game's business rather than a 6 written down here */
         Confetti.rain(CONFIG.palette.slice(0,
-          bubble ? BubbleApp.colours : Levels.shape(S.level).colors));
+          bubble ? BubbleApp.colors : Levels.shape(S.level).colors));
       }
       $('veil').classList.add('show');
     }, failed ? 260 : 700);
@@ -1081,7 +1081,7 @@ export const App = (() => {
 
   /* ---------- wiring ---------- */
   /* Drawn rather than typed. An emoji speaker arrives in whatever the platform
-     feels like, which here was a grey plastic blob sitting in a gold and brown
+     feels like, which here was a gray plastic blob sitting in a gold and brown
      header; these are two paths in currentColor, so they are the same ink as
      everything around them at any size. */
   const ICON = {
@@ -1328,7 +1328,7 @@ export const App = (() => {
          guarded nothing: this runs while that same click is at the button, so
          the document's capture pass is already behind it and no listener added
          now can be handed it. What the tick did leave was a moment in which the
-         board was grey and the prompt was asking for a tap that would land on
+         board was gray and the prompt was asking for a tap that would land on
          nothing, which is a thin thing to look at but a real one to tap, and a
          moment the browser spec had to guess the length of. */
       const back = e => {
@@ -1417,7 +1417,7 @@ export const App = (() => {
 
     /* A resize while a pour is in flight cannot rebuild the board: render() wipes
        the bottles and would strand the animation mid air. Dropping it is worse
-       though, because nothing brings it back: the glass re-centres by itself in
+       though, because nothing brings it back: the glass re-centers by itself in
        CSS while the liquid keeps the geometry it measured before, so the two come
        apart and stay apart. So remember it and apply it once the pours land. */
     let rt;

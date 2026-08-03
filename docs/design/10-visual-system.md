@@ -1,12 +1,12 @@
 # 10 · Visual system
 
-Colour and type, and the single sources that keep them consistent. What is done
+Color and type, and the single sources that keep them consistent. What is done
 with them is [06 Bottles](06-bottles.md), [08 The room](08-room.md) and
 [09 The map](09-map.md).
 
 ## The liquid palette has one home
 
-`CONFIG.palette` is the only place a liquid colour is written down. The
+`CONFIG.palette` is the only place a liquid color is written down. The
 `--c0`…`--c11` custom properties the stylesheets use are **published from it at
 boot**.
 
@@ -15,9 +15,9 @@ other behind: the stylesheets moved to jewel tones and the pour kept arcing the
 old bright red into the new crimson bottles. It was invisible until a renderer
 that read the JavaScript side drew next to elements that read the CSS side.
 
-A test fails if a stylesheet defines a liquid colour again.
+A test fails if a stylesheet defines a liquid color again.
 
-## Twelve colours that stay apart
+## Twelve colors that stay apart
 
 `maxColors` is 12, and from level 17 onward every level deals all of them at once. A test asserts
 every pair of palette entries is far enough apart in RGB to be told apart.
@@ -26,9 +26,9 @@ It earns its place: it caught `#5B8FD6` and `#6E7FD6`, two blues 25 apart, which
 would have been dealt together on every level from 17 onward. A puzzle whose
 pieces cannot be distinguished is unsolvable however sound the logic is.
 
-The same test is the constraint on ever adding a thirteenth colour.
+The same test is the constraint on ever adding a thirteenth color.
 
-## The rest of the colour
+## The rest of the color
 
 Warm and dark, keyed to the drawn room: cream ink, dimmed ink for labels, gold and
 lit gold for anything of value, and a glass line that has to stay bright enough
@@ -53,6 +53,6 @@ the change cost nothing to ship.
 
 ## Motion
 
-`prefers-reduced-motion` is honoured by shortening durations to a floor rather
+`prefers-reduced-motion` is honored by shortening durations to a floor rather
 than removing animation, so sequences still read. Drawing is unaffected: a
 rendered liquid level is not motion.

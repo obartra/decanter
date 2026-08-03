@@ -13,7 +13,7 @@ import { describe, it, assert, read } from './helpers.mjs';
    gesture, which is the bug this shape was arrived at to fix.
 
    It was guarded by a tick instead for a while, which cost more than it bought:
-   the tap was live a tick after the board went grey, and a browser spec tapping
+   the tap was live a tick after the board went gray, and a browser spec tapping
    into that tick failed about one run in three under load. */
 const app = read('src/js/90-app.js');
 
@@ -42,6 +42,6 @@ describe('reading the board after the run', () => {
 
   it('arms it in the handler rather than a tick later', () => {
     assert(!/setTimeout\(/.test(peek),
-      'a tick here leaves the board grey and the prompt asking for a tap that lands on nothing');
+      'a tick here leaves the board gray and the prompt asking for a tap that lands on nothing');
   });
 });

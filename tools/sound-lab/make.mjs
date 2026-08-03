@@ -200,13 +200,13 @@ const DECANTER = [
   }
 ];
 
-/* Cues that stay synthesised, and why. These are not oversights and the lab says
+/* Cues that stay synthesized, and why. These are not oversights and the lab says
    so out loud, because "we forgot to pick one" and "a sample cannot do this" look
    identical from the outside. */
 const KEPT = [
   ['Pour', 'The pour is not a sound, it is a parameter. pourAt(p) ramps three filter frequencies as the receiving bottle fills, and that rising pitch is the cue an ear uses to hear "filling". A sample is fixed at the moment it was recorded, so this one cannot be bought.'],
   ['Glug', 'Pitched from the same fill level, for the same reason. It also plays on every step of every pour, so a fixed sample would loop audibly within one bottle.'],
-  ['Boom', 'Was here, on the grounds that sampling it would cost bytes to sound worse. Half of that was right and the half that mattered was not: the synthesised bang is a good imitation of an explosion and still sounds like an imitation, which is the one thing this cue cannot afford. It is a sample now, and the only one that ships. The bytes are paid by the people who type the word and nobody else.']
+  ['Boom', 'Was here, on the grounds that sampling it would cost bytes to sound worse. Half of that was right and the half that mattered was not: the synthesized bang is a good imitation of an explosion and still sounds like an imitation, which is the one thing this cue cannot afford. It is a sample now, and the only one that ships. The bytes are paid by the people who type the word and nobody else.']
 ];
 
 function fetchPacks(){
@@ -297,7 +297,7 @@ function page(){
   }).join('')}`).join('');
 
   const kept = `
-  <h1 class="game">Staying synthesised</h1>
+  <h1 class="game">Staying synthesized</h1>
   <section class="cue note">
     ${KEPT.map(([t, why]) => `<p class="why"><b>${esc(t)}</b> &middot; ${esc(why)}</p>`).join('')}
   </section>`;

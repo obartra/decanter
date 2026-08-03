@@ -74,7 +74,12 @@ describe('the workflow and the scripts it names', () => {
        came out of package.json, and the CI step naming it stayed. */
     const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
     const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
-    const named = [...yml.matchAll(/npm run ([\w:]+)/g)].map(m => m[1]);
+    /* Hyphens included. An npm script may have one, none here did until
+       `verify:test-budget`, and a pattern that stops at the hyphen does not miss
+       the step: it reads a shorter name that package.json has never heard of and
+       fails saying CI runs a script that does not exist. A scan that is wrong
+       about what it found is worse than one that finds nothing. */
+    const named = [...yml.matchAll(/npm run ([\w:-]+)/g)].map(m => m[1]);
     assert(named.length >= 5, `only found ${named.length} npm steps, so the scan has broken`);
     for (const name of new Set(named)){
       assert(scripts[name], `.github/workflows/ci.yml runs "npm run ${name}", which package.json does not define`);
@@ -121,7 +126,7 @@ describe('the workflow and the scripts it names', () => {
        no CI step is one nothing can fail a pull request with. */
     const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
     const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
-    const inCheck = [...scripts.check.matchAll(/npm run ([\w:]+)/g)].map(m => m[1]);
+    const inCheck = [...scripts.check.matchAll(/npm run ([\w:-]+)/g)].map(m => m[1]);
     for (const name of inCheck){
       assert(new RegExp(`npm run ${name}\\b`).test(yml),
         `npm run check runs "${name}" and no CI step does, so it cannot fail a pull request`);
@@ -415,12 +420,12 @@ describe('build output', () => {
 
   it('keeps the sound out of the critical bundle and fetches it afterwards', () => {
     /* Probed by content rather than by a banner: the bundler emits no markers,
-       and what matters is which bundle the synthesiser ended up in.
+       and what matters is which bundle the synthesizer ended up in.
 
        `pourNode` is the probe because it is the pour game's sound and nothing
        else's. The obvious choice — a Web Audio call — is wrong here and passed
        for the wrong reason while it lasted: the bubble game plays inside the
-       pour game's page, so its own synthesiser is in this bundle legitimately,
+       pour game's page, so its own synthesizer is in this bundle legitimately,
        and any name the two share says nothing about which one is present. */
     const js = text(assetNamed('app', 'js'));
     assert(!js.includes('pourNode'), 'the sound is still in the critical bundle');
@@ -648,7 +653,7 @@ describe('build output', () => {
   it('hands each build the bang it can actually reach', () => {
     /* The two outputs answer this differently and both answers are easy to get
        wrong in the direction nobody notices: a missing or unreachable recording
-       falls back to the synthesised bang, which still sounds, so the portable
+       falls back to the synthesized bang, which still sounds, so the portable
        file would go on working and simply stop being the sound it shipped with.
 
        The portable one has to carry the bytes. A file:// page fetching a sibling
@@ -1064,5 +1069,33 @@ describe('the games do not collide', () => {
           `${dir}/${mod} defines ${cue}() and nothing ever calls it`);
       }
     }
+  });
+});
+
+/* The tools that write sources are the one place a path can be wrong and stay
+   quiet. Everything else that names a file either reads it, and throws when it
+   is not there, or is a document, which the doc suite checks. A writer creates
+   whatever it is pointed at. */
+describe('the tools that write sources', () => {
+  it('writes every generated module where that module actually lives', () => {
+    /* When the browser-free modules moved into `pure/`, the pour game's two
+       generators were updated and the other two games' were not. Nothing failed,
+       because nothing runs them: `npm run casks:field` is a thing you run by
+       hand, months apart, and it would have written `src/casks/js/32-boards.js`
+       beside the real one in `pure/`.
+
+       That is worse than a tool that crashes. The build orders sources by
+       filename and ignores the folder, so both copies would go into the bundle,
+       the second silently overwriting the first's declarations, and the tables
+       the tool was run to update would be the ones that did not change. */
+    const wrong = [];
+    for (const tool of readdirSync(join(root, 'tools')).filter(f => f.endsWith('.mjs'))){
+      const src = read(`tools/${tool}`);
+      for (const m of src.matchAll(/writeFileSync\(join\(root, '([^']+)'/g)){
+        if (!existsSync(join(root, m[1])))
+          wrong.push(`tools/${tool} writes ${m[1]}, which is not where anything lives`);
+      }
+    }
+    equal(wrong, [], 'a generator points at a path nothing is at');
   });
 });

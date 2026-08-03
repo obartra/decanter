@@ -25,9 +25,9 @@ describe('a board drawn small', () => {
     }
   });
 
-  it('gives every unit its own colour, in the order the bottle holds them', () => {
-    const colours = [...Still.bottle([2, 5, 5, 0]).matchAll(/var\(--c(\d+)\)/g)].map(m => m[1]);
-    equal(colours, ['2', '5', '5', '0']);
+  it('gives every unit its own color, in the order the bottle holds them', () => {
+    const colors = [...Still.bottle([2, 5, 5, 0]).matchAll(/var\(--c(\d+)\)/g)].map(m => m[1]);
+    equal(colors, ['2', '5', '5', '0']);
   });
 
   it('paints nothing at all for an empty bottle', () => {
@@ -59,6 +59,6 @@ describe('a board drawn small', () => {
     const html = Still.bubbles(rows);
     equal((html.match(/stillRow odd/g) || []).length, 1);
     equal((html.match(/stillDot/g) || []).length, 4, 'an empty cell still holds its place');
-    assert(html.includes('#111') && html.includes('#222'), 'the colours handed over are the ones drawn');
+    assert(html.includes('#111') && html.includes('#222'), 'the colors handed over are the ones drawn');
   });
 });

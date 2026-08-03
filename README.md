@@ -1,7 +1,7 @@
 # Decanter
 
 A water sorting puzzle that runs entirely offline. Pour between bottles until
-each one holds a single colour. No servers, no network calls, no analytics.
+each one holds a single color. No servers, no network calls, no analytics.
 Fonts, icons, the one sound that is a recording, and the puzzle solver all ship
 with the app.
 
@@ -27,7 +27,7 @@ option, to add it to a home screen or dock.
 | `src/css/` | stylesheets, concatenated in filename order |
 | `src/js/pure/35-pars.js` | generated par table, committed. Never edit by hand |
 | `assets/fonts/` | Cinzel and Alegreya Sans, latin subsets, self-hosted |
-| `assets/audio/` | the only recording that ships. Every other sound is synthesised |
+| `assets/audio/` | the only recording that ships. Every other sound is synthesized |
 | `src/js/72-fluid.js` | the liquid: a world-space fill line masked by the glass |
 | `src/worker/solver.js` | A\* search that computes each level's par |
 | `tools/build.mjs` | the entire build. esbuild for the scripts, everything else by hand |
@@ -83,7 +83,7 @@ worse player than any person, and measuring against it makes every threshold
 look more earned than it is.
 
 `npm run bubble:survival` also reports how many turns are forced, which is the
-least obvious thing about this game: on roughly three turns in five the colour in
+least obvious thing about this game: on roughly three turns in five the color in
 hand cannot clear anything, so most shots are placements rather than decisions.
 
 ## The lab

@@ -69,7 +69,7 @@ export const loadBubble = (extra = []) => loadGame('bubble', extra);
 
    Everything else is deliberately absent: an import here runs that module in
    every test process, so the ones that only make sense in front of a document —
-   the views, the renderers, the synthesisers, the entry points — are not listed.
+   the views, the renderers, the synthesizers, the entry points — are not listed.
    They are the browser suite's business. `78-still.js` is the one exception, and
    is asked for by name by the suite that covers it. */
 /* The pour game, and everything shared */

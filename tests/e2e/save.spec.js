@@ -11,7 +11,7 @@
    The save is also the one input the game does not control. It has been on disk
    across versions, it has been through migrations, and browsers do lose bytes
    out of localStorage. `40-progress.js` is careful about all of this and the
-   unit suite checks its arithmetic, but "the module normalised the object" and
+   unit suite checks its arithmetic, but "the module normalized the object" and
    "the page came up" are two different claims and only one of them was checked.
 
    So: one valid save, mutated every way that is cheap to describe, opened for
@@ -21,7 +21,7 @@ import { test, expect } from '@playwright/test';
 import { startRaw, state } from './helpers.js';
 
 /* A save a real player would have, as the thing to break. Taken from the named
-   states so it stays a save the game recognises as current rather than a literal
+   states so it stays a save the game recognizes as current rather than a literal
    that slowly stops being one. */
 const WHOLE = { version: 1, layout: 5, ...state('firstChapter') };
 

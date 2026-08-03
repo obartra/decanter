@@ -3,7 +3,7 @@
    Split into its own file rather than folded into rules.test.mjs, because the
    interesting cases are not about pouring at all. They are about the board a
    blast leaves behind, and the ones worth asserting are precisely the ones
-   nobody would reach by playing: a colour stranded across two bottles, a target
+   nobody would reach by playing: a color stranded across two bottles, a target
    that would end the run, a shelf that solves itself the moment a bottle comes
    off it. */
 import { describe, it, assert, equal, loadPure, loadBubble } from './helpers.mjs';
@@ -17,27 +17,27 @@ describe('spilling', () => {
     /* The fast path is the old check, byte for byte, and every board the
        generator and the solver ever see goes through it. */
     equal(Rules.isSolved([[0,0,0,0],[1,1,1,1],[]]), true);
-    equal(Rules.isSolved([[0,0,0],[1,1,1,1]]), false, 'three of a colour is not four');
+    equal(Rules.isSolved([[0,0,0],[1,1,1,1]]), false, 'three of a color is not four');
     equal(Rules.isSolved([[0,1],[1,0]]), false);
     /* an empty spill set must not quietly become a different game */
     equal(Rules.isSolved([[0,0,0]], S([])), false, 'nothing spilled is nothing changed');
   });
 
-  it('stops asking a spilled colour for four', () => {
+  it('stops asking a spilled color for four', () => {
     equal(Rules.isSolved([[0,0,0],[]], S([0])), true, 'three reds, and red is all there is');
     equal(Rules.isSolved([[0],[]], S([0])), true, 'one is enough once four is off the table');
   });
 
-  it('still makes a spilled colour be gathered', () => {
+  it('still makes a spilled color be gathered', () => {
     /* The clause four units used to imply for free. Two uniform bottles of the
-       same spilled colour are each "one colour all the way down" and neither
+       same spilled color are each "one color all the way down" and neither
        will ever be full, so a per-bottle test alone calls this sorted while the
        player is plainly looking at red in two places. */
     equal(Rules.isSolved([[0,0],[0]], S([0])), false, 'red in two bottles is not sorted');
     equal(Rules.isSolved([[0,0,0],[]], S([0])), true, 'the same red, gathered');
   });
 
-  it('holds every colour the blast did not touch to four', () => {
+  it('holds every color the blast did not touch to four', () => {
     equal(Rules.isSolved([[0,0,0,0],[1,1,1]], S([0])), false, 'blue was never spilled');
     equal(Rules.isSolved([[0,0,0,0],[1,1]], S([1])), true, 'but this one was');
     equal(Rules.isSolved([[0,0],[1,1]], S([0, 1])), true, 'both spilled, both gathered');
@@ -55,11 +55,11 @@ describe('blasting a bottle', () => {
     const before = [[0,1,0,1],[1,0,1,0],[]];
     const after = Rules.blast(before, 1);
     equal(after.tubes, [[0,1,0,1],[]], 'the shelf is one shorter');
-    equal(after.spilled.slice().sort(), [0,1], 'both colours it held are spilled');
+    equal(after.spilled.slice().sort(), [0,1], 'both colors it held are spilled');
     equal(before, [[0,1,0,1],[1,0,1,0],[]], 'and the board it was asked about is untouched');
   });
 
-  it('spills each colour once, however many units it held', () => {
+  it('spills each color once, however many units it held', () => {
     equal(Rules.blast([[2,2,2,2]], 0).spilled, [2]);
     equal(Rules.blast([[3]], 0).spilled, [3]);
   });
@@ -300,7 +300,7 @@ describe('the bomb, in the other game', () => {
       const b = BR.dealBoard(5, rng(9));
       b.parity = parity;
       const cells = BR.within(b, 3, 4);
-      equal(cells.length, 7, `parity ${parity}: the centre and its six`);
+      equal(cells.length, 7, `parity ${parity}: the center and its six`);
       for (const [j, c] of cells){
         assert(Math.abs(j - 3) <= 1, 'nothing further than one row away');
         assert(G.at(b, j, c) !== G.EMPTY, 'and nothing empty in the list');
@@ -315,7 +315,7 @@ describe('the bomb, in the other game', () => {
 
   it('takes fewer at a wall, and nothing from open sky', () => {
     const b = BR.dealBoard(5, rng(3));
-    assert(BR.within(b, 0, 0).length < 7, 'a corner has fewer neighbours');
+    assert(BR.within(b, 0, 0).length < 7, 'a corner has fewer neighbors');
     equal(BR.within(b, 12, 4).length, 0, 'and empty rows have nothing to give');
   });
 
@@ -327,11 +327,11 @@ describe('the bomb, in the other game', () => {
     equal(G.occupied(b).length, before - res.matched.length - res.cut.length,
       'and the board lost exactly what the two lists say it did');
     for (const cell of res.matched.concat(res.cut))
-      equal(cell.length, 3, 'every cell carries the colour it held, for the fall');
+      equal(cell.length, 3, 'every cell carries the color it held, for the fall');
   });
 
   it('caps a run that used one, even a cleared one', () => {
-    /* Same flag, same cap, same reason as picking a colour: what a bomb clears
+    /* Same flag, same cap, same reason as picking a color: what a bomb clears
        is nothing the shot chooser could have cleared, so the thresholds it is
        graded against are describing a different game. */
     equal(Sc.stars({ cleared: false, shots: BC.STAR_SHOTS.three, aided: true }), BC.AID_CAP);

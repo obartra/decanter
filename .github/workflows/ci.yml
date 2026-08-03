@@ -68,9 +68,23 @@ jobs:
       - name: Every par is reachable
         run: npm run verify:pars
 
+  # Split across runners rather than across cores.
+  #
+  # A runner has four of them and every worker drives a game that animates
+  # through a software renderer, so two workers is already most of the machine.
+  # Asking one runner for more is how the suite starts failing on teardown
+  # timeouts that read as flaky specs; asking for another runner is not. The
+  # fixed cost of a shard is about thirty seconds, nearly all of it the browser
+  # download, which is why four of them is worth it and why more stops being so.
   e2e:
-    name: end to end
+    name: end to end ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    strategy:
+      # One shard failing must not cancel the others: the budget below needs
+      # every report, and a red shard is more useful beside the green ones.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -81,15 +95,88 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # Keyed on the resolved playwright version rather than on the lockfile as
+      # a whole, so a change to any other dependency does not throw the browser
+      # away. Four shards download it four times without this.
+      - name: Cache the browser
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install browser
         run: npx playwright install --with-deps chromium
 
+      # `blob` rather than the usual reporters: a shard only ever sees its own
+      # quarter of the suite, so the one thing it must not do is write a report
+      # that looks like the whole thing. The merge below turns four of them back
+      # into one.
       - name: End to end
-        run: npm run test:e2e
+        run: npx playwright test --shard=${{ matrix.shard }}/4 --reporter=blob
 
-      - if: failure()
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report
-          retention-days: 7
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 1
+
+  # The budget cannot run on a shard. It measures how the suite's time is
+  # divided, and a quarter of the suite divided up is a different set of numbers:
+  # a spec that lands entirely in one shard reads as a far larger share of it
+  # than it is of the whole. So the shards hand back blobs and this puts them
+  # together first.
+  e2e-budget:
+    name: the suite spends its time where it should
+    runs-on: ubuntu-latest
+    needs: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      # Named through the environment rather than redirected, because the json
+      # reporter writes to stdout only when it has nowhere else to go, and a
+      # redirect that silently captured nothing would leave the budget reading
+      # the report from whatever ran last.
+      - name: One report out of four
+        run: |
+          mkdir -p test-results
+          PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/report.json \
+            npx playwright merge-reports --reporter json all-blob-reports
+
+      # Shares rather than seconds: a cap in seconds would be a statement about
+      # how fast this runner happens to be, and would either fail for a reason
+      # nobody can act on or catch nothing.
+      - name: The suite spends its time where it should
+        run: npm run verify:test-budget
+
+  # The name `main`'s protection actually requires.
+  #
+  # The shards each report under a name of their own, so none of them is the
+  # check that says "the browser suite passed" — this is. It runs even when a
+  # shard fails, because a required check that is skipped rather than failed
+  # leaves a pull request that can neither merge nor go red, which is a worse
+  # outcome than either.
+  e2e-gate:
+    name: end to end
+    runs-on: ubuntu-latest
+    needs: [e2e, e2e-budget]
+    if: always()
+    steps:
+      - name: Every shard passed, and the budget with them
+        run: |
+          echo "shards: ${{ needs.e2e.result }}"
+          echo "budget: ${{ needs.e2e-budget.result }}"
+          [ "${{ needs.e2e.result }}" = "success" ] || exit 1
+          [ "${{ needs.e2e-budget.result }}" = "success" ] || exit 1

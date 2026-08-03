@@ -3,7 +3,7 @@
 
    THIS GAME IS GRADED BY EXACT PAR. The bubble game is not, and 45-score.js over
    there says why: "the next bubble is dealt at random, so the board is not
-   perfect information, and the aim discretises to about thirty landing cells
+   perfect information, and the aim discretizes to about thirty landing cells
    across a run of thirty-odd shots. There is nothing to search." So it grades
    against a measured distribution of run lengths instead, which is a real claim
    about a real thing, just a different kind of thing than par.

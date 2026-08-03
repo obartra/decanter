@@ -70,7 +70,7 @@ describe('casks rules', () => {
       'the move list offered a cell the cask cannot slide through');
   });
 
-  it('counts one move however far the cask travelled', () => {
+  it('counts one move however far the cask traveled', () => {
     /* The rule docs/design/01-puzzle.md decides for all three games. A move is
        {cask, to} and carries no distance at all, which is the cheapest possible
        way of making it impossible to charge for one. */
@@ -348,7 +348,7 @@ describe('casks scoring', () => {
   });
 
   it('caps a run that leaned on undo or hint', () => {
-    /* Both cap here, where the bubble game caps for picking a colour only. On a
+    /* Both cap here, where the bubble game caps for picking a color only. On a
        perfect information board with a known minimum, an unlimited free undo is
        a solver and the hint simply names the answer; the pour game charges gold
        for both, and this page has no purse to charge. */

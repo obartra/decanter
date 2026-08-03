@@ -67,7 +67,7 @@ sampling from is mostly trivial to begin with. Abandoned.
 **The backward sweep, done naively.** Correct, and the right idea, but it
 re-derived the geometry on every visit: once to walk the component and again to
 sweep it, rebuilding the occupancy grid and every cask's run each time.
-`CasksSearch.component` now keeps the neighbour lists it built while walking and
+`CasksSearch.component` now keeps the neighbor lists it built while walking and
 the sweep reuses them, and states are keyed with `String.fromCharCode` rather
 than a joined string. The same field went from unmeasurable to a few minutes.
 
@@ -130,7 +130,7 @@ again.
 
 The bubble game's `45-score.js` says why it grades against a measured
 distribution: *"the next bubble is dealt at random, so the board is not perfect
-information, and the aim discretises to about thirty landing cells across a run
+information, and the aim discretizes to about thirty landing cells across a run
 of thirty-odd shots. There is nothing to search."* That is a real claim about a
 real thing.
 
@@ -257,7 +257,7 @@ window is a different room.
 
 Two things have to be legible at a glance and everything else serves them:
 
-- **Which cask is the gilt one.** Colour — the same two golds the wordmark and
+- **Which cask is the gilt one.** Color — the same two golds the wordmark and
   the stars use. It is the only object in the room that is not brown, which is
   why it needs no label.
 - **Which way each cask can go.** The staves run *along* a cask's length and the
@@ -285,7 +285,7 @@ just not on the thing under your finger.
 ### The input, and why it is not two taps
 
 The measure takes two taps and refuses a drag, and gives good reasons: a drag has
-to be tracked, can be cancelled halfway, and fights the browser's own gestures on
+to be tracked, can be canceled halfway, and fights the browser's own gestures on
 a phone. Every one of those is still true here, and this game takes the drag
 anyway.
 

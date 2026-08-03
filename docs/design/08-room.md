@@ -19,7 +19,7 @@ single image never could.
 The images also cost 9.3MB of source and 420KB shipped. The drawn room costs
 nothing, and the whole app is now smaller than the art used to be.
 
-## Colour
+## Color
 
 Sampled from the reference art before it was deleted, so the drawn room inherits
 the painted one's palette: near black at the top through warm browns to a glow at

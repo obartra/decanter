@@ -1,8 +1,8 @@
 /* The lattice, and the board that sits on it.
 
    This file knows about cells, where they are, and which ones touch. It knows
-   nothing about colour, matching, shots or drawing. Everything above it depends
-   on the six-neighbour adjacency here being exactly right, so it is worth
+   nothing about color, matching, shots or drawing. Everything above it depends
+   on the six-neighbor adjacency here being exactly right, so it is worth
    keeping small enough to hold in your head.
 
    Rows are staggered. A row is either flush against the left wall or indented by
@@ -29,7 +29,7 @@ export const BubbleGrid = (() => {
 
   /* Exact and total: computed from the indices every time, never accumulated by
      stepping down the rows, which drifts. */
-  function centreOf(board, j, c){
+  function centerOf(board, j, c){
     return { x: 0.5 + c + 0.5 * indent(board, j), y: 0.5 + C.ROW_H * j };
   }
 
@@ -45,12 +45,12 @@ export const BubbleGrid = (() => {
   const FLUSH = [[0, -1], [0, 1], [-1, -1], [-1, 0], [1, -1], [1, 0]];
   const INDENTED = [[0, -1], [0, 1], [-1, 0], [-1, 1], [1, 0], [1, 1]];
 
-  function neighbours(board, j, c){
+  function neighbors(board, j, c){
     const table = indent(board, j) ? INDENTED : FLUSH;
     const out = [];
     for (const [dj, dc] of table){
       const nj = j + dj, nc = c + dc;
-      /* filtered, never clamped: a clamped neighbour is a cell that is not
+      /* filtered, never clamped: a clamped neighbor is a cell that is not
          actually adjacent, and it will happily join a cluster it does not touch */
       if (inBounds(nj, nc)) out.push([nj, nc]);
     }
@@ -96,6 +96,6 @@ export const BubbleGrid = (() => {
     return out;
   };
 
-  return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
+  return { EMPTY, indent, centerOf, inBounds, at, isEmpty, neighbors,
            create, advance, hash, occupied, emptyRow };
 })();

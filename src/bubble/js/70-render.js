@@ -1,6 +1,6 @@
 /* Drawing. Reads state, never changes it.
 
-   Bubbles are drawn a little over half a diameter so neighbours overlap
+   Bubbles are drawn a little over half a diameter so neighbors overlap
    slightly. A bubble drawn at exactly half leaves a hairline between touching
    cells, and the eye reads that hairline as a gap a shot could pass through,
    which the physics will not allow. Better for the art to promise slightly less
@@ -19,15 +19,15 @@ export const BubbleRender = (() => {
   const GLASS_RIM = 'rgba(246,234,212,.42)';
   const GLASS_BODY = 'rgba(20,14,8,.55)';
 
-  /* A glass sphere with liquid in it, rather than a coloured ball.
+  /* A glass sphere with liquid in it, rather than a colored ball.
 
-     The difference is that the colour is not the surface. The glass is drawn
+     The difference is that the color is not the surface. The glass is drawn
      first and dark, the liquid sits inside it and stops short of the rim, and
      the two highlights on top belong to the glass rather than to the liquid: one
      long band down the left and one specular where the light actually lands.
      That is the same three-part construction the bottles use, and it is what
      stops a pale liquid reading as a flat disc. */
-  function bubble(ctx, x, y, colour, r = C.DRAW_R, alpha = 1){
+  function bubble(ctx, x, y, color, r = C.DRAW_R, alpha = 1){
     ctx.globalAlpha = alpha;
 
     ctx.fillStyle = GLASS_BODY;
@@ -38,9 +38,9 @@ export const BubbleRender = (() => {
     /* the liquid, lit from the upper left and deepening to the far side */
     const lr = r * 0.85;
     const g = ctx.createRadialGradient(x - lr * 0.34, y - lr * 0.4, lr * 0.06, x, y, lr);
-    g.addColorStop(0, shade(colour, 0.5));
-    g.addColorStop(0.42, colour);
-    g.addColorStop(1, shade(colour, -0.5));
+    g.addColorStop(0, shade(color, 0.5));
+    g.addColorStop(0.42, color);
+    g.addColorStop(1, shade(color, -0.5));
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(x, y, lr, 0, Math.PI * 2);
@@ -55,7 +55,7 @@ export const BubbleRender = (() => {
     ctx.ellipse(x - r * 0.29, y - r * 0.45, r * 0.23, r * 0.12, -0.5, 0, Math.PI * 2);
     ctx.fill();
 
-    /* the rim, so a sphere against a sphere of a near colour still reads as two */
+    /* the rim, so a sphere against a sphere of a near color still reads as two */
     ctx.lineWidth = r * 0.08;
     ctx.strokeStyle = GLASS_RIM;
     ctx.beginPath();
@@ -73,7 +73,7 @@ export const BubbleRender = (() => {
 
   function board(ctx, b){
     for (const [j, c] of G.occupied(b)){
-      const p = G.centreOf(b, j, c);
+      const p = G.centerOf(b, j, c);
       bubble(ctx, p.x, p.y, C.PALETTE[b.rows[j][c] % C.PALETTE.length]);
     }
   }
@@ -82,7 +82,7 @@ export const BubbleRender = (() => {
      line, and stopping short, because a guide that draws the whole path to the
      landing cell turns aiming into reading a readout. It fades along its length
      so the end of it does not look like a promise. */
-  function guide(ctx, points, colour, phase){
+  function guide(ctx, points, color, phase){
     let drawn = 0, bounces = 0;
     for (let i = 1; i < points.length && drawn < C.GUIDE_LEN; i++){
       const a = points[i - 1], b2 = points[i];
@@ -96,7 +96,7 @@ export const BubbleRender = (() => {
       for (let s = (phase % C.GUIDE_DOT_GAP); s < len && drawn + s < C.GUIDE_LEN; s += C.GUIDE_DOT_GAP){
         const t = Math.max(0, Math.min(1, (drawn + s) / C.GUIDE_LEN));
         ctx.globalAlpha = 0.9 - 0.65 * t;
-        ctx.fillStyle = colour;
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(a.x + ux * s, a.y + uy * s, C.GUIDE_DOT_R * (1 - 0.8 * t), 0, Math.PI * 2);
         ctx.fill();
@@ -130,7 +130,7 @@ export const BubbleRender = (() => {
      the path as well would hand over the aim too and leave nothing to do. */
   function target(ctx, board, cell, now){
     if (!cell) return;
-    const p = G.centreOf(board, cell.j, cell.c);
+    const p = G.centerOf(board, cell.j, cell.c);
     const pulse = 0.5 + 0.5 * Math.sin(now / 260);
     ctx.strokeStyle = `rgba(244,217,160,${0.35 + 0.4 * pulse})`;
     ctx.lineWidth = 0.07;
@@ -158,8 +158,8 @@ export const BubbleRender = (() => {
   /* What marks a bomb, drawn over the dark bubble that carries it.
 
      A separate primitive rather than a seventh palette entry, and that is the
-     whole point of it: everything else in here turns a colour index into a css
-     colour, and a bomb is not a colour. Giving it one would put a value into
+     whole point of it: everything else in here turns a color index into a css
+     color, and a bomb is not a color. Giving it one would put a value into
      the palette that the board, the deal and the falling debris could all
      reach, and any of them drawing it would mean a bubble nobody can match.
 

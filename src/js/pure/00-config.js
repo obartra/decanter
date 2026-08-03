@@ -8,7 +8,7 @@ export const CONFIG = {
      cached, which belongs to a board that no longer exists. It does not touch
      what a player earned; see 40-progress.js. */
   layout: 5,
-  /* Liquid palette, index === colour id, and the only place a liquid colour is
+  /* Liquid palette, index === color id, and the only place a liquid color is
      written down. The --cN custom properties the stylesheets use are published
      from here at boot, so the bands, the pour and the particle sim cannot drift
      apart the way they did when the palette lived in two files.

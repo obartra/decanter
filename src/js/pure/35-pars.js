@@ -8,6 +8,6 @@
    a known par a run cannot be scored: rate() has no bar to measure against, so it
    awards full marks, which past the end of the table would mean a level that can
    neither be failed nor played badly, paying out forever. Solving in the browser
-   is the fallback for a level whose par is missing, not a licence to ship one. */
+   is the fallback for a level whose par is missing, not a license to ship one. */
 export const PARS = Object.freeze({1:12,2:12,3:18,4:16,5:16,6:17,7:25,8:23,9:24,10:27,11:30,12:32,13:28,14:32,15:32,16:36,17:39,18:37,19:38,20:39,21:39,22:35,23:37,24:38,25:38,26:37,27:39,28:36,29:40,30:36,31:38,32:38,33:36,34:37,35:38,36:38,37:37,38:37,39:38,40:34,41:38,42:38,43:38,44:37,45:38,46:39,47:37,48:41,49:36,50:34,51:40,52:38,53:39,54:39,55:39,56:37,57:37,58:38,59:36,60:36,61:39,62:40,63:41,64:37,65:38,66:36,67:38,68:36,69:38,70:37,71:36,72:40,73:41,74:37,75:37,76:40,77:38,78:39,79:37,80:37,81:35,82:38,83:36,84:39,85:37,86:39,87:40,88:39,89:39,90:40,91:38,92:39,93:37,94:37,95:39,96:39,97:40,98:36,99:41,100:37,101:39,102:42,103:40,104:40,105:37,106:34,107:39,108:38,109:40,110:40,111:39,112:38,113:40,114:38,115:38,116:38,117:40,118:40,119:38,120:38});
 export const LAST_LEVEL = 120;

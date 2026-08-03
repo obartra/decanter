@@ -13,6 +13,9 @@ dist/
 # browser test output
 test-results/
 playwright-report/
+# the per-shard reports CI merges back into one
+blob-report/
+all-blob-reports/
 
 # sound lab: candidates, pack cache and the generated page are all derived,
 # see tools/sound-lab/make.mjs

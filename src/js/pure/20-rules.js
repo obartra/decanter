@@ -5,7 +5,7 @@ export const Rules = (() => {
   const CAP = CONFIG.capacity;
 
   const clone = tubes => tubes.map(t => t.slice());
-  /* one colour all the way down. True of an empty bottle, which every caller
+  /* one color all the way down. True of an empty bottle, which every caller
      either wants or has already ruled out. */
   const uniform = t => t.every(c => c === t[0]);
   const isFull = t => t.length === CAP && uniform(t);
@@ -13,8 +13,8 @@ export const Rules = (() => {
   /* When a bottle counts as finished, and the one place the blast reaches into
      the laws of the game.
 
-     Four units of a colour is the win condition, not an incident of the deal. So
-     destroying part of a stack strands the rest of that colour forever: it can
+     Four units of a color is the win condition, not an incident of the deal. So
+     destroying part of a stack strands the rest of that color forever: it can
      never make four again, the board can never be solved, and nothing would say
      so — an unwinnable board is neither stuck (there are still legal pours) nor
      short (the lower bound on the work left is still a number the player is
@@ -22,14 +22,14 @@ export const Rules = (() => {
      until the count ran out. A tool bought to rescue a run must not be able to
      end it in silence.
 
-     So the requirement moves with the liquid. A colour the blast took units from
-     is spilled, and a spilled colour is finished once it is gathered rather than
+     So the requirement moves with the liquid. A color the blast took units from
+     is spilled, and a spilled color is finished once it is gathered rather than
      once it reaches four. It still has to be gathered — that is what keeps the
      blast from handing the level over rather than buying pours for it.
 
      Two branches, and they are the same rule said at two levels of detail. The
-     real condition has always been *every bottle holds one colour, and no colour
-     is in two bottles*. Without spilling those collapse into "four of a colour in
+     real condition has always been *every bottle holds one color, and no color
+     is in two bottles*. Without spilling those collapse into "four of a color in
      one bottle", because every deal makes exactly four of each and four cannot
      fill two bottles — so the fast path is today's check, unchanged and free, and
      it is what the generator, the solver and every unblasted board run through.
@@ -88,7 +88,7 @@ export const Rules = (() => {
   }
   /* depth-first probe, used at generation time to reject dead boards cheaply */
   /* The fewest pours that could possibly finish this board: one per contiguous
-     run of colour, less the one run per colour that is allowed to remain. A pour
+     run of color, less the one run per color that is allowed to remain. A pour
      moves one maximal run and can close at most one, so this can never overstate
      what is left to do. Understating it is fine and expected.
 
@@ -99,14 +99,14 @@ export const Rules = (() => {
      still have won. */
   function minPours(tubes){
     let segments = 0;
-    const colours = new Set();
+    const colors = new Set();
     for (const t of tubes){
       for (let i = 0; i < t.length; i++){
         if (i === 0 || t[i] !== t[i - 1]) segments++;
-        colours.add(t[i]);
+        colors.add(t[i]);
       }
     }
-    return segments - colours.size;
+    return segments - colors.size;
   }
 
   /* Pours left before the run is lost. A run fails one pour past the last one
@@ -210,7 +210,7 @@ export const Rules = (() => {
      things worse:
 
      - An empty one. It spills nothing and takes a slot away, so it can only hurt.
-     - A finished one. Its colour is already gathered; destroying it undoes work
+     - A finished one. Its color is already gathered; destroying it undoes work
        and takes the slot with it.
      - Any whose removal ends the run. A blast can strand a board — take away the
        last bottle anything could pour into and there are no legal moves left —

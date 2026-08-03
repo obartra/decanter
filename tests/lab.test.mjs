@@ -104,9 +104,9 @@ describe('lab knobs', () => {
       assert(app.includes(`cfg.${key} =`), `the lab does not put ${key} back`);
       assert(cfg.includes(`BubbleConfig.${key} =`), `the bubble game no longer derives ${key}`);
     }
-    /* The arithmetic itself, with the two spellings normalised. MUZZLE used to
+    /* The arithmetic itself, with the two spellings normalized. MUZZLE used to
        be excluded here because the game writes it over three lines — but `[^;]`
-       spans newlines and the whitespace is normalised away, so the only thing
+       spans newlines and the whitespace is normalized away, so the only thing
        that exclusion bought was a derived value with an existence check and no
        agreement check. */
     const norm = s => s.replace(/BubbleConfig\.|cfg\./g, '').replace(/\s+/g, '');

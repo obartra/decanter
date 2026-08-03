@@ -48,7 +48,7 @@ how it went.
 
 The bubble game's `45-score.js` says why it grades against a measured
 distribution: *"the next bubble is dealt at random, so the board is not perfect
-information, and the aim discretises to about thirty landing cells across a run
+information, and the aim discretizes to about thirty landing cells across a run
 of thirty-odd shots. There is nothing to search."* That is a real claim about a
 real thing.
 
@@ -255,7 +255,7 @@ The picture is **one horizontal line**.
 Every vessel stands on the same shelf and **one unit of wine is one unit tall in
 all of them**, so the target is a single straight rule across a bench of wildly
 different glass and every vessel's distance from it can be read at a glance
-without arithmetic. Draw each vessel normalised to its own capacity instead and
+without arithmetic. Draw each vessel normalized to its own capacity instead and
 that line fragments into four unrelated marks, and the puzzle stops being visible.
 
 The consequence is deliberate: **vessels are all the same width** and differ only
@@ -298,7 +298,7 @@ leaves the graduations readable throughout — which matters, because they are w
 the player is watching.
 
 Two taps make a pour, one to take a vessel in hand and one to say where it goes.
-Not a drag: a drag has to be tracked, can be cancelled halfway, fights the
+Not a drag: a drag has to be tracked, can be canceled halfway, fights the
 browser's own gestures on a phone, and hides the vessel in hand between the two
 decisions.
 

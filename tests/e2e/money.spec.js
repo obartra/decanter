@@ -21,9 +21,34 @@ const cfg = page => page.evaluate(() => globalThis.CONFIG.economy);
 
 /* Play a level out properly. Nothing here reaches into the board: the line comes
    from the page's own solver, so the run is one a player could have had. */
+/* Every pour but the last is applied through the game's own rules without
+   animating; the last one is played.
+
+   The run is still the solver's line, move for move, so it is still a run a
+   player could have had, and it still arrives at the panel through the real
+   thing: the last pour is a real tap on a real bottle, and the win, the stars,
+   the gold and the panel all come from the game noticing that pour landed. What
+   is skipped is watching the eleven before it, which no assertion in this file
+   reads. That cost ten seconds a test and bought nothing here, because what this
+   file is about is the arithmetic on the other side of the win.
+
+   `play.spec.js` still plays a level pour by pour at full speed, which is where
+   that coverage lives and where it should: the bug this would have hidden, a run
+   scored three stars six pours into a board with a par of thirty nine, was a bug
+   about the counting during a run, not about the panel after it. */
 async function clear(page, level){
   await openLevel(page, level);
-  for (const [from, to] of await optimalLine(page)) await pour(page, from, to);
+  const line = await optimalLine(page);
+  await page.evaluate(moves => {
+    const S = globalThis.App._state, R = globalThis.Rules;
+    for (const [from, to] of moves){
+      R.applyMove(S.tubes, { from, to, n: R.pourAmount(S.tubes, from, to) });
+      S.moves++;
+    }
+    globalThis.Board.view = R.clone(S.tubes);
+    globalThis.Board.render();
+  }, line.slice(0, -1));
+  await pour(page, ...line[line.length - 1]);
   await settle(page);
   await expect(page.locator('#veil')).toHaveClass(/show/);
 }

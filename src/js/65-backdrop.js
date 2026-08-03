@@ -6,7 +6,7 @@
    and the shelving is built under them, so it is aligned at any size by
    construction rather than by luck.
 
-   Colours are sampled from the reference art before it was deleted: near black
+   Colors are sampled from the reference art before it was deleted: near black
    at the top, warm brown through the middle, a glow at the base, candlelight at
    #D59738. The moss behind the map comes from the same source, #151A0B to
    #868552.

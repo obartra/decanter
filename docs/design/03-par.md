@@ -8,21 +8,21 @@ cannot be.
 
 A\* over board states, with a bucket queue and a closed set.
 
-**Heuristic.** `h = (total contiguous colour segments) − (number of colours)`.
+**Heuristic.** `h = (total contiguous color segments) − (number of colors)`.
 
 **Why it is admissible.** A pour moves one maximal run. The source loses that
 segment only if the whole run moves; the target either merges with a matching top
 or starts a new segment. Working the cases through, no single pour can reduce the
 total segment count by more than one, and the solved state has exactly one
-segment per colour. So the remaining distance is never less than `h`.
+segment per color. So the remaining distance is never less than `h`.
 
 That last step leans on a property of the **generator**, not of the rules: every
-colour is dealt exactly `capacity` units, so every colour finishes in exactly one
-bottle. A level that gave some colour two bottles' worth would end with more
-segments than colours, `h` would overshoot at the goal, and par could come back
-too high with nothing to show for it. Deal colours in whole bottles, or change
+color is dealt exactly `capacity` units, so every color finishes in exactly one
+bottle. A level that gave some color two bottles' worth would end with more
+segments than colors, `h` would overshoot at the goal, and par could come back
+too high with nothing to show for it. Deal colors in whole bottles, or change
 `h` to subtract the number of filled bottles the solved state needs rather than
-the number of colours. See [02 Levels](02-levels.md).
+the number of colors. See [02 Levels](02-levels.md).
 
 **Why it is consistent.** Segment count never increases, and drops by at most one
 per move, so `h(n) ≤ 1 + h(n')` for every successor. With a consistent heuristic
@@ -36,7 +36,7 @@ truth rather than above it. Constraints can only make an admissible heuristic
 more conservative.
 
 The direction that would matter is the opposite one, and it has a single known
-cause: the whole-bottle requirement above. If a colour ever spanned two bottles,
+cause: the whole-bottle requirement above. If a color ever spanned two bottles,
 `h` would overshoot at the goal and par could come back **too high**, giving a
 level easier than advertised, never one that cannot be finished.
 
@@ -101,7 +101,7 @@ gold is the one thing the economy is explicitly built to avoid, see
 So the frontier is clamped in `40-progress.js` (on load, on clear, and on
 purchase), the map's lookahead is clamped in `80-map.js`, and the end-of-run panel
 stops offering a next level. Solving in the browser stays as the fallback for a
-level whose par is missing; it is not a licence to ship one.
+level whose par is missing; it is not a license to ship one.
 
 Extending the game means extending the table, not lifting the cap.
 

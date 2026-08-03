@@ -159,7 +159,7 @@
   pointer-events:none;
 }
 /* The bottle in flight and its contents ride above the bottles standing still,
-   so a tilt that leans over a neighbour is not cut off by that neighbour's
+   so a tilt that leans over a neighbor is not cut off by that neighbor's
    glass. Just under the pouring bottle's own glass, so the liquid still reads as
    being inside it. */
 .fluidTop{

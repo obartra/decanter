@@ -314,7 +314,7 @@ describe('measure scoring', () => {
   });
 
   it('caps a run that leaned on undo or hint', () => {
-    /* Both cap here, where the bubble game caps for picking a colour only. On a
+    /* Both cap here, where the bubble game caps for picking a color only. On a
        perfect information board with a known minimum, an unlimited free undo is
        a solver and the hint simply names the answer; the pour game charges gold
        for both, and this page has no purse to charge. */

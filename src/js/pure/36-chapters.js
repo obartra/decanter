@@ -31,7 +31,7 @@ export const Chapters = (() => {
   const CHAPTERS = [
     {
       grant: 'undo',
-      blurb: 'Pour between bottles to gather each colour. A pour only goes onto its own colour, or into an empty bottle. Down here you can always take one back.'
+      blurb: 'Pour between bottles to gather each color. A pour only goes onto its own color, or into an empty bottle. Down here you can always take one back.'
     },
     {
       grant: 'hint',

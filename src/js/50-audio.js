@@ -1,4 +1,4 @@
-/* Every sound the game itself makes is synthesised at runtime. The pour is
+/* Every sound the game itself makes is synthesized at runtime. The pour is
    broadband noise shaped by two resonant peaks that rise in pitch as the
    receiving bottle fills, which is the cue an ear uses to hear "filling".
 
@@ -50,7 +50,7 @@ const Sound = (() => {
   }
   /* Plays a decoded recording, forced like the rest of the bang and loud on
      purpose. Not full scale, because three of these overlap: at 0.8 the three
-     together peak at 0.49 of full scale against the synthesised bang's 0.25, so
+     together peak at 0.49 of full scale against the synthesized bang's 0.25, so
      it is twice the peak and three times the loudness of what it replaces and
      still has half the headroom left. A recording swapped in hotter than this
      one is what would spend that headroom, which is why a test measures the mix
@@ -71,12 +71,12 @@ const Sound = (() => {
      want to be nearly nothing. A bang is where all of that stops applying.
      Nothing in the puzzle makes this noise, it is never pitched, and its entire
      job is to be bigger than the game around it, which is the one job a
-     synthesised imitation of an explosion cannot do, however carefully it is
+     synthesized imitation of an explosion cannot do, however carefully it is
      tuned.
 
      Fetched when the bang is called for rather than at startup, so a player who
      never types the word never pays for it. Failure is not handled because there
-     is nothing to handle: the synthesised bang below is still there, and a
+     is nothing to handle: the synthesized bang below is still there, and a
      celebration that falls back to it is a celebration nobody notices was
      downgraded. */
   let boomBuf = null, boomFetch = null;
@@ -84,7 +84,7 @@ const Sound = (() => {
     if (boomFetch) return boomFetch;
     /* The build writes this, as a path or as the bytes themselves. Sources
        served unbuilt have no such tag, and neither would a build whose file went
-       missing; both land on the synthesised bang. */
+       missing; both land on the synthesized bang. */
     const src = document.querySelector('meta[name="boom"]')?.content;
     if (!src) return (boomFetch = Promise.resolve());
     init();

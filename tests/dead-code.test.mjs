@@ -4,7 +4,7 @@
    pattern that finds a module stops matching, it reports a clean repository
    forever and the green tick means nothing, so the interesting assertions here
    are not "it found the dead thing" but "it looked at anything at all" and "it
-   still recognises the shapes these modules are actually written in".
+   still recognizes the shapes these modules are actually written in".
 
    The key extraction is the fragile half and gets the most attention. Every case
    below is one this codebase really contains: getters and setters on the bubble

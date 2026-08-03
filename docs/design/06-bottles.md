@@ -10,10 +10,10 @@ finished, a cork. The **liquid** is drawn to a single canvas sitting behind all 
 them, as the board's first child.
 
 That order is the point: the glass and its highlights sit **over** the liquid, so
-reflections read across colour boundaries and the bottle feels like a container
-rather than a coloured rectangle.
+reflections read across color boundaries and the bottle feels like a container
+rather than a colored rectangle.
 
-The DOM still contains the colour bands, rendered transparent whenever the canvas
+The DOM still contains the color bands, rendered transparent whenever the canvas
 renderer is active. They are the **fallback**: if a canvas context cannot be had,
 the board is never marked as simulated, the bands stay visible, and they are the
 liquid. Geometry is measured from the glass element, not from them.
@@ -57,9 +57,9 @@ width, so this was not subtle.
 
 The first attempt ported a particle fluid: position-based dynamics, density
 relaxation, metaballs, adapted from a demo that poured one fixed bottle into one
-fixed neighbour forever. It produced, in order: liquid that stayed behind when its
+fixed neighbor forever. It produced, in order: liquid that stayed behind when its
 bottle moved, hard-edged slabs where a square clip met a rounded glass, droplets
-sprayed across the room, and a rectangle of colour hanging in mid air.
+sprayed across the room, and a rectangle of color hanging in mid air.
 
 Every one of those was **liquid in flight**. Liquid that belongs to no container
 needs its own aim, its own clip and its own culling, and getting any of the three
@@ -75,4 +75,4 @@ down into the neck with only the head showing above the rim. An earlier version
 floated the whole cork above the bottle and read as a hat.
 
 The seal also fires a light ring, a sheen sweep, a small jolt and a confetti burst
-in the bottle's own colour.
+in the bottle's own color.

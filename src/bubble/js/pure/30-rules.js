@@ -1,10 +1,10 @@
 /* What happens to the board when a bubble lands.
 
    Two flood fills that look similar and must never be merged into one function
-   with a flag. `matchFrom` walks bubbles of the same colour to find what pops.
-   `detach` walks bubbles of any colour to find what is still hanging from the
+   with a flag. `matchFrom` walks bubbles of the same color to find what pops.
+   `detach` walks bubbles of any color to find what is still hanging from the
    ceiling. They answer different questions and the day someone unifies them is
-   the day the second one starts caring about colour. */
+   the day the second one starts caring about color. */
 import { BubbleConfig } from './00-config.js';
 import { BubbleGrid } from './20-grid.js';
 
@@ -14,7 +14,7 @@ export const BubbleRules = (() => {
 
   const key = (j, c) => j * C.COLS + c;
 
-  /* Everything the same colour as the newly placed bubble and connected to it.
+  /* Everything the same color as the newly placed bubble and connected to it.
 
      Seeded from the placed cell only, never a scan of the board: on a board that
      was well formed before the shot, no cluster of three can already exist, so a
@@ -24,20 +24,20 @@ export const BubbleRules = (() => {
      Marking at pop lets a cell enter the stack several times, which on a large
      cluster is how this turns into a hang. */
   function matchFrom(board, j0, c0){
-    const colour = G.at(board, j0, c0);
-    if (colour === G.EMPTY) return [];
+    const color = G.at(board, j0, c0);
+    if (color === G.EMPTY) return [];
     const seen = new Set([key(j0, c0)]);
     const stack = [[j0, c0]];
     const out = [];
     while (stack.length){
       const [j, c] = stack.pop();
       out.push([j, c]);
-      for (const [nj, nc] of G.neighbours(board, j, c)){
+      for (const [nj, nc] of G.neighbors(board, j, c)){
         const k = key(nj, nc);
         if (seen.has(k)) continue;
-        /* compared as integers against the seed's colour, never as a rendered
-           colour string, and never against the neighbour's neighbour */
-        if (G.at(board, nj, nc) !== colour) continue;
+        /* compared as integers against the seed's color, never as a rendered
+           color string, and never against the neighbor's neighbor */
+        if (G.at(board, nj, nc) !== color) continue;
         seen.add(k);
         stack.push([nj, nc]);
       }
@@ -61,7 +61,7 @@ export const BubbleRules = (() => {
     }
     while (stack.length){
       const [j, c] = stack.pop();
-      for (const [nj, nc] of G.neighbours(board, j, c)){
+      for (const [nj, nc] of G.neighbors(board, j, c)){
         const k = key(nj, nc);
         if (seen.has(k)) continue;
         if (G.at(board, nj, nc) === G.EMPTY) continue;
@@ -76,14 +76,14 @@ export const BubbleRules = (() => {
     for (const [j, c] of cells) board.rows[j][c] = G.EMPTY;
   };
 
-  /* Which colours are actually still on the board.
+  /* Which colors are actually still on the board.
 
      The shooter must only ever offer one of these. A game that deals from a
      fixed palette regardless keeps handing out bubbles that cannot match
-     anything, each one lands and becomes a new colour with a count of one, and
+     anything, each one lands and becomes a new color with a count of one, and
      the board fills faster than it can be cleared through no decision the player
      made. */
-  function liveColours(board){
+  function liveColors(board){
     const seen = new Set();
     for (const [j, c] of G.occupied(board)) seen.add(board.rows[j][c]);
     return [...seen].sort((a, b) => a - b);
@@ -92,8 +92,8 @@ export const BubbleRules = (() => {
   const isWon = board => G.occupied(board).length === 0;
   const isLost = board => G.occupied(board).some(([j]) => j >= C.DEATH_ROW);
 
-  /* Deal a board, a cell at a time, refusing any colour that would complete a
-     group of three where it lands. A board built from independent random colours
+  /* Deal a board, a cell at a time, refusing any color that would complete a
+     group of three where it lands. A board built from independent random colors
      arrives with a match already sitting on it, so the opening shot clears
      something the player did not earn; every board generated the naive way had
      one.
@@ -101,13 +101,13 @@ export const BubbleRules = (() => {
      Lives here rather than in the app because the difficulty harness has to deal
      the boards it measures, and a harness that deals them differently from the
      game is measuring a game nobody plays. */
-  /* `colours` narrows the palette a board is dealt from, and it is the strongest
+  /* `colors` narrows the palette a board is dealt from, and it is the strongest
      lever this game has on how hard a board is: with three in play a match is
      nearly always available and with six it often is not. The graded game always
      passes all of them; only the sandbox asks for fewer. Defaulted rather than
      required so every existing caller keeps dealing the board it always did. */
-  function dealBoard(rows, pick, colours){
-    const palette = Math.max(2, Math.min(C.COLOURS, colours || C.COLOURS));
+  function dealBoard(rows, pick, colors){
+    const palette = Math.max(2, Math.min(C.COLORS, colors || C.COLORS));
     const b = G.create(0);
     for (let j = 0; j < rows; j++){
       for (let c = 0; c < C.COLS; c++){
@@ -126,16 +126,16 @@ export const BubbleRules = (() => {
     return b;
   }
 
-  /* A row to push in at the top, in colours the board still has, so an advance
-     cannot introduce a colour the player has already cleared away. */
+  /* A row to push in at the top, in colors the board still has, so an advance
+     cannot introduce a color the player has already cleared away. */
   function freshRow(board, pick){
-    const live = liveColours(board);
+    const live = liveColors(board);
     const from = live.length ? live : [0];
     return new Array(C.COLS).fill(0).map(() => from[Math.floor(pick() * from.length) % from.length]);
   }
 
   /* Can anything be done from here? A board can pack itself so that every
-     contact has no empty neighbour to snap into, and then no shot can land at
+     contact has no empty neighbor to snap into, and then no shot can land at
      all. That is a real ending and the game has to notice it rather than let
      the player fire into a board that silently eats every bubble. */
   function anyLanding(board, resolve){
@@ -150,22 +150,22 @@ export const BubbleRules = (() => {
      animated. The animator is handed the lists of what was matched and what came
      away with it and never reads the grid, so a slow animation cannot
      desynchronise the board. */
-  /* Cells are handed back with the colour they held, because by the time anyone
+  /* Cells are handed back with the color they held, because by the time anyone
      wants to draw them falling they are no longer on the board to ask. */
-  const withColour = (board, cells) => cells.map(([j, c]) => [j, c, board.rows[j][c]]);
+  const withColor = (board, cells) => cells.map(([j, c]) => [j, c, board.rows[j][c]]);
 
-  function resolveTurn(board, landing, colour){
-    board.rows[landing.j][landing.c] = colour;
+  function resolveTurn(board, landing, color){
+    board.rows[landing.j][landing.c] = color;
 
     /* Both lists leave the board the same way, by falling off the bottom of it.
        They stay separate because they are separate shots: `matched` is the group
        you completed, `cut` is everything that was only hanging from it, and the
        second is the one worth aiming for, so it scores differently. */
     const cluster = matchFrom(board, landing.j, landing.c);
-    const matched = cluster.length >= C.MATCH_MIN ? withColour(board, cluster) : [];
+    const matched = cluster.length >= C.MATCH_MIN ? withColor(board, cluster) : [];
     if (matched.length) remove(board, matched);
 
-    const cut = matched.length ? withColour(board, detach(board)) : [];
+    const cut = matched.length ? withColor(board, detach(board)) : [];
     if (cut.length) remove(board, cut);
 
     return {
@@ -178,24 +178,24 @@ export const BubbleRules = (() => {
 
   /* Everything within one cell of a point on the lattice.
 
-     Radius one is the six neighbours, and they are the six the grid already
+     Radius one is the six neighbors, and they are the six the grid already
      knows: the diagonal table depends on the row's stagger, and a blast that
      worked that out for itself would be the third copy of the single most
      common bug in this genre. So it asks.
 
-     The centre is in the list and is almost always empty — a shot's landing is
+     The center is in the list and is almost always empty — a shot's landing is
      the cell the bubble would have snapped into — but it is asked for rather
      than assumed, because the one thing worse than a blast that clears six is a
      blast that quietly clears five when the geometry surprises it. */
   function within(board, j0, c0){
-    return [[j0, c0], ...G.neighbours(board, j0, c0)]
+    return [[j0, c0], ...G.neighbors(board, j0, c0)]
       .filter(([j, c]) => G.at(board, j, c) !== G.EMPTY);
   }
 
   /* A bomb going off where a bubble would have landed.
 
      Deliberately not `resolveTurn` with a flag. That function's whole shape is
-     "place a bubble, then walk its colour", and a bomb has no colour to walk:
+     "place a bubble, then walk its color", and a bomb has no color to walk:
      `matchFrom` could not be seeded by it, and the file already says why those
      two fills must never be merged. What the two do share is the ending, which
      is the part that is genuinely the same — whatever leaves the board takes
@@ -204,10 +204,10 @@ export const BubbleRules = (() => {
      needs no idea which one happened. `matched` is what the shot knocked off,
      whatever did the knocking. */
   function resolveBlast(board, landing){
-    const blown = withColour(board, within(board, landing.j, landing.c));
+    const blown = withColor(board, within(board, landing.j, landing.c));
     if (blown.length) remove(board, blown);
 
-    const cut = blown.length ? withColour(board, detach(board)) : [];
+    const cut = blown.length ? withColor(board, detach(board)) : [];
     if (cut.length) remove(board, cut);
 
     return {
@@ -218,6 +218,6 @@ export const BubbleRules = (() => {
     };
   }
 
-  return { matchFrom, detach, remove, liveColours, isLost, resolveTurn,
+  return { matchFrom, detach, remove, liveColors, isLost, resolveTurn,
            within, resolveBlast, dealBoard, freshRow, anyLanding };
 })();
