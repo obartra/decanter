@@ -18,6 +18,29 @@
    The last one is the whole feature. Everything else is scaffolding around it. */
 import { test, expect } from '@playwright/test';
 import { start, state } from './helpers.js';
+import { loadPure } from '../helpers.mjs';
+
+const { CONFIG, Levels, Chapters } = loadPure();
+
+/* Every chapter that has a door, which is every one but the first. Asked of the
+   game rather than written down, so a run that grows a chapter grows this. */
+const doorSections = Array.from({ length: Levels.sectionCount() - 1 }, (_, i) => i + 1);
+const firstLevelOf = section => section * CONFIG.sectionSize + 1;
+
+/* The save of somebody standing at the nth door: every door before it got
+   through, this one shut, and the frontier on the first board behind it.
+
+   Built here rather than as eleven lab states, because eleven presets that
+   differ only in a number are not eleven states, they are one state and a
+   parameter. `atDoor` in the lab is still the first of these, and it is the one
+   a person clicks. */
+const doorSave = section => {
+  const doors = {};
+  for (let s = 1; s < section; s++) doors[s] = true;
+  const seen = {};
+  for (let i = 0; i <= Math.min(section - 1, Chapters.count - 1); i++) seen[i] = true;
+  return { unlocked: firstLevelOf(section), gold: 400, doors, seen };
+};
 
 /* The first door: the one in front of chapter two. Read off the game rather
    than written down, so this spec follows the table in 30-levels.js. */
@@ -28,7 +51,7 @@ const firstDoor = page => page.evaluate(() => ({
   last: globalThis.CONFIG.sectionSize
 }));
 
-const doorNode = page => page.locator('.node.door[data-door="1"]');
+const doorNode = (page, section = 1) => page.locator(`.node.door[data-door="${section}"]`);
 
 /* Get the gilt cask out, by solving the floor rather than by shoving casks at
    it. The moves come from the game's own exhaustive search — the same one that
@@ -202,3 +225,55 @@ test('a chapter already walked into keeps its door behind it', async ({ page }) 
   await expect(doorNode(page)).toBeDisabled();
   expect(await page.evaluate(n => globalThis.App._progress.isUnlocked(n), first)).toBe(true);
 });
+
+/* ---- every door, not just the first ----
+
+   Everything above is the first door examined closely. This is all eleven of
+   them opened, and it exists because the eleven are not the same test with a
+   different number in it.
+
+   Five of them lead into chapters that have no entry in `Chapters` at all: the
+   run is twelve sections long and there are seven named chapters, so sections
+   seven to eleven come through as `Reserve 1` to `Reserve 5`. Those doors carry
+   a name nothing in `CONFIG.sectionNames` provides, and `openChapter` finds no
+   card to show behind them. Both of those are fine, and neither was exercised
+   by anything until now — they were reasoned about, which is not the same.
+
+   The floors also get much harder along the way, from par 3 to par 42, and the
+   last of them is the one most likely to find a search that gives up or an
+   animation that outruns its wait. */
+for (const section of doorSections){
+  test(`the door to chapter ${section + 1} opens that chapter and no other`, async ({ page }) => {
+    const first = firstLevelOf(section);
+    await start(page, doorSave(section));
+
+    /* the gate is there, it is the only one that can be pressed, and the
+       chapter behind it is refused */
+    await expect(doorNode(page, section)).toBeEnabled();
+    await expect(page.locator(`.node[data-level="${first}"]`)).toBeDisabled();
+    expect(await page.evaluate(n => globalThis.App._progress.isUnlocked(n), first)).toBe(false);
+
+    /* It names the chapter it opens, whether or not that chapter has a name of
+       its own. A door into an unnamed section says `Reserve 3`, which is what
+       the map calls it everywhere else. */
+    await expect(doorNode(page, section)).toContainText(
+      await page.evaluate(n => globalThis.Levels.sectionName(n), first));
+
+    await doorNode(page, section).click();
+    await expect(page.locator('body')).toHaveAttribute('data-view', 'door');
+    await solveTheDoor(page);
+    await page.waitForFunction(s => globalThis.App._progress.isDoorOpen(s), section);
+
+    /* that chapter, and nothing else */
+    const doors = await page.evaluate(() => {
+      const p = globalThis.App._progress;
+      const out = {};
+      for (let s = 1; s <= globalThis.Levels.sectionCount() - 1; s++) out[s] = p.isDoorOpen(s);
+      return out;
+    });
+    for (const [s, open] of Object.entries(doors)){
+      expect(open, `chapter ${Number(s) + 1}`).toBe(Number(s) <= section);
+    }
+    expect(await page.evaluate(n => globalThis.App._progress.isUnlocked(n), first)).toBe(true);
+  });
+}
