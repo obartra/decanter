@@ -25,14 +25,17 @@ no best, no first-clear bonus, no fee to attempt and nothing to buy. A floor is
 out or it is not. That is the entire reason it works as a gate — a gate you can
 three-star is a gate you can also one-star past, which makes it a toll.
 
-It follows that there is **no undo and no hint** either, and that rule is not a
-flag. The door view in `src/index.html` carries the canvas and nothing else, so
-the cellar door's own `paintHud()` and result panel find none of the elements
-they paint and quietly do nothing, and no button in that document reaches
-`undo()` or `hint()`. A rule made of missing elements cannot be left switched on
-by a later change. Restart stays, because it is not an aid: without undo, a
-player who has shoved a cask somewhere they regret would otherwise have to leave
-the door and come back, which is the same thing with more steps in front of it.
+There are no tools on it either, though that is not the door's doing: this game
+has had neither undo nor hint since the tools came off it, for reasons set out
+below that land just as well on a gate.
+
+What the door view does remove is the scoring. It carries the canvas and nothing
+else, so `paintHud()` and the result panel find none of the elements they paint
+and quietly do nothing — no par, no star row, no card at the end. That is a rule
+made of missing elements, which cannot be left switched on by a later change the
+way a flag can. Restart stays, because it is not an aid: a player who has shoved
+a cask somewhere they regret would otherwise have to leave the door and come
+back, which is the same thing with more steps in front of it.
 
 **Which floor is which door** is a list in `src/js/pure/30-levels.js`, not
 arithmetic. The casks boards are a measured, shipped table and par is a fixed

@@ -105,12 +105,16 @@ export const Levels = (() => {
      what this game is and a locked door in front of level one is a game that
      will not start.
 
-     A door is not graded and cannot be failed. There are no stars on it, no
-     undo, no hint and nothing to buy: a floor of casks is either out or it is
-     not, and there is no version of it that is out badly. That is the whole
-     reason it makes a gate rather than another board — a gate you can three-star
-     is a gate you can also one-star past, and then it is a toll rather than a
-     door. See docs/design/17-casks.md.
+     A door is not graded and cannot be failed. No stars on it, no par to beat,
+     no fee and nothing to buy: a floor of casks is either out or it is not, and
+     there is no version of it that is out badly. That is the whole reason it
+     makes a gate rather than another board — a gate you can three-star is a gate
+     you can also one-star past, and then it is a toll rather than a door.
+
+     It has no tools either, and that part is not this file's doing: the cellar
+     door itself has had neither since the tools came off it, for a reason that
+     lands here too. Sliding is reversible, so a mistake is undone by sliding
+     back. See docs/design/17-casks.md.
 
      WHICH floor each door is, written down rather than worked out.
 
@@ -124,7 +128,7 @@ export const Levels = (() => {
      They rise, and tests/doors.test.mjs checks that they do against the real par
      table — so a door that stopped being harder than the one before it fails
      rather than quietly flattening the climb. */
-  const DOORS = [5, 11, 16, 22, 27, 33, 38, 44, 49, 55, 60];
+  const DOORS = [5, 11, 16, 21, 26, 32, 37, 42, 47, 53, 58];
 
   /* Which floor stands in front of a chapter, or null for the first one, which
      opens onto the game rather than onto a door.
