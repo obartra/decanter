@@ -29,7 +29,7 @@ export const BubbleView = (() => {
     cv.width = Math.ceil(w * dpr);
     cv.height = Math.ceil(h * dpr);
 
-    /* fit the whole board, centred, never cropped: a bubble shooter where the
+    /* fit the whole board, centerd, never cropped: a bubble shooter where the
        death row is off screen is a game that ends without warning */
     scale = Math.min(w / C.WORLD_W, h / C.WORLD_H);
     ox = (w - C.WORLD_W * scale) / 2;

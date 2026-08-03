@@ -25,7 +25,7 @@ const shown = page => card(page).evaluate(el => el.classList.contains('show'));
    The card is not in the critical bundle. It is fetched right after the page
    opens, so the answer to a tap lands a moment after the tap, and every test
    below reads the card. A read taken before it is drawn does not fail loudly:
-   `stillColours` comes back empty and `toBeHidden` passes on a row inside a
+   `stillColors` comes back empty and `toBeHidden` passes on a row inside a
    panel nobody can see yet. Both of those are green ticks over nothing, so the
    wait lives here rather than at ten call sites where half of them would look
    fine without it. */
@@ -35,9 +35,9 @@ const look = async (page, level) => {
 };
 
 /* the liquid in the still, bottle by bottle, as palette indices. The bands name
-   their colour with the same --cN property the shelf pours, so the picture can
+   their color with the same --cN property the shelf pours, so the picture can
    be read back and compared with the board it claims to be. */
-const stillColours = page => page.evaluate(() =>
+const stillColors = page => page.evaluate(() =>
   [...document.querySelectorAll('#previewStill .stillBottle')].map(b =>
     [...b.querySelectorAll('i')].map(i => {
       const m = /--c(\d+)/.exec(i.getAttribute('style') || '');
@@ -111,7 +111,7 @@ test('the still is the board the level actually deals', async ({ page }) => {
      believed, which is worse than no picture at all. */
   await start(page, played);
   await look(page, 5);
-  const picture = await stillColours(page);
+  const picture = await stillColors(page);
 
   await page.locator('#previewPlay').click();
   await page.waitForFunction(() => globalThis.App._state.level === 5

@@ -23,7 +23,7 @@ export const MapGeom = (() => {
     const o = Object.assign({ spacing:96, bottom:90, top:140 }, opts || {});
     return o.bottom + Math.max(0, count - 1) * o.spacing + o.top;
   };
-  /* Catmull-Rom through the node centres, converted to cubic beziers */
+  /* Catmull-Rom through the node centers, converted to cubic beziers */
   function pathThrough(points, flipY){
     if (points.length < 2) return '';
     const P = points.map(p => ({ x: p.x, y: flipY ? flipY - p.y : p.y }));
@@ -275,7 +275,7 @@ export const MapView = (() => {
         : locked ? `Level ${level}, locked`
         : short ? `Level ${level}. ${fee} gold to deal, and there is not enough`
         : `Level ${level}${cleared ? `, ${stars} of 3 stars` : ''}`);
-      /* The centre of a medallion is the level, never a price.
+      /* The center of a medallion is the level, never a price.
 
          Arming one used to put the cost there instead, and the two are the same
          kind of number in the same slot in the same face: a confirm on level 19

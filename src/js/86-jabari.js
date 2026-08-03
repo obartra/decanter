@@ -111,7 +111,7 @@ export const Jabari = (() => {
      the animation to nothing and there would be no end to wait for. */
   /* Not the game's palette. That one was chosen so no two liquids are close to
      the eye on a dark shelf; this is chosen to be as loud as a screen goes. */
-  const JABARI_COLOURS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
+  const JABARI_COLORS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
 
   function jabariMode(){
     const el = $('jabari');
@@ -128,7 +128,7 @@ export const Jabari = (() => {
        sees it: the first pass measured particles six hundred pixels left of a
        screen three hundred and ninety wide. */
     const reach = Math.min(innerWidth, innerHeight) * 0.5;
-    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, JABARI_COLOURS, reach);
+    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, JABARI_COLORS, reach);
     throwPaper();
     setTimeout(throwPaper, 190);
     setTimeout(throwPaper, 440);

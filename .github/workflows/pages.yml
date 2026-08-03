@@ -15,7 +15,7 @@ permissions:
   pages: write
   id-token: write
 
-# let a running deploy finish rather than cancelling it half published
+# let a running deploy finish rather than canceling it half published
 concurrency:
   group: pages
   cancel-in-progress: false

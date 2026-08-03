@@ -3,7 +3,7 @@
    The other game grades a run by its distance from par, which it can do because
    par is an exact minimum solved offline. This one has no par and cannot have
    one: the next bubble is dealt at random, so the board is not perfect
-   information, and the aim discretises to about thirty landing cells across a
+   information, and the aim discretizes to about thirty landing cells across a
    run of thirty-odd shots. There is nothing to search.
 
    What it has instead is a fixed length and a pass rate. Play the board a few
@@ -17,14 +17,14 @@
    sat where a real player reached the first star barely half the time.
 
    The second trap is subtler and cost these numbers a revision. What a bad shot
-   *is* decides everything: a slip modelled as a random angle mostly buries the
+   *is* decides everything: a slip modeled as a random angle mostly buries the
    bubble in the first thing it meets, and measured against that every bar looked
-   far more earned than it was. Modelled as a bubble put in the wrong reachable
+   far more earned than it was. Modeled as a bubble put in the wrong reachable
    cell, which is what a person actually does, the same bars let a player aiming
    at nothing in particular through a third of the time. They moved up.
 
    Worth knowing before touching any of this: on about three turns in five the
-   colour in hand cannot clear anything at all, so most shots are placements
+   color in hand cannot clear anything at all, so most shots are placements
    rather than decisions, and the run is graded on where the placements went.
 
    Kept separate from the app for the reason the other game's panel is: the

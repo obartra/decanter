@@ -1,4 +1,4 @@
-/* Sound, synthesised at runtime so the page still ships as one file with no
+/* Sound, synthesized at runtime so the page still ships as one file with no
    audio to fetch. Same approach as the other game and deliberately not the same
    module: that one is built out of pours and glugs, and none of it is the noise
    a bubble makes.

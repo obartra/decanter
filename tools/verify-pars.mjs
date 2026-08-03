@@ -14,7 +14,7 @@ import * as base from '../tests/baseline.mjs';
 const ctx = loadPure();
 const LEVELS = Number(process.argv[2] || 40);
 
-/* segments minus colours, computed here rather than imported, so a mistake in
+/* segments minus colors, computed here rather than imported, so a mistake in
    the solver's copy cannot hide behind the same mistake here */
 function h(tubes){
   let segs = 0;

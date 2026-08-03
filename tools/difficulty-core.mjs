@@ -76,7 +76,7 @@ function makeSolvableIn(budget){
 /* One optimal line, as moves. Same idea as the walk below: from a state whose
    true distance is d, any move whose result is still solvable in d-1 is on an
    optimal line. Breadth-first search finds the same thing and runs out of memory
-   on anything past a handful of colours. */
+   on anything past a handful of colors. */
 export function lineToPar(tubes, par, budget = DEFAULT_BUDGET){
   const solvableIn = makeSolvableIn(budget);
   let state = base.clone(tubes);
@@ -96,7 +96,7 @@ export function lineToPar(tubes, par, budget = DEFAULT_BUDGET){
 
 /* Walk one optimal line, counting how many of the moves available at each step
    would have kept par alive. Walking every optimal line is exact but explodes on
-   twelve-colour boards; one line is cheap and orders levels the same way.
+   twelve-color boards; one line is cheap and orders levels the same way.
 
    Returns null if par turns out to be unreachable, and throws TOO_DEAR if the
    board exceeds `budget` expansions.
@@ -117,7 +117,7 @@ export function lineToPar(tubes, par, budget = DEFAULT_BUDGET){
    jumped from 16 to 25 and `logOdds` moved from 3.84 to 3.95, while the slack it
    left the player fell from 19% of par to 12%. `slips` adds rather than
    multiplies, so length counts. */
-export function analyse(tubes, par, budget = DEFAULT_BUDGET){
+export function analyze(tubes, par, budget = DEFAULT_BUDGET){
   const solvableIn = makeSolvableIn(budget);
   let state = base.clone(tubes);
   let dist = par;

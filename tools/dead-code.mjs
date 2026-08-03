@@ -239,7 +239,7 @@ for (const [file, src] of files){
 
    Worth its own check because a stale tunable is the most convincing dead code
    there is. Everything else looks like what it is; a tunable looks like the
-   place to change the behaviour it claims to control, and usually carries a
+   place to change the behavior it claims to control, and usually carries a
    paragraph explaining the decision. `bubblePerChapter` sat in CONFIG announcing
    "two per ten" over a function that returned a pair by construction and never
    asked it anything. It could have been set to five and nothing would have moved.

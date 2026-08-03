@@ -13,7 +13,11 @@ import { describe, it, assert, equal, read, root } from './helpers.mjs';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, dirname, normalize } from 'node:path';
 
-const docs = ['README.md', 'docs/DESIGN.md',
+/* `CLAUDE.md` is in here for the same reason the rest are. It is prose naming
+   paths and pointing at other documents, so it rots the same way, and it rots
+   somewhere nobody reads: it is loaded by a tool rather than opened by a person,
+   so a row naming a file that moved goes unnoticed until something acts on it. */
+const docs = ['README.md', 'CLAUDE.md', 'docs/DESIGN.md',
   ...readdirSync(join(root, 'docs/design')).sort().map(f => `docs/design/${f}`)];
 
 /* A document with its fenced blocks taken out.
@@ -78,6 +82,23 @@ describe('the documents', () => {
     for (const name of Object.keys(scripts).filter(n => n.startsWith('verify:')))
       assert(ci.includes(`npm run ${name}`),
         `${name} is a check nothing in CI runs, so it cannot fail a pull request`);
+  });
+
+  it('runs every suite that is written, not just the ones anybody remembered', () => {
+    /* `run.mjs` names its suites one import at a time, so a file can be written,
+       committed and never run. That is worse than a missing test: the file is
+       there, it is green in the sense that nothing red ever appears, and the
+       thing it was written to catch goes on happening. This was not
+       hypothetical. `spelling.test.mjs` was added, the whole suite passed with
+       exactly the count it had before, and the only clue was that the count had
+       not moved.
+
+       The import list stays hand-written, because the order the suites load in
+       is deliberate. This just says nothing can be left out of it. */
+    const registered = [...read('tests/run.mjs').matchAll(/^import '\.\/([\w.-]+\.test\.mjs)';/gm)].map(m => m[1]);
+    const onDisk = readdirSync(join(root, 'tests')).filter(f => f.endsWith('.test.mjs')).sort();
+    for (const f of onDisk)
+      assert(registered.includes(f), `tests/${f} exists and run.mjs never imports it, so it never runs`);
   });
 
   it('reads the whole document, not just the part before the first fence', () => {

@@ -29,11 +29,11 @@ export const BubbleConfig = {
   /* Contact at 0.95 rather than a full diameter. A little forgiveness makes a
      near miss land where the player expected, but the value cannot be chosen
      freely: 0.866 is exactly the width of the gap a bubble can pass through
-     between two neighbours, so a contact distance near it makes two
+     between two neighbors, so a contact distance near it makes two
      indistinguishable shots behave differently. 0.95 sits clear of that
      threshold on both sides. */
   HIT_K: 0.95,
-  /* Drawn slightly over half, so neighbours overlap a little and the art never
+  /* Drawn slightly over half, so neighbors overlap a little and the art never
      shows a slit the physics will not let anything through. */
   DRAW_R: 0.51,
 
@@ -67,14 +67,14 @@ export const BubbleConfig = {
   /* Six liquids, solved for rather than borrowed.
 
      These were six of the pour game's twelve, picked one per hue family. That
-     works for a shelf of bottles, where the colours are read one at a time and
+     works for a shelf of bottles, where the colors are read one at a time and
      with a label under each. It does not work here, where the whole thing is
      telling six apart at a glance in a grid: the closest pair sat at 24.1 in
-     CIEDE2000 and read as one colour in play. The orange and the sand were the
+     CIEDE2000 and read as one color in play. The orange and the sand were the
      worst of it, with the red not far behind.
 
-     So these are the answer to the actual question, which is "place six colours
-     to maximise the smallest gap between any two". The closest pair here is 32.2,
+     So these are the answer to the actual question, which is "place six colors
+     to maximize the smallest gap between any two". The closest pair here is 32.2,
      a third further apart than before, and no two share a hue family: blue,
      gold, coral, turquoise, purple, green.
 
@@ -97,10 +97,10 @@ export const BubbleConfig = {
      the comment. See tests/palette.test.mjs. */
   PALETTE: ['#FD685F', '#C99329', '#519B3D', '#3ED1D5', '#1887ED', '#C269D5'],
 
-  /* Every colour in the palette gets dealt. This was five against a palette of
+  /* Every color in the palette gets dealt. This was five against a palette of
      six, so one of them was drawn on the board by nobody and existed only in the
      file. */
-  COLOURS: 6,
+  COLORS: 6,
 
   /* Shots between the board coming down a row. This is what makes the death line
      a threat rather than a decoration: without it a player can take as long as
@@ -163,7 +163,7 @@ export const BubbleConfig = {
      board is easier than the number being scored against.
 
      So: undo, hint and swap leave the run gradeable, because none of them
-     changes what the board deals. Picking a colour outright does change it, and
+     changes what the board deals. Picking a color outright does change it, and
      a run that used one is capped exactly the way a bought vessel is.
 
      The blast is the second of the second kind. It clears everything within one
@@ -178,7 +178,7 @@ export const BubbleConfig = {
   AID_CAP: 2,
   UNDO_DEPTH: 24,
 
-  /* What is loaded when a blast has been bought. Not a colour and never on the
+  /* What is loaded when a blast has been bought. Not a color and never on the
      board, so it must not collide with BubbleGrid.EMPTY, which is -1: a sentinel
      that compared equal to an empty cell would have the shooter dealing holes. */
   BOMB: -2,

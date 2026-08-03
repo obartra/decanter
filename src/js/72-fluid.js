@@ -231,8 +231,8 @@ export const Fluid = (() => {
     /* Lit on the left, shaded on the right, only where there is liquid.
 
        Kept light on purpose. This washes every band with the same warm white and
-       the same dark, whatever colour is underneath, so it pulls the whole palette
-       toward one muddy brown and colours that are far apart on paper arrive
+       the same dark, whatever color is underneath, so it pulls the whole palette
+       toward one muddy brown and colors that are far apart on paper arrive
        looking alike. It was heavy enough to undo a palette chosen for contrast. */
     const g = c.createLinearGradient(b.x0, 0, b.x1, 0);
     g.addColorStop(0, 'rgba(28,17,7,.13)');
@@ -247,7 +247,7 @@ export const Fluid = (() => {
 
   /* The bottle in flight is drawn on its own canvas, which sits above the other
      bottles. All the liquid used to share one canvas below every bottle, so a
-     tilted bottle leaning over its neighbours had its contents hidden behind
+     tilted bottle leaning over its neighbors had its contents hidden behind
      their glass: the bottle moved and the liquid did not go with it. */
   function draw(){
     if (!ctx) return;

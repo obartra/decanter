@@ -97,7 +97,7 @@ export const MeasureView = (() => {
        that no longer exists. */
     world = worldFor(caps, w / h);
 
-    /* Fit the whole bench, centred, never cropped, and on one scale for both
+    /* Fit the whole bench, centerd, never cropped, and on one scale for both
        axes. A separate x and y scale would fill the screen exactly and is the
        obvious thing to reach for here, since a vessel's width means nothing —
        but it stretches the numerals under the vessels, and those are read on

@@ -353,7 +353,7 @@ const standalone = page('src/index.html', {
   '<!--PWAHEAD-->': '',
   /* Inlined for the same reason the fonts are: to a browser, a file:// page
      fetching a sibling path is a cross origin request, so a portable file that
-     pointed at ./audio/ would fall silently back to the synthesised bang the
+     pointed at ./audio/ would fall silently back to the synthesized bang the
      moment it left the folder it was built in. */
   '<!--BOOM-->': `<meta name="boom" content="data:audio/mpeg;base64,${boom.toString('base64')}">`,
   '<!--FONTS-->': fontFace(dataFont('assets/fonts/cinzel.woff2'),

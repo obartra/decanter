@@ -47,7 +47,7 @@ export const CasksSearch = (() => {
 
   /* ---- the component, walked once ----
 
-     Every position this layout can reach from a given one, with the neighbour
+     Every position this layout can reach from a given one, with the neighbor
      lists kept.
 
      Kept, rather than re-derived, and this is the whole difference between the
@@ -201,7 +201,7 @@ export const CasksSearch = (() => {
      share of the moves available at a step that are correct. They disagree
      usefully: a board can be long and mechanical, or short and vicious. Both are
      free here, because the sweep has already worked out the distance from every
-     state and a step's options are its neighbour list. */
+     state and a step's options are its neighbor list. */
   function hardest(layout, seed, nodeCap){
     const comp = component(layout, seed, nodeCap);
     if (!comp) return null;

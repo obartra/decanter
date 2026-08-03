@@ -39,7 +39,7 @@ export const BubbleAdvice = (() => {
   /* What a shot is worth. Cutting a chunk free scores more than the group that
      freed it, so the weights say so, and the tie break is board depth because
      the thing that actually ends a run is the board reaching the line. A pure
-     score-maximising rule will happily clear the ceiling and lose. */
+     score-maximizing rule will happily clear the ceiling and lose. */
   function value(before, after, res){
     const gain = res.matched.length * C.SCORE_MATCH + res.cut.length * C.SCORE_CUT;
     const deepBefore = depth(before), deepAfter = depth(after);
@@ -50,10 +50,10 @@ export const BubbleAdvice = (() => {
     return cells.length ? Math.max(...cells.map(([j]) => j)) : 0;
   };
 
-  /* The best shot for this colour, or null when nothing can land at all.
+  /* The best shot for this color, or null when nothing can land at all.
      `resolve` is passed in rather than reached for so this module never has to
      know about the shot solver, which keeps it loadable on its own. */
-  function bestShot(board, colour, resolve){
+  function bestShot(board, color, resolve){
     let best = null;
     /* One entry per landing cell, not per angle: a dozen angles reach the same
        cell and scoring each of them separately is the same board measured
@@ -67,7 +67,7 @@ export const BubbleAdvice = (() => {
       seen.add(key);
 
       const after = clone(board);
-      const res = R.resolveTurn(after, shot.landing, colour);
+      const res = R.resolveTurn(after, shot.landing, color);
       const score = value(board, after, res);
       if (!best || score > best.score){
         best = { dir, landing: shot.landing, score,
@@ -81,8 +81,8 @@ export const BubbleAdvice = (() => {
      the answer is yes and worth withholding when it is no: a hint that points at
      a bubble which merely lands somewhere is not advice, and charging for one is
      worse than not having the button. */
-  const hasClearingShot = (board, colour, resolve) => {
-    const best = bestShot(board, colour, resolve);
+  const hasClearingShot = (board, color, resolve) => {
+    const best = bestShot(board, color, resolve);
     return !!best && best.matched > 0;
   };
 

@@ -110,7 +110,7 @@ export const Board = (() => {
 
   function render(){
     const grid = layout(view.length);
-    /* a last row that does not fill the track set is centred under the rest,
+    /* a last row that does not fill the track set is centerd under the rest,
        rather than left hanging against the first column */
     const spare = view.length % grid.cols;
     const firstOfLast = spare ? view.length - spare : -1;

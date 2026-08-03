@@ -45,13 +45,39 @@ export const state = (id, extra = {}) => ({ ...LabStates.make(id, stateEnv()), .
 export const everyState = () => LabStates.list.map(s => ({ ...s, save: LabStates.make(s.id, stateEnv()) }));
 export const RECOVERY = LabStates.RECOVERY;
 
+/* Ask for the reduced motion the game already implements.
+
+   A pour is almost entirely waiting. Measured on one board, the queue takes
+   1537ms to drain per pour at full motion and 597ms under reduced motion, and
+   the clicks either side of it cost twenty between them. A spec that plays a
+   level of twelve pours therefore spends eighteen seconds watching liquid move,
+   and most of the suite's slowest specs play levels.
+
+   This is not a stopwatch trick. `src/js/70-board.js` reads the same media query
+   and collapses the tilt, the lean, the tip and every sleep in the queue,
+   because a player who asks for less motion still gets their pours sequenced in
+   the same order through the same queue. What it gives up is real-time timing,
+   which is why play.spec.js asks for full motion back on the two tests where the
+   timing is the subject, and economy.spec.js asks for it on the one that counts
+   confetti — reduced motion is the first thing that turns confetti off, so run
+   reduced it asks for paper the game is right not to throw.
+
+   Set here rather than in playwright.config.js because the config option does
+   not work. In 1.62.1 `use: { reducedMotion: 'reduce' }` arrives intact at
+   `testInfo.project.use.reducedMotion` and never reaches the browser: the page
+   goes on reporting `no-preference`, so the setting reads as applied, every spec
+   runs at full speed, and measuring it shows no difference for a reason that has
+   nothing to do with the game. `emulateMedia` does work. */
+const motion = (page, mode) => page.emulateMedia({ reducedMotion: mode });
+
 /* A save the game will accept as current. The layout stamp has to match the
    build's, or the game will treat the save as one from older boards. */
 /* `path` is here for the one thing that is decided by the address bar rather
    than by the save: Jabari mode is on when the beta word is in the query string,
    and the reloads below carry it, so a spec that asks for it gets it on every
    load rather than only the first. */
-export async function start(page, save = {}, { path = '/' } = {}) {
+export async function start(page, save = {}, { path = '/', reducedMotion = 'reduce' } = {}) {
+  await motion(page, reducedMotion);
   await page.addInitScript(([key, wanted]) => {
     /* Seeded once, not on every load. addInitScript runs again on every
        navigation, so writing unconditionally meant a reload put the save back to
@@ -115,7 +141,8 @@ export async function start(page, save = {}, { path = '/' } = {}) {
    So: written verbatim, once, before anything runs. No defaults filled in and no
    second pass, because both of those are the game's job here rather than the
    fixture's. */
-export async function startRaw(page, save) {
+export async function startRaw(page, save, { reducedMotion = 'reduce' } = {}) {
+  await motion(page, reducedMotion);
   await page.addInitScript(([key, wanted]) => {
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, JSON.stringify(wanted));

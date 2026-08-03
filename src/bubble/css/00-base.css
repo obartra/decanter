@@ -30,7 +30,7 @@ body{
   padding-top:calc(10px + env(safe-area-inset-top));
 }
 /* Cinzel is inscriptional Roman caps, so it wants to be spaced out, and it is
-   the gilt of the other game's wordmark rather than a flat colour. */
+   the gilt of the other game's wordmark rather than a flat color. */
 .mark{
   font-family:"Cinzel",Georgia,serif; font-weight:700;
   font-size:15px; letter-spacing:.2em; text-transform:uppercase;
@@ -60,9 +60,9 @@ body{
   font-size:8px; letter-spacing:.14em; text-transform:uppercase;
   color:var(--ink-dim); transition:color .2s ease;
 }
-/* The two countdowns say opposite things and are coloured to match: the board
+/* The two countdowns say opposite things and are colored to match: the board
    dropping is a warning, the run running out is the finish line coming. Sharing
-   one colour would have the HUD go orange to tell you that you are about to
+   one color would have the HUD go orange to tell you that you are about to
    win. */
 .bubHud small.soon{color:#FF9E75}
 .bubHud small.nearly{color:var(--gold-lit)}
@@ -93,8 +93,8 @@ body{
 .tools .tool:disabled{opacity:.28; cursor:default}
 .tools .tool.armed{border-color:var(--gold); color:var(--gold-lit)}
 
-/* The colour picker, opened from the tool row and closed by choosing. Only the
-   colours still on the board are offered: picking one the player has already
+/* The color picker, opened from the tool row and closed by choosing. Only the
+   colors still on the board are offered: picking one the player has already
    cleared away would be a purchase that buys a bubble nothing can match. */
 .palette{
   position:fixed; left:0; right:0; z-index:21;
@@ -115,7 +115,7 @@ body{
    on a wide viewport -- where the board is limited by height rather than width
    and so fills it -- whatever is drawn at the bottom of the world ends up behind
    them. On this page that is the launch band the shooter sits in. It looked fine on a phone, where the board is width-limited
-   and centres with slack to spare, which is why it survived. */
+   and centers with slack to spare, which is why it survived. */
 .stage{
   flex:1; min-height:0; display:flex; position:relative;
   padding:0 8px calc(52px + env(safe-area-inset-bottom));

@@ -1,4 +1,4 @@
-/* Sound, synthesised at runtime, so the page still ships as markup and one
+/* Sound, synthesized at runtime, so the page still ships as markup and one
    bundle with no audio to fetch.
 
    Built on the bubble game's two primitives, `tone` and `burst`, and they are

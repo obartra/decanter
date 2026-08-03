@@ -1,4 +1,4 @@
-/* Sound, synthesised at runtime, so the page still ships as markup and one
+/* Sound, synthesized at runtime, so the page still ships as markup and one
    bundle with nothing to fetch.
 
    Built on the same two primitives the other two games use, `tone` and `burst`,
@@ -55,7 +55,7 @@ export const CasksAudio = (() => {
   /* `attack` is how long the noise takes to reach full. Everything else here
      wants it near zero, which is a hit; the scrape wants it long, which is
      something being pushed rather than struck. That one parameter is the whole
-     difference between wood landing on stone and wood travelling over it. */
+     difference between wood landing on stone and wood traveling over it. */
   function burst({ freq = 1200, q = 1, dur = 0.09, gain = 0.2, delay = 0,
                    type = 'bandpass', freq2, attack = 0.006 }){
     if (!on || !ctx) return;

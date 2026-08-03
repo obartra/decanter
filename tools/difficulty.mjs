@@ -7,7 +7,7 @@
 
    Run: node tools/difficulty.mjs [levels] [--json] */
 import { loadPure } from '../tests/helpers.mjs';
-import { h, analyse, TOO_DEAR } from './difficulty-core.mjs';
+import { h, analyze, TOO_DEAR } from './difficulty-core.mjs';
 
 const ctx = loadPure();
 const args = process.argv.slice(2);
@@ -23,7 +23,7 @@ for (let level = 1; level <= LEVELS; level++){
   const { colors } = ctx.Levels.shape(level);
   let a;
   try {
-    a = analyse(tubes, par);
+    a = analyze(tubes, par);
   } catch (err) {
     if (err !== TOO_DEAR) throw err;
     if (!AS_JSON) console.log(String(level).padStart(3), ' too expensive to measure');
@@ -48,11 +48,11 @@ if (AS_JSON){
   const byOdds = [...rows].sort((a, b) => a.logOdds - b.logOdds);
   console.log('\nhardest ten, whole board:');
   for (const r of byOdds.slice(0, 10))
-    console.log(`  level ${String(r.level).padStart(3)}  10^${r.logOdds.toFixed(2)}  par ${String(r.par).padStart(2)}, ${r.colors} colours, tight ${r.tight.toFixed(3)}`);
+    console.log(`  level ${String(r.level).padStart(3)}  10^${r.logOdds.toFixed(2)}  par ${String(r.par).padStart(2)}, ${r.colors} colors, tight ${r.tight.toFixed(3)}`);
   const byTight = [...rows].sort((a, b) => a.tight - b.tight);
   console.log('\nhardest ten, per decision:');
   for (const r of byTight.slice(0, 10))
-    console.log(`  level ${String(r.level).padStart(3)}  tight ${r.tight.toFixed(3)}  par ${String(r.par).padStart(2)}, ${r.colors} colours`);
+    console.log(`  level ${String(r.level).padStart(3)}  tight ${r.tight.toFixed(3)}  par ${String(r.par).padStart(2)}, ${r.colors} colors`);
 
   /* is the shipped order actually a difficulty curve? */
   const n = rows.length;

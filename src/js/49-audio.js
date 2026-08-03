@@ -2,7 +2,7 @@
 
    50-audio.js is not in the critical bundle. It is fetched right after the page
    opens rather than as part of opening it, so the first paint is not waiting on
-   a synthesiser that is not allowed to make a noise yet anyway. Until it lands,
+   a synthesizer that is not allowed to make a noise yet anyway. Until it lands,
    every cue still has to go somewhere, and that somewhere must not be a
    TypeError in the middle of a pour.
 
@@ -55,7 +55,7 @@ globalThis.Sound = (() => {
        the moment it fired. This one is a promise the caller waits on and then
        fires after, precisely so the three explosions land on the recording
        rather than racing the fetch — so resolving it immediately does not drop a
-       sound, it drops the recording and lets the synthesised fallback play in
+       sound, it drops the recording and lets the synthesized fallback play in
        its place. That still bangs, so nothing else in the suite notices, which
        is the exact failure the wait exists to prevent.
 

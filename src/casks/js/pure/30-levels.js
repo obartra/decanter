@@ -7,7 +7,7 @@
    capacities and a target, and any seed at all produces a real board, so the
    generator is four lines of shuffle and the level table only has to record
    which seeds turned out to be worth playing. The pour game does the same thing
-   with colours.
+   with colors.
 
    That does not work here, and the reason is cost rather than principle. A
    random scattering of casks is overwhelmingly likely to be TRIVIAL — measured

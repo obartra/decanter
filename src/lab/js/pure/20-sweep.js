@@ -132,14 +132,14 @@ export const LabSweep = (() => {
 
     let turns = 0, forced = 0, sinceDrop = 0;
     for (let n = 1; n <= length; n++){
-      const live = rules.liveColours(b);
+      const live = rules.liveColors(b);
       if (!live.length) return { shots: n - 1, how: 'cleared', turns, forced };
-      const colour = live[Math.floor(rnd() * live.length)];
+      const color = live[Math.floor(rnd() * live.length)];
 
       /* Asked for on every turn whether or not it is taken, so the stream
          advances the same way at every miss rate and the forced count is a
          property of the board rather than of the policy. */
-      const best = advice.bestShot(b, colour, shot.resolveShot);
+      const best = advice.bestShot(b, color, shot.resolveShot);
       if (!best) return { shots: n - 1, how: 'blocked', turns, forced };
       turns++;
       if (best.matched === 0) forced++;
@@ -150,7 +150,7 @@ export const LabSweep = (() => {
         if (cells.length) landing = cells[Math.floor(rnd() * cells.length)];
       }
 
-      const res = rules.resolveTurn(b, landing, colour);
+      const res = rules.resolveTurn(b, landing, color);
       if (res.won) return { shots: n, how: 'cleared', turns, forced };
       if (res.lost) return { shots: n, how: 'line', turns, forced };
       if (n >= length) return { shots: n, how: 'survived', turns, forced };
@@ -188,9 +188,9 @@ export const LabSweep = (() => {
       kind: 'survival', miss, seeds, shots, how,
       median: shots[shots.length >> 1],
       max: shots[shots.length - 1],
-      /* Three turns in five have nothing to clear with the colour in hand, which
+      /* Three turns in five have nothing to clear with the color in hand, which
          is the least obvious thing about this game and the reason a run is not a
-         string of decisions. If it ever climbs towards nine in ten the game has
+         string of decisions. If it ever climbs toward nine in ten the game has
          become a dumping exercise and no test of the rules would notice. */
       forced: turns ? outs.reduce((n, o) => n + o.forced, 0) / turns : 0,
       at: {

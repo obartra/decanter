@@ -53,7 +53,7 @@ const dist = join(root, 'dist');
    number the bundler did not move.
 
    The critical path is deliberately the tightest, at a few percent. It is what
-   a first paint waits for, so being told about every addition is the behaviour
+   a first paint waits for, so being told about every addition is the behavior
    wanted rather than a false alarm to be tuned away. Raising it should be a
    decision someone makes, not a step they skip — and it has been raised twice on
    those terms, once for the blast and once for the card shown before a replay.

@@ -27,7 +27,7 @@ test('a medallion never puts a price where the level number goes', async ({ page
   const armed = page.locator('.node.armed');
   await expect(armed).toHaveCount(1);
 
-  await expect(armed.locator('.num'), 'the centre must be the level being opened')
+  await expect(armed.locator('.num'), 'the center must be the level being opened')
     .toHaveText(level);
   const label = await armed.locator('.buy').textContent();
   expect(label, 'a number that is money has to carry the diamond').toContain('◆');
@@ -44,7 +44,7 @@ test('every price on the map carries the diamond', async ({ page }) => {
       const num = n.querySelector('.num');
       const buy = n.querySelector('.buy');
       if (num && /^\d+$/.test(num.textContent) && num.textContent !== n.dataset.level){
-        bad.push(`node ${n.dataset.level} centre says ${num.textContent}`);
+        bad.push(`node ${n.dataset.level} center says ${num.textContent}`);
       }
       if (buy && /\d/.test(buy.textContent) && !buy.textContent.includes('◆')){
         bad.push(`node ${n.dataset.level} label "${buy.textContent}" has a number and no diamond`);
@@ -120,7 +120,7 @@ test('tapping the current medallion deals the board, as Play used to', async ({ 
 });
 
 test('the header controls are drawn, not typed, and still say what they are', async ({ page }) => {
-  /* An emoji speaker arrives as whatever the platform has, which was a grey
+  /* An emoji speaker arrives as whatever the platform has, which was a gray
      plastic blob in a gold header. These are paths in currentColor. A glyph with
      no words still has to answer a screen reader. */
   await start(page, deep);

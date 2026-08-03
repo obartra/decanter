@@ -10,7 +10,7 @@
    ---- DRAG OR TAP, AND WHY BOTH ----
 
    The measure takes two taps and refuses a drag, and gives good reasons: a drag
-   has to be tracked, can be cancelled halfway, and fights the browser's own
+   has to be tracked, can be canceled halfway, and fights the browser's own
    gestures on a phone. Every one of those is still true here, and this game
    takes the drag anyway, because a slide is not a pour.
 
@@ -67,7 +67,7 @@ export const CasksApp = (() => {
     advice: null,
     /* {cask, at, from, run, offset, moved, hadPicked} while a finger is down */
     grab: null,
-    /* {cask, from, to, t, dur, thud} while a cask is travelling */
+    /* {cask, from, to, t, dur, thud} while a cask is traveling */
     sliding: null,
     /* {t} while the gilt cask is leaving through the door */
     escaping: null,
@@ -142,17 +142,17 @@ export const CasksApp = (() => {
     st.picked = -1;
     st.advice = null;
 
-    const travelled = Math.abs(to - from);
+    const traveled = Math.abs(to - from);
     st.sliding = {
       cask, from: drawnFrom == null ? from : drawnFrom, to, t: 0,
-      dur: Math.min(C.SLIDE_MAX, C.SLIDE_PER_CELL * Math.max(1, travelled)),
+      dur: Math.min(C.SLIDE_MAX, C.SLIDE_PER_CELL * Math.max(1, traveled)),
       /* A cask that ran out of floor thudded; one the player chose to stop short
          did not. Only the first is information, and it is played when the cask
          arrives rather than when the move is made, because a stop that is heard
          before it is seen reads as a different event. */
       thud: to === run.min || to === run.max
     };
-    A.slide(travelled, cask === 0);
+    A.slide(traveled, cask === 0);
 
     if (R.isOut(st.layout, st.pos)) finish('open');
     paintHud();
@@ -241,8 +241,8 @@ export const CasksApp = (() => {
     return true;
   }
 
-  /* Letting go. A press that never travelled is a tap and only changes what is
-     in hand; one that travelled commits to the nearest cell inside the run. */
+  /* Letting go. A press that never traveled is a tap and only changes what is
+     in hand; one that traveled commits to the nearest cell inside the run. */
   function release(){
     const g = st.grab;
     st.grab = null;
@@ -329,14 +329,14 @@ export const CasksApp = (() => {
         st.sliding = null;
         if (s.thud) A.thud();
         /* The tools come back when the cask stops. paintHud() disables undo and
-           hint while something is travelling, and the flag it reads is cleared
+           hint while something is traveling, and the flag it reads is cleared
            here — in the frame loop, which does not paint the HUD. Without this
-           they go grey on the first slide and stay grey; undo() still worked, so
+           they go gray on the first slide and stay gray; undo() still worked, so
            nothing threw, and the only route back to it was to tap a cask, which
            happens to repaint. */
         paintHud();
         /* The panel waits for the cask to stop, and for the gilt one to be gone.
-           A verdict that arrives while something is still travelling is the game
+           A verdict that arrives while something is still traveling is the game
            announcing a result over a board that has visibly not reached it. */
         if (st.over === 'open'){ st.escaping = { t: 0 }; A.door(); }
       } else {
@@ -356,7 +356,7 @@ export const CasksApp = (() => {
     }
   }
 
-  /* How far out of the room the gilt cask has travelled, in cells, and how much
+  /* How far out of the room the gilt cask has traveled, in cells, and how much
      of it is still visible. It goes through the doorway rather than stopping at
      the wall: the door is what the whole board is about and the last move should
      end with the cask through it, not touching it. */
@@ -378,7 +378,7 @@ export const CasksApp = (() => {
       D.track(ctx, st.layout[st.picked], R.runOf(st.layout, st.pos, st.picked));
     }
 
-    /* The gilt cask last, so its rim of light is never cut by a neighbour drawn
+    /* The gilt cask last, so its rim of light is never cut by a neighbor drawn
        over it. Everything else in whatever order the board came in, which is
        fine because no two casks ever overlap. */
     for (let i = st.layout.length - 1; i >= 1; i--){

@@ -245,14 +245,14 @@ test('the chapters hand over the bubble tools too', async ({ page }) => {
     return page.evaluate(() => ({
       undo: !document.getElementById('bubbleUndo').hidden,
       hint: !document.getElementById('bubbleHint').hidden,
-      colour: !document.getElementById('bubblePick').hidden
+      color: !document.getElementById('bubblePick').hidden
     }));
   };
 
-  expect(await shown({ undo: true, hint: false, colour: false }))
-    .toEqual({ undo: true, hint: false, colour: false });
-  expect(await shown({ undo: true, hint: true, colour: true }))
-    .toEqual({ undo: true, hint: true, colour: true });
+  expect(await shown({ undo: true, hint: false, color: false }))
+    .toEqual({ undo: true, hint: false, color: false });
+  expect(await shown({ undo: true, hint: true, color: true }))
+    .toEqual({ undo: true, hint: true, color: true });
 });
 
 test('a bubble tool is paid for out of the same purse', async ({ page }) => {
@@ -288,9 +288,9 @@ test('an empty purse refuses a bubble tool rather than giving it away', async ({
     const p = globalThis.App._progress;
     p.spend(p.gold);
   });
-  const colours = await page.evaluate(() => globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board));
-  const took = await page.evaluate(c => globalThis.BubbleApp.pickColour(c), colours[1]);
-  expect(took, 'a colour was handed over on an empty purse').toBe(false);
+  const colors = await page.evaluate(() => globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board));
+  const took = await page.evaluate(c => globalThis.BubbleApp.pickColor(c), colors[1]);
+  expect(took, 'a color was handed over on an empty purse').toBe(false);
   expect(await page.evaluate(() => globalThis.BubbleApp._state.aided),
     'a refused purchase still capped the run').toBe(false);
   expect(await purse(page)).toBe(0);

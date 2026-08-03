@@ -17,7 +17,7 @@ export const MeasureRender = (() => {
   const C = MeasureConfig;
   const V = MeasureView;
 
-  /* The cellar's own colours, from src/measure/css/00-base.css, which took them
+  /* The cellar's own colors, from src/measure/css/00-base.css, which took them
      from the pour game verbatim. Canvas cannot read a custom property without
      going through getComputedStyle on every frame, so the four that are needed
      here are written out; if that block is ever retuned these are the four to
@@ -173,7 +173,7 @@ export const MeasureRender = (() => {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    /* Centred in the margin to the left of the first vessel rather than hard
+    /* Centerd in the margin to the left of the first vessel rather than hard
        against the edge. At two digits and this size the number is about 1.3
        units wide, which set flush left overhangs the gap and lands on the first
        vessel's glass — a gold numeral sitting on the graduations of the vessel

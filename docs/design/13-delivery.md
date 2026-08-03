@@ -164,7 +164,7 @@ the audio module has to know which kind of build it is running in.
 
 It has to be inlined there rather than pointed at, for the same reason the fonts
 are: a `file://` page fetching a sibling path is a cross origin request, so a
-portable file naming `./audio/` would fall silently back to the synthesised bang
+portable file naming `./audio/` would fall silently back to the synthesized bang
 the moment it left the folder it was built in.
 
 Everything uses relative paths, so `dist/` works from any subdirectory.
@@ -232,7 +232,7 @@ that computes it read correctly while being wrong.
 This took two goes and is worth writing down.
 
 **Navigations revalidate.** The worker fetches the shell with `cache: 'no-cache'`.
-A plain `fetch()` honours the HTTP cache, and the host sets a max-age on HTML. A
+A plain `fetch()` honors the HTTP cache, and the host sets a max-age on HTML. A
 shell names the bundles by hash, so serving a cached one serves the names of a
 build that may no longer exist, and no amount of reloading would shift it.
 

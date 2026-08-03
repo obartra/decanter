@@ -18,7 +18,7 @@ const state = page => page.evaluate(() => {
     mode: A._state.mode,
     occupied: G.occupied(A._state.board).length,
     loaded: A._state.loaded,
-    live: R.liveColours(A._state.board),
+    live: R.liveColors(A._state.board),
     shots: A._state.shots
   };
 });
@@ -31,7 +31,7 @@ test('boots and deals a board without errors', async ({ page }) => {
   const s = await state(page);
   expect(s.occupied).toBeGreaterThan(30);
   expect(s.mode).toBe('aim');
-  /* the colour in hand must be one that is actually on the board, or the shot
+  /* the color in hand must be one that is actually on the board, or the shot
      cannot match anything and the board only ever grows */
   expect(s.live).toContain(s.loaded);
   expect(errors).toEqual([]);
@@ -73,11 +73,11 @@ test('a shot lands exactly where the solver said it would', async ({ page }) => 
   expect(landed).toBeGreaterThanOrEqual(0);
 });
 
-test('a shot that completes three of a colour clears them', async ({ page }) => {
+test('a shot that completes three of a color clears them', async ({ page }) => {
   await open(page);
   const before = await page.evaluate(() => {
     /* an arranged board, so the outcome is a fact rather than a hope: two of a
-       colour side by side, everything else another colour, and a clear lane */
+       color side by side, everything else another color, and a clear lane */
     const { BubbleApp: A, BubbleGrid: G } = globalThis;
     const b = G.create(0);
     for (let c = 0; c < 10; c++) b.rows[0][c] = 1;
@@ -90,8 +90,8 @@ test('a shot that completes three of a colour clears them', async ({ page }) => 
 
   await page.evaluate(() => {
     const { BubbleApp: A, BubbleShot: S, BubbleConfig: C, BubbleGrid: G } = globalThis;
-    /* aim at the gap under the pair so the third of that colour lands touching */
-    const target = G.centreOf(A._state.board, 1, 4);
+    /* aim at the gap under the pair so the third of that color lands touching */
+    const target = G.centerOf(A._state.board, 1, 4);
     A._state.aim = S.aimFrom(C.MUZZLE, target);
     A.fire();
   });
@@ -127,7 +127,7 @@ const watchDrops = page => page.evaluate(() => {
   requestAnimationFrame(tick);
 });
 
-/* two of a colour with a clear lane under them, so the third completes a group */
+/* two of a color with a clear lane under them, so the third completes a group */
 const armed = page => page.evaluate(() => {
   const { BubbleApp: A, BubbleGrid: G } = globalThis;
   const b = G.create(0);
@@ -143,7 +143,7 @@ const armed = page => page.evaluate(() => {
 
 const shootAtGap = page => page.evaluate(() => {
   const { BubbleApp: A, BubbleShot: S, BubbleConfig: C, BubbleGrid: G } = globalThis;
-  A._state.aim = S.aimFrom(C.MUZZLE, G.centreOf(A._state.board, 1, 4));
+  A._state.aim = S.aimFrom(C.MUZZLE, G.centerOf(A._state.board, 1, 4));
   A.fire();
 });
 
@@ -164,7 +164,7 @@ test('a cleared group falls off the board instead of vanishing', async ({ page }
   const seen = await page.evaluate(() => globalThis.__drops);
   expect(seen.max, 'the matched group was never drawn falling').toBeGreaterThanOrEqual(3);
   expect(seen.peakY - seen.firstY,
-    'the bubbles were drawn but never travelled down the board').toBeGreaterThan(2);
+    'the bubbles were drawn but never traveled down the board').toBeGreaterThan(2);
 });
 
 test('the score is on screen while playing, not only at the end', async ({ page }) => {
@@ -394,7 +394,7 @@ test('the hint points at a shot that really clears', async ({ page }) => {
 test('the hint button is dead when there is nothing to advise', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {
-    /* one colour on the board, another in hand: nothing can match */
+    /* one color on the board, another in hand: nothing can match */
     const { BubbleApp: A, BubbleGrid: G } = globalThis;
     const b = G.create(0);
     for (let c = 0; c < 10; c++) b.rows[0][c] = 1;
@@ -423,8 +423,8 @@ test('swap exchanges the two bubbles and nothing else', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {
     const s = globalThis.BubbleApp._state;
-    s.loaded = globalThis.BubbleRules.liveColours(s.board)[0];
-    s.next = globalThis.BubbleRules.liveColours(s.board)[1];
+    s.loaded = globalThis.BubbleRules.liveColors(s.board)[0];
+    s.next = globalThis.BubbleRules.liveColors(s.board)[1];
   });
   const before = await snap(page);
   expect(await page.evaluate(() => globalThis.BubbleApp.swap())).toBe(true);
@@ -436,16 +436,16 @@ test('swap exchanges the two bubbles and nothing else', async ({ page }) => {
   expect(after.aided, 'swapping cost the run a star').toBe(false);
 });
 
-test('picking a colour loads it and caps the run', async ({ page }) => {
+test('picking a color loads it and caps the run', async ({ page }) => {
   await open(page);
-  const colours = await page.evaluate(() => globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board));
-  const wanted = colours[colours.length - 1];
-  expect(await page.evaluate(c => globalThis.BubbleApp.pickColour(c), wanted)).toBe(true);
+  const colors = await page.evaluate(() => globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board));
+  const wanted = colors[colors.length - 1];
+  expect(await page.evaluate(c => globalThis.BubbleApp.pickColor(c), wanted)).toBe(true);
 
   const s = await snap(page);
   expect(s.loaded).toBe(wanted);
-  expect(s.aided, 'picking a colour left the run ungraded as uncapped').toBe(true);
-  expect(s.hash, 'picking a colour touched the board').toBe(
+  expect(s.aided, 'picking a color left the run ungraded as uncapped').toBe(true);
+  expect(s.hash, 'picking a color touched the board').toBe(
     (await page.evaluate(() => globalThis.BubbleGrid.hash(globalThis.BubbleApp._state.board))));
 
   /* and the cap is real, even on a run that would otherwise have earned three */
@@ -456,7 +456,7 @@ test('picking a colour loads it and caps the run', async ({ page }) => {
   expect(stars).toBe(await page.evaluate(() => globalThis.BubbleConfig.AID_CAP));
 });
 
-test('a colour that has left the board is not on offer', async ({ page }) => {
+test('a color that has left the board is not on offer', async ({ page }) => {
   await open(page);
   await page.evaluate(() => {
     const { BubbleApp: A, BubbleGrid: G } = globalThis;
@@ -466,11 +466,11 @@ test('a colour that has left the board is not on offer', async ({ page }) => {
     A._state.over = null;
     A.paintHud();
   });
-  /* only one colour left, so there is nothing to pick between and the button
+  /* only one color left, so there is nothing to pick between and the button
      must not offer a purchase that buys an unmatched bubble */
   await expect(page.locator('#bubblePick')).toBeDisabled();
-  expect(await page.evaluate(() => globalThis.BubbleApp.pickColour(0)),
-    'loaded a colour that is not on the board').toBe(false);
+  expect(await page.evaluate(() => globalThis.BubbleApp.pickColor(0)),
+    'loaded a color that is not on the board').toBe(false);
 });
 
 test('the tool row says what can be pressed', async ({ page }) => {
@@ -480,7 +480,7 @@ test('the tool row says what can be pressed', async ({ page }) => {
   await page.locator('#bubblePick').click();
   await expect(palette).toBeVisible();
   const swatches = await palette.locator('.swatch').count();
-  const live = await page.evaluate(() => globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board).length);
+  const live = await page.evaluate(() => globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board).length);
   expect(swatches, 'the picker offered a different set from what is on the board').toBe(live);
 
   /* choosing closes it, and so does pressing the button again */

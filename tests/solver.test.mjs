@@ -76,7 +76,7 @@ describe('solver', () => {
       { name: 'room limited pour',     t: [[0,0,0], [0,1,1,1], [1]]  , colors: 2 },
       { name: 'deadlocked, no empty',  t: [[0,1,0,1], [1,0,1,0]]     , colors: 2 },
       { name: 'sealed bottle present', t: [[0,0,0,0], [1,2,1,2], [2,1,2,1], []], colors: 3 },
-      { name: 'three tangled colours', t: [[0,1,2,0], [1,2,0,1], [2,0,1,2], [], []], colors: 3 }
+      { name: 'three tangled colors', t: [[0,1,2,0], [1,2,0,1], [2,0,1,2], [], []], colors: 3 }
     ];
     for (const c of cases){
       const truth = base.bfsOptimal(base.clone(c.t));
@@ -90,7 +90,7 @@ describe('solver', () => {
   });
 
   it('the heuristic never overestimates', () => {
-    /* h = segments - colours. If h ever exceeded the true remaining distance,
+    /* h = segments - colors. If h ever exceeded the true remaining distance,
        A* could return a number that is too large. */
     const { segs } = solver.internals;
     for (let i = 0; i < 40; i++){
@@ -109,7 +109,7 @@ describe('solver', () => {
       const started = Date.now();
       const got = solver.solve(board, colors);
       assert(got.par === null || Number.isInteger(got.par), 'par must be an integer or null');
-      if (got.par !== null) assert(got.exact, `${colors} colours fell back to an estimate`);
+      if (got.par !== null) assert(got.exact, `${colors} colors fell back to an estimate`);
       assert(Date.now() - started < 8000, 'took too long');
     }
   });

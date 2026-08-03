@@ -7,7 +7,7 @@ const css = ['01-base.css', '02-bottle.css', '03-game.css', '04-map.css']
   .map(f => read(`src/css/${f}`)).join('\n');
 const app = read('src/js/90-app.js');
 
-/* CIEDE2000, the standard measure of how different two colours look. Written
+/* CIEDE2000, the standard measure of how different two colors look. Written
    out here rather than pulled in, because the palette is the one thing in the
    project that has to be judged by eye and a test that guesses at that is worse
    than no test. */
@@ -56,22 +56,22 @@ function closestPair(list){
 }
 
 describe('liquid palette', () => {
-  it('covers every colour a level can deal', () => {
+  it('covers every color a level can deal', () => {
     assert(CONFIG.palette.length >= CONFIG.maxColors,
-      `palette has ${CONFIG.palette.length} entries for ${CONFIG.maxColors} colours`);
+      `palette has ${CONFIG.palette.length} entries for ${CONFIG.maxColors} colors`);
     for (const hex of CONFIG.palette){
-      assert(/^#[0-9A-Fa-f]{6}$/.test(hex), `${hex} is not a six-digit hex colour`);
+      assert(/^#[0-9A-Fa-f]{6}$/.test(hex), `${hex} is not a six-digit hex color`);
     }
   });
 
-  it('is the only place a liquid colour is written down', () => {
+  it('is the only place a liquid color is written down', () => {
     /* The bands read var(--cN) while the pour and the particle sim read
        CONFIG.palette. When both were spelled out, retuning one left the other
-       behind and the sim poured the old colours into the new bottles. The vars
+       behind and the sim poured the old colors into the new bottles. The vars
        are published from the palette at boot, so the stylesheets must not
        define them. */
     const defined = [...css.matchAll(/--c(\d+)\s*:/g)].map(m => m[0]);
-    equal(defined, [], `stylesheets should not define liquid colours: ${defined.join(', ')}`);
+    equal(defined, [], `stylesheets should not define liquid colors: ${defined.join(', ')}`);
     assert(/setProperty\(`--c\$\{i\}`/.test(app) || /setProperty\('--c'/.test(app),
       'nothing publishes the palette to CSS custom properties');
   });
@@ -81,7 +81,7 @@ describe('liquid palette', () => {
        eye however sound the puzzle is. Distance in RGB does not answer that
        question: it treats a step in green as it treats a step in blue, and the
        eye does not. This measures CIEDE2000, where roughly 24 is a comfortable
-       gap and the low teens is where two colours start being mistaken for each
+       gap and the low teens is where two colors start being mistaken for each
        other. The palette this replaced had two pairs near 12. */
     const MIN = 22;
     const worst = closestPair(CONFIG.palette);
@@ -91,7 +91,7 @@ describe('liquid palette', () => {
 
   it('keeps the six bubbles further apart than the twelve liquids', () => {
     /* A shelf is read one bottle at a time. A bubble grid is read all at once,
-       and the whole game is telling six colours apart at a glance, so the bar
+       and the whole game is telling six colors apart at a glance, so the bar
        here is higher than the one above rather than the same.
 
        These used to be six of the twelve, which capped the closest pair at 24.1
@@ -115,13 +115,13 @@ describe('liquid palette', () => {
       'the bubble palette is no longer the head of the liquid palette');
   });
 
-  it('deals every bubble colour it defines', () => {
+  it('deals every bubble color it defines', () => {
     /* The palette and the count are two numbers that mean one thing. When they
-       disagreed the extra colour existed only in the file. */
-    equal(BubbleConfig.PALETTE.length, BubbleConfig.COLOURS);
+       disagreed the extra color existed only in the file. */
+    equal(BubbleConfig.PALETTE.length, BubbleConfig.COLORS);
   });
 
-  it('measures colour the way an eye does, not the way a byte does', () => {
+  it('measures color the way an eye does, not the way a byte does', () => {
     /* The check above is only worth having if it can tell these apart, and a
        plain RGB distance cannot. Both pairs below are the same step in RGB, and
        they do not look remotely the same amount apart, which is the whole reason

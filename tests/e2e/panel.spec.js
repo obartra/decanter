@@ -34,14 +34,14 @@ async function endRun(page, how){
       S.tubes = [[0, 0, 0, 0], [1, 1, 1, 1], []];
       S.par = 20; S.parExact = true; S.moves = 20;
     } else if (kind === 'short'){
-      /* two colours needing more pours than are left */
+      /* two colors needing more pours than are left */
       S.tubes = [[0, 1, 0, 1], [1, 0, 1, 0], []];
       S.par = 2; S.parExact = true; S.moves = 2; S.history = [];
     } else {
       /* Nothing legal and nothing sorted. Three FULL bottles, each holding two
-         colours, so no pour has anywhere to go and no bottle is finished.
+         colors, so no pour has anywhere to go and no bottle is finished.
 
-         The first version of this was three full bottles of one colour each,
+         The first version of this was three full bottles of one color each,
          which is not a stuck board at all — it is a SOLVED one, and the run it
          produced was scored rather than failed. The test then asserted that a
          cleared run is not offered Move on, which is true and is not what it

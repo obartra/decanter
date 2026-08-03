@@ -1,5 +1,5 @@
 /* An independent implementation of the rules plus exhaustive breadth-first
-   search. Deliberately naive: it is the thing the optimised solver is checked
+   search. Deliberately naive: it is the thing the optimized solver is checked
    against, so it must not share code with it. */
 export const CAP = 4;
 export const clone = t => t.map(x => x.slice());

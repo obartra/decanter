@@ -9,7 +9,7 @@
 
    Two things have to be legible at a glance and everything else is in service of
    them: WHICH CASK IS THE GILT ONE, and WHICH WAY EACH CASK CAN GO. The first is
-   colour — gold against oak, at the only saturation in the picture. The second
+   color — gold against oak, at the only saturation in the picture. The second
    is the staves, which run along a cask's length, so its axis is readable
    without counting cells or watching it fail to move.
 
@@ -22,7 +22,7 @@ export const CasksRender = (() => {
   const C = CasksConfig;
   const V = CasksView;
 
-  /* The cellar's own colours, from src/casks/css/00-base.css, which took them
+  /* The cellar's own colors, from src/casks/css/00-base.css, which took them
      from the pour game verbatim. Canvas cannot read a custom property without
      going through getComputedStyle on every frame, so the ones needed here are
      written out; if that block is ever retuned these are the ones to bring
@@ -89,7 +89,7 @@ export const CasksRender = (() => {
         const lit = 0.06 + 0.34 / (1 + d * d * 0.18);
         ctx.fillStyle = shade(C.FLOOR, lit * (0.72 + 0.28 * grit(r, c)));
         ctx.fillRect(x, y, 1, 1);
-        /* The joint, on two sides only, so neighbouring stones share one seam
+        /* The joint, on two sides only, so neighboring stones share one seam
            rather than drawing a double-width line between them. */
         ctx.strokeStyle = C.FLOOR_JOINT;
         ctx.lineWidth = 0.045;
@@ -190,7 +190,7 @@ export const CasksRender = (() => {
   /* One cask.
 
      The body is a gradient ACROSS the short axis, dark at both edges and lit
-     just off centre, which is what makes a rectangle read as a cylinder lying on
+     just off center, which is what makes a rectangle read as a cylinder lying on
      its side. The staves run ALONG the length and the hoops cross it, so the
      axis a cask can move on is visible in the grain rather than only in its
      shape — which matters for the two-cell casks, where the rectangle is nearly
@@ -319,7 +319,7 @@ export const CasksRender = (() => {
       lines.push(text);
     }
 
-    /* centred on where the single line used to sit, so two lines grow into the
+    /* centerd on where the single line used to sit, so two lines grow into the
        space either side of it rather than pushing down off the floor */
     const step = size * 1.3;
     const top = w.h - w.wall / 2 - (lines.length - 1) * step / 2;

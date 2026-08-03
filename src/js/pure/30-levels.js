@@ -15,16 +15,16 @@ export const Levels = (() => {
     const empties = colors % 2 === 0 ? 2 : 3;
     return { colors, empties, bottles: colors + empties };
   }
-  /* A level is `[colours, empties, seed]` in ORDER, or the formula above seeded by
+  /* A level is `[colors, empties, seed]` in ORDER, or the formula above seeded by
      the level number. The three travel together because all three decide which
      board you are dealt, and splitting them let the par table and the ordering
      disagree about what a level even was.
 
      ORDER exists because measured difficulty and level number were uncorrelated.
      It is free to swap the two shapes that share a bottle count, so a level can be
-     dealt six colours and two empties where the formula said five and three. The
+     dealt six colors and two empties where the formula said five and three. The
      board is the same size either way, and the empty count turned out to matter
-     far more than the colour count: every extra empty adds legal moves, most of
+     far more than the color count: every extra empty adds legal moves, most of
      which are wrong. See tools/order.mjs. */
   function entryFor(level){
     const e = ORDER && ORDER[level];

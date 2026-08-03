@@ -51,7 +51,7 @@
    No stroke and no shadow on this one, though the number below has both. Both
    are painted at text time and the clipped gradient is painted at background
    time, which is behind them: on a face this heavy they buried the rainbow and
-   left dark letters with a coloured rim. A solid colour takes an outline
+   left dark letters with a colored rim. A solid color takes an outline
    happily, which is why the number keeps one. */
 .jabariWord span{
   display:inline-block; color:#FFE04A;
@@ -119,7 +119,7 @@
 /* The global reduce rule collapses every animation to nothing, which for these
    would mean landing on their own final frame: gone before they were read. So
    they are simply shown, and the timer that clears them still does. The strobe
-   goes entirely — a screen flashing five colours a second is the one thing here
+   goes entirely — a screen flashing five colors a second is the one thing here
    that can actually hurt somebody, and "reduce" is exactly who is asking. */
 @media (prefers-reduced-motion:reduce){
   .jabari.go .jabariWord, .jabari.go .jabariGold{animation:none; opacity:1; transform:none}

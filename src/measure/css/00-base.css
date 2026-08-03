@@ -36,7 +36,7 @@ body{
   padding-top:calc(10px + env(safe-area-inset-top));
 }
 /* Cinzel is inscriptional Roman caps, so it wants to be spaced out, and it is
-   the gilt of the other game's wordmark rather than a flat colour. */
+   the gilt of the other game's wordmark rather than a flat color. */
 .msrMark{
   font-family:"Cinzel",Georgia,serif; font-weight:700;
   font-size:15px; letter-spacing:.2em; text-transform:uppercase;
@@ -81,7 +81,7 @@ body{
    and so fills it -- whatever is drawn at the bottom of the world ends up behind
    them. On this page that is the numeral under each vessel, which is read on
    every single turn. It looked fine on a phone, where the board is width-limited
-   and centres with slack to spare, which is why it survived. */
+   and centers with slack to spare, which is why it survived. */
 .msrStage{
   flex:1; min-height:0; display:flex; position:relative;
   padding:0 6px calc(52px + env(safe-area-inset-bottom));

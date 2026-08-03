@@ -1,9 +1,9 @@
 # 11 · Sound
 
-Every sound the game makes is synthesised at runtime with WebAudio. The app
+Every sound the game makes is synthesized at runtime with WebAudio. The app
 ships exactly one audio file, and it is not one of the game's sounds.
 
-## Why synthesised
+## Why synthesized
 
 Audio files are by far the heaviest thing a small game carries, and this one has
 to work offline from a cache and open as a single portable file. A few hundred
@@ -17,7 +17,7 @@ is built from those.
 ## The pour is the one that matters
 
 Broadband noise through a highpass, a bandpass, and two peaking filters whose
-centre frequencies **rise as the receiving bottle fills**.
+center frequencies **rise as the receiving bottle fills**.
 
 That rising resonance is the cue an ear actually uses to identify a vessel
 filling, and adding it did more for realism than any change to the visuals. It is
@@ -43,10 +43,10 @@ sci-fi pack, CC0, mono at 96k, and the argument above does not apply to it:
   which is why a fixed recording cannot play them. A bang is fired once at one
   size.
 - **Its whole job is to be bigger than the game.** That is the one job a
-  synthesised imitation of an explosion cannot do, however carefully it is
-  tuned, and the synthesised one was tuned carefully.
+  synthesized imitation of an explosion cannot do, however carefully it is
+  tuned, and the synthesized one was tuned carefully.
 
-The synthesised bang is still in `50-audio.js` and still fires when the
+The synthesized bang is still in `50-audio.js` and still fires when the
 recording does not arrive, which is what a page served unbuilt does. It sounds
 like a bang, so nothing looks broken, and that is exactly why a test pins the
 recording as the thing that played rather than only checking that something did:
@@ -101,7 +101,7 @@ So the suites check that a cue actually reached the audio graph, by counting the
 nodes it built, which is the only thing a browser will tell you about whether a
 sound happened:
 
-- the bang plays the recording rather than the synthesised fallback, by node
+- the bang plays the recording rather than the synthesized fallback, by node
   count, because the fallback still sounds and would hide the difference forever
 - three of them overlapping neither clip nor come out quieter than the bang they
   replaced, measured by rendering the actual mix

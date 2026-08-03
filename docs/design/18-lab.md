@@ -52,7 +52,7 @@ calculation is exactly what this repo says will drift, a test compares the two.
 it *and* par as the search says when asked again. They should agree; the useful
 case is when they do not.
 
-That comes in two flavours and they are not the same thing:
+That comes in two flavors and they are not the same thing:
 
 | | means |
 | --- | --- |

@@ -21,30 +21,30 @@ report reproducible from a single integer.
 `baseShape(level)` is what a level would be with no ordering applied:
 
 ```
-colours = min(minColors + floor((level - 1) / 2), maxColors)
-empties = colours is even ? 2 : 3
-bottles = colours + empties
+colors = min(minColors + floor((level - 1) / 2), maxColors)
+empties = colors is even ? 2 : 3
+bottles = colors + empties
 ```
 
-Colours climb by one every two levels from 4 until they cap at 12, so the board
+Colors climb by one every two levels from 4 until they cap at 12, so the board
 grows for the first 17 levels and then stops growing. Growing is not the same as
 getting harder, which is what [Ordering](#ordering-by-measured-difficulty) is
-about, and which is why the colour count a level actually deals may differ from
+about, and which is why the color count a level actually deals may differ from
 this. What never differs is the **bottle count**.
 
 The empty count keeps that count **even**, so the board can lay out in two equal
 rows: the layout only considers row counts that divide the bottles exactly, and
 an odd count collapses to a single row of very narrow bottles.
 
-Every colour is dealt **exactly `capacity` units**. This looks like an
+Every color is dealt **exactly `capacity` units**. This looks like an
 implementation detail and is not: the solver's heuristic is only admissible
-because each colour finishes in exactly one bottle. Deal a colour two bottles'
+because each color finishes in exactly one bottle. Deal a color two bottles'
 worth and par can come back too high, with nothing to indicate it. The
 requirement is documented on both sides, here and in [03 Par](03-par.md).
 
 ## Dealing
 
-A pool of `colours × capacity` units is shuffled with the seeded stream and cut
+A pool of `colors × capacity` units is shuffled with the seeded stream and cut
 into full bottles, then the empties are appended. Two rejections apply:
 
 - **No bottle may start finished.** A level that opens with a bottle already
@@ -100,7 +100,7 @@ disagreement. `logOdds` orders levels; `tight` says whether a level is demanding
 or merely long.
 
 Only one optimal line is walked, not all of them. Walking every line is exact and
-explodes on twelve-colour boards; one line is cheap and orders levels the same
+explodes on twelve-color boards; one line is cheap and orders levels the same
 way. The middle option is followed at each step, so the line taken is not
 systematically whatever the move generator happens to emit first.
 
@@ -110,7 +110,7 @@ describes the game as played rather than the solver's model of it.
 ### What is done with it
 
 `tools/order.mjs` writes `src/js/pure/32-order.js`, a table of
-`level: [colours, empties, seed]`. All three travel together because all three
+`level: [colors, empties, seed]`. All three travel together because all three
 decide which board you are dealt, and splitting them let the par table and the
 ordering disagree about what a level even was.
 
@@ -135,7 +135,7 @@ simply whatever its seed produced. Measured, the original first sixteen went:
 Not a curve, and not a pattern either: level 14 is easier than level 3 and level
 16 is harder than the great majority of the levels after it.
 
-Two shapes share each bottle count: 5 colours with 3 empties and 6 colours with 2
+Two shapes share each bottle count: 5 colors with 3 empties and 6 colors with 2
 empties are both eight bottles and look the same on screen. So levels are grouped
 into **bottle-count bands** and each band's levels are filled from the measured
 difficulty of the boards that fit that many bottles, whichever shape they wear.
@@ -161,7 +161,7 @@ accuracy against the target and buys monotonicity.
 
 Candidates are chosen against a **global** target rather than a spread within
 their own band. An earlier version did the latter and gave level 8 a board harder
-than most twelve-colour levels, because every candidate there was hard and being
+than most twelve-color levels, because every candidate there was hard and being
 mid-pool said nothing about how it compared to the rest of the game.
 
 ### Three things that did not work
@@ -220,8 +220,8 @@ alternative was to eyeball it once and hope; a hand-edited order or a
 regeneration that quietly made the curve worse now fails a test instead of
 reaching a player.
 
-The colour count now runs 4, 4, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 12 and
-then holds, since every band chose a two-empty shape. The odd-colour three-empty
+The color count now runs 4, 4, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 12 and
+then holds, since every band chose a two-empty shape. The odd-color three-empty
 shapes are no longer dealt.
 
 ### The cost of reordering
@@ -243,12 +243,12 @@ none solvable in fewer, by `tools/verify-pars.mjs`.
 Levels are grouped into sections of ten with names and tints from `CONFIG`
 (`The Cellar`, `The Apothecary`, and so on). Past the named list, sections are
 called `Reserve N` rather than running out. Sections are purely presentational:
-they change the map's labelling and tint, and nothing about the puzzle. How they
+they change the map's labeling and tint, and nothing about the puzzle. How they
 are laid out is [09 The map](09-map.md).
 
 ## Where the ceiling is
 
-`maxColors` is 12 and the palette has exactly 12 entries. A thirteenth colour
+`maxColors` is 12 and the palette has exactly 12 entries. A thirteenth color
 would need a palette entry that stays distinguishable from the other twelve on a
 dark shelf, which is a real constraint and is enforced by a test in
 [10 Visual system](10-visual-system.md).

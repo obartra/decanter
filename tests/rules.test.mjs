@@ -49,13 +49,13 @@ describe('rules', () => {
   });
   it('a pour takes the whole top run when there is room', () => {
     const t = [[0, 1, 1, 1], [1], []];
-    equal(Rules.pourAmount(t, 0, 1), 3, 'three units of colour 1 should move');
+    equal(Rules.pourAmount(t, 0, 1), 3, 'three units of color 1 should move');
   });
   it('a pour is cut short when the target runs out of room', () => {
     const t = [[0, 1, 1, 1], [1, 1, 1], []];
     equal(Rules.pourAmount(t, 0, 1), 1, 'only one unit fits');
   });
-  it('colours must match unless the target is empty', () => {
+  it('colors must match unless the target is empty', () => {
     const t = [[0], [1], []];
     assert(!Rules.canPour(t, 0, 1), 'red onto amber must be refused');
     assert(Rules.canPour(t, 0, 2), 'anything may go into an empty bottle');
@@ -65,7 +65,7 @@ describe('rules', () => {
     assert(!Rules.canPour(t, 0, 1), 'a sealed bottle cannot be poured out');
     equal(Rules.legalMoves(t).length, 0, 'no moves exist');
   });
-  it('a full bottle of mixed colours can still be poured from', () => {
+  it('a full bottle of mixed colors can still be poured from', () => {
     const t = [[0, 0, 0, 1], [1], []];
     assert(Rules.canPour(t, 0, 1), 'the top unit still moves');
   });

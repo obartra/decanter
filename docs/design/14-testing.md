@@ -34,14 +34,14 @@ daily draught must buy several attempts, another go must stay cheaper than payin
 past a board, and a vessel must cost around three good levels. Those are the
 statements that stay true when the numbers are retuned.
 
-## Structural tests, where behaviour cannot be reached
+## Structural tests, where behavior cannot be reached
 
 Some code needs a DOM, `requestAnimationFrame` and a visibility state, none of
 which exist in this runner and none of which can be faked without adding a
 dependency. Where a guard in that code is load-bearing, it is pinned
 structurally: the source is asserted to still contain the shape of the fix.
 
-These are honest about being weaker than behavioural tests, and say so in the
+These are honest about being weaker than behavioral tests, and say so in the
 files. They cover:
 
 - every frame loop going through the backstopped helper rather than a bare
@@ -141,7 +141,7 @@ glass, against 0 with the fix.
 The same was done for the sound and repo checks, which need it more than most,
 because every one of them guards something whose failure is silent:
 
-- the bang's recording pointed at a path that is not there. The synthesised
+- the bang's recording pointed at a path that is not there. The synthesized
   fallback took over, so the game still banged; the node count went from 3 to 9
   and said which one had played
 - muting reverted to reaching one game's audio module. Both mute tests went red
@@ -155,7 +155,7 @@ because every one of them guards something whose failure is silent:
 pair by construction and never asked it anything: it could have been set to five
 and nothing would have moved. A stale tunable is the most convincing dead code
 there is, because everything else looks like what it is, while a tunable looks
-like the place to change the behaviour it claims to control and usually carries a
+like the place to change the behavior it claims to control and usually carries a
 paragraph explaining the decision.
 
 So `dead-code.mjs` checks both `CONFIG` objects, one level of nesting deep, and
@@ -167,7 +167,7 @@ every tunable alive whether or not a line ever reads `CONFIG.economy.blast`.
 That check answered its first planted corpse with three accusations, because two
 of the nested blocks are written on one line and have no closing brace of their
 own to stop at, so matching them against the multi-line shape ran them on to the
-next brace and swallowed a neighbour. Both shapes have a planted corpse now.
+next brace and swallowed a neighbor. Both shapes have a planted corpse now.
 
 ## What is not tested, and why
 

@@ -41,7 +41,7 @@ export const BubbleApp = (() => {
      Four knobs, because difficulty in this game is not one dial. How often the
      board comes down is the obvious one and it is the weakest: past about a row
      every twenty it stops mattering, since what ends runs by then is the board
-     filling with the player's own misses rather than the feed. How many colours
+     filling with the player's own misses rather than the feed. How many colors
      are in play is the strongest, because it decides how often a match is
      available at all. Rows dealt sets how much there is to undo before an empty
      board, which is what a clear costs. And the limit decides whether there is
@@ -49,13 +49,13 @@ export const BubbleApp = (() => {
 
      `runShots: null` means no limit, and then clearing is the only win. That is
      a different game and deliberately not gradeable: the star thresholds are
-     measured against 35 shots, a cadence of four, six colours and five rows, so
+     measured against 35 shots, a cadence of four, six colors and five rows, so
      a run played under anything else is not a run those numbers describe. The
      host keeps that honest by not banking a sandbox run at all. */
   const rules = { every: C.ADVANCE_EVERY, runShots: C.RUN_SHOTS,
-                  colours: C.COLOURS, rows: OPENING_ROWS };
+                  colors: C.COLORS, rows: OPENING_ROWS };
   const graded = () => rules.every === C.ADVANCE_EVERY && rules.runShots === C.RUN_SHOTS
-    && rules.colours === C.COLOURS && rules.rows === OPENING_ROWS;
+    && rules.colors === C.COLORS && rules.rows === OPENING_ROWS;
 
   const st = {
     board: null,
@@ -63,15 +63,15 @@ export const BubbleApp = (() => {
     aim: { x: 0, y: -1 },
     pointing: false,
     path: null,          /* the resolved shot, decided at launch and never revised */
-    flown: 0,            /* distance travelled along it */
-    loaded: 0,           /* the colour in hand */
+    flown: 0,            /* distance traveled along it */
+    loaded: 0,           /* the color in hand */
     next: 0,
     drops: [],           /* what is falling, in world units, with velocity */
     shots: 0,
     sinceDrop: 0,        /* shots since the board last came down */
     score: 0,
     /* Whether this run leaned on something that made the board easier than the
-       thresholds it is graded against. Only picking a colour sets it; see
+       thresholds it is graded against. Only picking a color sets it; see
        AID_CAP in the config for why undo, hint and swap do not. */
     aided: false,
     /* how many bombs this run has fired, which is only ever asked for the
@@ -96,7 +96,7 @@ export const BubbleApp = (() => {
      There was one, and it fed the board, the bubble sequence, the incoming rows
      and the little random velocities the falling bubbles are thrown with. That
      last one is the problem: how many bubbles fell decided how far the stream
-     advanced, so a cosmetic detail changed which colour was dealt next. Two runs
+     advanced, so a cosmetic detail changed which color was dealt next. Two runs
      from the same seed diverged the moment their clears differed, undo could not
      put the sequence back, and the difficulty harness was measuring a game
      nobody could reproduce.
@@ -107,7 +107,7 @@ export const BubbleApp = (() => {
   const fx = BubbleRng.stream();
 
   function deal(){
-    const live = R.liveColours(st.board);
+    const live = R.liveColors(st.board);
     if (!live.length) return 0;
     return live[Math.floor(rand.next() * live.length) % live.length];
   }
@@ -123,9 +123,9 @@ export const BubbleApp = (() => {
      still cannot borrow that stream without moving it, so it is handed a fresh
      one seeded the same way, which deals the same board. */
   const opening = (seed, pick) =>
-    R.dealBoard(rules.rows, pick || BubbleRng.from(seed), rules.colours);
+    R.dealBoard(rules.rows, pick || BubbleRng.from(seed), rules.colors);
 
-  /* What a seed opens on, as rows of colours rather than as a board.
+  /* What a seed opens on, as rows of colors rather than as a board.
 
      The host draws this on the card before a bubble level is replayed, and it
      has no business knowing about the lattice, the parity bit or this game's
@@ -247,7 +247,7 @@ export const BubbleApp = (() => {
   function hint(){
     if (st.mode !== S_AIM || st.over || !allow.hint) return null;
     /* bestShot works by writing the loaded value into a cell and flood filling
-       its colour, so with a bomb in hand it would sweep 161 aims to discover
+       its color, so with a bomb in hand it would sweep 161 aims to discover
        that a sentinel matches nothing */
     if (st.loaded === C.BOMB) return null;
     const best = Adv.bestShot(st.board, st.loaded, S.resolveShot);
@@ -263,15 +263,15 @@ export const BubbleApp = (() => {
 
   /* ---- and the one that does not ----
 
-     Choosing the colour outright is the extra bottle of this game: from here the
+     Choosing the color outright is the extra bottle of this game: from here the
      board is easier than the thresholds the run is graded against, so the run is
      capped exactly the way a bought vessel caps one. */
-  function pickColour(colour){
-    if (st.mode !== S_AIM || st.over || !allow.colour) return false;
-    const live = R.liveColours(st.board);
-    if (!live.includes(colour)) return false;
-    if (!afford('colour')) return false;
-    st.loaded = colour;
+  function pickColor(color){
+    if (st.mode !== S_AIM || st.over || !allow.color) return false;
+    const live = R.liveColors(st.board);
+    if (!live.includes(color)) return false;
+    if (!afford('color')) return false;
+    st.loaded = color;
     st.aided = true;
     st.hint = null;
     paintHud();
@@ -291,8 +291,8 @@ export const BubbleApp = (() => {
     if (!afford('bomb')) return false;
     st.loaded = C.BOMB;
     st.aided = true;
-    /* a ring pointing at a landing worked out for a colour is not advice about
-       a bomb, and the same is true of the colour that was in hand */
+    /* a ring pointing at a landing worked out for a color is not advice about
+       a bomb, and the same is true of the color that was in hand */
     st.hint = null;
     paintHud();
     A.crash();
@@ -301,7 +301,7 @@ export const BubbleApp = (() => {
 
   /* Which aid this run leaned on, for the sentence at the end of it. Named
      rather than counted: "an aid" tells a player nothing about what they did. */
-  const aidName = () => (st.bombs ? 'Using a bomb' : 'Picking a colour');
+  const aidName = () => (st.bombs ? 'Using a bomb' : 'Picking a color');
 
   /* ---- input. Aiming is never locked, even mid flight, so the guide always
      answers the pointer and the game never feels like it is ignoring you. ---- */
@@ -345,18 +345,18 @@ export const BubbleApp = (() => {
          is kicked outward from the bubble that landed, so the burst reads as
          the shot doing it, while what was cut free was hit by nothing and
          simply lets go. */
-      const hit = G.centreOf(st.board, shot.landing.j, shot.landing.c);
+      const hit = G.centerOf(st.board, shot.landing.j, shot.landing.c);
       /* Thrown from `fx`, never from the game stream. How many bubbles fell must
-         not decide which colour comes next. */
+         not decide which color comes next. */
       st.drops = res.matched.map(([j, c, was]) => {
-        const p = G.centreOf(st.board, j, c);
+        const p = G.centerOf(st.board, j, c);
         const dx = p.x - hit.x, dy = p.y - hit.y;
         const away = Math.hypot(dx, dy) || 1;
         return falling(p, was,
           (dx / away) * C.KICK_OUT + (fx.next() - 0.5),
           (dy / away) * C.KICK_OUT - C.KICK_UP - fx.next());
       }).concat(res.cut.map(([j, c, was]) =>
-        falling(G.centreOf(st.board, j, c), was,
+        falling(G.centerOf(st.board, j, c), was,
           (fx.next() - 0.5) * C.CUT_DRIFT, -1 - fx.next())));
 
       st.score += res.matched.length * C.SCORE_MATCH + res.cut.length * C.SCORE_CUT;
@@ -401,8 +401,8 @@ export const BubbleApp = (() => {
     st.next = deal();
     paintHud();
 
-    if (!R.liveColours(st.board).length) return finish('won');
-    /* A board can pack itself so that every contact has its neighbours full and
+    if (!R.liveColors(st.board).length) return finish('won');
+    /* A board can pack itself so that every contact has its neighbors full and
        no shot can land anywhere. Without noticing, the player fires into a board
        that silently eats every bubble and nothing happens again, forever. */
     if (!canPlay()) return finish('lost');
@@ -437,15 +437,15 @@ export const BubbleApp = (() => {
     pick.onclick = () => {
       A.unlock();
       if (!palette.hidden) return closePalette();
-      /* Built fresh each time from the colours actually left on the board. */
+      /* Built fresh each time from the colors actually left on the board. */
       palette.innerHTML = '';
-      for (const colour of R.liveColours(st.board)){
+      for (const color of R.liveColors(st.board)){
         const b = document.createElement('button');
         b.className = 'swatch';
         b.type = 'button';
-        b.style.background = C.PALETTE[colour % C.PALETTE.length];
-        b.title = `load this colour`;
-        b.onclick = () => { pickColour(colour); closePalette(); paintTools(); };
+        b.style.background = C.PALETTE[color % C.PALETTE.length];
+        b.title = `load this color`;
+        b.onclick = () => { pickColor(color); closePalette(); paintTools(); };
         palette.appendChild(b);
       }
       palette.hidden = false;
@@ -468,7 +468,7 @@ export const BubbleApp = (() => {
     $('bubbleUndo').hidden = !allow.undo;
     $('bubbleHint').hidden = !allow.hint;
     $('bubbleSwap').hidden = !allow.swap;
-    $('bubblePick').hidden = !allow.colour;
+    $('bubblePick').hidden = !allow.color;
     const loadedBomb = st.loaded === C.BOMB;
     /* The price on the button, from the same place the charge comes from. */
     if (prices){
@@ -480,7 +480,7 @@ export const BubbleApp = (() => {
       };
       say('bubbleUndoCost', p.undo);
       say('bubbleHintCost', p.hint);
-      say('bubblePickCost', p.colour);
+      say('bubblePickCost', p.color);
       say('bubbleBombCost', p.bomb);
     }
     /* Taking back the shot that ended the run is the whole point of undo, so a
@@ -490,7 +490,7 @@ export const BubbleApp = (() => {
        back on the board to be played on and paid out again. */
     $('bubbleUndo').disabled = !(st.mode === S_AIM && st.past.length && !(quiet && st.over));
     $('bubbleSwap').disabled = !live || loadedBomb || st.loaded === st.next;
-    $('bubblePick').disabled = !live || loadedBomb || R.liveColours(st.board).length < 2;
+    $('bubblePick').disabled = !live || loadedBomb || R.liveColors(st.board).length < 2;
     /* asking the advice sweep about a bomb is 161 aims spent proving a sentinel
        matches nothing, so the question is not asked */
     $('bubbleHint').disabled = !live || loadedBomb
@@ -518,7 +518,7 @@ export const BubbleApp = (() => {
      or the chapters mean nothing on one board in five. So the host says what is
      allowed and takes the money; nothing here knows what gold is. `allow`
      defaults to everything, which is what the standalone page wants. */
-  let allow = { undo: true, hint: true, swap: true, colour: true, bomb: true };
+  let allow = { undo: true, hint: true, swap: true, color: true, bomb: true };
   let charge = null;
   /* What the host says each tool costs, so the row can say so too. Nothing here
      knows what gold is; it is handed a shape to print. */
@@ -572,7 +572,7 @@ export const BubbleApp = (() => {
     const deepest = Math.max(...cells.map(([j]) => j));
     st.collapsing = true;
     st.drops = cells.map(([j, c]) => {
-      const p = G.centreOf(st.board, j, c);
+      const p = G.centerOf(st.board, j, c);
       const d = falling(p, st.board.rows[j][c],
         (fx.next() - 0.5) * C.CUT_DRIFT * 2, -1 - fx.next());
       d.wait = (deepest - j) * C.COLLAPSE_STAGGER;
@@ -649,7 +649,7 @@ export const BubbleApp = (() => {
      left is what makes the run a goal rather than a wait. A fixed length nobody
      can see is indistinguishable from an unbounded one, and an unbounded one is
      a player hanging on until they lose, which is the thing this run stopped
-     being. The two count opposite ways on purpose and are coloured to match:
+     being. The two count opposite ways on purpose and are colored to match:
      the drop turns warm as a warning, the run turns gold as an arrival. */
   function paintHud(){
     const live = document.getElementById('bubbleLive');
@@ -711,7 +711,7 @@ export const BubbleApp = (() => {
      cosmetic: the grid already has it gone, so however long this takes it can
      never disagree with the board. */
   const falling = (p, was, vx, vy) => ({ x: p.x, y: p.y, vx, vy, wait: 0,
-    colour: C.PALETTE[was % C.PALETTE.length] });
+    color: C.PALETTE[was % C.PALETTE.length] });
 
   function step(dt){
     if (st.mode === S_FLY){
@@ -764,14 +764,14 @@ export const BubbleApp = (() => {
 
   const arrived = () => st.flown >= totalLen();
 
-  /* The colour of whatever is in hand, and the one place a sentinel is allowed
+  /* The color of whatever is in hand, and the one place a sentinel is allowed
      anywhere near the palette.
 
      `C.PALETTE[C.BOMB % C.PALETTE.length]` is `PALETTE[-2]`, which is undefined,
      and the renderer feeds what it is given straight to shade(), which slices
      it. That throws inside draw(), the throw escapes before the next
      requestAnimationFrame is asked for, and the game stops for good with
-     nothing on screen to say why. So the sentinel is turned into a colour here,
+     nothing on screen to say why. So the sentinel is turned into a color here,
      once, and never indexes anything. */
   const BOMB_INK = '#1B1526';
   const held = () => (st.loaded === C.BOMB ? BOMB_INK : C.PALETTE[st.loaded % C.PALETTE.length]);
@@ -784,7 +784,7 @@ export const BubbleApp = (() => {
 
     /* Drawn over the board, because a bubble on its way down passes in front of
        the ones still attached. */
-    for (const d of st.drops) D.bubble(ctx, d.x, d.y, d.colour, C.DRAW_R, 0.9);
+    for (const d of st.drops) D.bubble(ctx, d.x, d.y, d.color, C.DRAW_R, 0.9);
 
     if (!st.over) D.target(ctx, st.board, st.hint, now);
 
@@ -885,11 +885,11 @@ export const BubbleApp = (() => {
   return { boot, _state: st, newBoard, still, fire, step, land, finish, result,
            /* Two numbers this game owns that the host has to quote: how long a
               full run is, which is what the third star costs and which the card
-              before a replay names, and how many colours are in play, which is
+              before a replay names, and how many colors are in play, which is
               how much of the palette the host throws as confetti when a bubble
               level ends. The host had that second one written down as a 6. */
            get runShots(){ return C.RUN_SHOTS; },
-           get colours(){ return C.COLOURS; },
+           get colors(){ return C.COLORS; },
            /* What this run is played under, for a host that wants something
               other than the graded game.
 
@@ -902,13 +902,13 @@ export const BubbleApp = (() => {
              const n = (k, fallback) => (Number(v && v[k]) > 0 ? Number(v[k]) : fallback);
              rules.every = n('every', C.ADVANCE_EVERY);
              rules.runShots = v && v.runShots === null ? null : n('runShots', C.RUN_SHOTS);
-             rules.colours = Math.max(2, Math.min(C.COLOURS, n('colours', C.COLOURS)));
+             rules.colors = Math.max(2, Math.min(C.COLORS, n('colors', C.COLORS)));
              rules.rows = Math.max(1, Math.min(C.DEATH_ROW - 1, n('rows', OPENING_ROWS)));
            },
            get rules(){ return { ...rules, graded: graded() }; },
-           undo, hint, swap, pickColour, paintHud, paintTools,
+           undo, hint, swap, pickColor, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
-           set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, bomb: true, ...v }; },
+           set allow(v){ allow = { undo: true, hint: true, swap: true, color: true, bomb: true, ...v }; },
            get allow(){ return allow; },
            set charge(fn){ charge = fn; }, get charge(){ return charge; },
            set prices(fn){ prices = fn; }, get prices(){ return prices; },

@@ -22,6 +22,31 @@ import { defineConfig, devices } from '@playwright/test';
    PW_PORT=8125 npx playwright test  runs against a server of your own. */
 const PORT = Number(process.env.PW_PORT) || 8123;
 
+/* How many browsers to run at once, and the reason it is not Playwright's
+   default.
+
+   That default is half the cores, which assumes a page that is mostly idle
+   between assertions. This one is not: every worker drives a game that animates
+   continuously, and headless Chromium has no GPU, so each one also runs a
+   software renderer that sits near a whole core on its own. Measured on a
+   fourteen core machine, seven workers hold about ten of them for the length of
+   the run.
+
+   That is fine until something else wants the machine, and something else
+   usually does. The same checkout-versus-worktree situation the port above
+   exists for applies here with sharper teeth: two suites at seven workers ask
+   for seventeen cores of a fourteen core machine, and what that looks like is
+   not a slow run but a broken one. Every failure it produces is a timeout, most
+   of them "Tearing down context exceeded", spread across whichever specs were
+   unlucky. Nothing about that failure points at load, so it reads as flakiness
+   in the specs it lands on, and it moves every time.
+
+   Four leaves room for a second run, an editor and a build. It is slower than
+   seven on an idle machine and considerably faster than seven on a busy one.
+
+   PW_WORKERS=8 npx playwright test  when the machine is yours alone. */
+const WORKERS = Number(process.env.PW_WORKERS) || 4;
+
 export default defineConfig({
   testDir: 'tests/e2e',
   /* a pour takes about a second, and some specs play a whole level */
@@ -30,8 +55,16 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  workers: process.env.CI ? 2 : WORKERS,
+  /* The json copy is written everywhere, not only on CI, because it is what the
+     time budget reads and a budget you can only fail after pushing is one you
+     find out about from someone else. It costs a file; the suite has already
+     done the work by the time it is written. */
+  reporter: [
+    ['list'],
+    ['json', { outputFile: 'test-results/report.json' }],
+    ...(process.env.CI ? [['html', { open: 'never' }]] : [])
+  ],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: 'retain-on-failure',

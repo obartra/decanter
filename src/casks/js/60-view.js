@@ -58,7 +58,7 @@ export const CasksView = (() => {
     cv.width = Math.ceil(w * dpr);
     cv.height = Math.ceil(h * dpr);
 
-    /* Fit the whole room, centred, never cropped, on one scale for both axes.
+    /* Fit the whole room, centerd, never cropped, on one scale for both axes.
        A cropped cellar is a cellar with a cask off the edge of the screen, and
        in a puzzle where every cask is part of the answer that is not a cosmetic
        problem, it is a board the player cannot see. */

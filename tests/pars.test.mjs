@@ -18,7 +18,7 @@ describe('par table', () => {
       const par = PARS[lvl];
       const { colors, bottles } = Levels.shape(lvl);
       assert(Number.isInteger(par) && par > 0, `level ${lvl}: par ${par} is not a positive integer`);
-      assert(par >= colors - 1, `level ${lvl}: par ${par} is below the colour floor`);
+      assert(par >= colors - 1, `level ${lvl}: par ${par} is below the color floor`);
       assert(par <= bottles * CONFIG.capacity, `level ${lvl}: par ${par} is implausibly high`);
     }
   });
@@ -45,7 +45,7 @@ describe('par table', () => {
        baseline.mjs? A par that cannot be reached would fail every player on the
        level while looking perfectly reasonable in the table.
 
-       Segments minus colours is recomputed here rather than imported, so a
+       Segments minus colors is recomputed here rather than imported, so a
        mistake in the solver's copy cannot hide behind the same mistake. */
     const h = tubes => {
       let segs = 0; const seen = new Set();
@@ -93,7 +93,7 @@ describe('par table', () => {
   });
 
   it('reaches past the point where difficulty stops rising', () => {
-    /* colours climb every two levels until they cap, and the table is what
+    /* colors climb every two levels until they cap, and the table is what
        keeps par exact, so it should cover well beyond that */
     const plateau = (CONFIG.maxColors - CONFIG.minColors) * 2 + 1;
     assert(levels.length > plateau,

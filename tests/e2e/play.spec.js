@@ -2,6 +2,26 @@
 import { test, expect } from '@playwright/test';
 import { start, openLevel, pour, settle, optimalLine } from './helpers.js';
 
+/* The suite asks for reduced motion, because most of it is about what the game
+   decided rather than how long the liquid took to get there. Somewhere has to
+   run at the timings a player actually gets, though, or the queue's real
+   sequencing is never exercised in a browser at all, and this is the file that
+   does it: "actually animates" is the first line of it.
+
+   Two tests, not the whole file. It was the whole file first, which cost
+   forty-four seconds on the two that play a level for real and bought nothing on
+   the ten that do not: a test asserting which buttons a clean run offers gets
+   the same answer whether the liquid took a second or a tenth of one. So full
+   motion is spent where the timing is the subject, which is one pour landing
+   before the next is asked for, and one still being in the air when the board
+   changes underneath it.
+
+   Through the helper rather than `test.use({ reducedMotion })`, which does
+   nothing in this version. See the note on `motion` in helpers.js: an opt-out
+   that silently did not opt out would leave these two running reduced and the
+   one thing this file exists to cover uncovered, while reading as covered. */
+const startPlaying = (page, save) => start(page, save, { reducedMotion: 'no-preference' });
+
 test('boots to the map without errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
@@ -12,7 +32,7 @@ test('boots to the map without errors', async ({ page }) => {
 });
 
 test('a level plays to a clean win and pays for it', async ({ page }) => {
-  await start(page, { unlocked: 1, gold: 400 });
+  await startPlaying(page, { unlocked: 1, gold: 400 });
   await openLevel(page, 1);
 
   const line = await optimalLine(page);
@@ -112,7 +132,7 @@ test('a board with no legal pour ends the run and says why', async ({ page }) =>
    is dealt — the baked one is refused if it is below what the board plainly
    still needs — and the search that answers it is allowed eight seconds. Pours
    made during those seconds count, so the answer can arrive already spent. The
-   counter relabelled itself to no pours left and the run carried on underneath
+   counter relabeled itself to no pours left and the run carried on underneath
    it. */
 test('a par that lands after its pours are spent ends the run', async ({ page }) => {
   await start(page, { unlocked: 4, gold: 400, seen: { 0: true } });
@@ -226,7 +246,7 @@ test('a pour left behind on one board does not land on the next one', async ({ p
      lands on the board now on screen: a bottle drawn a unit short, another drawn
      past the cap. It is permanent for the level, because taps are read off
      S.tubes and the drawing off Board.view. */
-  await start(page, { unlocked: 30, gold: 4000, seen: { 0: true, 1: true, 2: true } });
+  await startPlaying(page, { unlocked: 30, gold: 4000, seen: { 0: true, 1: true, 2: true } });
   await openLevel(page, 1);
   const move = await page.evaluate(() => {
     const m = globalThis.Rules.legalMoves(globalThis.App._state.tubes)[0];

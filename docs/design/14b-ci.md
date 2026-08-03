@@ -15,7 +15,8 @@ amounts of time. A typo should not wait behind a browser download.
 | job | what it runs | roughly |
 | --- | --- | --- |
 | `checks` | lint, size budget, unit tests, dead code, par reachability | seconds |
-| `e2e` | the browser suite, two viewports | a minute |
+| `e2e` | the browser suite, two viewports, in four shards | about a minute a shard |
+| `e2e-budget` | merges the four reports and checks how the suite spends its time | seconds |
 
 `.github/workflows/pages.yml` runs `npm run check` again before publishing.
 Redundant on purpose: it is the last thing between a merge and players.
@@ -119,6 +120,36 @@ independent rules in `baseline.mjs` and fails if any cannot be finished in
 exactly the par the game advertises. Par is what the whole scoring rests on.
 
 **End to end** (`npm run test:e2e`). The layer the unit tests cannot reach.
+
+Split across four runners rather than given more cores on one. A runner has four
+of them and every worker drives a game that animates through a software
+renderer, so two workers is already most of the machine; asking one runner for
+more is how the suite starts failing on teardown timeouts that read as flaky
+specs and move around between runs. The fixed cost of a shard is about thirty
+seconds, nearly all of it the browser download, which is what makes four worth
+it and what stops more from being.
+
+The table above said this job took a minute for a long time. It took sixteen.
+That is the sort of number nobody rechecks, and the reason it had grown was not
+that any one spec was slow but that the whole suite ran at the animation speed a
+player sees. It asks for reduced motion now, which the game implements and which
+takes a pour from 1537ms to 597ms; the three tests where the animation is the
+subject say so where they opt out.
+
+**The time budget** (`npm run verify:test-budget`). Reads the report the suite
+already wrote, so it never runs anything twice, and fails if one spec grows past
+a quarter of the suite or one test past a twentieth of it.
+
+Shares rather than seconds, which is the whole design decision. A cap in seconds
+is a statement about the machine that ran the suite: this runner and a developer's
+laptop are not the same, and a cap generous enough not to fail on the slower one
+catches nothing on the faster. A share is the same number on both. It cannot see
+the whole suite getting slower together, so it prints the seconds without judging
+them, which is what the sixteen minutes above would have needed.
+
+It runs in a job of its own because it cannot run on a shard: a quarter of the
+suite divided up is a different set of numbers, and a spec that lands entirely
+in one shard reads as a far larger share of it than it is of the whole.
 
 ## Why the browser suite exists
 

@@ -1,4 +1,4 @@
-/* Paper bits. Two flavours: a small burst when one bottle is corked, and a
+/* Paper bits. Two flavors: a small burst when one bottle is corked, and a
    full screen fall when a level is finished. */
 export const Confetti = (() => {
   let layer = null;

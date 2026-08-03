@@ -58,15 +58,15 @@ test('shows the four names and none of the numbers behind them', async ({ page }
 
 test('gets easier by more than the drop cadence', async ({ page }) => {
   /* The thing that makes the names true. Cadence alone flattens near a coin
-     flip however slow it gets, so Easy deals fewer colours and fewer rows as
-     well, and Ultra deals every colour there is. Asserted on the board the game
+     flip however slow it gets, so Easy deals fewer colors and fewer rows as
+     well, and Ultra deals every color there is. Asserted on the board the game
      actually deals rather than on the table that asked for it. */
   await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
 
   await pick(page, 'Easy');
   const easy = await page.evaluate(() => ({
     rules: globalThis.BubbleApp.rules,
-    colours: globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board).length,
+    colors: globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board).length,
     rows: new Set(globalThis.BubbleGrid.occupied(globalThis.BubbleApp._state.board)
       .map(([j]) => j)).size
   }));
@@ -75,21 +75,21 @@ test('gets easier by more than the drop cadence', async ({ page }) => {
   await pick(page, 'Ultra');
   const ultra = await page.evaluate(() => ({
     rules: globalThis.BubbleApp.rules,
-    colours: globalThis.BubbleRules.liveColours(globalThis.BubbleApp._state.board).length
+    colors: globalThis.BubbleRules.liveColors(globalThis.BubbleApp._state.board).length
   }));
 
-  expect(easy.colours, 'Easy dealt every colour, so only the cadence is easier')
-    .toBeLessThan(ultra.colours);
-  expect(easy.colours).toBe(easy.rules.colours);
+  expect(easy.colors, 'Easy dealt every color, so only the cadence is easier')
+    .toBeLessThan(ultra.colors);
+  expect(easy.colors).toBe(easy.rules.colors);
   expect(easy.rows).toBeLessThanOrEqual(easy.rules.rows);
-  expect(ultra.colours).toBe(await page.evaluate(() => globalThis.BubbleConfig.COLOURS));
+  expect(ultra.colors).toBe(await page.evaluate(() => globalThis.BubbleConfig.COLORS));
 });
 
 test('opens on the one taken last time, and on Normal before there is one',
   async ({ page }) => {
   /* The picker marks the current pace primary, so "what is selected" is a thing
      on screen and not only a variable. A fresh device has never chosen, and an
-     unreadable or unrecognised value is the same question, so both land on
+     unreadable or unrecognized value is the same question, so both land on
      Normal rather than one of them landing somewhere else. */
   await start(page, { unlocked: 40, gold: 400 }, { path: BETA });
   await page.locator('#sandbox').click();
@@ -105,7 +105,7 @@ test('opens on the one taken last time, and on Normal before there is one',
   await expect(page.locator('#sandboxPicks .btn.primary'),
     'the last pace was not remembered across a reload').toHaveText('Hard');
 
-  /* and a value nothing recognises is the same as never having chosen */
+  /* and a value nothing recognizes is the same as never having chosen */
   await page.evaluate(() => localStorage.setItem('decanter.sandbox.pace', 'nonsense'));
   await page.reload();
   await page.waitForFunction(() => !!globalThis.App);

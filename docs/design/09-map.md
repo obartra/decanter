@@ -114,7 +114,7 @@ A bubble level shows the board its run opens on. That board is dealt from the
 run's own random stream, which everything after it continues from, so a still
 cannot borrow that stream without moving it; it is dealt from a fresh stream
 seeded the same way, which produces the same board. The bubble game hands over
-rows of colours rather than a board, because the coupling between the two games
+rows of colors rather than a board, because the coupling between the two games
 is one object and this does not widen it.
 
 ## What is open

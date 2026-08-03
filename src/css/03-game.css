@@ -30,7 +30,7 @@
 }
 .hudStars .dim{color:rgba(239,228,210,.20); text-shadow:none}
 /* The last star, then none: the chip warms and then goes out. Scoped to the
-   direct child, because the spent stars are spans too and were being coloured
+   direct child, because the spent stars are spans too and were being colored
    as though they were the label. */
 .stat.over{border-color:rgba(240,137,79,.45)}
 .stat.over > span{color:#F0894F}

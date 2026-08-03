@@ -7,7 +7,7 @@
    seven is then a single straight line seven units above the shelf, crossing a
    thimble, a carafe and a demijohn at the same height, and the player can see at
    a glance which of them could hold it and how far each one currently is from it.
-   Draw the vessels normalised to their own capacity instead and that line
+   Draw the vessels normalized to their own capacity instead and that line
    fragments into five unrelated marks, and the puzzle stops being visible.
 
    The consequence, which is deliberate: vessels are all the same WIDTH and
@@ -99,7 +99,7 @@ export const MeasureConfig = {
      palette's index 0 (#E2546F), which is the red the pour game already uses for
      its claret: the hue is within a few degrees, and the lightness is dropped
      because a full demijohn is twenty-four units of the stuff rather than four,
-     and a colour that reads as claret in a thimble reads as rosé in a tower. */
+     and a color that reads as claret in a thimble reads as rosé in a tower. */
   WINE: '#A32F49',
   WINE_LIT: '#D9536B',
 

@@ -18,23 +18,23 @@
    it is the board silting up with the player's own misses. An Easy built out of
    cadence alone tops out at a coin flip, which is not what the word says.
 
-   So a setting is three numbers, and `colours` does most of the work: it decides
+   So a setting is three numbers, and `colors` does most of the work: it decides
    how often a match is available at all, and four against six is the difference
    between nearly always and often not. `rows` is what a clear costs, and `every`
    is the pressure, which still bites at the hard end.
 
    What a competent player clears: 100%, 77%, 43%, 12%. Ultra drops back to five
-   rows rather than climbing to seven, because six colours is punishing enough on
+   rows rather than climbing to seven, because six colors is punishing enough on
    its own and seven rows of it is not a harder game, it is the same game lost
    sooner. See tools/bubble-sandbox.mjs. */
 export const Sandbox = (() => {
   const $ = id => document.getElementById(id);
 
   const PACES = [
-    { id: 'easy',   name: 'Easy',   colours: 4, rows: 4, every: 20 },
-    { id: 'normal', name: 'Normal', colours: 5, rows: 5, every: 18 },
-    { id: 'hard',   name: 'Hard',   colours: 5, rows: 6, every: 11 },
-    { id: 'ultra',  name: 'Ultra',  colours: 6, rows: 5, every: 16 }
+    { id: 'easy',   name: 'Easy',   colors: 4, rows: 4, every: 20 },
+    { id: 'normal', name: 'Normal', colors: 5, rows: 5, every: 18 },
+    { id: 'hard',   name: 'Hard',   colors: 5, rows: 6, every: 11 },
+    { id: 'ultra',  name: 'Ultra',  colors: 6, rows: 5, every: 16 }
   ];
 
   /* Which one was taken last time, kept across reloads.
@@ -42,7 +42,7 @@ export const Sandbox = (() => {
      A key of its own rather than a field in the save, the way this game's sound
      preference is: the beta leaves as a set of files, and a schema the states
      suite enumerates is not the place to put something that goes away. An
-     unreadable or unrecognised value falls back to Normal, which is also what a
+     unreadable or unrecognized value falls back to Normal, which is also what a
      player who has never picked one gets, so there is one answer to "what is
      selected" rather than one for a fresh device and another for a bad read. */
   const KEY = 'decanter.sandbox.pace';
@@ -113,7 +113,7 @@ export const Sandbox = (() => {
       /* The word and nothing else. What each one is made of is four numbers
          that only mean something together, and printing one of them invites the
          reading that it is the setting: "a row every 16" says nothing about the
-         three colours or the four rows that do most of the work. */
+         three colors or the four rows that do most of the work. */
       b.textContent = p.name;
       b.onclick = () => { pace = p; remember(p); hide(); deal(); };
       picks.appendChild(b);
@@ -129,10 +129,10 @@ export const Sandbox = (() => {
     host.openBubble({
       level: host.level(), seed, sandbox: true,
       rules: { every: pace.every, runShots: null,
-               colours: pace.colours, rows: pace.rows },
-      allow: { undo: true, hint: true, swap: true, colour: true, bomb: true },
-      prices: () => ({ undo: FREE, hint: FREE, colour: FREE, bomb: FREE }),
-      note: `${pace.name}: ${pace.colours} colours, ${pace.rows} rows, a row every ${pace.every}`
+               colors: pace.colors, rows: pace.rows },
+      allow: { undo: true, hint: true, swap: true, color: true, bomb: true },
+      prices: () => ({ undo: FREE, hint: FREE, color: FREE, bomb: FREE }),
+      note: `${pace.name}: ${pace.colors} colors, ${pace.rows} rows, a row every ${pace.every}`
     });
   }
 
