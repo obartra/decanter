@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { start, openLevel, settle } from './helpers.js';
+import { start, openLevel, settle, state } from './helpers.js';
 
 const PORTABLE = join(dirname(fileURLToPath(import.meta.url)), '../../dist/decanter-standalone.html');
 
@@ -74,7 +74,7 @@ test('a locked level nobody can afford refuses the tap', async ({ page }) => {
    the board anyway, so the tap was taken, the fee refused, and nothing at all
    happened, on a medallion that was still lit and still beaconing. */
 test('an open level nobody can afford refuses the tap, and says the price', async ({ page }) => {
-  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  await start(page, state('purseDry'));
   const fee = await page.evaluate(() => globalThis.CONFIG.economy.attempt);
   const node = page.locator('[data-level="15"]');
   await expect(node).toBeDisabled();
@@ -128,7 +128,7 @@ test('the drawn draught says how long until it comes back', async ({ page }) => 
 /* Beta convenience: a word in the query string tops the purse up, so a player
    who has run dry mid-report does not have to wait out a day to carry on. */
 test('the beta word fills the purse, and keeps working on every load', async ({ page }) => {
-  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  await start(page, state('purseDry'));
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
   const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
@@ -238,7 +238,7 @@ test('the bang survives a muted game, and waits for a touch it can be heard thro
    passes every other test here, and turns the loudest moment in the game into a
    thud nobody remarks on. 0.3 is just above the synthesised bang it replaced. */
 test('the three bangs together neither clip nor fizzle', async ({ page }) => {
-  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  await start(page, state('purseDry'));
   const mix = await page.evaluate(async () => {
     const src = document.querySelector('meta[name="boom"]')?.content;
     if (!src) return { missing: true };
@@ -389,7 +389,7 @@ test('the beta word goes off with a bang, and clears itself away', async ({ page
       }
     }).observe(document, { childList: true, subtree: true });
   });
-  await start(page, { unlocked: 15, gold: 0, seen: { 0: true, 1: true } });
+  await start(page, state('purseDry'));
   const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
   const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 

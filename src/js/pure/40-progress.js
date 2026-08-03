@@ -120,10 +120,31 @@ const Progress = (() => {
     if (!Number.isFinite(state.gold) || state.gold < 0) state.gold = CONFIG.economy.startingGold;
     /* a save written before the cap existed, or by a hand in the console */
     state.gold = capped(state.gold);
-    if (!state.claimed || typeof state.claimed !== 'object') state.claimed = {};
-    if (!state.seen || typeof state.seen !== 'object') state.seen = {};
-    if (!state.diag || typeof state.diag !== 'object') state.diag = blank().diag;
-    if (!state.diag.refused || typeof state.diag.refused !== 'object') state.diag.refused = {};
+    /* A record keyed by level or by chapter, which is the shape five of these
+       fields share. `typeof x === 'object'` is not the test: null is an object
+       and so is an array, and an array is the one that gets all the way through.
+       `stars: [3,2,1]` passed every guard here, kept its shape, and answered
+       `starsFor(0)` with 3 — a level nobody can play, holding stars nobody
+       earned, quietly correct-looking forever. */
+    const record = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+    /* The first three were the ones nobody was checking. They are older than
+       `claimed` and `seen` and they were trusted, which held for exactly as long
+       as every save came from this file. A browser that loses bytes out of
+       localStorage, or a hand in a console, or a partial write, and `stars` is
+       null — then `starsFor` reads `null[1]` during boot, before anything is
+       drawn, and the page is blank with no button to press and nothing saying
+       why. That is the one failure in this game with no way back, and the save
+       is the one input the game does not control.
+
+       Found by the browser suite fuzzing every field of a real save with every
+       shape a field goes wrong in. It took one run. */
+    state.stars = record(state.stars);
+    state.best = record(state.best);
+    state.pars = record(state.pars);
+    state.claimed = record(state.claimed);
+    state.seen = record(state.seen);
+    if (!state.diag || typeof state.diag !== 'object' || Array.isArray(state.diag)) state.diag = blank().diag;
+    state.diag.refused = record(state.diag.refused);
     if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
     /* The boards moved. What a player earned stays earned: stars and best move
        counts are theirs, and taking them away to keep a record tidy is a worse
