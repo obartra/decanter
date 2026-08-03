@@ -170,6 +170,18 @@
   box-shadow:0 3px 10px rgba(0,0,0,.45);
   animation:none;
 }
+/* One board short of the gate, with that board for sale like any other. It is
+   lit and armed by the buyable rules above and wants none of its own, bar the
+   two properties a door sets for itself and so wins at equal weight. It does
+   not beacon: the beacon says "your turn", and the turn is the board below.
+
+   The price rides above the gate, because the chapter's name is under it. */
+.node.door.buyable{border-color:rgba(224,177,92,.42)}
+.node.door.armed{
+  border-color:var(--gold-lit);
+  background:linear-gradient(180deg,rgba(94,68,28,.85),rgba(38,26,12,.8));
+}
+.node.door .ns.buy{bottom:auto; top:-13px}
 .node.door:hover:not(:disabled){transform:translate(-50%,50%) scale(1.05)}
 
 .mapRoad{position:absolute; left:0; bottom:0; pointer-events:none}

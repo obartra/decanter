@@ -270,10 +270,11 @@ test('offers a state for a door into a chapter with no name', async ({ page }) =
      else in the lab reaches one. */
   await openLab(page);
   await page.locator('.labState', { hasText: 'chapter with no name' }).click();
-  await page.waitForFunction(() => {
-    const w = document.getElementById('labFrame').contentWindow;
-    return w && w.App && w.App._progress && w.App._progress.unlocked > 1;
-  });
+  /* Waited on by name, off the lab's own readout. `unlocked > 1` was the wait
+     before, and it is true of the save the lab had already parked, so it let
+     the read through before the state had been written and reported whatever
+     was there, which is a pass that is really a race. */
+  await expect(page.locator('#labNote')).toContainText('state: atUnnamedDoor');
   const seen = await page.evaluate(() => {
     const w = document.getElementById('labFrame').contentWindow;
     const at = w.App._progress.unlocked;

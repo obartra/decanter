@@ -102,6 +102,27 @@ describe('the doors', () => {
     equal(p.gold, before, 'and nothing was taken for it');
   });
 
+  it('does sell the last board of a chapter, which is the walk up to the door', () => {
+    /* The other half of the rule above, and the half that makes it a line rather
+       than a wall: every board in the run can be paid past, including the last
+       one before a gate. What the money moves is the frontier, and what the
+       frontier lands on is a shut door, so the purse is lighter, the road is
+       one stop longer, and the chapter is exactly as closed as it was. */
+    const p = fresh();
+    for (let level = 1; level < CONFIG.sectionSize; level++) p.complete(level, 10, 3);
+    equal(p.unlocked, CONFIG.sectionSize, 'standing on the last board of chapter one');
+    const before = p.gold;
+
+    assert(p.buyUnlock(CONFIG.sectionSize, 4), 'the board in the way is an ordinary board');
+    equal(p.gold, before - 4, 'and it was paid for');
+    equal(p.unlocked, CONFIG.sectionSize + 1, 'the frontier moved up to the door');
+    equal(p.isDoorOpen(1), false, 'which is not the same as the door opening');
+    assert(!p.isUnlocked(CONFIG.sectionSize + 1), 'the chapter behind it is still shut');
+    /* And no stars for it, which is what keeps a bought board from paying twice
+       when it is beaten later. */
+    equal(p.starsFor(CONFIG.sectionSize), 0);
+  });
+
   it('does not hand over a chapter\'s tools while its door is shut', () => {
     /* The frontier steps into a chapter the moment the one before it is
        finished. Reading the grant off that alone would give away the chapter's

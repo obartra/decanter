@@ -137,6 +137,48 @@ describe('end of run panel', () => {
       'warned about the price of a button that is not on screen');
   });
 
+  /* ---- the last board of a chapter ----
+
+     The one place where going on and dealing the next level are different acts.
+     A cellar door stands between them; it is not graded, it costs nothing, and
+     nothing about it is for sale. Everything here is about the panel offering
+     the gate rather than the board behind it, which is what it did not do: Next
+     dealt the first board of the shut chapter and walked straight through. */
+  const atBoundary = over => decide({ doorNext: true, nextUnlocked: false, ...over });
+
+  it('offers the door rather than the board behind it', () => {
+    const p = atBoundary({});
+    equal(p.nextHidden, false, 'a cleared board still has a way on');
+    equal(p.nextIsDoor, true, 'and the way on is the gate');
+  });
+
+  it('never prices a door', () => {
+    /* A door has no fee, so an empty purse is not a reason to refuse one, and
+       must not be reported as one either. This is the whole difference between
+       a gate and a toll, made in the one place a player meets it. */
+    const p = atBoundary({ canPayNext: false, canPayFee: true });
+    equal(p.nextDisabled, false, 'a door cannot be too dear');
+    assert(!/Not enough gold/.test(p.hint), 'warned about a price the door does not have');
+  });
+
+  it('does not call an ordinary next level a door', () => {
+    equal(decide({}).nextIsDoor, false);
+    equal(decide({ doorNext: false }).nextIsDoor, false);
+    equal(decide({ doorNext: true, level: 120 }).nextIsDoor, false,
+      'past the last level there is nothing to go on to, gate or otherwise');
+  });
+
+  it('offers the board to be paid past before it offers the door', () => {
+    /* Failing the last board of a chapter does not reach the gate: the frontier
+       has not passed the board yet. What is offered is the board, at the price
+       any board is paid past for, and the gate comes after it. */
+    const p = atBoundary({ failed: true, stars: 0 });
+    equal(p.stuck, true);
+    equal(p.skipHidden, false, 'the board in the way is still for sale');
+    equal(p.nextHidden, true);
+    equal(p.nextIsDoor, false, 'nothing to go on to until that board is behind you');
+  });
+
   it('keeps retry and next disabled independently', () => {
     const broke = decide({ canPayFee: false, canPayNext: false });
     equal(broke.retryDisabled, true);

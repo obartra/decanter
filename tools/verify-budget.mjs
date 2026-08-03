@@ -127,9 +127,26 @@ const dist = join(root, 'dist');
    is dealt. Deferring it would mean drawing a road that cannot place its own
    doors and then redrawing it, and an `isUnlocked` that answers "ask again",
    which is a race in the one function deciding whether a player may play. */
+/* The critical path raised once more, by two kilobytes, for money reaching the
+   gate. Two things went in: the end-of-run panel now decides whether the way on
+   from this board is a door rather than the next level, and the map now puts
+   the price of the board in the way on the door itself. Neither can be
+   deferred, for the reason the paragraph above gives about the gate: the map
+   draws doors at first paint, and the panel decides the way on at the end of
+   every run, including the first.
+
+   What was tried first, since a budget its own author edits to fit is not a
+   budget. The comments on both were cut to what the design documents do not
+   already say. The reasoning lives in 09-map.md and 17-casks.md and is linked
+   rather than repeated, which recovered about a kilobyte and a half.
+   And the door's priced state was folded into the buyable medallion rules that
+   were already there instead of being restated: a door needs exactly two
+   declarations of its own, because those are the two a door sets for itself and
+   therefore wins at equal weight. That took a kilobyte of stylesheet down to
+   four lines. Both were worth doing on their own, and neither was enough. */
 const BUDGET = {
   shell: 13_000,
-  critical: 208_000,
+  critical: 210_000,
   /* This one exists to notice a game DOUBLING, and nothing finer.
 
      It was once about ten percent above the bubble game, which was the only one

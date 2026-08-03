@@ -60,11 +60,28 @@ is scrolled into view on entry.
 **A door is drawn as a gate, not as another stone.** Square where a medallion is
 round, wider than it is tall, and carrying the name of the chapter behind it
 instead of a number — a number there would read as a level and send somebody
-looking for it. Three states, and only one of them can be pressed: waiting (the
-chapter before it is finished, so it glows), opened (stands aside, keeps the
-chapter's tint), and far (seen a chapter early in the lookahead, plainly not yet).
-What it does when tapped is the app's business, the same as picking a level. See
-[17 The Cellar Door](17-casks.md).
+looking for it. Four states: waiting (the chapter before it is finished, so it
+glows), opened (stands aside, keeps the chapter's tint), far (seen a chapter
+early in the lookahead, plainly not yet), and priced.
+
+**A priced door is one board away, and the board is what is priced.** From the
+last board of a chapter the only thing between the player and the gate is that
+board, and a board can be paid past wherever it is met, so the offer stands on
+the door, arming on the first tap and paying on the second, exactly as a locked
+medallion does. The price is the same one the end-of-run panel's Move on takes,
+asked of the app rather than worked out here. What it buys is the walk up to the
+gate: the frontier moves one board and stops. The gate itself has no price and
+cannot be given one, because a door that can be bought is a toll and the whole
+argument for the door is that it is not one.
+
+It is lit but it does not beacon. The beacon means "your turn", and while the
+board below is still there, the turn is the board. The price sits above the gate
+because the chapter's name is already under it.
+
+What a tap does is the app's business, the same as picking a level, but the two
+taps a door can take are told apart at the map rather than inferred later: a
+payment worked out from which state the map happened to be drawing is how a
+purse gets charged twice. See [17 The Cellar Door](17-casks.md).
 
 **A node that cannot be paid for refuses the tap and shows the price.** Every
 board dealt costs an attempt, and a purse too thin to cover one is a state the

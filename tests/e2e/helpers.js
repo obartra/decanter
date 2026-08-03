@@ -207,6 +207,48 @@ export async function dismissChapter(page) {
   }
 }
 
+/* End the run on the board that is up, one of the three ways it can end, and
+   wait for the panel. `over` spends the pours, `stuck` leaves no legal move,
+   `short` leaves more work than pours — which is the only one a blast answers.
+
+   Through `App._end()`, which is the app's own hook for exactly this: the shelf
+   is built, the ending is asked for, and it then goes through the same finish()
+   as every real run — the same solved check, the same rating, the same panel.
+   Playing to a chosen ending against animated pours takes a minute of real time
+   and lands on whichever ending the board felt like.
+
+   Here rather than in the spec about the panel, because the specs about the
+   doors need the same three endings on the last board of a chapter, and a second
+   copy of a fixture is a second thing to keep in step with `finish()`. */
+export async function endRun(page, how){
+  await page.evaluate(([kind]) => {
+    const S = globalThis.App._state;
+    if (kind === 'clean'){
+      S.tubes = [[0, 0, 0, 0], [1, 1, 1, 1], []];
+      S.par = 20; S.parExact = true; S.moves = 20;
+    } else if (kind === 'short'){
+      /* two colors needing more pours than are left */
+      S.tubes = [[0, 1, 0, 1], [1, 0, 1, 0], []];
+      S.par = 2; S.parExact = true; S.moves = 2; S.history = [];
+    } else {
+      /* Nothing legal and nothing sorted. Three FULL bottles, each holding two
+         colors, so no pour has anywhere to go and no bottle is finished.
+
+         The first version of this was three full bottles of one color each,
+         which is not a stuck board at all — it is a SOLVED one, and the run it
+         produced was scored rather than failed. The test then asserted that a
+         cleared run is not offered Move on, which is true and is not what it
+         said it was checking. */
+      S.tubes = [[0, 1, 0, 1], [1, 0, 1, 0], [2, 3, 2, 3]];
+      S.par = 20; S.parExact = true; S.moves = 3; S.history = [];
+    }
+    globalThis.Board.view = globalThis.Rules.clone(S.tubes);
+    globalThis.Board.render();
+  }, [how]);
+  await page.evaluate(() => globalThis.App._end());
+  await page.waitForFunction(() => document.getElementById('veil').classList.contains('show'));
+}
+
 /* Play one pour and wait for the animation to land, so the next one starts from
    a board that has stopped moving. */
 export async function pour(page, from, to) {

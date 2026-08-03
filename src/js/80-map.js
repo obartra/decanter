@@ -84,6 +84,11 @@ export const MapView = (() => {
      open; what happens when one is tapped is the app's business, the same way
      picking a level is. */
   let onDoor = () => {};
+  /* Told to pay past the board in the way of a door. Its own callback rather
+     than a flag on the one above: it is the only tap on a door that spends
+     anything, and a payment inferred from the state the map happened to be
+     drawing is how a purse gets charged twice. */
+  let onDoorBuy = () => {};
   let onScroll = null;
   /* What dealing a given board costs. Asked for rather than worked out here: the
      app is where a board is paid for, and a map that recomputed the fee from
@@ -237,29 +242,66 @@ export const MapView = (() => {
 
      Reachable only once the frontier arrives at the chapter behind it. Before
      then it is on the road as something to see coming, which is what the
-     lookahead is for, and tapping it would be starting a chapter out of turn. */
+     lookahead is for, and tapping it would be starting a chapter out of turn.
+
+     Except from one board away, where the only thing in the way is a board like
+     any other and can be paid past like one. The price is for the board, so it
+     stands on the door: what the money buys is the walk up to the gate and
+     nothing beyond it. See 09-map.md. */
   function doorNode(progress, section, p){
     const first = section * CONFIG.sectionSize + 1;
+    const inTheWay = first - 1;                   /* the last board of the chapter before */
     const open = progress.isDoorOpen(section);
     const reached = progress.unlocked >= first;
     const name = Levels.sectionName(first);
+    /* One board short of the gate, and asked of `isUnlocked` rather than of the
+       frontier alone: a board behind some other shut door is one `buyUnlock`
+       refuses, and a price the save then rejects is worse than no price. */
+    const last = Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : Infinity;
+    const buyable = !open && !reached && progress.unlocked === inTheWay
+      && progress.isUnlocked(inTheWay) && inTheWay < last;
+    const cost = unlockFeeOf();
+    const affordable = progress.canAfford(cost);
+    /* Keyed by door, so an armed door and an armed medallion cannot be the same
+       value: `armed` holds level numbers and a string never equals one. */
+    const isArmed = buyable && armed === `door:${section}`;
 
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'node door' + (open ? ' opened' : '') + (!open && reached ? ' waiting' : '')
-      + (!reached ? ' far' : '');
+      + (buyable ? ' buyable' : '') + (isArmed ? ' armed' : '')
+      + (!reached && !buyable ? ' far' : '');
     b.style.left = p.x + 'px';
     b.style.bottom = p.y + 'px';
     b.style.setProperty('--tint', Levels.sectionTint(first));
     b.dataset.door = section;
-    b.disabled = open || !reached;
+    b.disabled = open || (!reached && !(buyable && affordable));
     b.setAttribute('aria-label',
       open ? `The door to ${name}, already open`
       : reached ? `The door to ${name}. Get the gilt cask out to open it`
+      /* says what the money is for, which is the board and not the door */
+      : isArmed ? `Move past level ${inTheWay} for ${cost} gold and stand at the door to ${name}?`
+      : buyable ? `The door to ${name}. Level ${inTheWay} stands in the way; move past it for ${cost} gold`
+        + (affordable ? '' : ', and there is not enough')
       : `The door to ${name}, further on`);
+    /* The price goes above the gate: the name is already under it, and a number
+       in the face of a door would read as a level. */
     b.innerHTML = `<span class="num" aria-hidden="true">${open ? '&#9727;' : '&#9723;'}</span>`
+      + (buyable
+        ? `<span class="ns buy">${isArmed ? `Move on &middot; ${cost}` : cost} &#9670;</span>`
+        : '')
       + `<span class="ns doorName">${name}</span>`;
-    if (!b.disabled) b.addEventListener('click', () => { armed = null; onDoor(section); });
+    if (b.disabled) return b;
+    if (buyable){
+      /* one tap arms and the second pays, exactly as a medallion does */
+      b.addEventListener('click', () => {
+        if (!isArmed){ armed = `door:${section}`; render(progress); return; }
+        armed = null;
+        onDoorBuy(section);
+      });
+    } else {
+      b.addEventListener('click', () => { armed = null; onDoor(section); });
+    }
     return b;
   }
   function render(progress){
@@ -420,6 +462,7 @@ export const MapView = (() => {
     set onPick(fn){ onPick = fn; },
     set onBuy(fn){ onBuy = fn; },
     set onDoor(fn){ onDoor = fn; },
+    set onDoorBuy(fn){ onDoorBuy = fn; },
     set feeFor(fn){ feeFor = fn; },
     set unlockFeeOf(fn){ unlockFeeOf = fn; },
     render, scrollToCurrent, currentIsVisible,

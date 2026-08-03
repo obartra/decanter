@@ -139,6 +139,19 @@ export const LabStates = (() => {
       }
     },
     {
+      id: 'oneBoardFromTheDoor',
+      title: 'On the last board before a cellar door',
+      kind: PLAY,
+      why: 'The frontier is the last board of a chapter and the gate is the next thing on the road. It is the only place a door carries a price, because the board in the way can be paid past like any other and the door behind it cannot be bought at all.',
+      make: env => {
+        /* The board in the way, not the one behind the gate: this is the state
+           `atDoor` describes one purchase later. */
+        const last = env.CONFIG.sectionSize;
+        return { unlocked: last, gold: 400, doors: {},
+                 seen: seenUpTo(env, env.Levels.sectionOf(last)) };
+      }
+    },
+    {
       id: 'atDoor',
       title: 'Standing at a shut cellar door',
       kind: PLAY,
