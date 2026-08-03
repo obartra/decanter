@@ -1,6 +1,6 @@
 /* Deterministic RNG. Level N must generate the same puzzle on every device and
    every run, otherwise stars and best scores on the map mean nothing. */
-const RNG = (() => {
+export const RNG = (() => {
   function mulberry32(seed){
     let a = seed >>> 0;
     return function(){
@@ -29,4 +29,3 @@ const RNG = (() => {
 
   return { mulberry32, hashSeed, shuffleWith };
 })();
-globalThis.RNG = RNG;

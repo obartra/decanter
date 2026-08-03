@@ -10,7 +10,10 @@
    Everything follows from the clip. Liquid is only ever drawn through a glass,
    so liquid outside a glass is not a thing this code can express: it is not
    guarded against, it has no representation. */
-const Fluid = (() => {
+import { CONFIG } from './pure/00-config.js';
+import { Rules } from './pure/20-rules.js';
+
+export const Fluid = (() => {
   function supported(){
     try { return !!document.createElement('canvas').getContext('2d'); }
     catch (e) { return false; }
@@ -318,4 +321,3 @@ const Fluid = (() => {
      below is the only thing that ever draws. */
   return { supported, mount, sync, transfer, wake };
 })();
-globalThis.Fluid = Fluid;

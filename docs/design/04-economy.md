@@ -54,15 +54,10 @@ Deliberately thin, because the tension is the point.
 | 3★ | 6 | Any attempt | 5 |
 | 2★ | 3 | Pay past a board | 10 |
 | 1★ | 1 | Extra vessel | 45 |
-<<<<<<< HEAD
 | 0★ | nothing | A blast | 65 |
 | First clear | 8, once ever | Undo | 3 free per level, then 8 |
 | Daily draught | 12 per day | Restart | an attempt |
-=======
-| 0★ | nothing | Undo | 3 free per level, then 8 |
-| First clear | 8, once ever | Restart | an attempt |
-| Daily draught | 12 per day | Replay a cleared level | free |
->>>>>>> 7b30463 (Say what a replay is worth before the run, not after it)
+| | | Replay a cleared level | free |
 
 The purse opens at **86**: one vessel away from broke. Above roughly 150 the
 pressure disappears, which is the number to watch when retuning.

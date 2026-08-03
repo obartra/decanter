@@ -47,15 +47,16 @@ jobs:
       - name: the build fits its budget
         run: npm run verify:budget
 
-      # Nothing is tree shaken, because there is no bundler: a member left on a
-      # public object or a class left in a stylesheet ships to the player whether
-      # or not anything reaches it. Neither the linter nor the tests can see it.
+      # The bundler shakes out what nothing imports, and stops there. A member
+      # left on a public object or a class left in a stylesheet ships to the
+      # player whether or not anything reaches it, because importing a module at
+      # all brings every key it hands back. Neither the linter nor the tests can
+      # see any of it.
       #
       # One step, not two. There were briefly two tools asking this from opposite
       # ends, as the comment here used to say; they are one now and it carries
-      # every check either had, including the one that keeps the two games out of
-      # each other's scope.
-      - name: nothing dead, nothing sharing a scope
+      # every check either had.
+      - name: nothing dead
         run: npm run verify:dead
 
       - name: Unit tests

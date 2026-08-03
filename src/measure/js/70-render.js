@@ -10,7 +10,10 @@
 
    Text is drawn in world units under the transform, so the numbers scale with
    the bench and never need a second coordinate system to live in. */
-const MeasureRender = (() => {
+import { MeasureConfig } from './pure/00-config.js';
+import { MeasureView } from './60-view.js';
+
+export const MeasureRender = (() => {
   const C = MeasureConfig;
   const V = MeasureView;
 
@@ -322,4 +325,3 @@ const MeasureRender = (() => {
   return { shelf, glass, wine, graduations, targetLine, selection,
            stream, vessel, rule };
 })();
-globalThis.MeasureRender = MeasureRender;

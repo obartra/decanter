@@ -53,10 +53,11 @@ files. They cover:
 
 ## Reachability
 
-Nothing is tree shaken, because there is no bundler. A member left on a module's
-public object, a class left in a stylesheet, or an id left in the markup ships to
-the player whether or not anything reaches it, and neither the linter nor the
-tests can see any of it: unused code is not an error, it is just quiet.
+The bundler shakes out what nothing imports, and the shaking stops there. A
+member left on a module's public object, a class left in a stylesheet, or an id
+left in the markup ships to the player whether or not anything reaches it —
+importing a module at all brings every key it hands back — and neither the linter
+nor the tests can see any of it: unused code is not an error, it is just quiet.
 
 `tools/dead-code.mjs` is the check for that, and it runs in `npm run check` and
 in CI. It is deliberately conservative, because a detector that cries wolf gets
@@ -86,19 +87,32 @@ went unreported precisely because `length` is written everywhere.
 
 ## One scope, shared by everything
 
-Both games are concatenated into a single `<script>`, so the top level of a
-module is the top level of the page. Two modules declaring one name either
-overwrite each other in silence, if they are functions, or fail to parse at all,
-if they are `const`, and a page that is one script failing to parse is a blank
-screen.
+Two checks here used to guard a shared top level, and both are gone. They are
+worth recording rather than deleting, because the hazard was real and the reason
+it went away is a change anyone reading this should know about.
 
-The suite has long forbidden the other game publishing an unprefixed
-`globalThis` name for this reason, which was watching one of the two doors. Six
-modules declared their functions at the top level and published a namespace
-afterwards, putting `shape`, `deal`, `make`, `at`, `rate` and twenty-five more
-into that scope. They are IIFEs now, like every module in the other game already
-was, and `dead-code.mjs` checks the rule rather than leaving it to be
-remembered.
+The build concatenated both games into a single `<script>`, so the top level of a
+module was the top level of the page. Two modules declaring one name either
+overwrote each other in silence, if they were functions, or failed to parse at
+all, if they were `const`, and a page that is one script failing to parse is a
+blank screen. That is not hypothetical: a second file declaring `decide` quietly
+replaced the one `Panel` had published, and the end-of-run panel started titling
+itself "Level 1" — nothing threw, the page ran, and one module answered with
+another module's words. Six modules had declared their functions at the top level
+and published a namespace afterwards, putting `shape`, `deal`, `make`, `at`,
+`rate` and twenty-five more into the scope the other game was parsed in.
+
+Every source file is an ES module now, with a scope of its own, and the bundler
+renames what collides. The pattern both checks looked for — a `const` or
+`function` at column zero — no longer matches anything, so leaving them in place
+would have meant two green ticks examining nothing at all. That is the failure
+this whole page is about, so they were removed and the reasoning left where each
+one stood.
+
+What survives is the half that is still true: names on `globalThis` are shared,
+because there is still one page. Each entry point publishes one block of them for
+the browser suite, and the suite reads that block to check no two games claim a
+name and that none of them takes one the browser already defines.
 
 ## Checks on the repo rather than on the game
 
@@ -113,8 +127,8 @@ For the things that rot while nobody is editing them:
   it found could fail a pull request
 - **what the checks say about themselves**: every kind `dead-code.mjs` can report
   is named in its own header and in [14b CI](14b-ci.md). A detector whose
-  description omits a check is one nobody thinks to plant a corpse for, and the
-  `scope` check went missing from both the day it was folded in
+  description omits a check is one nobody thinks to plant a corpse for, and one
+  check went missing from both the day it was folded in
 
 ## Mutation checks
 

@@ -1,6 +1,12 @@
 /* Everything that draws bottles and animates a pour. Owns the *view* state,
    which trails the logical state while queued animations catch up. */
-const Board = (() => {
+import { CONFIG } from './pure/00-config.js';
+import { Rules } from './pure/20-rules.js';
+import { Backdrop } from './65-backdrop.js';
+import { Fluid } from './72-fluid.js';
+import { Confetti } from './75-confetti.js';
+
+export const Board = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let root = null, fx = null, fluidOn = false;
@@ -408,4 +414,3 @@ const Board = (() => {
     el, render, animate, seal, nudge, showHint, reduce
   };
 })();
-globalThis.Board = Board;

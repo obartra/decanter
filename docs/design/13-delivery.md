@@ -2,26 +2,62 @@
 
 Building, shipping, working offline, and picking up a new version.
 
-## No bundler
+## One bundler, and nothing else
 
-`tools/build.mjs` is the entire build. Files in a game's `js` and `css`
-directories are concatenated in **filename order**, which is why modules are
-numbered: the number is the dependency order, and there is no import graph to
-resolve.
+`tools/build.mjs` is the entire build. Every source file is an ES module and
+every page has an entry point — `src/js/main.js`, `src/bubble/js/main.js`, one
+per game — which esbuild follows to produce one script per page.
 
-Ordering is by filename and never by path, because the modules that run without
-a DOM live in a pure folder beside the ones that do, as in `src/js/pure/`.
-Sorting by path would put that whole folder after everything else, which is a
-different program.
+The modules that run without a DOM live in a pure folder beside the ones that
+do, as in `src/js/pure/`. That is not filing: the folder is exactly what the unit
+suite loads, so it replaced seven written-down lists of which modules run
+headless, one of which named them in an order the game never loads them in and
+passed by luck. A test checks that nothing in it reaches for a document, a window
+or a frame.
 
-The folder is not filing: it is exactly what the unit suite loads, so it replaced
-seven written-down lists of which modules run headless, one of which named them
-in an order the game never loads them in and passed by luck. A test checks that
-nothing in it reaches for a document, a window or a frame.
+It did not use to. Files in a game's `js` and `css` directories were
+**concatenated in filename order**, which is why the modules are numbered, and
+that ordering was the dependency graph: there was no other. It worked, and the
+things it cost were not small.
 
-The project has **no dependencies at all**, so there is nothing to install before
-building or testing. That is a constraint worth defending: it is what makes the
-build a single readable file and the test suite `node tests/run.mjs`.
+- A module's top level was the **page's** top level, so every file's names were
+  in the scope every other file was parsed in. Two files declaring `decide` was a
+  silent overwrite that retitled the end-of-run panel; two declaring a `const`
+  was a parse error, which on a page that is one script is a blank screen. Every
+  module was wrapped in an IIFE to work around this, and two separate checks
+  existed to catch the next one that was not.
+- The dependency order was **a filename convention**, enforced by nothing. A
+  module could use another that had not been defined yet and the only symptom was
+  a crash at run time, on whichever page happened to load them in that order.
+- Nothing could be **tree shaken**, so anything reachable shipped.
+- Tests loaded modules by reading source text and evaluating it in a `vm`
+  context, which is not how the browser loads them, and one test read a helper
+  out of a file by slicing it at a string literal.
+
+Imports say all of that outright, so the numbers are now only a reading order.
+Under 50 is still pure logic that runs anywhere; above is browser code.
+
+The IIFE wrappers stayed, and they are not vestigial. What they were doing —
+keeping a module's top level out of the page's — the module system does now, but
+they still do the other half: everything above the `return` is private, and only
+what the object names can be reached. A module of loose `export`s would put every
+helper in its public surface, and `dead-code.mjs` would have nothing to measure.
+
+Two names are still late-bound through `globalThis`, deliberately: `Sound` and
+`BubbleApp`. Both arrive over the network after the page has opened, which is
+not a thing an import can express — importing either would put it in the
+critical bundle and undo the deferral described below.
+
+The output is an **IIFE, not a module**, and that is deliberate: the portable
+build is a single HTML file opened from `file://`, where a browser refuses to
+load modules at all. One bundle per page, no code splitting except the deferral
+described below, which the build arranges by giving the deferred half its own
+entry point.
+
+esbuild is the project's **only** dependency outside the toolchain — the game
+itself still ships nothing, and the test suite is still `node tests/run.mjs`.
+Writing a module system by hand to avoid it was the alternative, and a hand-rolled
+one that nobody else has tested is not the cheaper option.
 
 ## Hashed bundles behind a small shell
 
@@ -39,9 +75,9 @@ of the bundles.
 | | | |
 | --- | --- | --- |
 | `index.html` | ~9kb | the shell. Revalidated every navigation |
-| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~250kb | the pour game. Cached forever |
-| `assets/audio-<hash>.js` | ~10kb | the sound, fetched after the page opens |
-| `assets/preview-<hash>.{css,js}` | ~8kb | the card before a replay, fetched after the page opens |
+| `assets/app-<hash>.css` `assets/app-<hash>.js` | ~176kb | the pour game. Cached forever |
+| `assets/audio-<hash>.js` | ~8kb | the sound, fetched after the page opens |
+| `assets/preview-<hash>.{css,js}` | ~14kb | the card before a replay, fetched after the page opens |
 | `assets/solver-<hash>.js` | ~6kb | the A\* worker, fetched on the first solve |
 | `./audio/boom.mp3` | 17kb | the one recording, copied from `assets/audio/`, fetched the first time it is needed |
 | `assets/<game>-<hash>.{css,js}` | | one game each |
@@ -75,6 +111,16 @@ taps a medallion for a level they have already cleared, so on the critical path
 every byte of it was downloaded by every player and read by the ones who go back;
 `src/js/pure/46-preview.js` and `src/css/06-preview.css` now arrive under the name
 `preview`, and `showPreview` waits on it before drawing.
+
+A group's script side is an **entry point**, not a list of filenames, because a
+bundle holds what its entry imports and nothing else could be true. That has one
+cost worth stating: a group carries its own copy of anything it shares with the
+critical bundle, so the card duplicates the config and the panel, about 4kb.
+Sharing a module between two bundles is code splitting, and esbuild only splits
+ESM, which the portable file rules out. Both of the duplicated modules are
+stateless, so today this costs bytes; a stateful one would be two copies with two
+sets of state, so the overlap is written down and asserted in
+`tests/build.test.mjs` rather than tolerated.
 
 `src/js/78-still.js` and `src/css/05-still.css` deliberately stayed behind. They
 draw the small bottles on the shelf the blast offers as well as the card's
@@ -127,10 +173,10 @@ Everything uses relative paths, so `dist/` works from any subdirectory.
 committed copy was never what shipped. `npm run build` puts it back, and
 `npm run verify:budget` builds it to check what matters has not quietly grown.
 
-### Three budgets, not one
+### Four budgets, not one
 
 `tools/verify-budget.mjs` used to cap one number, because the page was the
-download. Now it caps three, because they go wrong for different reasons:
+download. Now it caps four, because they go wrong for different reasons:
 
 - **The shells**, because every load revalidates them forever. Code getting
   inlined back into a page is the regression this layout exists to prevent, and

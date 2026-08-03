@@ -38,7 +38,10 @@
 
    The cost is the sweep itself, which is why the boards are measured offline and
    shipped rather than dealt in the page. See 30-levels.js. */
-const CasksSearch = (() => {
+import { CasksConfig } from './00-config.js';
+import { CasksRules } from './20-rules.js';
+
+export const CasksSearch = (() => {
   const C = CasksConfig;
   const R = CasksRules;
 
@@ -234,4 +237,3 @@ const CasksSearch = (() => {
 
   return { component, sweep, solve, line, hardest };
 })();
-globalThis.CasksSearch = CasksSearch;

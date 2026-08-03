@@ -14,7 +14,7 @@
    The list is written into the page by the build. The standalone file has no
    list, because it has nothing to fetch: every byte is already in it. So an
    absent or empty manifest is not an error, it is the other build. */
-const Deferred = (() => {
+export const Deferred = (() => {
   /* name -> a promise that settles when that group has landed */
   const waiting = new Map();
   /* name -> the resolver for it, held from declaration until the fetch finishes */
@@ -99,4 +99,3 @@ const Deferred = (() => {
 
   return { ready, started: () => waiting.size };
 })();
-globalThis.Deferred = Deferred;

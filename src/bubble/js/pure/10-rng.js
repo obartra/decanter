@@ -9,7 +9,7 @@
    Seeded and restorable, because undo has to put the sequence back where it was.
    Restoring the board without the stream deals a different bubble on the retry,
    which is not the position the player asked to return to. */
-const BubbleRng = (() => {
+export const BubbleRng = (() => {
   function stream(seed){
     let s = 1;
     const api = {
@@ -36,4 +36,3 @@ const BubbleRng = (() => {
 
   return { stream, from };
 })();
-globalThis.BubbleRng = BubbleRng;

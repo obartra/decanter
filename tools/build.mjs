@@ -24,6 +24,7 @@
    splitting would be the wrong answer, so it does not split. */
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, cpSync, statSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import * as esbuild from 'esbuild';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,14 +34,17 @@ const read = p => readFileSync(join(root, p), 'utf8');
 /* The name a module is known by, whichever folder it sits in. */
 const base = p => p.slice(p.lastIndexOf('/') + 1);
 
-/* Every source under a directory, in load order.
+/* Every source under a directory, in filename order.
 
    Walks rather than lists, because the modules that run without a DOM live in a
-   `pure/` folder beside the ones that do not. Ordered by filename and never by
-   path: the number on the front of a module is its place in the load order, and
-   which folder it was filed under must not be able to change that. Sorting by
-   path would put all of `pure/` after everything at the top level, which is a
-   different program. */
+   `pure/` folder beside the ones that do not, and a readdir that stops at the
+   folder boundary sees half a game.
+
+   Ordered by filename and never by path. This orders the stylesheets, where the
+   order is the cascade and therefore load-bearing; the scripts stopped needing
+   it when imports arrived, and are ordered here only so that the two halves of
+   a group are found the same way. Sorting by path would put all of `pure/`
+   after everything at the top level. */
 const sorted = dir => {
   const out = [];
   const walkIn = rel => {
@@ -88,22 +92,21 @@ const GAMES = [
    because "critical" is a judgement about what a file is for and not a property
    of where it sorts.
 
-   This was a flat list of scripts while there was one thing on it, and that
-   shape had two limits that only showed up when a second thing wanted off the
-   critical path. It could hold one group, so everything on it was fetched under
-   one name and awaited together. And it was scripts only, so a screen could
-   defer its code and not its stylesheet, which for the card below would have
-   been a third of it left behind.
+   A group is js, css or both. The fetching side tells them apart by extension
+   and has since the games went into it, so nothing there had to change; the
+   build is what could only say "a game".
 
-   A group is js, css or both. The fetching side needed nothing for either: a
-   group has been a list of urls since the games went into it, and
-   96-deferred.js has always told a stylesheet from a script by its extension.
-   The build is what could only say "a game". */
+   The js side of a group is an **entry point**, not a list of filenames. That is
+   the one thing the bundler changed here, and it is the honest shape: what is in
+   a bundle is decided by what its entry imports, so naming a file that nothing
+   imports would put nothing in it. It also means a group's contents cannot drift
+   out of step with what its code actually needs, which a hand-written list can
+   and did. */
 const DEFERRED = {
   /* Every cue the game plays. 49-audio.js answers all of them silently and
      remembers the sound setting until this lands, which is the thing that makes
      deferring it safe at all. */
-  audio: { js: ['50-audio.js'] },
+  audio: { entry: 'audio-entry.js' },
   /* The card shown before a replay. Nothing on it is reachable until somebody
      taps a medallion for a level they have already cleared, so on the critical
      path it was downloaded by every player and read by the ones who go back.
@@ -112,40 +115,65 @@ const DEFERRED = {
      shelf the blast offers, which is mid-run and cannot wait for a fetch, and
      those two were made shared on purpose after two hand-rolled copies of a
      small bottle disagreed about what a half empty one looks like. */
-  preview: { js: ['46-preview.js'], css: ['06-preview.css'] }
+  preview: { entry: 'preview-entry.js', css: ['06-preview.css'] }
 };
 
-/* ---------- gathering sources ---------- */
-/* Concatenated in filename order with the same markers the single file has
-   always used, so a stack trace in the built page still names the module. The
-   marker is the filename and not the path, because it is there to be recognised
-   in a stack trace and `pure/` is not part of how anyone refers to a module. */
-const concat = (dir, files) =>
-  files.map(f => `\n/* ---- ${base(f)} ---- */\n${read(`${dir}/${f}`)}`).join('\n');
+/* ---------- gathering sources ----------
 
+   The CSS is still a concatenation in filename order. The JavaScript is not: it
+   is bundled from one entry point per page by esbuild, which is what makes the
+   `import` statements in these modules mean anything.
+
+   It was a concatenation too, with `/* ---- name.js ---- *\/` markers above each
+   file, and the markers are gone with it. What that build cost was three things
+   at once. A module\'s top level was the page\'s top level, so two files
+   declaring one name was a redeclaration error and a blank screen — hence an
+   IIFE hand-wrapped around every module and a checker policing the rule.
+   Dependency order was the sort order of the filenames, which is why they are
+   numbered. And nothing could be dropped for being unused, because with no
+   import graph there is no way to know what is unreachable.
+
+   IIFE output, not ESM. These bundles are `<script defer src>` on a served page
+   and inlined into `decanter-standalone.html`, which opens off disk, and a
+   module script cannot import anything at all from `file://`. Authoring in
+   modules and emitting one script is what keeps both true.
+
+   Unminified, and that is a decision rather than an omission. Every byte of
+   these bundles is read by somebody debugging a build they cannot attach a
+   debugger to, and the budgets in verify-budget.mjs are set with that in mind. */
 const cssOf = (dir, files) => files.map(f => read(`${dir}/css/${f}`)).join('\n');
 
-/* `css` and `js` are what a page loads to open; `allCss` and `all` are the same
-   sources with nothing held back, which is what the portable file inlines and
-   what the build id is taken over. A game holds nothing back, so for one of the
-   games the two pairs are the same text.
+function bundleJs(entry){
+  return esbuild.buildSync({
+    entryPoints: [join(root, entry)],
+    bundle: true, format: 'iife', target: 'es2022',
+    minify: false, write: false, legalComments: 'none'
+  }).outputFiles[0].text;
+}
 
-   What is skipped is matched on the filename, never the path, for the reason
-   the ordering is: which folder a module was filed under is not part of how
-   anyone refers to it, and a group naming `pure/46-preview.js` would be naming
-   a filing decision it has no business knowing about. */
-function sourcesOf(dir, { skipJs = [], skipCss = [] } = {}){
-  const js = sorted(`${dir}/js`);
+/* One page\'s sources. `css` and `js` are what it loads in order to open;
+   `allCss` and `all` are the same sources with nothing held back, which is what
+   the portable file inlines and what the build id is taken over. A game holds
+   nothing back, so for a game the two pairs are the same text.
+
+   Stylesheets are skipped by filename and never by path, because which folder a
+   module was filed under is not part of how anyone refers to it. Scripts are not
+   skipped at all: a deferred group is an entry point of its own, and what its
+   bundle holds is whatever that entry reaches. */
+function sourcesOf(dir, { entry = 'main.js', held = {}, skipCss = [] } = {}){
   const css = sorted(`${dir}/css`);
+  const js = bundleJs(`${dir}/js/${entry}`);
+  const heldJs = Object.fromEntries(
+    Object.entries(held).map(([name, g]) => [name, bundleJs(`${dir}/js/${g.entry}`)]));
   return {
     css: cssOf(dir, css.filter(f => !skipCss.includes(base(f)))),
-    js: concat(`${dir}/js`, js.filter(f => !skipJs.includes(base(f)))),
+    js,
+    heldJs,
     allCss: cssOf(dir, css),
-    all: concat(`${dir}/js`, js)
+    all: [js, ...Object.values(heldJs)].join('\n')
   };
 }
 
-const held = kind => Object.values(DEFERRED).flatMap(g => g[kind] || []);
 /* Every name this build mints a bundle under, so a group cannot take one that is
    already spoken for.
 
@@ -154,7 +182,7 @@ const held = kind => Object.values(DEFERRED).flatMap(g => g[kind] || []);
    beside the real one and overwrite nothing, so nothing would throw, and then
    both verify-budget.mjs and the suite would pick whichever of the two readdir
    handed them first. The critical path check would measure the deferred group
-   and report a page load 250kb lighter than it is, which is the one number that
+   and report a page load far lighter than it is, which is the one number that
    check exists to be right about. */
 const MINTED = ['app', 'solver', ...GAMES.map(g => g.name)];
 for (const name of Object.keys(DEFERRED)){
@@ -162,7 +190,11 @@ for (const name of Object.keys(DEFERRED)){
     throw new Error(`the deferred group "${name}" already names a bundle, so the two would be told apart by readdir order`);
 }
 
-const app = sourcesOf('src', { skipJs: held('js'), skipCss: held('css') });
+const app = sourcesOf('src', {
+  entry: 'main.js',
+  held: DEFERRED,
+  skipCss: Object.values(DEFERRED).flatMap(g => g.css || [])
+});
 const solver = read('src/worker/solver.js');
 /* The only recording anything here ships, and only Jabari mode plays it. Read
    once because both builds want the same bytes and the build id wants its
@@ -221,14 +253,13 @@ const solverJs = asset('solver', 'js', solver);
    about a stylesheet, so a group's script can run before its stylesheet has
    landed. What keeps a card from being drawn into rules that are not there yet
    is that `ready` does not settle until all of them have. */
-/* A group names its modules the way everything else does, by filename, so the
-   folder has to be looked up rather than assumed: 46-preview.js runs without a
-   DOM and therefore lives in src/js/pure/, and reading it from src/js/ would
-   fail the build on a file that is right where it belongs. Resolved through the
-   same walk that orders the bundle, so there is one answer to where a module is.
+/* A group names its stylesheets by filename, so the folder is looked up rather
+   than assumed, and a name that matches nothing is caught here rather than left
+   to be noticed as a screen that quietly stops being styled.
 
-   A name that matches nothing is a group that silently ships empty, so it is
-   caught here rather than left to be noticed as a screen that stops working. */
+   The script side needs none of that. Its bundle was built from the group's
+   entry point above, so a group that names an entry nothing can resolve fails at
+   the bundler, with the path in the message. */
 const pathsIn = (dir, names) => {
   const found = sorted(dir).filter(f => names.includes(base(f)));
   const missing = names.filter(n => !found.some(f => base(f) === n));
@@ -239,7 +270,7 @@ const deferredAssets = {};
 for (const [name, group] of Object.entries(DEFERRED)){
   const urls = [];
   if (group.css) urls.push(href(0, asset(name, 'css', cssOf('src', pathsIn('src/css', group.css)))));
-  if (group.js) urls.push(href(0, asset(name, 'js', concat('src/js', pathsIn('src/js', group.js)))));
+  urls.push(href(0, asset(name, 'js', app.heldJs[name])));
   deferredAssets[name] = urls;
 }
 for (const g of games){

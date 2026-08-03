@@ -33,7 +33,9 @@
    reports: it quietly handed `Panel.decide` this function, and the end-of-run
    panel started titling itself "Level 1". A test in the build suite now says so
    before a browser has to. */
-const Preview = (() => {
+import { Panel } from './45-panel.js';
+
+export const Preview = (() => {
   function decide(input){
     const {
       level, stars, best, par, parExact, bubble, goal, fee, canPayFee, earned
@@ -107,4 +109,3 @@ const Preview = (() => {
   }
   return { decide };
 })();
-globalThis.Preview = Preview;

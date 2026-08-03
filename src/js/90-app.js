@@ -1,5 +1,32 @@
-/* Glue: routing between the map and a level, the move queue, and the win flow. */
-const App = (() => {
+/* Glue: routing between the map and a level, the move queue, and the win flow.
+
+   `BubbleApp` is used below and deliberately not imported. It is the other
+   game, and the other game is fetched after the page opens rather than as part
+   of opening it — an import would put all of it in the critical bundle, which is
+   the exact thing the deferral exists to prevent, and the page would then hold
+   two copies: this one, and the one the fetched bundle publishes. Every use of
+   it below is behind `Deferred.ready('bubble')` and a `typeof` guard, which is
+   what a name that may not have arrived yet costs. `Sound` and `Preview` are
+   late-bound for the same reason, and 49-audio.js explains it at length. */
+import { CONFIG } from './pure/00-config.js';
+import { Trace } from './pure/05-trace.js';
+import { Rules } from './pure/20-rules.js';
+import { Levels } from './pure/30-levels.js';
+import { PARS } from './pure/35-pars.js';
+import { Chapters } from './pure/36-chapters.js';
+import { Progress } from './pure/40-progress.js';
+import { Panel } from './pure/45-panel.js';
+import { SolverClient } from './60-solver-client.js';
+import { Backdrop } from './65-backdrop.js';
+import { Board } from './70-board.js';
+import { Confetti } from './75-confetti.js';
+import { Still } from './78-still.js';
+import { MapView } from './80-map.js';
+import { Diagnostics } from './85-diagnostics.js';
+import { Jabari } from './86-jabari.js';
+import { Deferred } from './96-deferred.js';
+
+export const App = (() => {
   const progress = Progress.createProgress();
   const S = {
     level: 1, tubes: [], moves: 0,
@@ -1416,5 +1443,5 @@ const App = (() => {
     _end(){ checkLost(); finish(); }
   };
 })();
-globalThis.App = App;
+
 document.addEventListener('DOMContentLoaded', () => App.boot());

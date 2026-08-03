@@ -14,7 +14,9 @@
    numbers. A hit test with its own idea of where the glass is produces the worst
    possible bug in a game played entirely by tapping — the one where the tap
    works, just not on the thing under your finger. */
-const MeasureView = (() => {
+import { MeasureConfig } from './pure/00-config.js';
+
+export const MeasureView = (() => {
   const C = MeasureConfig;
   let cv = null, ctx = null, scale = 1, ox = 0, oy = 0, dpr = 1;
 
@@ -153,4 +155,3 @@ const MeasureView = (() => {
     get scale(){ return scale; }
   };
 })();
-globalThis.MeasureView = MeasureView;

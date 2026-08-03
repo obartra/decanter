@@ -50,7 +50,9 @@
      it has, something it does not know. An unrated board must read as unrated,
      and the page says so in those words rather than showing three gilt stars
      over a board nobody has ever measured. */
-const MeasureScore = (() => {
+import { MeasureConfig } from './00-config.js';
+
+export const MeasureScore = (() => {
   const C = MeasureConfig;
 
   /* Stars for a finished board: par earns three, one over earns two, two over
@@ -99,4 +101,3 @@ const MeasureScore = (() => {
 
   return { stars, rated, left, better };
 })();
-globalThis.MeasureScore = MeasureScore;

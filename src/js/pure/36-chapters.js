@@ -25,7 +25,9 @@
    Both are rescues, both are once a run, both are capped by the same flag in
    rate(). What neither of them touches is the deal.
    See docs/design/04-economy.md. */
-const Chapters = (() => {
+import { CONFIG } from './00-config.js';
+
+export const Chapters = (() => {
   const CHAPTERS = [
     {
       grant: 'undo',
@@ -100,4 +102,3 @@ const Chapters = (() => {
 
   return { count: CHAPTERS.length, at, perksFor, GRANT_NAMES };
 })();
-globalThis.Chapters = Chapters;

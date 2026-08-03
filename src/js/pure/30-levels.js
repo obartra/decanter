@@ -1,6 +1,12 @@
 /* Level definition. Deterministic in the level number, so level 12 is the same
    puzzle for everyone, forever. */
-const Levels = (() => {
+import { CONFIG } from './00-config.js';
+import { RNG } from './10-rng.js';
+import { Rules } from './20-rules.js';
+import { ORDER } from './32-order.js';
+import { LAST_LEVEL } from './35-pars.js';
+
+export const Levels = (() => {
   /* What a level is made of, before ORDER gets a say. Bottle count is always even
      so the board can lay out in two equal rows: the layout only takes row counts
      that divide the bottles exactly. */
@@ -21,7 +27,7 @@ const Levels = (() => {
      far more than the colour count: every extra empty adds legal moves, most of
      which are wrong. See tools/order.mjs. */
   function entryFor(level){
-    const e = globalThis.ORDER && globalThis.ORDER[level];
+    const e = ORDER && ORDER[level];
     return Array.isArray(e) && e.length === 3 && e.every(Number.isInteger) ? e : null;
   }
   function shape(level){
@@ -102,7 +108,7 @@ const Levels = (() => {
      hundred and nineteen before it were. */
   function isBubble(level){
     if (!Number.isInteger(level) || level <= CONFIG.sectionSize / 2) return false;
-    if (Number.isInteger(globalThis.LAST_LEVEL) && level >= globalThis.LAST_LEVEL) return false;
+    if (Number.isInteger(LAST_LEVEL) && level >= LAST_LEVEL) return false;
     return bubbleSlots(sectionOf(level)).includes((level - 1) % CONFIG.sectionSize);
   }
   function sectionName(level){
@@ -117,4 +123,3 @@ const Levels = (() => {
   return { shape, baseShape, deal, make, seedFor, isBubble, bubbleSlots,
            sectionOf, sectionName, sectionTint, isSectionStart };
 })();
-globalThis.Levels = Levels;

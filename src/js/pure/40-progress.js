@@ -1,6 +1,11 @@
 /* Saved progress. The storage backend is injected so tests can hand it a fake
    and sandboxed previews can fall back to memory when localStorage throws. */
-const Progress = (() => {
+import { CONFIG } from './00-config.js';
+import { Levels } from './30-levels.js';
+import { LAST_LEVEL } from './35-pars.js';
+import { Chapters } from './36-chapters.js';
+
+export const Progress = (() => {
   const SAVE_KEY = 'decanter.save.v1';
 
   function memoryStorage(){
@@ -27,7 +32,7 @@ const Progress = (() => {
      would hand out a level that can neither be failed nor played badly, and pay for
      it every time. Falls back to a huge number so a missing table cannot silently
      lock the game to level one. */
-  const lastLevel = () => (Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity);
+  const lastLevel = () => (Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : Infinity);
 
   /* How long until the local day rolls over and the draught is ready again. The
      draught is once per local calendar day, so the wait is until midnight where
@@ -317,4 +322,3 @@ const Progress = (() => {
 
   return { SAVE_KEY, createProgress, memoryStorage, untilNextDay, briefly };
 })();
-globalThis.Progress = Progress;

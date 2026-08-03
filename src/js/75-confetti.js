@@ -1,6 +1,6 @@
 /* Paper bits. Two flavours: a small burst when one bottle is corked, and a
    full screen fall when a level is finished. */
-const Confetti = (() => {
+export const Confetti = (() => {
   let layer = null;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ensure = () => (layer = layer || document.getElementById('confetti'));
@@ -76,4 +76,3 @@ const Confetti = (() => {
     }
   };
 })();
-globalThis.Confetti = Confetti;

@@ -15,7 +15,11 @@
 
    It comes out with the beta, and taking it out is deleting one file and one
    call. See docs/design/04-economy.md. */
-const Jabari = (() => {
+import { CONFIG } from './pure/00-config.js';
+import { Trace } from './pure/05-trace.js';
+import { Confetti } from './75-confetti.js';
+
+export const Jabari = (() => {
   const $ = id => document.getElementById(id);
 
   /* Gold handed over rather than earned, for a beta player who has run dry in
@@ -138,4 +142,3 @@ const Jabari = (() => {
 
   return { takeGift };
 })();
-globalThis.Jabari = Jabari;

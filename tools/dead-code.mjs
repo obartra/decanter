@@ -1,30 +1,29 @@
 #!/usr/bin/env node
 /* What is in the build that nothing uses.
 
-   Every module here is an IIFE that hands back an object and parks it on
-   globalThis, and every stylesheet and page is inlined whole. Nothing is tree
-   shaken, because there is no bundler to do it: anything left on a public object
-   ships to the player, and anything named in a stylesheet ships whether or not a
-   page ever grows that class. So dead code is not untidiness, it is bytes in the
-   budget and a reader's time, and neither the linter nor the tests can see it.
+   Every module here exports one object, and every stylesheet and page is inlined
+   whole. The bundler shakes what nothing imports, but the shaking stops at the
+   object: a module that is imported ships every key it hands back, whether or
+   not a line ever reads one, and anything named in a stylesheet ships whether or
+   not a page ever grows that class. So dead code is not untidiness, it is bytes
+   in the budget and a reader's time, and neither the linter nor the tests can
+   see it.
 
-   Eight kinds, six of them ways of being unused and two the reverse:
+   Seven kinds, six of them ways of being unused and one the reverse:
 
-     global     a module on globalThis that no other file names
+     global     a module no other file imports or names
      member     a key on a module's object that no other file names
      helper     a top level function its own module never calls
      config     a tunable nothing reads
      style      a selector or custom property nothing uses
      page       an element id nothing reaches for
      missing    an id a script reaches for and no page has
-     scope      a name a module leaves in the page's own top level
 
    `missing` runs the other way round from the rest: everything above it finds
    something written and never reached, that one finds something reached and
-   never written, and it is worse — a silent null every time the line runs.
-   `scope` is not deadness at all but collision, and is explained where it is
-   checked. Both are here because they fail the same way, a name on one side of a
-   line and not the other, and both are checked from the same corpus.
+   never written, and it is worse — a silent null every time the line runs. It is
+   here because it fails the same way, a name on one side of a line and not the
+   other, and is checked from the same corpus.
 
    Deliberately conservative, because this runs in `npm run check` and a detector
    that cries wolf gets switched off. The rule is a name-based reachability test:
@@ -60,7 +59,7 @@ const isShipped = f => f.startsWith('src/');
 /* ---- the members each module hands out ----
 
    Found by taking the object at the end of the module, which is either the
-   IIFE's own `return { ... }` or the literal in `globalThis.X = { ... }`. Brace
+   IIFE's own `return { ... }` or the literal the module exports directly. Brace
    counted rather than matched with a pattern, because these objects contain
    nested objects, getters and arrow bodies full of braces. */
 export function objectAt(src, from){
@@ -126,10 +125,26 @@ export function scan(){
 const all = walk(root).filter(p => /\.(js|mjs|css|html)$/.test(p));
 const files = new Map(all.map(p => [relative(root, p), readFileSync(p, 'utf8')]));
 
+/* An entry point names every module it publishes, which is a debug surface and
+   not a use: if `src/js/main.js` counted, no module could ever be found unused,
+   because the one block that exists to make them all reachable from a browser
+   test would keep every one of them alive. Excluded on the same footing as the
+   module's own file, and for the same reason.
+
+   A deferred group's entry, `*-entry.js`, is the same case with a different
+   purpose: it exists to take a name on the page for a bundle that arrives late,
+   so it names its module and is not a reader of it either. */
+const isEntryPoint = f => /^src\/(?:[\w-]+\/)?js\/(?:main|[\w-]+-entry)\.js$/.test(f);
+
 const modules = [];
 for (const [file, src] of files){
   if (!/^src\/.*\.js$/.test(file)) continue;
-  for (const m of src.matchAll(/^globalThis\.([A-Za-z_$][\w$]*)\s*=\s*/gm)){
+  if (isEntryPoint(file)) continue;
+  /* Two ways a module publishes itself. `export const X` is how nearly all of
+     them do it; `globalThis.X` is the sound, which hands over to its deferred
+     other half through the page rather than through an import, because a network
+     boundary is not something an import can cross. */
+  for (const m of src.matchAll(/^(?:export const |globalThis\.)([A-Za-z_$][\w$]*)\s*=\s*/gm)){
     const name = m[1];
     const after = src.slice(m.index + m[0].length);
     let members = [];
@@ -138,7 +153,7 @@ for (const [file, src] of files){
     } else if (/^Object\.freeze\(/.test(after)){
       members = [];                       /* a data table, not an interface */
     } else {
-      /* `globalThis.X = X` after an IIFE: take the module's last return object */
+      /* an IIFE: take the object the module's last `return` hands back */
       const ret = [...src.matchAll(/\breturn\s*\{/g)].pop();
       if (ret) members = keysOf(objectAt(src, ret.index + ret[0].length - 1));
     }
@@ -174,7 +189,8 @@ const note = (where, what, why) => notes.push({ where, what, why });
 
 for (const mod of modules){
   const used = tally(mod.name);
-  const elsewhere = [...used.keys()].filter(f => f !== mod.file && f !== 'eslint.config.js');
+  const elsewhere = [...used.keys()]
+    .filter(f => f !== mod.file && f !== 'eslint.config.js' && !isEntryPoint(f));
   if (!elsewhere.length) add('global', mod.file, mod.name, 'nothing outside this file names it');
   else if (!elsewhere.some(isShipped)) note(mod.file, mod.name, `only ${elsewhere.join(', ')}`);
 
@@ -257,34 +273,25 @@ for (const file of CONFIG_FILES){
   }
 }
 
-/* ---- names a module puts in the page's scope ----
+/* There used to be a `scope` kind here, and its removal is worth a paragraph
+   rather than a silent deletion, because it was a real check finding real
+   defects right up until the day it could not.
 
-   Not deadness, collision, and the one check here that is not about anything
-   being unused. Every source file in both games is concatenated into a single
-   `<script>`, so the top level of a module is the top level of the page, and two
-   modules declaring one name is a defect rather than a smell. Which defect
-   depends on the keyword: `function` and `var` overwrite in silence, the later
-   definition winning for everybody, while `const` and `let` are a redeclaration
-   error, and a page that is one script failing to parse is a blank screen.
+   It looked for names a module left in the page's own top level. The build
+   concatenated every source file into one `<script>`, so a module's top level
+   *was* the page's: two files declaring `deal` was not a smell but a defect, and
+   which defect depended on the keyword — `function` and `var` overwrote in
+   silence, the later definition winning for every line including the ones above
+   it, while `const` and `let` were a redeclaration error, and a page that is one
+   script failing to parse is a blank screen. It caught six modules putting
+   `shape`, `deal`, `make`, `at` and `rate` into the scope the other game was
+   parsed in.
 
-   The suite already forbids the other game publishing an unprefixed `globalThis`
-   name for exactly this reason, which was watching one of the two doors. Six
-   modules declared their functions here and published a namespace afterwards,
-   putting `shape`, `deal`, `make`, `at` and `rate` into the same scope the other
-   game is parsed in. Nothing collided yet, which is the only reason it was
-   possible to keep not noticing.
-
-   So: one name per module, the one it publishes. Everything else goes inside the
-   IIFE, where a duplicate is somebody else's business. */
-for (const [file, src] of files){
-  if (!/^src\/(js|bubble\/js)\//.test(file)) continue;
-  const published = [...src.matchAll(/^globalThis\.(\w+)\s*=/gm)].map(m => m[1]);
-  const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-  for (const m of bare.matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
-    if (published.includes(m[1])) continue;
-    add('scope', file, m[1], "declared at the page's top level, where the other game's sources also live");
-  }
-}
+   Modules have their own scope now, so there is no shared top level to leave a
+   name in and nothing left to find. Keeping the check would have been worse than
+   dropping it: `export const` does not match the pattern it looked for, so it
+   would have gone on passing while examining nothing, which is precisely the
+   failure the `examined` counts below exist to prevent. */
 
 /* ---- stylesheets ----
 
@@ -382,11 +389,10 @@ if (AS_JSON){
     member: 'members no other file names',
     helper: 'functions their own module never calls',
     config: 'tunables nothing reads',
-    scope: "names loose in the page's top level",
     style: 'selectors and properties nothing uses',
     page: 'ids nothing reaches for'
   };
-  for (const kind of ['missing', 'global', 'member', 'helper', 'config', 'scope', 'style', 'page']){
+  for (const kind of ['missing', 'global', 'member', 'helper', 'config', 'style', 'page']){
     const mine = findings.filter(f => f.kind === kind);
     if (!mine.length) continue;
     console.log(`\n${titles[kind]}:`);

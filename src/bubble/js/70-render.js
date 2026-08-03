@@ -5,7 +5,10 @@
    cells, and the eye reads that hairline as a gap a shot could pass through,
    which the physics will not allow. Better for the art to promise slightly less
    than the rules deliver than slightly more. */
-const BubbleRender = (() => {
+import { BubbleConfig } from './pure/00-config.js';
+import { BubbleGrid } from './pure/20-grid.js';
+
+export const BubbleRender = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
 
@@ -180,4 +183,3 @@ const BubbleRender = (() => {
 
   return { bubble, board, guide, walls, muzzle, target, fuse };
 })();
-globalThis.BubbleRender = BubbleRender;

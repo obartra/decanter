@@ -14,6 +14,10 @@
 
    It costs almost nothing, too. The games are already built and already
    precached; this page is a sidebar. */
+import { LabConfig } from './pure/00-config.js';
+import { LabSweep } from './pure/20-sweep.js';
+import { LabStates } from './pure/10-states.js';
+
 const LabApp = (() => {
   const C = LabConfig;
   const S = LabSweep;

@@ -1,5 +1,5 @@
-import { describe, it, assert, equal, read, root, modulesOf, nameOf } from './helpers.mjs';
-import { existsSync, readFileSync, readdirSync, statSync,
+import { describe, it, assert, equal, read, root, modulesOf, nameOf, pureOf, MODULES } from './helpers.mjs';
+import { existsSync, readFileSync, readdirSync, statSync, symlinkSync,
          mkdtempSync, writeFileSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -81,6 +81,41 @@ describe('the workflow and the scripts it names', () => {
     }
   });
 
+  it('declares every package the toolchain imports', () => {
+    /* CI installs with `npm ci`, which builds `node_modules` from the lock file
+       and nothing else. A package that is merely *present* locally — pulled in
+       as somebody else's transitive dependency, or installed by hand once and
+       forgotten — works perfectly here and is simply absent there.
+
+       That is exactly how the bundler nearly landed: `tools/build.mjs` imported
+       esbuild, every local check passed, and the first thing CI would have said
+       is `Cannot find package 'esbuild'`. Nothing else here can see it, because
+       every test that runs the build runs it against the node_modules that
+       already has it. */
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+    const declared = new Set([...Object.keys(pkg.dependencies || {}),
+                              ...Object.keys(pkg.devDependencies || {})]);
+    const imported = new Set();
+    for (const dir of ['tools', 'tests']){
+      for (const f of all(join(root, dir)).filter(n => /\.(mjs|js)$/.test(n))){
+        for (const m of readFileSync(join(root, dir, f), 'utf8')
+          .matchAll(/^import\s[^'"]*['"]([^'".][^'"]*)['"]/gm)){
+          /* bare specifiers only: a relative path is a file, and `node:` is the
+             runtime. The package is the first segment, or the first two when it
+             is scoped. */
+          if (m[1].startsWith('node:')) continue;
+          const parts = m[1].split('/');
+          imported.add(parts[0].startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]);
+        }
+      }
+    }
+    assert(imported.size >= 2, `found only ${imported.size} packages, so this scan has broken`);
+    for (const name of imported){
+      assert(declared.has(name),
+        `something under tools/ or tests/ imports "${name}", which package.json does not declare`);
+    }
+  });
+
   it('runs every gate that npm run check runs', () => {
     /* The other direction, and the reason it matters: a gate in `check` but in
        no CI step is one nothing can fail a pull request with. */
@@ -91,6 +126,24 @@ describe('the workflow and the scripts it names', () => {
       assert(new RegExp(`npm run ${name}\\b`).test(yml),
         `npm run check runs "${name}" and no CI step does, so it cannot fail a pull request`);
     }
+  });
+});
+
+/* The harness the rest of the suite loads its modules through, checked against
+   the folder that decides what is in it. */
+describe('the test harness', () => {
+  it('can load every module the pure folders hold', () => {
+    /* `pureOf` reads the list off the folder and `loadFrom` looks each one up in
+       a map of static imports, which is the one place in this repo that has to
+       be told about a new module by hand. A module added to a pure folder and
+       not to that map is not a subtle failure — the suite that asks for it
+       throws — but it throws in whichever suite happens to ask first, saying
+       nothing about the folder it was added to. This says it here instead. */
+    const dirs = ['src/js', ...gameDirs().map(g => `src/${g}/js`)];
+    const missing = dirs.flatMap(d => pureOf(d).map(f => `${d}/${f}`))
+      .filter(p => !MODULES.has(p));
+    equal(missing, [], 'a pure module is not in the map tests/helpers.mjs loads from');
+    assert(MODULES.size >= 30, `the map holds ${MODULES.size} modules, so this is not reading it`);
   });
 });
 
@@ -164,32 +217,98 @@ describe('build output', () => {
     }
   });
 
-  /* Exactly one, rather than "in the app bundle", because the build can now hold
+  /* The bundler's own module boundaries, which are the only thing in the output
+     that still says which file a line came from. Non-minified bundles carry a
+     `// src/…/name.js` line above each module, so this is how "what is in this
+     bundle" is asked now that there are no concatenation banners — and it is why
+     these ask by path rather than by name: the marker is the path esbuild read.
+
+     Every caller passes a floor, because a version of esbuild that stopped
+     writing them would otherwise turn every assertion below into a green tick
+     over nothing. */
+  const modulesIn = (f, floor = 1) => {
+    const found = [...text(f).matchAll(/^\s*\/\/ (src\/[\w./-]+\.js)$/gm)].map(m => m[1]);
+    assert(found.length >= floor,
+      `${f} names ${found.length} modules and should name at least ${floor}, so this scan has broken`);
+    return found;
+  };
+
+  /* An entry point is the bundle, not a module in it: esbuild writes a marker
+     above every module it pulled in and none above the file it started from. So
+     the checks below ask what a bundle *reached*, and the entry itself is
+     answered by the bundle existing at all. */
+  const isEntry = f => /(?:^|\/)(?:main|[\w-]+-entry)\.js$/.test(f);
+  const sourceModules = dir => modulesOf(dir).filter(f => !isEntry(f));
+
+  /* Exactly one, rather than "in the app bundle", because the build can hold
      part of the app's own script back and the interesting failures are on both
      sides of that. A file in none is a module that silently stopped shipping and
-     is a ReferenceError the first time some line wants it. A file in two is
-     every module in it evaluated twice, which for an IIFE that publishes a
-     namespace means the second copy replacing the first's state after everything
-     else has already taken a reference to it.
+     is a ReferenceError the first time some line wants it. A file in two is a
+     module evaluated twice, which for one that publishes a namespace means the
+     second copy replacing the first's state after everything else has taken a
+     reference to it.
 
      Nothing here names which files are deferred. That list lives in one place,
      tools/build.mjs, and a test that kept a copy of it would go green on the day
      the two stopped agreeing.
 
-     By the name the marker carries rather than the path, because `pure/` is a
-     fact about which modules need a DOM and not about which bundle they ship
-     in: the card's decision is pure and deferred, the still's is neither. */
-  it('bundles every source module exactly once, critical or deferred', () => {
+     What it does name is the overlap, because a deferred group costs something
+     and it is better said out loud than left to be measured. A group is its own
+     entry point, and an entry point pulls in what it imports: the card imports
+     the panel and the panel imports the config, so those two are in the app's
+     bundle and in the card's. There is no way around that while the output is an
+     IIFE — sharing a module between two bundles is code splitting and esbuild
+     only splits ESM — and both of the duplicated modules are stateless, one a
+     frozen table and the other a decision about strings, so today it costs bytes
+     and nothing else.
+
+     A stateful module here would not cost bytes, it would be a defect: two
+     copies with two sets of state, and every reference taken before the fetch
+     pointing at the wrong one. So the list is written down and asserted rather
+     than tolerated as "some overlap". Growing it should be a decision, and the
+     decision it points at is emitting modules and letting the bundler split,
+     which is the real fix and is a change to how every page loads. */
+  const SHARED = ['src/js/pure/00-config.js', 'src/js/pure/45-panel.js'];
+
+  it('bundles every source module exactly once, critical or knowingly shared', () => {
     const bundles = appBundles('js');
     assert(bundles.length > 1, 'the app is one bundle, so this is not checking a split at all');
-    for (const f of modulesOf('src/js').map(nameOf)){
-      const found = bundles.filter(b => text(b).includes(`/* ---- ${f} ---- */`));
-      equal(found.length, 1,
-        `${f} is in ${found.length} of the app's bundles (${bundles.join(', ')}), wanted exactly one`);
+    const where = new Map(bundles.map(b => [b, new Set(modulesIn(b))]));
+    for (const f of sourceModules('src/js').map(f => `src/js/${f}`)){
+      const found = bundles.filter(b => where.get(b).has(f));
+      const want = SHARED.includes(f) ? 2 : 1;
+      equal(found.length, want,
+        `${f} is in ${found.length} of the app's bundles (${bundles.join(', ')}), wanted ${want}`);
+    }
+    /* and the list is not stale: a module that stopped being shared has to come
+       off it, or this stops meaning anything */
+    for (const f of SHARED){
+      assert(sourceModules('src/js').map(n => `src/js/${n}`).includes(f),
+        `${f} is listed as shared and is not a module any more`);
     }
     const js = text(assetNamed('app', 'js'));
-    assert(js.indexOf('/* ---- 20-rules.js ---- */') < js.indexOf('/* ---- 90-app.js ---- */'),
-      'modules must be bundled in dependency order');
+    assert(js.indexOf('src/js/pure/20-rules.js') < js.indexOf('src/js/90-app.js'),
+      'a module must be emitted before the one that imports it');
+  });
+
+  it('leaves nothing on globalThis but what a page is meant to publish', () => {
+    /* Why the modules stopped publishing themselves. Under concatenation a
+       module's top level was the page's, so every file put a name into the scope
+       every other game was parsed in, and a collision was a blank screen. Now
+       there is one deliberate block per entry point, for the browser suite and
+       the diagnostics card, and nothing else should be joining it.
+
+       Two names are the exception and both are expected: the sound and the card
+       before a replay are fetched after first paint, so each hands over through
+       a global because that is what a network boundary can do. */
+    const lateBound = ['Sound', 'Preview'];
+    for (const f of built().filter(n => /^assets\/.*\.js$/.test(n))){
+      const assigns = [...text(f).matchAll(/globalThis\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]);
+      equal(assigns.filter(n => !lateBound.includes(n)), [],
+        `${f} publishes a module itself; the entry point owns that`);
+    }
+    assert(text(assetNamed('app', 'js')).includes('Object.assign(globalThis'),
+      'the app bundle has no debug surface');
   });
 
   /* The same question for the stylesheets, which never had it asked. While the
@@ -294,10 +413,18 @@ describe('build output', () => {
   });
 
   it('keeps the sound out of the critical bundle and fetches it afterwards', () => {
+    /* Probed by content rather than by a banner: the bundler emits no markers,
+       and what matters is which bundle the synthesiser ended up in.
+
+       `pourNode` is the probe because it is the pour game's sound and nothing
+       else's. The obvious choice — a Web Audio call — is wrong here and passed
+       for the wrong reason while it lasted: the bubble game plays inside the
+       pour game's page, so its own synthesiser is in this bundle legitimately,
+       and any name the two share says nothing about which one is present. */
     const js = text(assetNamed('app', 'js'));
-    assert(!js.includes('/* ---- 50-audio.js ---- */'), 'the sound is still in the critical bundle');
-    assert(js.includes('/* ---- 49-audio.js ---- */'), 'the stand-in must be, or a cue before it lands throws');
-    assert(text(assetNamed('audio', 'js')).includes('/* ---- 50-audio.js ---- */'),
+    assert(!js.includes('pourNode'), 'the sound is still in the critical bundle');
+    assert(js.includes('globalThis.Sound'), 'the stand-in must be, or a cue before it lands throws');
+    assert(text(assetNamed('audio', 'js')).includes('pourNode'),
       'the sound was not emitted as its own bundle');
   });
 
@@ -308,17 +435,17 @@ describe('build output', () => {
   it('keeps the card before a replay out of the critical bundles, both halves', () => {
     const js = text(assetNamed('app', 'js'));
     const css = text(assetNamed('app', 'css'));
-    assert(!js.includes('/* ---- 46-preview.js ---- */'), 'the card is still in the critical bundle');
+    assert(!js.includes('src/js/pure/46-preview.js'), 'the card is still in the critical bundle');
     assert(!css.includes(read('src/css/06-preview.css')),
       'the card\'s stylesheet is still in the critical one');
-    assert(text(assetNamed('preview', 'js')).includes('/* ---- 46-preview.js ---- */'),
+    assert(text(assetNamed('preview', 'js')).includes('src/js/pure/46-preview.js'),
       'the card was not emitted as its own bundle');
     assert(text(assetNamed('preview', 'css')).includes(read('src/css/06-preview.css')),
       'the card\'s stylesheet was not emitted as its own bundle');
     /* And what deliberately did not go with it. Both of these draw the small
        bottles on the shelf the blast offers, which is opened in the middle of a
        run and cannot wait for a fetch. */
-    assert(js.includes('/* ---- 78-still.js ---- */'),
+    assert(js.includes('src/js/78-still.js'),
       'the still draws the blast shelf mid-run, so it cannot be deferred with the card');
     assert(css.includes(read('src/css/05-still.css')),
       'the same, for the rules that style those bottles');
@@ -355,6 +482,65 @@ describe('build output', () => {
     assert(/declare\(\);/.test(src), 'declare() is never called');
     assert(src.indexOf('declare();') < src.indexOf("addEventListener('load', start)"),
       'the names must be declared before the fetching is scheduled');
+  });
+
+  /* The bundler's own module boundaries, which are the only thing in the output
+     that still says which file a line came from. Non-minified bundles carry a
+     `// src/…/name.js` line above each module, so this is how "what is in this
+     bundle" is asked now that there are no concatenation banners. Every caller
+     checks it found some, because a version of esbuild that stopped writing them
+     would otherwise turn every assertion below into a green tick over nothing. */
+  /* Deferral is a promise about what a page waits for, and the plainest way to
+     break it is an ordinary import. One did: `90-app.js` imported the bubble
+     game rather than reaching for it as a global once it landed, which is what
+     the modules it was converted from could not do. Nothing failed. The page
+     worked, the manifest still listed the bundle, the deferred fetch still
+     happened — and the critical path had grown by the whole of the other game,
+     which was then on the device twice, the app talking to its own private copy
+     while the page's `BubbleApp` was the other one.
+
+     Every group, including the ones that are whole games, which is why this is
+     not covered by the exactly-once check above: that one asks about the app's
+     own modules, and the other game's are not among them. `SHARED` is exempt
+     here for the same reason it is there — an entry point brings what it
+     imports, and those two are the known price of a group that is part of the
+     app rather than a game of its own. */
+  it('keeps a deferred group out of the bundle that defers it', () => {
+    const critical = new Set(modulesIn(assetNamed('app', 'js'), 20));
+    for (const [name, urls] of Object.entries(deferredGroups())){
+      for (const url of urls.filter(u => u.endsWith('.js'))){
+        /* a held bundle may legitimately be a single module, so no floor here */
+        const both = modulesIn(url.replace('./', ''))
+          .filter(m => critical.has(m) && !SHARED.includes(m));
+        equal(both, [],
+          `${name} is fetched after the page opens and is also in the bundle that opens it`);
+      }
+    }
+  });
+
+  /* The same question as the app's, asked of each game, and it has no symptom
+     at all when the answer is wrong.
+
+     A concatenating build shipped every file in a directory, so "is my module in
+     the page?" was not a question anybody had to ask. A bundler ships what the
+     entry point reaches, and a module nothing imports is silently dropped —
+     which is the point, and is also how the workbench shipped as a 13kb bundle
+     of a config and a sweep with its entire app missing. Nothing imports
+     `LabApp`, because it *is* the page; the entry point had to say so and did
+     not, and no spec drives that page, so nothing said a word.
+
+     Every module in a game's tree, in that game's bundle. These are whole pages,
+     not libraries: a file in one of these folders and in no bundle is a mistake
+     every time, and the assertion is cheap enough to be worth making for all of
+     them rather than only the one that was wrong. */
+  it('leaves no module of a game out of that game\'s bundle', () => {
+    for (const g of gameDirs()){
+      const shipped = new Set(modulesIn(assetNamed(g, 'js'), 2));
+      const missing = sourceModules(`src/${g}/js`)
+        .map(f => `src/${g}/js/${f}`)
+        .filter(f => !shipped.has(f));
+      equal(missing, [], `${g} has modules its entry point never reaches, so they are not on the page`);
+    }
   });
 
   /* What actually keeps a deferred screen from being drawn before it has a
@@ -405,33 +591,23 @@ describe('build output', () => {
       assert(has(from), `dist/${f} points at ${icon[1]}, which was not built`);
     }
   });
-  it('declares no top-level name in two files, in either bundle', () => {
-    /* Every source file in a game is concatenated into one script, so top-level
-       declarations from different files share a scope, and function declarations
-       hoist, so the last one wins for the whole script, including the lines
-       above it.
+  /* A test used to stand here forbidding two files in a game from declaring the
+     same top-level name, and it is gone rather than merely quiet, which is worth
+     saying because it was catching something real.
 
-       This is not a clash that shows up as an error anywhere. A second file
-       declaring `decide` quietly replaced the one `Panel` had already published,
-       and the end-of-run panel started titling itself "Level 1". Nothing threw,
-       the page ran, and the only symptom was one module answering with another
-       module's words.
+     The build concatenated every source file into one `<script>`, so top-level
+     declarations from different files shared a scope and function declarations
+     hoisted, the last one winning for the whole script including the lines above
+     it. That is not a clash anything reports: a second file declaring `decide`
+     quietly replaced the one `Panel` had published, and the end-of-run panel
+     started titling itself "Level 1". Nothing threw, the page ran, and one
+     module simply answered with another module's words.
 
-       Modules here are IIFEs precisely so this cannot happen; what this catches
-       is the next one that is not. */
-    for (const dir of ['src/js', 'src/bubble/js']){
-      const where = new Map();
-      for (const f of modulesOf(dir)){
-        for (const m of read(`${dir}/${f}`).matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)){
-          if (!where.has(m[1])) where.set(m[1], new Set());
-          where.get(m[1]).add(f);
-        }
-      }
-      const clashes = [...where].filter(([, files]) => files.size > 1)
-        .map(([name, files]) => `${name} in ${[...files].join(' and ')}`);
-      equal(clashes, [], `${dir} declares the same name twice, so one file silently overwrites the other`);
-    }
-  });
+     A bundler gives every module its own scope and renames what collides, so
+     there is no shared top level left to clash in. Left in place the test would
+     have kept passing while examining nothing — `export const` does not match
+     the pattern it looked for — which is the failure mode a merge gate can least
+     afford. */
   it('ships a valid manifest', () => {
     const m = JSON.parse(text('manifest.webmanifest'));
     equal(m.display, 'standalone');
@@ -511,11 +687,24 @@ describe('build output', () => {
      by reading the expression that computes it. The expression looked right.
 
      One file per kind, not every file: this is asking whether a kind of source
-     is in the hash at all, and it costs a build apiece. */
+     is in the hash at all, and it costs a build apiece.
+
+     The scripts are planted with a statement rather than a comment, and that is
+     the bundler's doing rather than fussiness. The id is taken over what ships,
+     which for the scripts is the bundle, and a bundle carries no comments — so
+     a comment-only edit genuinely does not change what any player downloads and
+     genuinely should not mint a new one. A side effect is used rather than an
+     export because an export nothing imports is shaken out, which would be the
+     same non-event by a different route. */
   it('changes its cache name for a change to any source that ships', () => {
     const dir = mkdtempSync(join(tmpdir(), 'decanter-build-'));
     try {
       for (const d of ['src', 'assets', 'tools']) cpSync(join(root, d), join(dir, d), { recursive: true });
+      /* The build imports esbuild, and node resolves that by walking up from the
+         copy — which is under the system temp directory and finds nothing. A
+         link rather than a copy: this runs five builds and node_modules is
+         hundreds of megabytes. */
+      symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'), 'dir');
       const idOf = () => {
         execFileSync(process.execPath, [join(dir, 'tools/build.mjs')], { stdio: 'pipe' });
         return readFileSync(join(dir, 'dist/sw.js'), 'utf8').match(/const VERSION = '([^']+)'/)[1];
@@ -523,9 +712,9 @@ describe('build output', () => {
       const before = idOf();
       for (const [file, addition] of [
         ['src/css/01-base.css', '\n.aRuleThatShipped{color:red}\n'],
-        ['src/js/pure/20-rules.js', '\n/* a line that shipped */\n'],
+        ['src/js/pure/20-rules.js', '\nglobalThis.aLineThatShipped = 1;\n'],
         ['src/css/06-preview.css', '\n.aDeferredRuleThatShipped{color:red}\n'],
-        ['src/js/pure/46-preview.js', '\n/* a deferred line that shipped */\n'],
+        ['src/js/pure/46-preview.js', '\nglobalThis.aDeferredLineThatShipped = 1;\n'],
         ['src/bubble/css/00-base.css', '\n.anotherGamesRuleThatShipped{color:red}\n']
       ]){
         const target = join(dir, file);
@@ -610,7 +799,13 @@ describe('build output', () => {
       const js = page.match(/<script defer src="\.\.\/(assets\/[^"]+)"/);
       assert(css && has(css[1]), `${g} does not load a stylesheet that exists`);
       assert(js && has(js[1]), `${g} does not load a bundle that exists`);
-      assert(text(js[1]).includes('/* ---- 00-config.js ---- */'), `${g}'s bundle looks empty`);
+      /* "Not empty" used to be answered by a concatenation banner. There are no
+         banners now, so it is answered by the thing every game's bundle has and
+         cannot work without: the entry point's debug surface, carrying that
+         game's own prefixed namespace. */
+      const prefix = g[0].toUpperCase() + g.slice(1);
+      assert(new RegExp(`Object\\.assign\\(globalThis, \\{[^}]*\\b${prefix}Config\\b`).test(text(js[1])),
+        `${g}'s bundle looks empty`);
       /* it sits one level down, so every path out of it has to climb */
       assert(!/["'(]\/(assets|fonts|icons)\//.test(page),
         `${g} uses an absolute path, which works locally and 404s under a project subpath`);
@@ -629,15 +824,14 @@ describe('build output', () => {
   it('inlines everything into the portable file, which has nothing to fetch', () => {
     const html = text('decanter-standalone.html');
     assert(/<script id="solverSrc"/.test(html), 'the portable file has no solver in it');
-    assert(html.includes('/* ---- 50-audio.js ---- */'), 'the portable file would open silent');
-    assert(html.includes('/* ---- 90-app.js ---- */'), 'the portable file has no app in it');
-    /* Every deferred group, both halves. A group held back here is a screen that
-       waits forever for a fetch this build has no way to make: `ready` resolves
-       on an unknown name precisely because nothing here is ever coming, so the
-       failure is not a hang but a card drawn out of a module that is not there.
-       The stylesheet is the easier half to forget, and the quieter one. */
-    for (const f of modulesOf('src/js').map(nameOf))
-      assert(html.includes(`/* ---- ${f} ---- */`), `the portable file is missing ${f}`);
+    /* Every module and every stylesheet, including the deferred ones. A group
+       held back here is a screen that waits forever for a fetch this build has
+       no way to make: `ready` resolves on an unknown name precisely because
+       nothing is ever coming, so the failure is not a hang but a card drawn out
+       of a module that is not there. The stylesheet is the easier half to
+       forget, and the quieter one. */
+    for (const f of sourceModules('src/js'))
+      assert(html.includes(`src/js/${f}`), `the portable file is missing ${f}`);
     for (const f of modulesOf('src/css', '.css'))
       assert(html.includes(read(`src/css/${f}`)), `the portable file is missing ${f}`);
     assert(/data:font\/woff2;base64,/.test(html), 'the fonts are not inlined, so it cannot open off disk');
@@ -791,20 +985,34 @@ describe('the games do not collide', () => {
     }
   });
 
-  /* One page, one global scope. `Audio` on the decanter side already shadows the
-     DOM constructor; a second unprefixed name would collide outright. */
+  /* What each entry point puts on the page, read from the one block that does
+     it. Modules reach each other by importing now, so a module's exported name
+     is its own business; the only names that land in a scope shared with another
+     game are the ones a debug surface publishes — plus the sound, which takes a
+     global outright because it hands over across a network boundary. */
+  const publishedBy = dir => {
+    const names = new Set();
+    const surface = read(`${dir}/main.js`).match(/Object\.assign\(globalThis,\s*\{([^}]*)\}/);
+    assert(surface, `${dir}/main.js has no debug surface, so this scan sees nothing`);
+    for (const m of surface[1].matchAll(/([A-Za-z_$][\w$]*)\s*(?=[,}]|$)/g)) names.add(m[1]);
+    for (const f of readdirSync(join(root, dir)).filter(n => n.endsWith('.js'))){
+      for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)) names.add(m[1]);
+    }
+    return names;
+  };
+
+  /* One page, one global scope. `Audio` on the decanter side already shadowed
+     the DOM constructor; a second unprefixed name would collide outright. */
   it('gives every game global a name no other game can take', () => {
-    const prefixOf = g => g[0].toUpperCase() + g.slice(1);
     const claimed = new Map();
     for (const g of gameDirs()){
-      const want = prefixOf(g);
-      for (const f of modulesOf(`src/${g}/js`)){
-        for (const m of read(`src/${g}/js/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
-          assert(m[1].startsWith(want),
-            `${g}/${f} publishes ${m[1]}, which is not prefixed ${want}`);
-          assert(!claimed.has(m[1]), `${m[1]} is published by both ${claimed.get(m[1])} and ${g}`);
-          claimed.set(m[1], g);
-        }
+      const want = g[0].toUpperCase() + g.slice(1);
+      const names = publishedBy(`src/${g}/js`);
+      assert(names.size > 1, `${g} publishes ${names.size} names, so this scan is not reading them`);
+      for (const name of names){
+        assert(name.startsWith(want), `${g} publishes ${name}, which is not prefixed ${want}`);
+        assert(!claimed.has(name), `${name} is published by both ${claimed.get(name)} and ${g}`);
+        claimed.set(name, g);
       }
     }
   });
@@ -821,10 +1029,8 @@ describe('the games do not collide', () => {
        remembered. */
     const taken = [];
     for (const dir of ['src/js', ...gameDirs().map(g => `src/${g}/js`)]){
-      for (const f of modulesOf(dir)){
-        for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)){
-          if (m[1] in browserGlobals) taken.push(`${dir}/${f} publishes ${m[1]}`);
-        }
+      for (const name of publishedBy(dir)){
+        if (name in browserGlobals) taken.push(`${dir} publishes ${name}`);
       }
     }
     equal(taken, [], 'a module publishes a name the browser already defines');

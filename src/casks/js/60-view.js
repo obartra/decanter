@@ -13,7 +13,10 @@
    the worst bug a game played entirely by touching things can have — the one
    where the touch works, just not on the thing under the finger. That is why
    `cellAt` and `along` are here beside `rectFor` rather than in 90-app.js. */
-const CasksView = (() => {
+import { CasksConfig } from './pure/00-config.js';
+import { CasksRules } from './pure/20-rules.js';
+
+export const CasksView = (() => {
   const C = CasksConfig;
   const R = CasksRules;
   let cv = null, ctx = null, scale = 1, ox = 0, oy = 0, dpr = 1;
@@ -121,4 +124,3 @@ const CasksView = (() => {
     get scale(){ return scale; }
   };
 })();
-globalThis.CasksView = CasksView;

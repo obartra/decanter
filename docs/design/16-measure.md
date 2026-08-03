@@ -306,7 +306,7 @@ decisions.
 
 | Path | |
 | --- | --- |
-| `src/measure/js/` | modules, concatenated in filename order. Under 50 is pure logic, 50 and above is browser code |
+| `src/measure/js/` | ES modules, bundled from `main.js`. The numbers are a reading order: under 50 is pure logic, 50 and above is browser code |
 | `src/measure/css/00-base.css` | the one stylesheet; every class is prefixed `msr` |
 | `src/measure/js/pure/32-order.js` | generated, committed: `level: [vessels, seed]` |
 | `src/measure/js/pure/35-pars.js` | generated, committed: the exact minimum, and where the table ends |

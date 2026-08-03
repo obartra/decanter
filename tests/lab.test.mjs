@@ -1,4 +1,4 @@
-import { describe, it, assert, equal, read, loadGame, loadPure, modulesOf } from './helpers.mjs';
+import { describe, it, assert, equal, read, loadGame, loadPure } from './helpers.mjs';
 
 const lab = loadGame('lab');
 const { LabConfig, LabSweep } = lab;
@@ -17,12 +17,19 @@ const dirOf = game => game.dir || `src/${game.id}/js`;
    one entry that is neither shaped like nor located like the others. */
 const modulesFor = game => (game.dir ? loadPure() : loadGame(game.id));
 const configOf = game => modulesFor(game)[game.config];
+/* What a page puts on `globalThis`, which is not the same question as what its
+   modules export and is the only one that matters here.
+
+   The lab does not import anything. It opens a built page in a frame and reads
+   names off its `contentWindow`, so a module that exports perfectly and is not
+   on that page's debug surface is, to the lab, not there — no error, just an
+   undefined it goes on to call a method of. Scanning the exports instead of the
+   surface is exactly the check that passed while the lab's panel sweep timed out
+   on a `Progress` the app page had stopped publishing. */
 const publishedBy = dir => {
-  const out = new Set();
-  for (const f of modulesOf(dir)){
-    for (const m of read(`${dir}/${f}`).matchAll(/^globalThis\.(\w+)\s*=/gm)) out.add(m[1]);
-  }
-  return out;
+  const surface = read(`${dir}/main.js`).match(/Object\.assign\(globalThis,\s*\{([^}]*)\}/);
+  assert(surface, `${dir}/main.js has no debug surface, so this scan sees nothing`);
+  return new Set([...surface[1].matchAll(/([A-Za-z_$][\w$]*)\s*(?=[,}]|$)/g)].map(m => m[1]));
 };
 
 /* A knob key may be dotted, because the graded game keeps its tunables under
@@ -115,9 +122,14 @@ describe('lab knobs', () => {
      game's modules, and they were hard-coded in the app until a review pointed
      out that this made a second such file and quietly falsified the first one's
      header. */
-  it('names every module the lab reaches for', () => {
+  it('names every module the lab reaches for, and reaches it through the page', () => {
     for (const game of LabConfig.games){
-      const wanted = { ...(game.survivalMods || {}), ...(game.stateMods || {}) };
+      const wanted = { ...(game.survivalMods || {}), ...(game.stateMods || {}),
+                       ...(game.config ? { config: game.config } : {}),
+                       ...(game.app ? { app: game.app } : {}),
+                       ...(game.levels ? { levels: game.levels } : {}),
+                       ...(game.search ? { search: game.search } : {}),
+                       ...(game.pars ? { pars: game.pars } : {}) };
       if (!Object.keys(wanted).length) continue;
       const published = publishedBy(dirOf(game));
       for (const [as, name] of Object.entries(wanted)){

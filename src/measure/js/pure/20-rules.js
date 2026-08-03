@@ -29,7 +29,7 @@
    That is why this game is graded on exact par and on nothing else. There is no
    failure to grade. A run cannot be lost, only made longer than it needed to be,
    so the distance from the minimum is the entire story of how it went. */
-const MeasureRules = (() => {
+export const MeasureRules = (() => {
   /* ---- the canonical key, and the thing most likely to be got wrong ----
 
      `amount.join(',')`, IN VESSEL ORDER, NOT SORTED.
@@ -154,4 +154,3 @@ const MeasureRules = (() => {
 
   return { key, total, pours, apply, outcomes, amountPoured, isSolved };
 })();
-globalThis.MeasureRules = MeasureRules;

@@ -1,5 +1,7 @@
 /* The rules of the puzzle, and nothing else. No DOM, no timing, no state. */
-const Rules = (() => {
+import { CONFIG } from './00-config.js';
+
+export const Rules = (() => {
   const CAP = CONFIG.capacity;
 
   const clone = tubes => tubes.map(t => t.slice());
@@ -234,4 +236,3 @@ const Rules = (() => {
            canPour, pourAmount, applyMove, legalMoves, isSolvable, rate,
            poursLeft, lostBecause, blast, blastTargets };
 })();
-globalThis.Rules = Rules;

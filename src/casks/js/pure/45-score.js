@@ -55,7 +55,9 @@
      when the minimum is unknown is the program stating, in the most emphatic way
      it has, something it does not know. So the board is still dealt, still
      played, and reads `unrated` where par would be. */
-const CasksScore = (() => {
+import { CasksConfig } from './00-config.js';
+
+export const CasksScore = (() => {
   const C = CasksConfig;
 
   /* Stars for a finished board: par earns three, one over earns two, two over
@@ -101,4 +103,3 @@ const CasksScore = (() => {
 
   return { stars, rated, left, better };
 })();
-globalThis.CasksScore = CasksScore;

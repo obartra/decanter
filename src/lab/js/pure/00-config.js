@@ -23,7 +23,7 @@
    Every key here is checked against the real config by tests/lab.test.mjs, so a
    knob naming something that no longer exists fails rather than drawing a
    control that quietly does nothing. */
-const LabConfig = {
+export const LabConfig = {
   /* Order is the order the tabs appear in. */
   games: [
     {
@@ -196,4 +196,3 @@ const LabConfig = {
     }
   ]
 };
-globalThis.LabConfig = LabConfig;

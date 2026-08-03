@@ -7,7 +7,9 @@
    level, and the pours are animated, so a hidden or throttled tab cannot get
    there at all. Everything here is decided from numbers, so the cases can simply
    be asserted. */
-const Panel = (() => {
+import { CONFIG } from './00-config.js';
+
+export const Panel = (() => {
   /* The one thing worth saying to an empty purse, and the way out of it. Named
      rather than typed twice: the card shown before a replay refuses for the same
      reason and has to refuse in the same words. */
@@ -117,4 +119,3 @@ const Panel = (() => {
 
   return { decide, BROKE };
 })();
-globalThis.Panel = Panel;

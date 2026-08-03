@@ -15,7 +15,7 @@
    — so the glug slides UP to a pitch set by the target's fill, and a vessel
    filled to the brim finishes on a note the player can learn without ever being
    told what it means. */
-const MeasureAudio = (() => {
+export const MeasureAudio = (() => {
   const KEY = 'measure.sound';
   let ctx, master, noise;
   /* Muted is remembered, because somebody who turned the sound off did not mean
@@ -149,4 +149,3 @@ const MeasureAudio = (() => {
     }
   };
 })();
-globalThis.MeasureAudio = MeasureAudio;

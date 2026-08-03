@@ -12,7 +12,17 @@
    and on a phone it fights the browser's own gestures; two taps are the same
    number of decisions with none of that, and they leave the vessel in hand
    visible on screen between them, which a drag does not. */
-const MeasureApp = (() => {
+import { MeasureConfig } from './pure/00-config.js';
+import { MeasureRules } from './pure/20-rules.js';
+import { MeasureSearch } from './pure/25-search.js';
+import { MeasureLevels } from './pure/30-levels.js';
+import { MeasurePars } from './pure/35-pars.js';
+import { MeasureScore } from './pure/45-score.js';
+import { MeasureAudio } from './50-audio.js';
+import { MeasureView } from './60-view.js';
+import { MeasureRender } from './70-render.js';
+
+export const MeasureApp = (() => {
   const C = MeasureConfig;
   const R = MeasureRules;
   const Se = MeasureSearch;
@@ -91,8 +101,8 @@ const MeasureApp = (() => {
        a ~ and decides nothing. Here the search is exhaustive: it either walks
        every position this bench can reach, in which case the answer is the
        minimum, or it hits the tripwire and says nothing at all. */
-    const known = globalThis.MeasurePars && globalThis.MeasurePars.par
-      && globalThis.MeasurePars.par[level];
+    const known = MeasurePars && MeasurePars.par
+      && MeasurePars.par[level];
     if (Number.isInteger(known)){
       st.par = known;
     } else {
@@ -406,7 +416,7 @@ const MeasureApp = (() => {
        past the table really is unvetted: pars there run 1 to 15 against a table
        ending at 20, so some of it is trivial. All of it is solvable, because
        make() will not deal a bench whose target cannot be reached. */
-    const last = globalThis.MeasurePars && globalThis.MeasurePars.last;
+    const last = MeasurePars && MeasurePars.last;
     if (how === 'measured' && st.level === last){
       note.textContent += ' That is the last measured bench; past it they are unchecked.';
     }
@@ -480,7 +490,6 @@ const MeasureApp = (() => {
 
   return { boot, newBoard, tap, play, undo, hint, step, paintHud, _state: st };
 })();
-globalThis.MeasureApp = MeasureApp;
 
 /* Booted on sight, because this page is nothing but this game. The other two
    check a data attribute because they are also loaded inside the pour game; this

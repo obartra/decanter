@@ -15,7 +15,10 @@
 
    Pure: no DOM, no clock, no randomness. Parameterised by distance along the
    ray rather than by time, so speed cannot leak in. */
-const BubbleShot = (() => {
+import { BubbleConfig } from './00-config.js';
+import { BubbleGrid } from './20-grid.js';
+
+export const BubbleShot = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
 
@@ -162,4 +165,3 @@ const BubbleShot = (() => {
 
   return { resolveShot, snapCell, aimFrom };
 })();
-globalThis.BubbleShot = BubbleShot;

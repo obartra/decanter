@@ -1,6 +1,11 @@
 /* The journey map. Pure geometry lives in MapGeom so it can be tested without
    a browser; MapView only turns those numbers into elements. */
-const MapGeom = (() => {
+import { CONFIG } from './pure/00-config.js';
+import { RNG } from './pure/10-rng.js';
+import { Levels } from './pure/30-levels.js';
+import { LAST_LEVEL } from './pure/35-pars.js';
+
+export const MapGeom = (() => {
   /* Levels climb from the bottom. x follows a slow sine so the path winds
      without ever leaving the column. */
   const STEP = 0.72;
@@ -37,14 +42,13 @@ const MapGeom = (() => {
      coming: past the graded range there is nothing to deal. */
   const visibleCount = (unlocked, lookahead, last) => {
     const ahead = unlocked + (lookahead == null ? CONFIG.lookahead : lookahead);
-    const cap = Number.isInteger(last) ? last : (Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity);
+    const cap = Number.isInteger(last) ? last : (Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : Infinity);
     return Math.min(ahead, cap);
   };
   return { nodes, height, pathThrough, visibleCount, STEP };
 })();
-globalThis.MapGeom = MapGeom;
 
-const MapView = (() => {
+export const MapView = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   let scroll = null, canvas = null, svg = null, road = null, onPick = () => {};
   let onBuy = () => {};
@@ -241,7 +245,7 @@ const MapView = (() => {
       const locked = level > unlocked;
       /* Only the very next one can be bought. Paying past a board you have not
          beaten is a way through, not a way to skip the game. */
-      const last = Number.isInteger(globalThis.LAST_LEVEL) ? globalThis.LAST_LEVEL : Infinity;
+      const last = Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : Infinity;
       const buyable = locked && level === unlocked + 1 && level <= last;
       const cost = unlockFeeOf();
       const affordable = progress.canAfford(cost);
@@ -350,4 +354,3 @@ const MapView = (() => {
     }
   };
 })();
-globalThis.MapView = MapView;

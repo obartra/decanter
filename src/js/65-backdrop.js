@@ -15,7 +15,9 @@
    front of the room, so the room steps back directly behind them and each bottle
    is given a contact shadow on the plank it stands on. Without those the clutter
    behind shows through the glass and the whole shelf flattens into one plane. */
-const Backdrop = (() => {
+import { RNG } from './pure/10-rng.js';
+
+export const Backdrop = (() => {
   const CELLAR = {
     sky: ['#040507', '#0B0805', '#150F08', '#1E1509', '#0A0704'],
     glow: '213,151,56', wood: ['#8A5A22', '#5A3612', '#2E1C0A'],
@@ -390,4 +392,3 @@ const Backdrop = (() => {
     render
   };
 })();
-globalThis.Backdrop = Backdrop;

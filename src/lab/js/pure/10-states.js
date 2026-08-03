@@ -34,7 +34,7 @@
    and "today" depends on when you ask. So a state is a function of the game's
    own modules rather than a literal with 61 written in it. Both callers have
    them — the lab reaches into the frame, the specs load them in the sandbox. */
-const LabStates = (() => {
+export const LabStates = (() => {
 
   /* Two kinds, because they are asked different questions.
 
@@ -320,4 +320,3 @@ const LabStates = (() => {
 
   return { list: STATES, make, faults, PLAY, RECOVERY };
 })();
-globalThis.LabStates = LabStates;

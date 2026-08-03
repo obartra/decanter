@@ -10,7 +10,9 @@
    the row index alone, because inserting a row at the top flips every row's
    stagger at once. Writing `j % 2` anywhere outside `indent` is how that bug
    gets in. */
-const BubbleGrid = (() => {
+import { BubbleConfig } from './00-config.js';
+
+export const BubbleGrid = (() => {
   const C = BubbleConfig;
   const EMPTY = -1;
 
@@ -97,4 +99,3 @@ const BubbleGrid = (() => {
   return { EMPTY, indent, centreOf, inBounds, at, isEmpty, neighbours,
            create, advance, hash, occupied, emptyRow };
 })();
-globalThis.BubbleGrid = BubbleGrid;

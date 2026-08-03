@@ -1,5 +1,5 @@
 /* Tunables that other modules read. Pure data, safe to load anywhere. */
-const CONFIG = {
+export const CONFIG = {
   capacity: 4,
   maxColors: 12,
   minColors: 4,
@@ -115,4 +115,3 @@ const CONFIG = {
      three or more over is a failed run worth nothing. */
   stars: { three: 0, two: 1, one: 2 }
 };
-globalThis.CONFIG = CONFIG;
