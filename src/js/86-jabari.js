@@ -22,6 +22,18 @@ import { Confetti } from './75-confetti.js';
 export const Jabari = (() => {
   const $ = id => document.getElementById(id);
 
+  /* Whether this page is in Jabari mode at all.
+
+     The word stays in the address bar, so it is also the answer to "is this a
+     beta player" for anything else that wants to be fenced behind the same
+     thing. Asked here rather than parsed again by the caller, so the word is
+     still written down exactly once and taking the beta out stays a matter of
+     deleting one file and its calls. */
+  function on(){
+    try { return new URL(location.href).searchParams.has(CONFIG.beta.word); }
+    catch (e) { return false; }
+  }
+
   /* Gold handed over rather than earned, for a beta player who has run dry in
      the middle of telling us about something else.
 
@@ -29,12 +41,10 @@ export const Jabari = (() => {
      time the link is opened. That is only safe because the purse is brought up
      to a figure rather than paid a sum: landing on it twice lands on the same
      number. An earlier pass added instead, which meant the word had to be
-     deleted from the URL to stop a reload paying again — and that made it a
-     link that worked once, quietly, which is not what a link is for. */
+     deleted from the URL to stop a reload paying again, and that made it a link
+     that worked once, quietly, which is not what a link is for. */
   function takeGift(progress, onGold){
-    let url;
-    try { url = new URL(location.href); } catch (e) { return; }
-    if (!url.searchParams.has(CONFIG.beta.word)) return;
+    if (!on()) return;
     const gold = progress.fill();
     Trace.note('purse filled', `${gold} from the query string`);
     onGold();
@@ -140,5 +150,5 @@ export const Jabari = (() => {
     }, 3100);
   }
 
-  return { takeGift };
+  return { takeGift, on };
 })();

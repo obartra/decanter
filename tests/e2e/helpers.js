@@ -47,7 +47,11 @@ export const RECOVERY = LabStates.RECOVERY;
 
 /* A save the game will accept as current. The layout stamp has to match the
    build's, or the game will treat the save as one from older boards. */
-export async function start(page, save = {}) {
+/* `path` is here for the one thing that is decided by the address bar rather
+   than by the save: Jabari mode is on when the beta word is in the query string,
+   and the reloads below carry it, so a spec that asks for it gets it on every
+   load rather than only the first. */
+export async function start(page, save = {}, { path = '/' } = {}) {
   await page.addInitScript(([key, wanted]) => {
     /* Seeded once, not on every load. addInitScript runs again on every
        navigation, so writing unconditionally meant a reload put the save back to
@@ -72,7 +76,7 @@ export async function start(page, save = {}) {
       }
     });
   }, [SAVE_KEY, save]);
-  await page.goto('/');
+  await page.goto(path);
   await page.waitForFunction(() => !!globalThis.App && !!globalThis.Rules);
   /* the first write used a guessed stamp, so reload once into the real one */
   await page.reload();

@@ -82,11 +82,12 @@ function landings(board){
    so a player it kills was killed by a threat they were never given a chance to
    answer. Dropping first measures a stricter game than the one being played, and
    thresholds set against it come out too low. */
-export function run(seed, { every = C.ADVANCE_EVERY, length = C.RUN_SHOTS, miss = 0 } = {}){
+export function run(seed, { every = C.ADVANCE_EVERY, length = C.RUN_SHOTS, miss = 0,
+                            colours = C.COLOURS, rows = 5 } = {}){
   /* the game's own stream, not a copy of it: a harness drawing different numbers
      measures a different game */
   const rnd = Rng.from(seed);
-  const b = R.dealBoard(5, rnd);
+  const b = R.dealBoard(rows, rnd, colours);
 
   /* How many turns had nothing to clear with the colour in hand. About three in
      five, which is the single most surprising thing the harness reports and the

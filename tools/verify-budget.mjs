@@ -92,6 +92,19 @@ const dist = join(root, 'dist');
    than it costs to say so. The card's markup stays in the shell for a plainer
    reason: it is the shell's own budget above, which has room, and moving it
    would put a null guard on every line that reaches for the panel. */
+/* Raised by a kilobyte and a half for the sandbox button, and worth saying what
+   was tried first, because a budget its own author edits to fit is not a budget.
+
+   Jabari mode's bubble workbench is about eight kilobytes. Seven of them are off
+   this path: the picker, the paces, the result card and its stylesheet are a
+   deferred group fetched on the press, and even the button's glyph lives with
+   them, so a build nobody opens it in carries none of it. What is left and
+   cannot leave is the button, the handover to the module, and two fields of
+   state, because the button is on the map and the map is the first screen.
+
+   The other thing tried was folding it into 86-jabari.js, which is where the
+   rest of the beta lives. That file is on this path too, so it would have moved
+   the bytes rather than removed them. */
 const BUDGET = {
   shell: 12_000,
   critical: 200_000,

@@ -191,8 +191,11 @@ test('says how to win once, then gets out of the way', async ({ page }) => {
      written into the markup, because the rules describing a different game from
      the one being played is a lie nothing else would catch */
   await expect(rule).toContainText('Survive');
+  /* The whole sentence rather than the number alone, because a run with no shot
+     limit is not this sentence with a different figure in it: there is nothing
+     to survive to and the goal is an empty board. */
   await expect(page.locator('#bubbleGoal')).toHaveText(
-    String(await page.evaluate(() => globalThis.BubbleConfig.RUN_SHOTS)));
+    `Survive ${await page.evaluate(() => globalThis.BubbleConfig.RUN_SHOTS)} shots to win.`);
   await expect(rule).toContainText('you lose');
   await expect(rule).not.toHaveClass(/gone/);
 

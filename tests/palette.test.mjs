@@ -1,7 +1,8 @@
-import { describe, it, assert, equal, loadPure, read } from './helpers.mjs';
+import { describe, it, assert, equal, loadPure, loadGame, read } from './helpers.mjs';
 
 const ctx = loadPure();
 const { CONFIG } = ctx;
+const { BubbleConfig } = loadGame('bubble');
 const css = ['01-base.css', '02-bottle.css', '03-game.css', '04-map.css']
   .map(f => read(`src/css/${f}`)).join('\n');
 const app = read('src/js/90-app.js');
@@ -86,6 +87,38 @@ describe('liquid palette', () => {
     const worst = closestPair(CONFIG.palette);
     assert(worst.de >= MIN,
       `${CONFIG.palette[worst.i]} and ${CONFIG.palette[worst.j]} are ${worst.de.toFixed(1)} apart, under ${MIN}`);
+  });
+
+  it('keeps the six bubbles further apart than the twelve liquids', () => {
+    /* A shelf is read one bottle at a time. A bubble grid is read all at once,
+       and the whole game is telling six colours apart at a glance, so the bar
+       here is higher than the one above rather than the same.
+
+       These used to be six of the twelve, which capped the closest pair at 24.1
+       and put an orange next to a sand. They are solved for now, so the floor is
+       set from what that search actually reaches with a little room under it: a
+       retune that comes back with a worse set fails rather than shipping. */
+    const MIN = 30;
+    const worst = closestPair(BubbleConfig.PALETTE);
+    assert(worst.de >= MIN,
+      `${BubbleConfig.PALETTE[worst.i]} and ${BubbleConfig.PALETTE[worst.j]} are ` +
+      `${worst.de.toFixed(1)} apart, under ${MIN}`);
+  });
+
+  it('paints both games out of one set', () => {
+    /* The bubble six are the first six liquids, not a second set that resembles
+       them. They cannot be imported: the two games share no module, so the six
+       are written out in both places and this is what stops the copies drifting.
+       Order matters as well as membership, since the stylesheets publish --cN
+       from the parent by index. */
+    equal(BubbleConfig.PALETTE, CONFIG.palette.slice(0, BubbleConfig.PALETTE.length),
+      'the bubble palette is no longer the head of the liquid palette');
+  });
+
+  it('deals every bubble colour it defines', () => {
+    /* The palette and the count are two numbers that mean one thing. When they
+       disagreed the extra colour existed only in the file. */
+    equal(BubbleConfig.PALETTE.length, BubbleConfig.COLOURS);
   });
 
   it('measures colour the way an eye does, not the way a byte does', () => {

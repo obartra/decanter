@@ -1,0 +1,41 @@
+/* The bubble sandbox, which is Jabari mode's and comes out with it.
+
+   Its own file rather than lines added to 07-jabari.css, because that file is
+   the loud one and says so at the top: nothing in it is trying to be tasteful,
+   and these are ordinary panel styles that would read as an exception to that.
+   Its own file rather than 01-base.css for the plainer reason that the beta
+   leaves as a set of files, and a rule filed under the base stylesheet is a rule
+   somebody has to find later.
+
+   Almost nothing here is new. The picker is the panel and the buttons the rest
+   of the game already has; what it adds is the row of paces and the small print
+   under each one. */
+
+/* Stacked rather than in a row. Four buttons carrying two lines each do not fit
+   across a phone, and a wrapped row puts Ultra on a line of its own where it
+   reads as a different kind of thing. */
+.sandboxPicks{
+  display:flex; flex-direction:column; gap:8px; margin:14px 0 16px;
+}
+.sandboxPicks .btn{
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:9px 14px; line-height:1.15;
+}
+/* the cadence under the word, because "Hard" is a label and "a row every 16" is
+   the thing it is a label for */
+.sandboxPicks .btn small{
+  font-size:8.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-dim); font-weight:600;
+}
+.sandboxPicks .btn.primary small{color:#6B4F1E}
+
+/* The sentence above the picker and the one on the result card. Dimmer than the
+   panel's own prose, because both are saying "none of this counts" and that is
+   a footnote rather than the point. */
+.sandboxWhy{
+  color:var(--ink-dim); font-size:12px; line-height:1.55; margin:0 0 4px;
+}
+
+/* the result card's buttons, stacked the same way the picker's are */
+#sandboxEnd .btn{display:block; width:100%; margin:0 0 8px}
+#sandboxEnd .btn:last-child{margin-bottom:0}

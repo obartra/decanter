@@ -13,14 +13,22 @@ export const CONFIG = {
      from here at boot, so the bands, the pour and the particle sim cannot drift
      apart the way they did when the palette lived in two files.
 
-     Chosen so that no two liquids are close to the eye. The previous set was
-     picked by hand and two pairs sat at a CIEDE2000 distance of about 12, which
-     is close enough to lose a level to, and seven pairs sat under 20. Every hue
-     here is within twelve degrees of the one it replaced, so the family is the
-     same; the separation is bought with lightness and chroma instead. The worst
-     pair is now about 24. See the test, which measures it. */
-  palette: ['#E2546F','#B08016','#32D8B5','#95B9F6','#A36AC4','#36756F',
-            '#F1B7D1','#FF9E75','#1A64A6','#629D38','#734555','#D3C9A0'],
+     Solved for rather than picked: a hand-picked set had two pairs at a CIEDE2000
+     distance of about 12, close enough to lose a level to.
+
+     THE FIRST SIX ARE THE OTHER GAME'S, which is the point of the order. Telling
+     six apart at a glance in a grid is harder than reading one bottle at a time,
+     so those were solved first and these six around them. Both games are painted
+     out of one set, and the bubble palette is a slice of this one rather than a
+     second set that resembles it.
+
+     Worst pair over the twelve is 25.9, against 24.1 for the set it replaces;
+     among the first six alone, 32.2. The later six are darker and paler because
+     twelve will not fit in the band six occupy, so the room is found in
+     lightness. See src/bubble/js/pure/00-config.js, which explains the search,
+     and tests/palette.test.mjs, which pins both floors. */
+  palette: ['#FD685F','#C99329','#519B3D','#3ED1D5','#1887ED','#C269D5',
+            '#387A7C','#5E5674','#D4DDB2','#A64402','#635C2D','#EDC2D3'],
   sectionSize: 10,
   /* Which boards are the other game is not a setting and is not here. It is
      `Levels.bubbleSlots`, which explains why. What belongs here is what turning

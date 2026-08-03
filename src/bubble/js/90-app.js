@@ -29,6 +29,34 @@ export const BubbleApp = (() => {
 
   const S_AIM = 'aim', S_FLY = 'fly';
 
+  /* How much board a seed opens with. The graded game has always dealt five. */
+  const OPENING_ROWS = 5;
+
+  /* What this run is played under.
+
+     The graded run's numbers are the defaults and the config is still the only
+     place they are decided; this exists so a sandbox can ask for something else
+     without any of it leaking back.
+
+     Four knobs, because difficulty in this game is not one dial. How often the
+     board comes down is the obvious one and it is the weakest: past about a row
+     every twenty it stops mattering, since what ends runs by then is the board
+     filling with the player's own misses rather than the feed. How many colours
+     are in play is the strongest, because it decides how often a match is
+     available at all. Rows dealt sets how much there is to undo before an empty
+     board, which is what a clear costs. And the limit decides whether there is
+     any way to win other than emptying it.
+
+     `runShots: null` means no limit, and then clearing is the only win. That is
+     a different game and deliberately not gradeable: the star thresholds are
+     measured against 35 shots, a cadence of four, six colours and five rows, so
+     a run played under anything else is not a run those numbers describe. The
+     host keeps that honest by not banking a sandbox run at all. */
+  const rules = { every: C.ADVANCE_EVERY, runShots: C.RUN_SHOTS,
+                  colours: C.COLOURS, rows: OPENING_ROWS };
+  const graded = () => rules.every === C.ADVANCE_EVERY && rules.runShots === C.RUN_SHOTS
+    && rules.colours === C.COLOURS && rules.rows === OPENING_ROWS;
+
   const st = {
     board: null,
     mode: S_AIM,
@@ -94,8 +122,8 @@ export const BubbleApp = (() => {
      one behind it, the rows that come down later), and undo puts it back. A
      still cannot borrow that stream without moving it, so it is handed a fresh
      one seeded the same way, which deals the same board. */
-  const OPENING_ROWS = 5;
-  const opening = (seed, pick) => R.dealBoard(OPENING_ROWS, pick || BubbleRng.from(seed));
+  const opening = (seed, pick) =>
+    R.dealBoard(rules.rows, pick || BubbleRng.from(seed), rules.colours);
 
   /* What a seed opens on, as rows of colours rather than as a board.
 
@@ -136,11 +164,19 @@ export const BubbleApp = (() => {
     show(null);
     paintHud();
     /* the rules, on a board nobody has shot at yet. It goes away on the first
-       shot and stays away, because it is an explanation and not a status. The
-       length of a run is filled in from the config rather than written into the
-       markup, so the rules cannot describe a game the code is not running. */
+       shot and stays away, because it is an explanation and not a status.
+
+       The whole sentence is written from the rules rather than the number alone,
+       because a run with no limit is not the same sentence with a different
+       figure in it: there is nothing to survive to, and the only way out is an
+       empty board. Filled in here rather than in the markup so the rules cannot
+       describe a game the code is not running. */
     const goal = document.getElementById('bubbleGoal');
-    if (goal) goal.textContent = C.RUN_SHOTS;
+    if (goal){
+      goal.textContent = rules.runShots
+        ? `Survive ${rules.runShots} shots to win.`
+        : 'Clear the board to win.';
+    }
     const rule = document.getElementById('bubbleRule');
     if (rule) rule.classList.remove('gone');
   }
@@ -337,10 +373,13 @@ export const BubbleApp = (() => {
        rather than an accident of ordering. A row arriving is pressure on the
        next shot, and after the final shot there is no next shot for it to press
        on: a player killed by that row was killed by a threat they were never
-       given the chance to answer. Taking RUN_SHOTS shots without being beaten is
-       what surviving means, so surviving is decided the moment the last one
-       resolves. */
-    if (st.shots >= C.RUN_SHOTS) return finish('survived');
+       given the chance to answer. Taking the whole run without being beaten is
+       what surviving means, so surviving is decided the moment the last shot
+       resolves.
+
+       A run with no limit never reaches this, and that is the point of it: the
+       only way out is an empty board or the line. */
+    if (rules.runShots && st.shots >= rules.runShots) return finish('survived');
 
     /* The board comes down on a cadence, which is the only thing that makes the
        death line mean anything. Without it the line is decoration: a player can
@@ -350,7 +389,7 @@ export const BubbleApp = (() => {
        constant now and the two would agree, but undo restores `sinceDrop` to
        what it was, and a modulo would ignore that and drop on its own schedule
        regardless of what was taken back. */
-    if (++st.sinceDrop >= C.ADVANCE_EVERY){
+    if (++st.sinceDrop >= rules.every){
       st.sinceDrop = 0;
       G.advance(st.board, R.freshRow(st.board, rand.next));
       R.remove(st.board, R.detach(st.board));
@@ -504,10 +543,20 @@ export const BubbleApp = (() => {
 
   /* What the run was worth, in the bubble game's own terms. The host turns this
      into stars and gold; nothing here knows what those are. */
+  /* A run that was not played under the graded rules scores nothing, and says so
+     here rather than leaving it to the host to remember.
+
+     The stars are measured numbers: 28, 32 and the whole run, against a cadence
+     of four. A board that dropped every eight shots, or one with no limit at
+     all, is not the game those numbers describe, so grading it would be paying
+     out for a different thing. Zeroed at the source because there is one place
+     that decides what a run was worth and this is it; a host that forgot would
+     bank three stars for the easiest setting on the menu. */
   const result = () => ({
     how: st.over, cleared: st.over === 'won', survived: st.over === 'survived',
     shots: st.shots, score: st.score, aided: st.aided, aid: aidName(),
-    stars: starsNow()
+    graded: graded(),
+    stars: graded() ? starsNow() : 0
   });
 
   /* Everything still on the board, let go from the bottom up.
@@ -579,7 +628,7 @@ export const BubbleApp = (() => {
       how === 'won' ? 'Board cleared' : how === 'survived' ? 'You survived' : 'Game over';
     document.getElementById('bubbleWhy').textContent =
       how === 'won' ? `Every bubble gone, in ${st.shots} shots.`
-      : how === 'survived' ? `All ${C.RUN_SHOTS} shots, and the line never got you.`
+      : how === 'survived' ? `All ${rules.runShots} shots, and the line never got you.`
       : R.isLost(st.board) ? 'The bubbles reached the line.' : 'No room left to shoot.';
     document.getElementById('bubbleScore').textContent = st.score;
     document.getElementById('bubbleStars').innerHTML =
@@ -608,14 +657,23 @@ export const BubbleApp = (() => {
 
     const togo = document.getElementById('bubbleLeft');
     if (togo){
-      const n = Math.max(0, C.RUN_SHOTS - st.shots);
-      togo.textContent = n === 1 ? 'last shot' : `${n} shots left`;
-      togo.classList.toggle('nearly', n <= 3);
+      /* With no limit there is nothing to count down to, so this counts up
+         instead of showing a number that never moves. Saying "35 shots left"
+         forever would be worse than saying nothing: it is a promise of an ending
+         that is not coming. */
+      if (!rules.runShots){
+        togo.textContent = st.shots === 1 ? '1 shot' : `${st.shots} shots`;
+        togo.classList.remove('nearly');
+      } else {
+        const n = Math.max(0, rules.runShots - st.shots);
+        togo.textContent = n === 1 ? 'last shot' : `${n} shots left`;
+        togo.classList.toggle('nearly', n <= 3);
+      }
     }
 
     const drop = document.getElementById('bubbleDrop');
     if (drop){
-      const left = C.ADVANCE_EVERY - st.sinceDrop;
+      const left = rules.every - st.sinceDrop;
       drop.textContent = left <= 1 ? 'drops next shot' : `drops in ${left}`;
       drop.classList.toggle('soon', left <= 2);
     }
@@ -624,7 +682,11 @@ export const BubbleApp = (() => {
        lasting, so a player who cannot see them accumulating has no way to know
        that hanging on is the thing being rewarded. */
     const run = document.getElementById('bubbleRunStars');
-    if (run){
+    /* No stars on a run that cannot earn any. Three dim ones sitting there for
+       two hundred shots is not a neutral readout, it is the game saying there is
+       something to earn here and then never paying it. */
+    if (run) run.hidden = !graded();
+    if (run && graded()){
       /* What the run has banked if it stopped here, which is why neither ending
          is passed: the third star is for finishing and the run has not finished.
          So this row fills to two and holds there while the shots-left readout
@@ -828,6 +890,22 @@ export const BubbleApp = (() => {
               level ends. The host had that second one written down as a 6. */
            get runShots(){ return C.RUN_SHOTS; },
            get colours(){ return C.COLOURS; },
+           /* What this run is played under, for a host that wants something
+              other than the graded game.
+
+              Set before `newBoard`, and read back rather than remembered: the
+              caller that opened a sandbox is not the one that has to know a
+              later run went back to the graded numbers. Passing nothing puts it
+              back, which is what the graded path does on every level so that a
+              sandbox cannot leak into a board that pays. */
+           set rules(v){
+             const n = (k, fallback) => (Number(v && v[k]) > 0 ? Number(v[k]) : fallback);
+             rules.every = n('every', C.ADVANCE_EVERY);
+             rules.runShots = v && v.runShots === null ? null : n('runShots', C.RUN_SHOTS);
+             rules.colours = Math.max(2, Math.min(C.COLOURS, n('colours', C.COLOURS)));
+             rules.rows = Math.max(1, Math.min(C.DEATH_ROW - 1, n('rows', OPENING_ROWS)));
+           },
+           get rules(){ return { ...rules, graded: graded() }; },
            undo, hint, swap, pickColour, paintHud, paintTools,
            set onEnd(fn){ onEnd = fn; }, get onEnd(){ return onEnd; },
            set allow(v){ allow = { undo: true, hint: true, swap: true, colour: true, bomb: true, ...v }; },

@@ -298,10 +298,11 @@ describe('build output', () => {
        there is one deliberate block per entry point, for the browser suite and
        the diagnostics card, and nothing else should be joining it.
 
-       Two names are the exception and both are expected: the sound and the card
-       before a replay are fetched after first paint, so each hands over through
-       a global because that is what a network boundary can do. */
-    const lateBound = ['Sound', 'Preview'];
+       Three names are the exception and all three are expected: the sound, the
+       card before a replay and Jabari mode's workbench are fetched after first
+       paint, so each hands over through a global because that is what a network
+       boundary can do. */
+    const lateBound = ['Sound', 'Preview', 'Sandbox'];
     for (const f of built().filter(n => /^assets\/.*\.js$/.test(n))){
       const assigns = [...text(f).matchAll(/globalThis\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]);
       equal(assigns.filter(n => !lateBound.includes(n)), [],

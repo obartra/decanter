@@ -64,16 +64,38 @@ export const BubbleConfig = {
      be slow enough to be seen moving, because the movement is what points. */
   GUIDE_SPEED: 1.8,
 
-  /* Six liquids, taken from the other game's palette rather than chosen again.
-     These are CONFIG.palette indices 0, 7, 11, 9, 3 and 4, picked one per hue
-     family so the set spans the wheel and keeps that palette's separation: it
-     was built so no two liquids sit closer than about 24 in CIEDE2000, which is
-     the whole reason not to invent a second set here.
+  /* Six liquids, solved for rather than borrowed.
 
-     The two games have no module in common, so this cannot import that one and
-     the indices are written down instead. If that palette is ever retuned, these
-     are the six to bring across. */
-  PALETTE: ['#E2546F', '#FF9E75', '#D3C9A0', '#629D38', '#95B9F6', '#A36AC4'],
+     These were six of the pour game's twelve, picked one per hue family. That
+     works for a shelf of bottles, where the colours are read one at a time and
+     with a label under each. It does not work here, where the whole thing is
+     telling six apart at a glance in a grid: the closest pair sat at 24.1 in
+     CIEDE2000 and read as one colour in play. The orange and the sand were the
+     worst of it, with the red not far behind.
+
+     So these are the answer to the actual question, which is "place six colours
+     to maximise the smallest gap between any two". The closest pair here is 32.2,
+     a third further apart than before, and no two share a hue family: blue,
+     gold, coral, turquoise, purple, green.
+
+     Two constraints on the search, and they are why this is not the highest
+     number that could be reached. Chroma is banded, because unbanded the answer
+     runs to the corners of sRGB and comes back with neon cyan, electric magenta
+     and a near white, which is a bigger number and a different game's palette.
+     And lightness is kept well above the board, which is near black, so each one
+     reads as a lit bead rather than a hole.
+
+     Borrowing was the right instinct and the wrong constraint: over every choice
+     of six from the twelve as they were, the best available gap is 27.9, and it
+     spends two of its six on teals. So the twelve were re-solved around these
+     instead, and these are now CONFIG.palette indices 0 to 5 exactly: the two
+     games are painted out of one set again, this time one built for the harder
+     of the two jobs first.
+
+     The two games have no module in common, so this still cannot import that one
+     and the six are written out. A test asserts they match rather than trusting
+     the comment. See tests/palette.test.mjs. */
+  PALETTE: ['#FD685F', '#C99329', '#519B3D', '#3ED1D5', '#1887ED', '#C269D5'],
 
   /* Every colour in the palette gets dealt. This was five against a palette of
      six, so one of them was drawn on the board by nobody and existed only in the

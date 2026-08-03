@@ -32,6 +32,12 @@
       <div class="mapIcons">
         <button class="icon js-sound" type="button" aria-label="Sound"></button>
         <button class="icon" id="install" type="button" hidden aria-label="Install"></button>
+        <!-- Only in Jabari mode, which is why it is hidden here and shown from
+             the one place that knows the word is in the address bar. It opens a
+             bubble board off the graded run, at a cadence of your choosing, so
+             the mechanic can be felt at settings the graded game will never
+             deal. See docs/design/04-economy.md for why that mode is fenced. -->
+        <button class="icon" id="sandbox" type="button" hidden aria-label="Bubble sandbox"></button>
         <!-- Beside the others rather than floating over the map. A control at
              the bottom centre sits exactly where the road winds, so it covered
              the thing it was helping you get back to and took back the strip
@@ -64,6 +70,12 @@
   <div class="bubHud">
     <b id="bubbleLive">0</b>
     <span class="runStars" id="bubbleRunStars"></span>
+    <!-- On a graded level the star row already says how far through the run you
+         are, which is why this was only on the game's own page. A sandbox board
+         has no stars and no end to count down to, so without this there is no
+         shot count anywhere and a run that goes two hundred shots says nothing
+         about itself. It counts down on a level and up in the sandbox. -->
+    <small id="bubbleLeft">35 shots left</small>
     <small id="bubbleDrop">drops in 10</small>
   </div>
   <main class="stage">
@@ -71,7 +83,7 @@
     <!-- The number comes from BubbleConfig.RUN_SHOTS, the same as the standalone
          page. Two copies of the rules already exist; two copies of the number
          inside them is how one of them ends up wrong. -->
-    <p class="rule" id="bubbleRule">Match three of a colour to bring them down.<br>Survive <span id="bubbleGoal">35</span> shots to win. If the bubbles reach the line, you lose.</p>
+    <p class="rule" id="bubbleRule">Match three of a colour to bring them down.<br><span id="bubbleGoal">Survive 35 shots to win.</span> If the bubbles reach the line, you lose.</p>
   </main>
   <!-- Priced, the way the pour game's are. These take gold and were the only
        controls in either game that did so without saying what they cost. -->

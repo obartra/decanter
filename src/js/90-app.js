@@ -176,6 +176,11 @@ export const App = (() => {
     Trace.note('to the map');
     clearTimeout(reveal);
     runId++;
+    /* Leaving takes the sandbox with it. The board on screen is abandoned by the
+       run id above like any other, and this makes sure the next bubble board is
+       asked for as a level rather than inheriting a pace nobody chose for it. */
+    bubbleSandbox = false;
+    if (typeof Sandbox !== 'undefined') Sandbox.hide();
     document.body.dataset.view = 'map';
     Backdrop.kind = 'moss';
     Backdrop.setShelf(null);
@@ -390,46 +395,90 @@ export const App = (() => {
      The board is dealt from the level number, so level 14 is the same board for
      everyone the same way every pour level is. */
   let bubbleReady = false;
-  function startBubble(level){
+  /* whether the board on screen is a sandbox one, which decides whether it is
+     banked and which panel it ends on */
+  let bubbleSandbox = false;
+
+  /* Booted once, whichever kind of board asked for it. Both the graded path and
+     the sandbox need the same three wires and the same panel decision, and a
+     second copy of them is how one of the two ends up banking through a handler
+     the other one set. */
+  function bootBubble(){
+    if (bubbleReady) return;
+    BubbleApp.boot();
+    BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
+    BubbleApp.onEnd = banked => finishBubble(banked);
+    BubbleApp.charge = what => payFor(what);
+    bubbleReady = true;
+  }
+
+  /* One way in to a bubble board, whichever kind it is.
+
+     The view goes up before the boot, because booting measures the canvas and
+     one inside a hidden section measures zero: mounting into that draws an empty
+     screen with no error to explain it. The game itself is fetched right after
+     the page opens, so `ready` resolves at once by the time anybody gets here.
+
+     Together rather than as two, because two drifted the moment they existed:
+     the sandbox was the only caller that set a pace, so it was the only one that
+     put it back, and a level dealt after one carried it. Setting `rules` on
+     every board makes that impossible rather than remembered. */
+  function openBubble({ level, rules, sandbox, seed, allow, prices, note }){
     bubbleRun = runId;
     newRun(level);
-    /* The view goes up before the game is booted, because booting measures the
-       canvas to work out how the world maps onto it, and a canvas inside a
-       hidden section measures zero. Mounting into that produces a board scaled
-       to nothing, which draws as an empty screen with no error to explain it. */
+    bubbleSandbox = !!sandbox;
     document.body.dataset.view = 'bubble';
     Backdrop.kind = 'cellar';
-    /* This game is not in the critical bundle — it is fetched right after the
-       page opens, so by the time anybody reaches a bubble level it has been on
-       the device for minutes. `ready` resolves immediately once it has. On the
-       one load where it has not, this waits rather than throwing, and the view
-       is already up so the wait looks like the board being dealt. */
     Deferred.ready('bubble').then(() => {
       /* the player may have gone back to the map while that was in the air */
       if (S.level !== level || document.body.dataset.view !== 'bubble') return;
+      if (bubbleSandbox !== !!sandbox) return;
       if (typeof BubbleApp === 'undefined'){
         deny('bubble', 'the bubble game could not be loaded');
         showMap();
         return;
       }
-      if (!bubbleReady){
-        BubbleApp.boot();
-        BubbleApp.panelHidden = true;   /* this game shows the panel, with the gold on it */
-        BubbleApp.onEnd = banked => finishBubble(banked);
-        BubbleApp.charge = what => payFor(what);
-        bubbleReady = true;
-      }
-      /* The chapters hand these over the same way they hand over the pour game's,
-         because they are the same grants: an undo is an undo and a hint is a hint
-         whichever board is in front of you. Picking a colour is the extra bottle,
-         so it arrives with the vessel and costs what a vessel costs. */
-      const perks = progress.perks();
-      BubbleApp.allow = { undo: perks.undo, hint: perks.hint, colour: perks.vessel,
-                          swap: perks.undo, bomb: perks.blast };
-      BubbleApp.prices = () => bubblePrices();
+      bootBubble();
+      BubbleApp.rules = rules;
+      BubbleApp.allow = allow;
+      BubbleApp.prices = prices;
       $('bubGold').textContent = progress.gold;
-      BubbleApp.newBoard(level);
-      Trace.note(`dealt level ${level}`, 'bubble board');
+      BubbleApp.newBoard(seed);
+      Trace.note(note, sandbox ? 'sandbox board' : 'bubble board');
+    });
+  }
+
+  function startBubble(level){
+    /* The chapters hand these over the same way they hand over the pour game's,
+       because they are the same grants: an undo is an undo and a hint is a hint
+       whichever board is in front of you. Picking a colour is the extra bottle,
+       so it arrives with the vessel and costs what a vessel costs. */
+    const perks = progress.perks();
+    openBubble({
+      level, seed: level, rules: null, sandbox: false,
+      allow: { undo: perks.undo, hint: perks.hint, colour: perks.vessel,
+               swap: perks.undo, bomb: perks.blast },
+      prices: () => bubblePrices(),
+      note: `dealt level ${level}`
+    });
+  }
+
+  /* ---------- the sandbox ----------
+
+     Jabari mode's bubble workbench: a board off the graded run, at a pace you
+     pick, with no shot limit. All of it is 87-sandbox.js, fetched on the press,
+     because nobody without the word in the address bar can reach a line of it
+     and every load would otherwise pay for it. What is left here is the press
+     and the one thing the module cannot do for itself, which is deal a board. */
+  function openSandbox(){
+    Sound.unlock(); Sound.tick();
+    Deferred.ready('sandbox').then(() => {
+      if (typeof Sandbox === 'undefined'){
+        deny('sandbox', 'the bubble sandbox could not be loaded');
+        return;
+      }
+      Sandbox.host = { openBubble, toMap: () => showMap(false), level: () => S.level };
+      Sandbox.open();
     });
   }
 
@@ -485,6 +534,12 @@ export const App = (() => {
        board left mid collapse still reaches its ending a second later. Banking
        it then would credit whatever level is current by now. */
     if (bubbleRun !== runId) return;
+    /* A sandbox board is not a level and has no level to be banked against. The
+       game already zeroes the stars on a run played under anything but the
+       graded rules, so this is the second of two locks rather than the only one,
+       and it is here because `progress.complete` would otherwise be called with
+       whatever level was last opened. */
+    if (run.graded === false) return Sandbox.ended(run);
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, run.shots, run.stars);
     S.over = true;
@@ -1319,6 +1374,24 @@ export const App = (() => {
       showGame(S.level + 1);
     };
     $('install').innerHTML = ICON.install;
+
+    /* The sandbox, behind the same word the purse-filling is behind. Drawn and
+       wired only when that word is in the address bar, so a shipped build has
+       one hidden button and no listeners rather than a feature a query string
+       away from anybody who reads the markup. */
+    /* The sandbox button, in Jabari mode only. Its glyph lives with the rest of
+       the sandbox rather than here, so a build nobody opens it in carries
+       neither, and the fetch is started now rather than on the press: in this
+       mode it is wanted, and a picker that waits on a network round trip inside
+       a tap is the thing 96-deferred.js exists to avoid. */
+    if (Jabari.on()){
+      const btn = $('sandbox');
+      btn.hidden = false;
+      btn.onclick = openSandbox;
+      Deferred.ready('sandbox').then(() => {
+        if (typeof Sandbox !== 'undefined') btn.innerHTML = Sandbox.icon;
+      });
+    }
     MapView.onScroll = paintJump;
     $('mapJump').onclick = () => {
       Sound.tick();

@@ -42,6 +42,7 @@ option, to add it to a home screen or dock.
 | `src/lab/` | the workbench at `/lab/`: every game in a frame, with its knobs and its difficulty measured live |
 | `tools/bubble-run.mjs` | plays a bubble run headless, so the survival tool and the difficulty test measure the same game |
 | `tools/bubble-survival.mjs` | measures how often a bubble run reaches each star, which is where its thresholds come from |
+| `tools/bubble-sandbox.mjs` | measures how often a bubble board can be cleared per drop cadence, which is where the sandbox's four paces come from |
 | `tools/measure-field.mjs` | measures the decanting field and writes its order and par tables |
 | `tools/casks-field.mjs` | sweeps cask layouts backwards and writes their boards and pars |
 | `tools/dead-code.mjs` | finds modules, members, helpers, tunables, selectors and ids that nothing reaches |

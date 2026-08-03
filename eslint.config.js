@@ -27,10 +27,10 @@ const root = dirname(fileURLToPath(import.meta.url));
    point that stops publishing a name stops declaring it in the same commit, and
    the spec still naming it goes red rather than green.
 
-   `Sound` and `Preview` are added by hand, because they are the two names no
-   entry point's debug surface publishes: each is written by a deferred bundle
+   `Sound`, `Preview` and `Sandbox` are added by hand, because they are the names
+   no entry point's debug surface publishes: each is written by a deferred bundle
    and read by everything else, across a boundary an import cannot cross. */
-const published = { Sound: 'writable', Preview: 'writable' };
+const published = { Sound: 'writable', Preview: 'writable', Sandbox: 'writable' };
 for (const dir of readdirSync(join(root, 'src'), { withFileTypes: true })
   .filter(d => d.isDirectory() && existsSync(join(root, 'src', d.name, 'js')))
   .map(d => join('src', d.name, 'js'))
@@ -81,20 +81,22 @@ export default [
      imported, so reaching into another game is a resolution error at build time
      rather than a rule somebody keeps writing down.
 
-     Three declared globals, and all three are the same situation: a name that
+     Four declared globals, and all four are the same situation: a name that
      arrives over the network after the page has opened, which no import can
      express. `Sound` is the sound, handed from the stub to the real module once
-     it lands. `BubbleApp` is the other game and `Preview` is the card shown
-     before a replay, both fetched after first paint and both reached from the
-     pour game behind a `typeof` guard. Importing any of them would put it in the
-     critical bundle and undo the deferral. 49-audio.js says so at length. */
+     it lands. `BubbleApp` is the other game, `Preview` is the card shown before
+     a replay, and `Sandbox` is Jabari mode's workbench, all fetched after first
+     paint and all reached from the pour game behind a `typeof` guard. Importing
+     any of them would put it in the critical bundle and undo the deferral.
+     49-audio.js says so at length. */
   {
     files: ['src/js/**/*.js', 'src/bubble/js/**/*.js', 'src/measure/js/**/*.js',
             'src/casks/js/**/*.js', 'src/lab/js/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
-      globals: { ...globals.browser, Sound: 'writable', BubbleApp: 'writable', Preview: 'writable' }
+      globals: { ...globals.browser, Sound: 'writable', BubbleApp: 'writable',
+                 Preview: 'writable', Sandbox: 'writable' }
     },
     rules: shared
   },

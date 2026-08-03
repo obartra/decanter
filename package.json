@@ -17,6 +17,7 @@
     "pars": "node tools/pars.mjs",
     "order": "node tools/order.mjs",
     "difficulty": "node tools/difficulty.mjs",
+    "bubble:sandbox": "node tools/bubble-sandbox.mjs",
     "bubble:survival": "node tools/bubble-survival.mjs",
     "measure:field": "node tools/measure-field.mjs",
     "casks:field": "node tools/casks-field.mjs",
