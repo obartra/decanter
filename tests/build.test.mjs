@@ -30,6 +30,12 @@ const gameDirs = () => readdirSync(join(root, 'src'))
   .filter(d => existsSync(join(root, 'src', d, 'index.html'))
             && existsSync(join(root, 'src', d, 'js')));
 
+/* Anything belonging to the workbench, in dist. Written once because two
+   different checks below have to agree about what "the lab" means, and the
+   build has the same predicate in tools/build.mjs — three copies of a regex is
+   how one of them ends up matching a file the others do not. */
+const isLab = f => f.startsWith('lab/') || /^assets\/lab-[0-9a-f]+\.(js|css)$/.test(f);
+
 /* The groups the app page fetches after it opens, as the page itself lists them. */
 const deferredGroups = () => JSON.parse(text('index.html')
   .match(/<script type="application\/json" id="deferredAssets">([\s\S]*?)<\/script>/)[1]);
@@ -207,7 +213,11 @@ describe('build output', () => {
         const beyondFonts = body.replace(/@font-face\{[^}]*\}/g, '').trim();
         assert(!beyondFonts, `dist/${f} has inline CSS beyond the font block: ${beyondFonts.slice(0, 60)}`);
       }
-      assert(readFileSync(join(dist, f)).length < 12_000, `dist/${f} is too big for a shell`);
+      /* The same number as tools/verify-budget.mjs, and it moved with it when
+         the doors put a fifth view in the app. Two copies of a cap is not ideal,
+         but this check is about a shell being MARKUP — the assertions above are
+         the real ones — and the size is a backstop on the same claim. */
+      assert(readFileSync(join(dist, f)).length < 13_000, `dist/${f} is too big for a shell`);
     }
   });
 
@@ -623,20 +633,32 @@ describe('build output', () => {
     for (const i of m.icons) assert(has(i.src.replace('./', '')), `${i.src} is listed but missing`);
   });
 
-  it('precaches exactly what was built', () => {
+  it('precaches exactly what was built, less what nobody installs for', () => {
     const sw = text('sw.js');
     const listed = JSON.parse(sw.match(/const ASSETS = (\[[\s\S]*?\]);/)[1]);
-    /* The portable file is a copy of the app for carrying around. Precaching it
-       would double what an install costs to no end. */
-    const actual = built()
-      .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html')
-      .map(f => `./${f}`);
+    /* Two exceptions, and they are exceptions for the same reason: an install
+       should cost what the product costs and not a byte more.
+
+       The portable file is a copy of the app for carrying around, so precaching
+       it would double the install to no end.
+
+       The lab is a workbench. Nothing in the product links to it and no player
+       reaches it, so every install was paying 79kb for a page that exists to
+       let a developer turn a knob against the live modules. It is still built
+       and still served; it is simply fetched when asked for. */
+    const spare = f => f === 'sw.js' || f === 'decanter-standalone.html' || isLab(f);
+    const actual = built().filter(f => !spare(f)).map(f => `./${f}`);
     for (const f of actual) assert(listed.includes(f), `${f} was built but is not precached`);
     for (const f of listed) {
       if (f === './') continue;
       assert(has(f.replace('./', '')), `${f} is precached but does not exist, install would fail`);
     }
     assert(!listed.includes('./decanter-standalone.html'), 'the portable file must not be precached');
+    /* Stated as its own claim rather than left to follow from the filter above.
+       The filter would go on passing if the lab crept back in, because it only
+       says the precache holds nothing it should not have skipped. */
+    equal(listed.filter(f => isLab(f.replace('./', ''))), [],
+      'the lab is a workbench and must not be in the install');
   });
 
   /* Every game now lives in the one worker's cache. That is what the hashing
@@ -645,7 +667,10 @@ describe('build output', () => {
      game with no worker, and therefore no offline, for as long as it had one. */
   it('precaches every game, so all of them work offline', () => {
     const listed = JSON.parse(text('sw.js').match(/const ASSETS = (\[[\s\S]*?\]);/)[1]);
-    for (const g of gameDirs()){
+    /* Every GAME. The lab is built like one and is not one: it is a workbench
+       over the games, it ships to nobody, and offline is a promise made to a
+       player rather than to a developer with a browser open. */
+    for (const g of gameDirs().filter(g => g !== 'lab')){
       assert(listed.includes(`./${g}/index.html`), `${g} is not precached, so it cannot work offline`);
     }
   });

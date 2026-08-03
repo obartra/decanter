@@ -96,6 +96,58 @@ export const Levels = (() => {
     return [first, second];
   }
 
+  /* ---- the doors ----
+
+     A chapter is not handed over, it is opened. Between the last board of one
+     chapter and the first of the next stands a door, and a door is the third
+     game: a floor of casks with the gilt one to get out to the east wall. Every
+     chapter but the first has one, because the first is where somebody learns
+     what this game is and a locked door in front of level one is a game that
+     will not start.
+
+     A door is not graded and cannot be failed. No stars on it, no par to beat,
+     no fee and nothing to buy: a floor of casks is either out or it is not, and
+     there is no version of it that is out badly. That is the whole reason it
+     makes a gate rather than another board — a gate you can three-star is a gate
+     you can also one-star past, and then it is a toll rather than a door.
+
+     It has no tools either, and that part is not this file's doing: the cellar
+     door itself has had neither since the tools came off it, for a reason that
+     lands here too. Sliding is reversible, so a mistake is undone by sliding
+     back. See docs/design/17-casks.md.
+
+     WHICH floor each door is, written down rather than worked out.
+
+     Three reasons it is a list. The casks boards are a measured, shipped table
+     and par there is a fixed property of a floor rather than something a page
+     computes (32-boards.js says why). That table is not in the critical bundle,
+     so arithmetic here would be arithmetic against numbers this file cannot see
+     at boot. And eleven numbers chosen once are eleven numbers a test can check,
+     where a formula is only ever as checkable as the formula.
+
+     They rise, and tests/doors.test.mjs checks that they do against the real par
+     table — so a door that stopped being harder than the one before it fails
+     rather than quietly flattening the climb. */
+  const DOORS = [5, 11, 16, 21, 26, 32, 37, 42, 47, 53, 58];
+
+  /* Which floor stands in front of a chapter, or null for the first one, which
+     opens onto the game rather than onto a door.
+
+     Answered for every chapter the run actually has. A section past the end of
+     the list has no door rather than an undefined one: the alternative is a
+     chapter nobody can open, which is the same as a game that ends there. */
+  function doorFor(section){
+    if (!Number.isInteger(section) || section < 1) return null;
+    return section <= DOORS.length ? DOORS[section - 1] : null;
+  }
+  /* How many chapters the graded run is cut into. Derived from where it ends
+     rather than from the length of the name list, which runs out first and
+     leaves the rest as Reserve. */
+  function sectionCount(){
+    const last = Number.isInteger(LAST_LEVEL) ? LAST_LEVEL : 0;
+    return Math.ceil(last / CONFIG.sectionSize);
+  }
+
   /* Which game a level number is. Everything that deals, scores, prices or draws a
      level asks this rather than doing its own arithmetic, so the map and the
      scoring cannot disagree about what level 12 is.
@@ -121,5 +173,6 @@ export const Levels = (() => {
   const isSectionStart = level => (level - 1) % CONFIG.sectionSize === 0;
 
   return { shape, baseShape, deal, make, seedFor, isBubble, bubbleSlots,
-           sectionOf, sectionName, sectionTint, isSectionStart };
+           sectionOf, sectionName, sectionTint, isSectionStart,
+           doorFor, sectionCount };
 })();

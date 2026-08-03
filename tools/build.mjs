@@ -67,13 +67,26 @@ const hash = s => createHash('sha256').update(s).digest('hex').slice(0, 10);
    levels are that game; the rest are standalone only, and stay that way until
    somebody decides they belong in the graded run.
 
+   `appCss: false` carries a game's code into the app without its stylesheet.
+   A game's stylesheet is the styling of its own PAGE — it opens with `:root`,
+   `html, body` and `*` rules that are right for a document that is nothing but
+   that game and wrong for one where it is a single view. Two of those loaded
+   over the app's would be the last one in the concatenation deciding the
+   height, the overflow and the palette of the whole product. A game that draws
+   into a canvas needs none of it in the app: the canvas is the game, and the
+   chrome around it there belongs to the app.
+
    Filtered by what is actually on disk, so a game can be added by creating its
    directory and a page template, and nothing here has to be edited in the same
    commit as the sources it describes. */
 const GAMES = [
   { name: 'bubble',  path: 'bubble',  inApp: true },
   { name: 'measure', path: 'measure', inApp: false },
-  { name: 'casks',   path: 'casks',   inApp: false },
+  /* Carried by the app page too, because a floor of casks is the door in front
+     of every chapter but the first. Deferred like the bubble game rather than
+     put in the critical bundle: no door is reachable until the eleventh board is
+     cleared, so it has minutes to arrive. */
+  { name: 'casks',   path: 'casks',   inApp: true, appCss: false },
   /* Not a game, and built exactly like one. The lab is a workbench that opens
      the pages above in frames and reaches into them, so it needs precisely what
      they need — its own bundle, its own shell, its own place in the precache —
@@ -316,9 +329,13 @@ function page(tmpl, slots){
 }
 
 /* 1. the app, as a shell over hashed bundles */
+/* A game carried by the app is one deferred group: its stylesheet, if the app
+   wants it, and its code. `appCss: false` makes that group the code alone. */
+const appAssets = g => (g.appCss === false ? [href(0, g.jsFile)]
+                                           : [href(0, g.cssFile), href(0, g.jsFile)]);
 const deferredFor = () => {
   const groups = { ...deferredAssets };
-  for (const g of games.filter(x => x.inApp)) groups[g.name] = [href(0, g.cssFile), href(0, g.jsFile)];
+  for (const g of games.filter(x => x.inApp)) groups[g.name] = appAssets(g);
   return groups;
 };
 const appPage = page('src/index.html', {
@@ -360,7 +377,8 @@ const standalone = page('src/index.html', {
                            dataFont('assets/fonts/alegreyasans.woff2'),
                            dataFont('assets/fonts/alegreyasans-bold.woff2')),
   '<!--SOLVER-->': `<script id="solverSrc" type="text/js-worker">${solver}</script>`,
-  '<!--CSS-->': `<style>${[app.allCss, ...games.filter(g => g.inApp).map(g => g.src.css)].join('\n')}</style>`,
+  '<!--CSS-->': `<style>${[app.allCss,
+    ...games.filter(g => g.inApp && g.appCss !== false).map(g => g.src.css)].join('\n')}</style>`,
   '<!--DEFERRED-->': '',
   '<!--JS-->': `<script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
 });
@@ -403,14 +421,26 @@ writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
 
 /* ---------- the worker ---------- */
 /* The precache is derived from what actually landed in dist, so nothing can be
-   built and then forgotten. The portable file is left out: it is a copy of the
-   app for carrying around, and precaching it would double the install. */
+   built and then forgotten. Two things are left out.
+
+   The portable file: it is a copy of the app for carrying around, and
+   precaching it would double the install.
+
+   The lab: it is a workbench, not part of the product. Nothing in the game
+   links to it, no player reaches it, and precaching it meant every install
+   paid for 79kb of a page that opens the games in frames so a developer can
+   turn a knob. It is still built, still hashed and still served — it is simply
+   fetched when somebody asks for it rather than handed to everybody who does
+   not. Which also makes it honest to leave out of the whole-build budget; see
+   tools/verify-budget.mjs, where leaving it in meant the workbench getting
+   better ate the headroom the game needed to grow. */
 const walk = (dir, base = '') => readdirSync(dir).flatMap(f => {
   const full = join(dir, f);
   return statSync(full).isDirectory() ? walk(full, `${base}${f}/`) : [`${base}${f}`];
 });
+const labFile = f => f.startsWith('lab/') || /^assets\/lab-[0-9a-f]+\.(js|css)$/.test(f);
 const precache = walk(dist)
-  .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html')
+  .filter(f => f !== 'sw.js' && f !== 'decanter-standalone.html' && !labFile(f))
   .map(f => `./${f}`);
 precache.unshift('./');
 
@@ -442,7 +472,8 @@ console.log('built dist/');
 console.log('  index.html                ', kb(size('index.html')), '(shell)');
 console.log('  critical path             ', kb(critical), '(shell + app css + app js)');
 const deferred = Object.values(deferredAssets).flat().reduce((n, u) => n + size(u.replace('./', '')), 0)
-  + games.filter(g => g.inApp).reduce((n, g) => n + size(g.cssFile) + size(g.jsFile), 0);
+  + games.filter(g => g.inApp)
+      .reduce((n, g) => n + (g.appCss === false ? 0 : size(g.cssFile)) + size(g.jsFile), 0);
 console.log('  deferred                  ', kb(deferred),
   `(${Object.keys(deferredFor()).join(', ')})`);
 for (const g of games) console.log(`  ${(g.path + '/index.html').padEnd(26)}`, kb(size(`${g.path}/index.html`)),

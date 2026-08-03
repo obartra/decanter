@@ -355,6 +355,12 @@ const LabApp = (() => {
       return;
     }
     if (node.disabled){
+      /* A level behind a shut cellar door is not simply refused: the map has
+         something to offer at that point, one node further down the road, and a
+         workbench that only reported the refusal would be the one screen in the
+         build it could not show. So it taps the door, which is what a player at
+         this level does. Still through the map, like everything else here. */
+      if (openTheDoor()) return;
       $('labNote').textContent = `level ${st.level} is refused here: ${node.getAttribute('aria-label') || 'locked'}`;
       return;
     }
@@ -363,6 +369,93 @@ const LabApp = (() => {
     node.click();
     const armed = st.win.document.querySelector('.node.armed');
     if (armed) armed.click();
+
+    /* A level already cleared answers the tap with the card before a replay
+       rather than with a board, so on those levels the tap is half the gesture
+       and Play is the other half. Without this the frame keeps whatever board
+       was on it, the sidebar's number moves anyway, and the workbench reads as
+       having stepped to a level it never dealt — worst on a save where
+       everything is beaten, which is every level.
+
+       It is still driven the way a player drives it: the card is a question and
+       this answers it, rather than reaching past the card into the dealer. */
+    if (cardComing()) return playTheCard();
+    drawLevel();
+  }
+
+  /* The cellar door standing in front of the chapter the asked-for level is in,
+     tapped. Returns whether there was one to tap, so the caller can fall back to
+     saying why the level was refused when the answer is something else.
+
+     Read off the map rather than worked out here. The lab knows a level number
+     and nothing about which chapter has a door; the map has already drawn the
+     gate or not, and its `data-door` is the answer. That also keeps this honest
+     the day a chapter stops having one. */
+  function openTheDoor(){
+    const m = mods();
+    if (!m || !st.win || !m.levels) return false;
+    const section = m.levels.sectionOf(st.level);
+    const door = st.win.document.querySelector(`.node.door[data-door="${section}"]`);
+    if (!door || door.disabled) return false;
+    door.click();
+    $('labNote').textContent =
+      `level ${st.level} is behind a shut door, so the lab opened the door instead`;
+    return true;
+  }
+
+  /* Whether the tap just taken opens the card instead of a board, asked of the
+     same stars the map asked. */
+  function cardComing(){
+    const m = mods();
+    return !!(m && m.app._progress && m.app._progress.starsFor(st.level) > 0);
+  }
+
+  /* The card rides in a bundle of its own, so it lands a turn or more after the
+     tap rather than during it. Waited for by watching the veil it arrives on,
+     which is the thing actually being waited for — the alternative was to reach
+     into the frame for the Deferred the game waits on, and that would put a
+     fourth game internal in this file under a comment in 00-config.js saying
+     that file is the only one allowed to name any.
+
+     A veil is a DOM handle like `[data-level]` and `.node.armed` above it, not a
+     module, so this stays a workbench driving a page.
+
+     CARD_WAIT is the one number here and it is a fault reporter, not a race:
+     nothing waits it out on a working build, because the observer fires the
+     moment the class lands. It exists so that a bundle which never arrives says
+     so instead of leaving a level number that moved and a frame that did not. */
+  const CARD_WAIT = 4000;
+  function cardUp(w){
+    const veil = w.document.getElementById('previewVeil');
+    if (!veil) return Promise.resolve(false);
+    if (veil.classList.contains('show')) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const done = ok => { clearTimeout(timer); obs.disconnect(); resolve(ok); };
+      const obs = new w.MutationObserver(() => {
+        if (veil.classList.contains('show')) done(true);
+      });
+      obs.observe(veil, { attributes: true, attributeFilter: ['class'] });
+      const timer = setTimeout(() => done(false), CARD_WAIT);
+    });
+  }
+
+  async function playTheCard(){
+    const w = st.win;
+    if (!await cardUp(w)){
+      $('labNote').textContent = `level ${st.level} was tapped but no card came up`;
+      return;
+    }
+    /* The frame may have been reloaded, or another level tapped, while that was
+       in the air. */
+    if (st.win !== w) return;
+    const play = w.document.getElementById('previewPlay');
+    if (play.disabled){
+      /* The card's own words for it, which is the fee it cannot pay. */
+      $('labNote').textContent = `level ${st.level} is refused here: ` +
+        (w.document.getElementById('previewHint').textContent || 'replay refused');
+      return;
+    }
+    play.click();
     drawLevel();
   }
 

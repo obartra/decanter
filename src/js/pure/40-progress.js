@@ -65,6 +65,9 @@ export const Progress = (() => {
       dailyOn: null,
       /* chapters whose opening has already been read, so it is shown once */
       seen: {},
+      /* chapters whose door has been got through, keyed by chapter number. A
+         door is opened once and stays open: it is a way in, not a toll. */
+      doors: {},
       /* What has gone wrong here, kept across reloads. A player who is stuck
          reloads, and everything the trace was holding goes with the page, so the
          counts that answer "has this happened before, and how often" have to
@@ -105,11 +108,16 @@ export const Progress = (() => {
   function createProgress(storage){
     const store = storage || safeStorage();
     let state = blank();
+    /* Whether the save on disk had a doors record at all, which is a different
+       question from whether any door is open in it. Read here because it is only
+       answerable before blank()'s empty record is merged over the top. */
+    let hadDoors = false;
     try {
       const raw = store.getItem(SAVE_KEY);
       if (raw){
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object'){
+          hadDoors = !!parsed.doors && typeof parsed.doors === 'object' && !Array.isArray(parsed.doors);
           state = Object.assign(blank(), parsed);
           /* A save written before the stamp existed cannot be taken as current.
              blank() carries today's stamp, so merging over it would let a save
@@ -148,6 +156,22 @@ export const Progress = (() => {
     state.pars = record(state.pars);
     state.claimed = record(state.claimed);
     state.seen = record(state.seen);
+    state.doors = record(state.doors);
+    /* A save from before the doors existed.
+
+       That player has already walked past every chapter boundary they have
+       reached — they were not there to be stopped at. Gating them now would take
+       away levels somebody has already opened, which is the one thing the layout
+       migration below is careful never to do, and it would do it to the players
+       furthest in. So every door behind the frontier is counted as open.
+
+       Told apart from a save that simply has no doors open yet by `unlocked`
+       rather than by a version bump: a new player is at level 1 in chapter 0 and
+       this opens nothing for them. The field is absent exactly once, on the load
+       that migrates, and present forever after. */
+    if (!hadDoors){
+      for (let s = 1; s <= Levels.sectionOf(state.unlocked); s++) state.doors[s] = true;
+    }
     if (!state.diag || typeof state.diag !== 'object' || Array.isArray(state.diag)) state.diag = blank().diag;
     state.diag.refused = record(state.diag.refused);
     if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
@@ -166,6 +190,15 @@ export const Progress = (() => {
     function save(){
       try { store.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
     }
+
+    /* A chapter with no door in front of it is always open, which is chapter one
+       and anything past the end of the door list. A local rather than a method,
+       so nothing depends on how it was called: `isUnlocked` reads it, and a
+       `this` in there would break the moment somebody destructured it. */
+    function doorOpen(section){
+      if (Levels.doorFor(section) == null) return true;
+      return !!state.doors[section];
+    }
     return {
       get raw(){ return state; },
       get unlocked(){ return state.unlocked; },
@@ -180,7 +213,16 @@ export const Progress = (() => {
       /* Everything the chapters have handed over by now. Taken from how far the
          player has got rather than from the level in front of them, so going back
          to an early board does not take the tools away again. */
-      perks(){ return Chapters.perksFor(Levels.sectionOf(state.unlocked)); },
+      /* Capped at the last chapter actually entered, not the one the frontier
+         has stepped into. Clearing the last board of a chapter puts `unlocked`
+         on the first board of the next one, and that board is behind a shut
+         door — so reading the grant off `unlocked` alone would hand over a
+         chapter's tools while its door is still closed, which is the chapter
+         being given away by the thing meant to be guarding it. */
+      perks(){
+        const at = Levels.sectionOf(state.unlocked);
+        return Chapters.perksFor(doorOpen(at) ? at : at - 1);
+      },
       /* ---- what has gone wrong ----
          Written straight to the save rather than batched. These are rare by
          definition, and a count that is lost because the page went away is a
@@ -205,7 +247,47 @@ export const Progress = (() => {
       totalStars(){
         return Object.values(state.stars).reduce((a, b) => a + b, 0);
       },
-      isUnlocked: level => level <= state.unlocked && level <= lastLevel(),
+      /* ---- the doors ----
+
+         A chapter is opened by getting through the floor of casks in front of
+         it. Until that happens its boards are not reachable, however far the
+         frontier has run: `unlocked` says how far the player has PLAYED, and a
+         door says whether they may go on.
+
+         Two numbers rather than one because they answer different questions and
+         because folding the door into `unlocked` would lose the difference the
+         moment somebody paid past a board. `buyUnlock` moves the frontier; it
+         must not also open a door, or the gate is purchasable. */
+      isDoorOpen: doorOpen,
+      /* The floor standing in front of the chapter this level is in, or null if
+         there is nothing in the way. */
+      doorBefore(level){
+        const section = Levels.sectionOf(level);
+        return state.doors[section] ? null : Levels.doorFor(section);
+      },
+      openDoor(section){
+        if (Levels.doorFor(section) == null) return false;
+        if (state.doors[section]) return false;
+        state.doors[section] = true;
+        save();
+        return true;
+      },
+      /* Which door the player is standing at, or null when the way on is clear.
+         The first one that is shut at or before the frontier — asked this way so
+         a save whose later doors are all shut still names the one in front of
+         them rather than the last one in the run. */
+      doorAhead(){
+        for (let s = 1; s <= Levels.sectionCount(); s++){
+          if (Levels.doorFor(s) == null) continue;
+          if (state.doors[s]) continue;
+          if (s * CONFIG.sectionSize + 1 > state.unlocked) return null;
+          return s;
+        }
+        return null;
+      },
+
+      isUnlocked: level => level <= state.unlocked && level <= lastLevel()
+        && doorOpen(Levels.sectionOf(level)),
       get lastLevel(){ return lastLevel(); },
       /* the graded game is over, and there is nothing further to open */
       get finished(){ return state.unlocked >= lastLevel() && (state.stars[lastLevel()] || 0) > 0; },
@@ -259,6 +341,13 @@ export const Progress = (() => {
       buyUnlock(level, cost){
         if (level >= lastLevel()) return false;         /* nothing past the last one to open */
         if (state.unlocked > level) return false;       /* already past it */
+        /* A door is not for sale. Paying past a board is a way through a board
+           you cannot beat; a shut door is not a board you cannot beat, it is the
+           next chapter not being open yet. Without this the map would happily
+           take the fee for a level whose chapter is still closed and hand back a
+           frontier that moved and a level still unplayable — money for nothing,
+           and no way to tell that is what happened. */
+        if (!doorOpen(Levels.sectionOf(level))) return false;
         if (!Number.isInteger(cost) || cost < 0 || state.gold < cost) return false;
         state.gold -= cost;
         state.unlocked = level + 1;
