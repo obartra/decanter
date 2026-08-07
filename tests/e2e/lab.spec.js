@@ -14,7 +14,26 @@
    neither throws.
 
    Two claims, then, above all the others: the frame is really being reached, and
-   your own save comes back. */
+   your own save comes back.
+
+   ## Why nothing here waits on the frame's globals before driving the panel
+
+   Picking a state or a tab points the frame at a new document, and the lab has
+   caught up with it only once its load event has fired: that is when it reads
+   the config, redraws the knobs and puts the level readout back. A wait on the
+   frame's own globals is satisfied well before that (`MeasureConfig` is live
+   while the document is still `interactive`), so a spec that waited on one and
+   then drove the panel was driving it against the game that was on its way out.
+   Measure swept nothing; a level typed into the box was overwritten by the
+   readout the arriving document draws, and the frame dealt level 1 while the
+   sidebar had been asked for level 11.
+
+   So the panel is out of reach while a document is in flight, and every control
+   here is waited for by Playwright's own actionability check rather than by a
+   wait each spec has to remember. `nothing in the panel can be driven while the
+   frame is in flight` below is what pins that. The waits that remain are about
+   the save having applied, which is a different question and still worth asking.
+*/
 import { test, expect } from '@playwright/test';
 
 /* Straight to the page, with no `start()`: this spec is about the lab writing
@@ -32,7 +51,9 @@ async function openLab(page, save = OWN){
   }, ['decanter.save.v1', save]);
   await page.goto('/lab/');
   await page.waitForFunction(() => document.querySelectorAll('.labTab').length > 0);
-  /* the frame carries the first game, and the knobs are drawn from it */
+  /* The frame carries the first game, and the knobs are drawn from it, so a knob
+     existing is the lab having read the document rather than the document merely
+     having started. */
   await page.waitForFunction(() => document.querySelectorAll('#labKnobs input[type=range]').length > 0);
 }
 
@@ -156,6 +177,44 @@ test('stepping the level deals every board, across the bubble boundary', async (
   expect(seen.filter(s => !s.bubble)).toHaveLength(2);
 });
 
+/* Nothing in the panel can be driven between one document being asked for and
+   the lab having read it. Every other spec here rests on that: it is what makes
+   a control they reach for a wait rather than a race.
+
+   Clicked and read inside one evaluate, so this is the state the page is in the
+   instant a document is asked for rather than a moment somebody has to catch.
+   Both ways of asking, because they are two call sites: a tab picks a different
+   game, a state reloads the one that is up. */
+test('nothing in the panel can be driven while the frame is in flight', async ({ page }) => {
+  const askAndRead = sel => page.evaluate(s => {
+    document.querySelector(s).click();
+    const all = [...document.querySelectorAll('button, input')];
+    return {
+      frame: document.body.dataset.frame,
+      /* Every control on the page rather than the panel's, so one added outside
+         it tomorrow is caught here rather than quietly left racing. Named, not
+         counted, because a name is what says which one. The tab strip is the
+         deliberate exception: it is how you leave a document that never came
+         up. */
+      live: all.filter(c => !c.disabled && !c.closest('.labTabs'))
+               .map(c => c.id || c.className),
+      total: all.length
+    };
+  }, sel);
+
+  await openLab(page);
+  for (const sel of ['.labState', '.labTab:not(.on)']){
+    const at = await askAndRead(sel);
+    expect(at.live, `${sel} left these drivable`).toEqual([]);
+    expect(at.frame).toBe('loading');
+    /* not vacuous: there were controls to disable */
+    expect(at.total).toBeGreaterThan(10);
+    /* and they come back when the document lands */
+    await expect(page.locator('#labSweep')).toBeEnabled();
+    await expect(page.locator('body')).toHaveAttribute('data-frame', 'ready');
+  }
+});
+
 /* The one that matters most. Everything else here is a workbench being wrong;
    this is somebody's progress being gone, silently, because they opened a
    developer page out of curiosity. */
@@ -163,9 +222,12 @@ test('your own save is parked and comes back untouched', async ({ page }) => {
   await openLab(page);
   const before = await page.evaluate(() => localStorage.getItem('decanter.save.v1'));
 
+  /* No wait between them and none needed. A state's button is out of reach
+     until the document the last one asked for has landed, so the click is the
+     wait. A fixed 400ms was a guess, and a slow load spent it walking over the
+     state before. */
   for (const which of ['Stranded', 'A new player', 'Every board beaten']){
     await page.locator('.labState', { hasText: which }).click();
-    await page.waitForTimeout(400);
   }
   /* parked, and said so, so nobody has to guess */
   expect(await page.evaluate(() => !!localStorage.getItem('decanter.lab.parked'))).toBe(true);
@@ -194,10 +256,21 @@ test('the panel sweep runs against the real game and finds nothing wrong', async
 test('switching to a game with a par curve measures it', async ({ page }) => {
   await openLab(page);
   await page.locator('.labTab', { hasText: 'The Measure' }).click();
-  await page.waitForFunction(() => {
-    const w = document.getElementById('labFrame').contentWindow;
-    return w && w.MeasureConfig;
-  });
+  /* The lab having read the new document, rather than the document merely
+     having started. `MeasureConfig` was what this waited on, and it is live
+     while the page is still parsing, so the Measure below was clicked while the
+     lab still held the game it was leaving, swept nothing, and printed nothing
+     for thirty seconds. */
+  await expect(page.locator('body')).toHaveAttribute('data-frame', 'ready');
+  /* and what it read is this game */
+  expect(await page.evaluate(() =>
+    !!document.getElementById('labFrame').contentWindow.MeasureConfig)).toBe(true);
+  /* The states go with it. They are the graded game's answer to what the other
+     three get from a knob, and a panel offering to park your save for presets
+     that are not there is offering nothing. Hidden by the attribute, which is
+     the half that had never worked: `.labGroup` sets a display and outranked
+     it, so this box was on the screen for every game in the build. */
+  await expect(page.locator('#labStateBox')).toBeHidden();
   await page.fill('#labFrom', '1');
   await page.fill('#labTo', '10');
   await page.locator('#labSweep').click();

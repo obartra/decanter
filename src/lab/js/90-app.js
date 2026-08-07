@@ -45,6 +45,9 @@ const LabApp = (() => {
     /* which named state the frame was last loaded into, or null for whatever
        was already there */
     state: null,
+    /* whether a document has been asked for that the lab has not caught up with
+       yet. See inFlight below. */
+    loading: false,
     sweeping: false
   };
 
@@ -52,10 +55,15 @@ const LabApp = (() => {
 
   /* Everything the lab reads out of the frame goes through here, so a game that
      has not finished loading is one `null` rather than a scattering of
-     TypeErrors. */
+     TypeErrors.
+
+     `st.loading` is in the same test because a window on its way out answers
+     every other part of it. A document is asked for and arrives a moment later,
+     and until it does `st.win` still holds the last one: it has the config, it
+     has the app, and reaching through it writes a game that is already gone. */
   function mods(){
     const w = st.win, g = st.game;
-    if (!w || !g || !w[g.config] || !w[g.app]) return null;
+    if (st.loading || !w || !g || !w[g.config] || !w[g.app]) return null;
     const out = { C: w[g.config], app: w[g.app] };
     if (g.levels) out.levels = w[g.levels];
     if (g.pars) out.pars = w[g.pars];
@@ -67,6 +75,36 @@ const LabApp = (() => {
     for (const [as, name] of Object.entries(g.survivalMods || {})) out[as] = w[name];
     for (const [as, name] of Object.entries(g.stateMods || {})) out[as] = w[name];
     return out;
+  }
+
+  /* ---- the frame in flight ----
+
+     Every control on this page drives whatever is in the frame, so for as long
+     as a document is on its way there is nothing for any of them to drive. They
+     go out of reach for exactly that long.
+
+     None of this announced itself before. A knob moved a config nobody was
+     running; Measure swept a game that was not there and printed nothing at all;
+     and a level typed into the box was thrown away a moment later by the readout
+     the arriving document draws, so the frame dealt level 1 while the sidebar
+     had been asked for level 11. Every one of those is silent, and all three are
+     the same moment.
+
+     It is also what makes this page safe to drive from a script. The browser
+     specs reach for these controls, and a control that is out of reach is one
+     they wait for, so a spec cannot read the frame before the lab has caught up
+     with it, whether or not whoever wrote it thought about the load. Waiting on
+     the frame's own globals cannot do that job: those are alive well before the
+     load event this hangs off, and before the lab has read a single one of them.
+
+     The tab strip is the deliberate exception. It is how you leave a document
+     that never came up. */
+  function inFlight(yes){
+    st.loading = yes;
+    document.body.dataset.frame = yes ? 'loading' : 'ready';
+    for (const control of document.querySelectorAll('button, input')){
+      if (!control.closest('.labTabs')) control.disabled = yes;
+    }
   }
 
   /* ---- the games ---- */
@@ -89,11 +127,8 @@ const LabApp = (() => {
     $('labKnobs').replaceChildren(el('p', 'labWait', 'Loading ' + game.title + '…'));
     $('labSweepOut').replaceChildren();
 
-    const frame = $('labFrame');
-    frame.title = game.title;
-    /* A fresh document every time, so a game is never carrying knob changes from
-       the last one it was shown with. */
-    frame.src = game.path + '?lab=' + Date.now();
+    $('labFrame').title = game.title;
+    reloadFrame();
   }
 
   function frameLoaded(){
@@ -101,6 +136,10 @@ const LabApp = (() => {
     let w = null;
     try { w = frame.contentWindow; } catch (e) { w = null; }
     st.win = w;
+    /* Back in reach before the panel is drawn rather than after, so that the one
+       control with a rule of its own (Put my own save back, which is dead unless
+       something is parked) is not switched on again underneath it. */
+    inFlight(false);
     const m = mods();
     if (!m){
       $('labKnobs').replaceChildren(
@@ -292,8 +331,14 @@ const LabApp = (() => {
 
   /* A state is read at boot, so it is applied by loading the page again rather
      than by poking at a game that is already up. Which is also the honest test:
-     what a player gets is what the page makes of the save when it opens. */
+     what a player gets is what the page makes of the save when it opens.
+
+     The one place the frame is ever pointed at a document, which is what makes
+     it the one place the panel has to be put out of reach. A fresh document
+     every time, so a game is never carrying knob changes from the last one it
+     was shown with. */
   function reloadFrame(){
+    inFlight(true);
     $('labFrame').src = st.game.path + '?lab=' + Date.now();
   }
 

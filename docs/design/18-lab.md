@@ -61,6 +61,27 @@ That comes in two flavors and they are not the same thing:
 
 Collapsing those two would train somebody to ignore the one that matters.
 
+**Between one document and the next.** Picking a tab or a state points the frame
+at a new page, and until its load event fires the lab is still holding the window
+that is on its way out. Everything in the panel drives whatever is in the frame,
+so for that moment there is nothing for any of it to drive, and every way of
+finding that out was silent. A knob moved a config nobody was running. Measure
+swept a game that was not there and printed nothing at all. A level typed into
+the box was overwritten by the readout the arriving document draws, so the frame
+dealt level 1 while the sidebar had been asked for level 11.
+
+So the panel goes out of reach for exactly as long as a document is in flight,
+and `body[data-frame]` says which it is. The tab strip is the exception, because
+it is how you leave a page that never came up.
+
+That is also what makes the lab safe to drive from a script. The browser specs
+reach for these controls, and a control that is out of reach is one Playwright
+waits for, so a spec cannot read the frame before the lab has caught up with it.
+Waiting on the frame's own globals cannot do that job and looks as though it can:
+`MeasureConfig` is live while the page is still parsing, well before the load
+event the lab hangs off. Three of `tests/e2e/lab.spec.js` were doing exactly
+that, and failed under a full-suite load and nowhere else.
+
 **Difficulty.** Two shapes of measurement, because the games are graded two ways:
 
 - **Par**, for the measure and the cellar door. Every level in the range is solved

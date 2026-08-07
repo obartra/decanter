@@ -380,6 +380,52 @@ describe('build output', () => {
     }
   });
 
+  /* A `hidden` attribute that the page's own stylesheet quietly outranks.
+
+     The browser hides `[hidden]` with `display:none`, and that rule loses to any
+     author rule setting display, which is a class selector on the same element,
+     the commonest thing in these stylesheets. It fails silently and in the worst
+     direction: the markup says hidden, the script sets hidden, and the thing is
+     on the screen.
+
+     It has now happened twice. `.btn.priced` outranked it on the end-of-run
+     panel, which offered Retry on a clean run; `.labGroup` outranked it on the
+     lab, which drew a State heading and an offer to park your save on the three
+     games that have no states. Both were found by looking, months apart.
+
+     So: a page that uses the attribute has to make it win, either outright for
+     the whole page or by naming the element. That is stricter than the real
+     question, which is whether anything actually outranks it and needs a cascade
+     to answer, and stricter is the right way round for a rule whose failure is
+     invisible and whose fix is one line. */
+  it('makes every hidden attribute beat the display rules on its own page', () => {
+    /* The app is `src/`, every other page is a folder beside it, and a page's
+       stylesheets are the ones in its own css/, which is exactly how the build
+       assembles them. */
+    const pages = [['src/index.html', 'src/css'],
+      ...gameDirs().map(d => [`src/${d}/index.html`, `src/${d}/css`])];
+    let checked = 0;
+    for (const [html, cssDir] of pages){
+      const css = modulesOf(cssDir, '.css').map(f => read(`${cssDir}/${f}`)).join('\n');
+      /* `!important` because without it the rule is a coin toss decided by
+         source order: `[hidden]` and a class both weigh the same. */
+      const outright = /\[hidden\]\s*\{[^}]*display\s*:\s*none\s*!important/.test(css);
+      /* Bare `hidden`, never `aria-hidden`: the character before that one is a
+         dash rather than a space, and the one after it is `=` rather than a
+         space or a bracket. */
+      for (const tag of read(html).match(/<[a-z]+[^>]*\shidden(?=[\s>])[^>]*>/g) || []){
+        checked++;
+        if (outright) continue;
+        const names = [...(tag.match(/class="([^"]*)"/)?.[1] || '').split(/\s+/).filter(Boolean).map(c => `.${c}`),
+          ...(tag.match(/id="([^"]*)"/) ? [`#${tag.match(/id="([^"]*)"/)[1]}`] : [])];
+        assert(names.some(n => css.includes(`${n}[hidden]`)),
+          `${html} hides ${names.join('') || tag} with the attribute, and ${cssDir} `
+          + 'never makes it win a display rule. Add [hidden]{display:none !important}');
+      }
+    }
+    assert(checked > 5, 'no page uses the hidden attribute, so this is not checking anything');
+  });
+
   it('bundles every stylesheet exactly once, critical or deferred', () => {
     const bundles = appBundles('css');
     for (const f of modulesOf('src/css', '.css')){
