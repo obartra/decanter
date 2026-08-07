@@ -6,6 +6,11 @@ import { start, openLevel, settle, state } from './helpers.js';
 
 const PORTABLE = join(dirname(fileURLToPath(import.meta.url)), '../../dist/decanter-standalone.html');
 
+/* There is a beta word per player and they all do the same thing, so the first
+   one stands for the rest wherever the subject is what the word does. The one
+   test below whose subject is whose word it is walks the whole list. */
+const betaWord = page => page.evaluate(() => globalThis.CONFIG.beta.words[0][0]);
+
 test('a level can be bought from the map, and only the next one', async ({ page }) => {
   await start(page, { unlocked: 5, gold: 400, seen: { 0: true } });
   const buyable = page.locator('.node.buyable');
@@ -129,7 +134,7 @@ test('the drawn draught says how long until it comes back', async ({ page }) => 
    who has run dry mid-report does not have to wait out a day to carry on. */
 test('the beta word fills the purse, and keeps working on every load', async ({ page }) => {
   await start(page, state('purseDry'));
-  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const word = await betaWord(page);
   const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
   await page.goto(`/?${word}`);
@@ -155,6 +160,56 @@ test('the beta word fills the purse, and keeps working on every load', async ({ 
   await expect(page.locator('#mapGold')).toHaveText(String(full));
 });
 
+/* A word each, one celebration. The name is the only thing that differs between
+   beta players, and it is the only thing that can be right for one of them and
+   wrong for the rest: a name left in the markup, or a second copy of the shout
+   written under a second name and then left behind. So this asks every word for
+   its own name and for everything a word is a key to, rather than asking the
+   first one for all of it and the second one for the name.
+
+   Read on the narrowest screen anything here is asked to work at, because the
+   name is the one thing about the shout that a line of config can change and
+   the word is laid out to fill the width: a name longer than the one the size
+   was picked for is clipped, or pushes the page sideways, and neither is
+   something the person who added the word would think to look for. Sizing the
+   longest name by hand and saying so in the stylesheet was what this replaced. */
+test('every beta word shouts its own name, and unlocks the same everything else', async ({ page }) => {
+  await start(page, state('purseDry'));
+  const words = await page.evaluate(() => globalThis.CONFIG.beta.words);
+  const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
+  expect(words.length,
+    'one beta word cannot show that the name is data rather than markup').toBeGreaterThan(1);
+  await page.setViewportSize({ width: 320, height: 700 });
+
+  for (const [word, name] of words){
+    await page.goto(`/?${word}`);
+    /* Caught and read in the same frame, so the message cannot take itself away
+       between being found and being read. The box is read rather than the
+       painted rect: the word is flung out to twice its size on its way off, so
+       what it measures depends on the frame it was caught on, and the layout
+       box does not move while the message is up. */
+    const said = await (await page.waitForFunction(() => {
+      const el = document.getElementById('jabari');
+      if (!el || el.hidden || !el.classList.contains('go')) return null;
+      const w = el.querySelector('.jabariWord');
+      return {
+        says: w.textContent.replace(/\s+/g, ''),
+        shouts: el.querySelector('.jabariGold').textContent,
+        tooWide: w.offsetWidth > innerWidth,
+        clipped: w.scrollWidth > w.clientWidth
+      };
+    })).jsonValue();
+    expect(said.says, `${word} shouted somebody else's name`).toBe(`${name}Mode`);
+    expect(said.shouts).toBe('+9,999,999');
+    expect(said.tooWide, `${name} is wider than the screen it is shouted on`).toBe(false);
+    expect(said.clipped, `${name} does not fit the word it is shouted in`).toBe(false);
+    expect(await page.evaluate(() => globalThis.App._progress.gold),
+      `${word} did not fill the purse`).toBe(full);
+    /* and the other thing a beta word is a key to */
+    await expect(page.locator('#sandbox'), `${word} did not open the sandbox`).toBeVisible();
+  }
+});
+
 test('an ordinary load fills nothing', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 7, seen: { 0: true, 1: true } });
   expect(await page.evaluate(() => globalThis.App._progress.gold)).toBe(7);
@@ -172,7 +227,7 @@ test('an ordinary load fills nothing', async ({ page }) => {
    otherwise a thing a browser will tell you. */
 test('the bang survives a muted game, and waits for a touch it can be heard through', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, sound: false, seen: { 0: true, 1: true } });
-  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const word = await betaWord(page);
   await page.addInitScript(() => {
     window.__srcs = 0;
     window.__started = 0;
@@ -313,7 +368,7 @@ test('the portable file still has the bang when it is opened off disk', async ({
    and an explosion out of nowhere is not a celebration. */
 test('a tap after the message has gone is not answered with a bang', async ({ page }) => {
   await start(page, { unlocked: 15, gold: 0, sound: false, seen: { 0: true, 1: true } });
-  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const word = await betaWord(page);
   await page.addInitScript(() => {
     window.__srcs = 0;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -342,7 +397,6 @@ test('a tap after the message has gone is not answered with a bang', async ({ pa
    back — not a muted game, not an audio context that will not start, not a
    purse that is already full. It is on screen the moment the link opens. */
 test('the message shows on every load, whatever the state behind it', async ({ page }) => {
-  const word = await page.evaluate(async () => 'jabarimoneeey');
   const cases = [
     { name: 'broke and muted', save: { unlocked: 15, gold: 0, sound: false } },
     { name: 'already full', save: { unlocked: 15, gold: 9999999, sound: false } },
@@ -350,7 +404,10 @@ test('the message shows on every load, whatever the state behind it', async ({ p
   ];
   for (const c of cases) {
     await start(page, { ...c.save, seen: { 0: true, 1: true } });
-    await page.goto(`/?${word}`);
+    /* asked after the page is up rather than before it, because the word is
+       read off the game rather than written down again here, and there is no
+       game on the blank page a test starts on */
+    await page.goto(`/?${await betaWord(page)}`);
     await page.waitForFunction(() => {
       const el = document.getElementById('jabari');
       return el && !el.hidden && el.classList.contains('go');
@@ -395,7 +452,7 @@ test('the beta word goes off with a bang, and clears itself away', async ({ page
      this asks for paper that a player who asked for less motion is not supposed
      to get, and fails saying the bang threw none. */
   await start(page, state('purseDry'), { reducedMotion: 'no-preference' });
-  const word = await page.evaluate(() => globalThis.CONFIG.beta.word);
+  const word = await betaWord(page);
   const full = await page.evaluate(() => globalThis.CONFIG.economy.purseCap);
 
   await page.goto(`/?${word}`);

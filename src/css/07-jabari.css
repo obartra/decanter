@@ -1,4 +1,4 @@
-/* Jabari mode: the beta word landing, and the purse it fills.
+/* Jabari mode and every other one: a beta word landing, and the purse it fills.
 
    Its own stylesheet, beside its own module in 86-jabari.js, and that is the
    whole reason it is a separate file. Everything else in this game is dark
@@ -32,8 +32,9 @@
   /* not the game's serif. This one is shouting. */
   font-family:"Arial Black","Helvetica Neue",Impact,system-ui,sans-serif;
   font-weight:900; line-height:.86; letter-spacing:-.02em; text-transform:uppercase;
-  /* "Jabari" is the long line, and it has to fit the narrowest screen in the
-     layout suite. Clipped letters read as broken rather than as loud. */
+  /* The name is the long line and each one has to fit the narrowest screen:
+     clipped letters read as broken rather than as loud. It is a line of config
+     now, so economy.spec.js measures every name at 320 wide. */
   font-size:clamp(34px, 15vw, 150px);
   padding:0 12px; max-width:100%;
   opacity:0;

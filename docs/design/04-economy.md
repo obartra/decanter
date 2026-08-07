@@ -163,6 +163,17 @@ written down in plain sight rather than dressed up as a lock. It is counted in
 the save, because a purse nobody earned is a debugging trap otherwise, and it
 comes out with the beta.
 
+There is **a word per beta player**, and the name it shouts back is the only
+thing that differs between them: `CONFIG.beta.words` is that list, of the word
+to put in the link and the name to say. `?jabarimoneeey` shouts JABARI MODE and
+`?gavinmode` shouts GAVIN MODE, and both do everything else identically,
+including the sandbox below. Adding a player is a line of config, which is the
+point of holding the name as data: the alternative is a second copy of a
+celebration that is three seconds of very specific animation, kept in step with
+the first for as long as the beta lasts. Nothing else about the word is per
+player, and nothing should become so. The words are read in the order they are
+written, so a link carrying two of them shouts the first.
+
 It **fills the purse to `economy.purseCap`** rather than paying a sum into it,
 and that is what lets the word stay in the address bar. Adding stacked a second
 payment on every reload, so the word had to be deleted from the URL to stop it —
@@ -181,10 +192,12 @@ The amount is absurd on purpose: it is not a top-up that has to be balanced
 against anything, it is the end of the economy for one save.
 
 And it goes off rather than sliding in — a strobe, three shockwaves, three bangs,
-and **JABARI MODE** shaking across the screen in rainbow over a neon
-**+9,999,999**. This is the one thing in the build that is not trying to be
-tasteful, and it is written that way deliberately: none of it should be borrowed
-for anything else the game does. It lives in `src/js/86-jabari.js` so that
+and **JABARI MODE**, or whoever's word it was, shaking across the screen in
+rainbow over a neon **+9,999,999**. The name is written into the markup on the
+way up rather than sitting in it, because one block of markup serves every word.
+This is the one thing in the build that is not trying to be tasteful, and it is
+written that way deliberately: none of it should be borrowed for anything else
+the game does. It lives in `src/js/86-jabari.js` so that
 sentence is structural rather than a remark — it was a hundred lines in the
 middle of the app, between the wiring and the fault handler. It is handed the
 purse and one callback and knows nothing else, so it comes out with the beta by

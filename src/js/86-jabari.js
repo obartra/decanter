@@ -8,6 +8,9 @@
    between the wiring and the fault handler, where "do not borrow this" was a
    remark rather than a boundary.
 
+   There is a word per beta player, and the name it shouts is the only thing
+   that differs between them, so the name is data and the rest is written once.
+
    It knows about the purse and about one callback, and nothing else knows about
    it. That is the whole seam: `takeGift` is handed the progress it should fill
    and the thing to call once gold has moved, so this file has no idea what a
@@ -22,17 +25,24 @@ import { Confetti } from './75-confetti.js';
 export const Jabari = (() => {
   const $ = id => document.getElementById(id);
 
-  /* Whether this page is in Jabari mode at all.
-
-     The word stays in the address bar, so it is also the answer to "is this a
-     beta player" for anything else that wants to be fenced behind the same
-     thing. Asked here rather than parsed again by the caller, so the word is
-     still written down exactly once and taking the beta out stays a matter of
-     deleting one file and its calls. */
-  function on(){
-    try { return new URL(location.href).searchParams.has(CONFIG.beta.word); }
-    catch (e) { return false; }
+  /* Which beta player opened this page, as the `[word, name]` they were given,
+     or null for everybody else. Walked in the order it is written, so a link
+     carrying two words shouts the first rather than whichever the browser
+     hands back first. */
+  function opened(){
+    try {
+      const q = new URL(location.href).searchParams;
+      return CONFIG.beta.words.find(([word]) => q.has(word)) || null;
+    }
+    catch (e) { return null; }
   }
+
+  /* Whether this page is in one of the beta modes at all. The word stays in the
+     address bar, so this is also the answer to "is this a beta player" for
+     anything else fenced behind the same thing. Asked here rather than parsed
+     again by the caller, so the words are still written down exactly once and
+     taking the beta out stays a matter of deleting one file and its calls. */
+  function on(){ return opened() !== null; }
 
   /* Gold handed over rather than earned, for a beta player who has run dry in
      the middle of telling us about something else.
@@ -40,15 +50,14 @@ export const Jabari = (() => {
      The word stays in the address bar, and the whole thing goes off again every
      time the link is opened. That is only safe because the purse is brought up
      to a figure rather than paid a sum: landing on it twice lands on the same
-     number. An earlier pass added instead, which meant the word had to be
-     deleted from the URL to stop a reload paying again, and that made it a link
-     that worked once, quietly, which is not what a link is for. */
+     number. What adding did to the link instead is in 04-economy.md. */
   function takeGift(progress, onGold){
-    if (!on()) return;
+    const who = opened();
+    if (!who) return;
     const gold = progress.fill();
-    Trace.note('purse filled', `${gold} from the query string`);
+    Trace.note('purse filled', `${gold} from the query string, ${who[1]}`);
     onGold();
-    jabariMode();
+    shout(who[1]);
   }
 
   /* The bang: now if the page is allowed to make one, and on the first touch if
@@ -111,10 +120,15 @@ export const Jabari = (() => {
      the animation to nothing and there would be no end to wait for. */
   /* Not the game's palette. That one was chosen so no two liquids are close to
      the eye on a dark shelf; this is chosen to be as loud as a screen goes. */
-  const JABARI_COLORS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
+  const SHOUT_COLORS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
 
-  function jabariMode(){
+  function shout(name){
     const el = $('jabari');
+    /* Written in rather than sat in the markup, which is one block serving every
+       word. The break is an element because a newline would fall wherever the
+       line ran out of room instead of after the name. */
+    el.querySelector('.jabariWord span')
+      .replaceChildren(name, document.createElement('br'), 'Mode');
     $('jabariGold').textContent = `+${CONFIG.economy.purseCap.toLocaleString('en-US')}`;
     el.hidden = false;
     /* forced out of the frame that unhid it, or the animation never starts */
@@ -128,7 +142,7 @@ export const Jabari = (() => {
        sees it: the first pass measured particles six hundred pixels left of a
        screen three hundred and ninety wide. */
     const reach = Math.min(innerWidth, innerHeight) * 0.5;
-    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, JABARI_COLORS, reach);
+    const throwPaper = () => Confetti.blast(innerWidth / 2, innerHeight / 2, 110, SHOUT_COLORS, reach);
     throwPaper();
     setTimeout(throwPaper, 190);
     setTimeout(throwPaper, 440);
