@@ -32,7 +32,7 @@ option, to add it to a home screen or dock.
 | `src/worker/solver.js` | A\* search that computes each level's par |
 | `tools/build.mjs` | the entire build. esbuild for the scripts, everything else by hand |
 | `tools/pars.mjs` | solves every level offline and writes the par table |
-| `src/js/86-jabari.js` | the beta word's celebration, kept in one file so nothing borrows it |
+| `src/js/86-jabari.js` | the beta words' celebration, kept in one file so nothing borrows it |
 | `src/css/07-jabari.css` | the same fence in the stylesheets, beside the module it belongs to |
 | `src/js/78-still.js` | a board drawn small: the card before a replay, and the shelf the blast offers |
 | `src/js/pure/46-preview.js` | what the card before a replay says. Fetched after the page opens, not at first paint |

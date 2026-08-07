@@ -73,7 +73,7 @@ const motion = (page, mode) => page.emulateMedia({ reducedMotion: mode });
 /* A save the game will accept as current. The layout stamp has to match the
    build's, or the game will treat the save as one from older boards. */
 /* `path` is here for the one thing that is decided by the address bar rather
-   than by the save: Jabari mode is on when the beta word is in the query string,
+   than by the save: Jabari mode is on when a beta word is in the query string,
    and the reloads below carry it, so a spec that asks for it gets it on every
    load rather than only the first. */
 export async function start(page, save = {}, { path = '/', reducedMotion = 'reduce' } = {}) {

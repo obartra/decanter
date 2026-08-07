@@ -32,8 +32,8 @@
       <div class="mapIcons">
         <button class="icon js-sound" type="button" aria-label="Sound"></button>
         <button class="icon" id="install" type="button" hidden aria-label="Install"></button>
-        <!-- Only in Jabari mode, which is why it is hidden here and shown from
-             the one place that knows the word is in the address bar. It opens a
+        <!-- Only behind a beta word, which is why it is hidden here and shown
+             from the one place that knows one is in the address bar. It opens a
              bubble board off the graded run, at a cadence of your choosing, so
              the mechanic can be felt at settings the graded game will never
              deal. See docs/design/04-economy.md for why that mode is fenced. -->
@@ -160,7 +160,9 @@
   <div class="jabariRing two"></div>
   <div class="jabariRing three"></div>
   <div class="jabariShake">
-    <p class="jabariWord"><span>Jabari<br>Mode</span></p>
+    <!-- Empty: 86-jabari.js writes in the name of whichever beta word opened
+         the page, and one left here would be right for one player only. -->
+    <p class="jabariWord"><span></span></p>
     <p class="jabariGold" id="jabariGold"></p>
   </div>
 </div>

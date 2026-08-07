@@ -40,21 +40,18 @@ export const CONFIG = {
   sectionTints: ['#7BC142','#F5B932','#3AA3E3','#9B5DE5','#FF6FA5','#1FC7A8','#FF5A36'],
   /* how far past the frontier the map lets you see */
   lookahead: 2,
-  /* A word in the query string that fills the purse, for handing to a beta
+  /* Words in the query string that fill the purse, for handing to a beta
      player who has run dry mid-report rather than making them wait out a day.
+     One entry per player: the word to put in the link, and the name the
+     celebration shouts back. A player costs a line here and nothing else.
 
-     It fills the purse to `purseCap` rather than paying a sum into it, so the
+     They fill the purse to `purseCap` rather than paying a sum into it, so a
      link can be opened as many times as you like and always lands on the same
-     number, and playing on afterwards cannot climb past it either. Absurd on
-     purpose: this is not a top-up to be balanced against anything, it is the
-     end of the economy for one save.
-
-     It guards nothing. The save is localStorage on the player's own device and
-     anyone who wants gold can type it into a console, so this is a convenience
-     with a password-shaped hole in it, not a lock. It is written down here in
-     plain sight for the same reason: pretending otherwise would only make the
-     next person think it was load-bearing. It comes out with the beta. */
-  beta: { word: 'jabarimoneeey' },
+     number. It guards nothing and is not pretending to: the save is
+     localStorage on the player's own device, so this is a convenience with a
+     password-shaped hole in it. It comes out with the beta, and the rest of the
+     reasoning is in docs/design/04-economy.md. */
+  beta: { words: [['jabarimoneeey', 'Jabari'], ['gavinmode', 'Gavin']] },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile
