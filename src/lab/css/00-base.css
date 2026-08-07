@@ -11,6 +11,13 @@
   --glass-line:rgba(246,234,212,.42);
 }
 *{box-sizing:border-box}
+/* The browser hides [hidden] with display:none, which any rule that sets display
+   outranks, and `.labGroup` sets one. The state list is the only thing on this
+   page carrying the attribute and it is a `.labGroup`, so it has never been
+   hidden at all: every game without states drew a State heading and a note
+   offering to park a save for presets that were not there. Same rule and the
+   same reason as src/css/01-base.css, which the app page learned this from. */
+[hidden]{display:none !important}
 html,body{height:100%}
 body{
   margin:0; display:flex; flex-direction:column;
@@ -53,6 +60,12 @@ body{
   border-right:1px solid rgba(224,177,92,.18);
   display:flex; flex-direction:column; gap:16px;
 }
+/* While a document is on its way to the frame there is nothing in the panel to
+   drive, and every control in it is disabled for that long. This is what says
+   why, rather than leaving a panel that has quietly stopped answering. The tabs
+   keep their color because they still work. */
+body[data-frame="loading"] .labPanel{opacity:.45}
+.labPanel :disabled{cursor:default}
 .labStage{flex:1; min-width:0; position:relative; background:#0B0805}
 .labStage iframe{width:100%; height:100%; border:0; display:block}
 
