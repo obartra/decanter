@@ -19,6 +19,7 @@
    Driven by tools/order.mjs; not useful on its own. */
 import { loadPure, loadSolver } from '../tests/helpers.mjs';
 import { analyze, TOO_DEAR, DEFAULT_BUDGET } from './difficulty-core.mjs';
+import { measure as measureBrick } from './brick-core.mjs';
 
 const ctx = loadPure();
 const solver = loadSolver();
@@ -32,8 +33,16 @@ function measure({ colors, empties, seed }){
   try {
     const a = analyze(tubes, got.par, BUDGET);
     /* `slips` rather than `logOdds`: a run's budget for wrong turns is fixed,
-       so what matters is how many it will take, not the odds of taking none */
-    return a == null ? null : { par: got.par, hard: a.slips, logOdds: -a.logOdds, tight: a.tight };
+       so what matters is how many it will take, not the odds of taking none.
+
+       `brick` rides along because it is the other thing a board can do to a
+       player and it is independent of all of the above: two boards measured at
+       9.92 and 9.93 slips brick at 42% and 92%. It costs almost nothing next to
+       the search that got us here, and measuring it separately would mean
+       dealing every candidate board twice. See tools/brick-core.mjs. */
+    if (a == null) return null;
+    const b = measureBrick(tubes, seed);
+    return { par: got.par, hard: a.slips, logOdds: -a.logOdds, tight: a.tight, brick: b.brick };
   } catch (err) {
     if (err === TOO_DEAR) return null;
     throw err;

@@ -7,7 +7,7 @@ export const CONFIG = {
      far means regenerating src/js/32-order.js. It invalidates the par a save has
      cached, which belongs to a board that no longer exists. It does not touch
      what a player earned; see 40-progress.js. */
-  layout: 5,
+  layout: 6,
   /* Liquid palette, index === color id, and the only place a liquid color is
      written down. The --cN custom properties the stylesheets use are published
      from here at boot, so the bands, the pour and the particle sim cannot drift
