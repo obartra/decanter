@@ -224,15 +224,100 @@ The color count now runs 4, 4, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 12 and
 then holds, since every band chose a two-empty shape. The odd-color three-empty
 shapes are no longer dealt.
 
+## The other axis: bricking
+
+Ordering by measured difficulty answers one question, "how easy is it to miss
+par", and for a long time that was taken to be the whole of what makes a board
+unkind. It is not, and the difference is what a beta player reported first:
+not that a level was hard, but that it kept leaving them with nothing legal to
+pour.
+
+A board **bricks** when ordinary play reaches a state with no useful pour left.
+Every board is solvable when it is dealt, so this is never an impossible deal; it
+is the player painting themselves into a corner. The measurement is
+`tools/brick-core.mjs`, reported by `npm run brick`.
+
+**The two axes are independent.** Two twelve-color boards measured at 9.92 and
+9.93 slips brick at 42% and 92%. Across the run as it stood, the correlation
+between level number and brick rate was **−0.10**: nothing had ever selected for
+it, so it drifted free of the curve for 120 levels.
+
+What made that worse than a random nuisance is *where* it drifted. The level that
+prompted this bricked in 66% of ordinary playouts, and the fatal pour landed a
+median of **four pours before any visible symptom**, up to eleven. A player who
+checks three pours ahead still bricked it 45% of the time, so it was not
+carelessness and no amount of care would have fixed it. Compare a board whose
+trap is one pour deep: the mistake is visible, and one undo takes it back.
+
+### The ceiling
+
+Bricking is only unfair when the player has no answer to it, and the game has
+one: the vessel buys an extra bottle, which is exactly the shape of the problem.
+An extra empty took the offending board from 68% to 5%. So the ceiling steps with
+what the player is holding rather than sitting flat:
+
+| levels | ceiling | what they have |
+| --- | --- | --- |
+| chapter 1 | 15% | undo, and no idea yet what a wasted empty costs |
+| up to the vessel | 25% | undo and hints, no way to make room |
+| after | 50% | a rescue they can buy |
+
+The relaxation never comes earlier than the third chapter however early the
+vessel is granted. Keying it to the grant alone has a trap in it: moving the
+vessel forward to help players through the opening would relax the ceiling over
+exactly the boards it was moved forward to protect, and the two changes would
+cancel.
+
+`tools/order.mjs` filters candidates on this before the curve chooses among them,
+and `tests/brick.test.mjs` fails if a shipped level goes over. The numbers are
+committed to `docs/difficulty.json` alongside the difficulty measurement, and the
+test re-measures a sample so a stale table is caught rather than trusted.
+
+### Why the shape is not the lever
+
+Fourteen bottles can be 12 colors and 2 empties or 11 colors and 3 empties, and
+the second is a near-perfect answer to bricking: **all 40** sampled three-empty
+boards came in under 25%, median 2.5%, against a median of 40.5% for the shape
+the game deals.
+
+They are unusable, and not for the reason the sifting note below gives. The whole
+run spans 2.75 to 21.01 slips, and the one three-empty board at this size cheap
+enough to measure came out at **27.68** — harder than level 120. There is nowhere
+in the game to put them. The extra empty adds legal pours, most of them wrong,
+which is the same fact that makes the board forgiving and makes it brutal to par.
+
+So the big band keeps two empties and picks on the seed instead, over a field
+widened six-fold to leave the ceiling something to choose from. The small bands,
+levels 1 to 14, can afford three-empty boards and do use them. That is lucky
+rather than designed, and it is the right way round: it is where new players are.
+
+### Result
+
+| | before | now |
+| --- | --- | --- |
+| median brick rate | 33.5% | **21.5%** |
+| worst level | 91.5% | **50.0%** |
+| levels over ceiling | 27 of 97 | **0** |
+| the reported level | 66% | **24%** |
+| difficulty dips | 0 of 119 | 0 of 119 |
+
+The curve is untouched: the slips range still tops out at 21.01 and nothing goes
+down. The reported level sits at 9.1 slips against the 9.3 it had before, so it
+is the same difficulty and a different kind of board.
+
 ### The cost of reordering
 
-A level number now deals a different board than it did. Stars and best move
-counts are recorded against level numbers, so they describe boards a save will
-never be dealt again, and an old best can sit below the new par and read as
-impossible. `CONFIG.layout` is stamped into the save and, when it differs, the
-per-board records are dropped. Gold, how far the player got, and which
-first-clear bonuses were already paid all survive, because none of them
-describes a particular board. See [04 Economy](04-economy.md).
+A level number now deals a different board than it did. `CONFIG.layout` is
+stamped into the save and, when it differs, the **cached par** is dropped: it is
+a note of how few pours a particular board needed, and that board is gone, so
+keeping it would score a level against a bar belonging to a different puzzle.
+
+Everything a player earned stays. Stars, best move counts, gold, how far they
+got, and which first-clear bonuses were already paid all survive the bump. That
+is a deliberate trade and not an oversight: a best can now sit below the new par
+and read as unbeatable, which is worse-looking than clearing the record and far
+better than taking away something somebody earned. See
+[04 Economy](04-economy.md), and `40-progress.js` where the migration lives.
 
 Bump `CONFIG.layout` whenever `32-order.js` is regenerated, and regenerate the
 par table with it. All 120 pars are re-verified as reachable in exactly par, with

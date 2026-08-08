@@ -18,6 +18,7 @@
     "pars": "node tools/pars.mjs",
     "order": "node tools/order.mjs",
     "difficulty": "node tools/difficulty.mjs",
+    "brick": "node tools/brick.mjs",
     "bubble:sandbox": "node tools/bubble-sandbox.mjs",
     "bubble:survival": "node tools/bubble-survival.mjs",
     "measure:field": "node tools/measure-field.mjs",

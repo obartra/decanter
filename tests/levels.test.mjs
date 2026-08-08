@@ -1,7 +1,7 @@
 import { describe, it, assert, equal, loadPure, read } from './helpers.mjs';
 import { loadSolver } from './helpers.mjs';
 
-const { Levels, Rules, CONFIG, RNG, ORDER, PARS } = loadPure();
+const { Levels, Rules, CONFIG, RNG, ORDER, PARS, LAST_LEVEL } = loadPure();
 const solver = loadSolver();
 
 describe('levels', () => {
@@ -11,10 +11,33 @@ describe('levels', () => {
       equal(a, b, `level ${n} was not reproducible`);
     }
   });
-  it('different levels give different boards', () => {
-    const seen = new Set();
-    for (let n = 1; n <= 30; n++) seen.add(JSON.stringify(Levels.make(n)));
-    equal(seen.size, 30, 'two levels produced identical boards');
+  it('different levels give different boards, all the way to the end', () => {
+    /* Every level, not the first thirty. A regeneration that let one band walk
+       the whole difficulty range handed a hundred levels the same board, and a
+       check that stopped at thirty passed it: the duplicates were all past the
+       window. The generator is what went wrong, so what it produces is what has
+       to be checked, and the interesting part of the table is the far end. */
+    const seen = new Map();
+    const dupes = [];
+    for (let n = 1; n <= LAST_LEVEL; n++){
+      const board = JSON.stringify(Levels.make(n));
+      if (seen.has(board)) dupes.push(`levels ${seen.get(board)} and ${n} deal the same board`);
+      else seen.set(board, n);
+    }
+    equal(dupes, [], 'two levels produced identical boards');
+  });
+  it('deals a different seed for every level', () => {
+    /* The board above is the symptom; the seed is the cause, and a table with a
+       repeated entry is wrong even in the unlikely event two seeds happened to
+       deal boards that differ. */
+    const seeds = new Map();
+    const reused = [];
+    for (let n = 1; n <= LAST_LEVEL; n++){
+      const key = ORDER[n] ? ORDER[n].join('/') : `formula:${n}`;
+      if (seeds.has(key)) reused.push(`levels ${seeds.get(key)} and ${n} share ${key}`);
+      else seeds.set(key, n);
+    }
+    equal(reused, [], 'the order table reuses an entry');
   });
   it('the bottle count is always even so the grid never has a gap', () => {
     for (let n = 1; n <= 60; n++){

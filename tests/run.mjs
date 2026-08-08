@@ -4,6 +4,7 @@ import './rules.test.mjs';
 import './solver.test.mjs';
 import './levels.test.mjs';
 import './pars.test.mjs';
+import './brick.test.mjs';
 import './chapters.test.mjs';
 import './doors.test.mjs';
 import './progress.test.mjs';
