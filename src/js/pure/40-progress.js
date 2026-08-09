@@ -73,7 +73,7 @@ export const Progress = (() => {
          counts that answer "has this happened before, and how often" have to
          outlive it. Deliberately counts and one message rather than a log: this
          lives in the player's save, and a save is not a place to grow a diary. */
-      diag: { refused: {}, faults: 0, lastFault: '' }
+      diag: { refused: {}, faults: 0, lastFault: '', endings: {} }
     };
   }
   /* No rise in the purse skips this. The cap exists because the beta word fills
@@ -174,6 +174,7 @@ export const Progress = (() => {
     }
     if (!state.diag || typeof state.diag !== 'object' || Array.isArray(state.diag)) state.diag = blank().diag;
     state.diag.refused = record(state.diag.refused);
+    state.diag.endings = record(state.diag.endings);
     if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
     /* The boards moved. What a player earned stays earned: stars and best move
        counts are theirs, and taking them away to keep a record tidy is a worse
@@ -181,10 +182,14 @@ export const Progress = (() => {
 
        The cached par does go. It is not something anyone earned, it is a note of
        how few pours a particular board needed, and that board is gone. Keeping it
-       would let a level be scored against a bar belonging to a different puzzle. */
+       would let a level be scored against a bar belonging to a different puzzle.
+
+       So do the ending counts: they are read against the measured difficulty of
+       a particular board, and that board is gone. */
     if (state.layout !== CONFIG.layout){
       state.layout = CONFIG.layout;
       state.pars = {};
+      state.diag.endings = {};
     }
 
     function save(){
@@ -235,6 +240,14 @@ export const Progress = (() => {
       recordFault(message){
         state.diag.faults++;
         state.diag.lastFault = String(message).slice(0, 200);
+        save();
+      },
+      /* How runs ended, per level and per reason. `lostBecause` already named
+         every one and nothing kept the answer. See 15-diagnostics.md. */
+      recordEnding(level, reason){
+        if (!Number.isInteger(level) || level < 1 || !reason) return;
+        const row = state.diag.endings[level] || (state.diag.endings[level] = {});
+        row[reason] = (row[reason] || 0) + 1;
         save();
       },
       hasSeen: section => !!state.seen[section],

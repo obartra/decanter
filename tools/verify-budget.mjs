@@ -144,9 +144,30 @@ const dist = join(root, 'dist');
    declarations of its own, because those are the two a door sets for itself and
    therefore wins at equal weight. That took a kilobyte of stylesheet down to
    four lines. Both were worth doing on their own, and neither was enough. */
+/* The critical path raised once more, by two kilobytes, for counting how runs
+   end. The game already worked out why every run was over and threw the answer
+   away; keeping it per level is what turns the brick ceiling in
+   tools/brick-core.mjs from a judgement about players into a measurement of
+   them. It is about 1.3kb across the save, the panel that prints it and the one
+   line in the app that files it.
+
+   What was tried first, since a budget its own author edits to fit is not a
+   budget. The comments on all three were cut to what
+   docs/design/15-diagnostics.md does not already say, which recovered 0.1kb.
+   There was no more to take: this is code rather than prose.
+
+   What is worth doing and is NOT done here, because it is a change of its own
+   rather than a way to fit this one in: the diagnostics panel should not be in
+   the critical path at all. It is opened by holding the gold count for
+   two-thirds of a second, which is about as far from first paint as a gesture
+   gets, and it is five kilobytes. Deferring it would hand back more than twice
+   what this took. It stays for now because main.js imports it and publishes it
+   on the debug surface the browser specs drive, and because a panel fetched
+   after load has to be proven to still open with the network gone, which is
+   exactly the promise this file's neighbor asserts. */
 const BUDGET = {
   shell: 13_000,
-  critical: 210_000,
+  critical: 212_000,
   /* This one exists to notice a game DOUBLING, and nothing finer.
 
      It was once about ten percent above the bubble game, which was the only one

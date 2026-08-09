@@ -157,4 +157,38 @@ test('a save from older boards keeps what was earned and drops the cached par', 
   expect(live.pars).toBe(0);
   /* and the save is stamped forward, so it migrates once rather than every load */
   expect(live.layout).toBe(await page.evaluate(() => globalThis.CONFIG.layout));
+  /* The ending counts go with the par and for the same reason: they are read
+     against the measured difficulty of one board, and that board is gone. The
+     refusal counts are about the game rather than about a board, so they stay. */
+  const diag = await page.evaluate(() => globalThis.App._progress.diag);
+  expect(diag.endings).toEqual({});
+  expect(diag.refused).toEqual({ undo: 2 });
+});
+
+test('counts how runs ended, keeps them across a reload, and prints them', async ({ page }) => {
+  /* The whole point of these counts is that they reach a person, so the check
+     runs the whole way: record, survive the page going away, and come out of the
+     panel in the shape tools/endings.mjs reads. A count that never makes it into
+     the report is a count nobody will ever see. */
+  await startRaw(page, state('faulted'));
+  await page.evaluate(() => {
+    const p = globalThis.App._progress;
+    p.recordEnding(19, 'stuck');
+    p.recordEnding(19, 'cleared');
+  });
+  await page.reload();
+  await page.waitForFunction(() => globalThis.App && globalThis.App._progress);
+  const kept = await page.evaluate(() => globalThis.App._progress.diag.endings);
+  expect(kept['19']).toEqual({ stuck: 1, cleared: 1 });
+  expect(kept['12']).toEqual({ stuck: 3, cleared: 1 });
+
+  const dump = await page.evaluate(() => {
+    globalThis.Diagnostics.open();
+    return document.getElementById('diagText').textContent;
+  });
+  expect(dump).toContain('levels lost');
+  /* worst first, and a level with nothing lost against it stays out of the list */
+  const rows = dump.split('\n').filter(l => /^ {2}\d+: /.test(l));
+  expect(rows[0]).toContain('12:');
+  expect(rows.join('\n')).toContain('19: stuck 1 cleared 1');
 });

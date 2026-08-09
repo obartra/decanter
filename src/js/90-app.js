@@ -961,6 +961,8 @@ export const App = (() => {
     const before = progress.starsFor(S.level);
     const result = progress.complete(S.level, S.moves, stars);
     const failed = stars === 0;
+    /* Here rather than in checkLost, which a win never goes through. */
+    progress.recordEnding(S.level, solved ? 'cleared' : (S.reason || 'given up'));
 
     showPanel({ stars, failed, result, before });
   }

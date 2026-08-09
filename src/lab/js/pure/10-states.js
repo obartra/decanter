@@ -296,8 +296,14 @@ export const LabStates = (() => {
       kind: PLAY,
       why: 'The diagnostics panel answers "it did nothing when I tapped it", offline, from counts that outlive a reload. It is only worth anything when there is something in it.',
       make: env => ({
+        /* Stamped, unlike most states here, because the ending counts are
+           dropped by the layout migration and an unstamped save is an old one.
+           This state is a player with history on the boards being dealt now,
+           which is the only kind that has endings worth showing. */
+        layout: env.CONFIG.layout,
         unlocked: 15, gold: 400, seen: seenUpTo(env, 1),
-        diag: { refused: { attempt: 3, hint: 1 }, faults: 2, lastFault: 'solver timed out' }
+        diag: { refused: { attempt: 3, hint: 1 }, faults: 2, lastFault: 'solver timed out',
+                endings: { 12: { stuck: 3, cleared: 1 }, 14: { short: 2, over: 1, cleared: 4 } } }
       })
     },
     {
@@ -306,7 +312,9 @@ export const LabStates = (() => {
       kind: RECOVERY,
       why: 'The layout stamp says these bests were set against boards that are no longer dealt. Keeping them would show a best nobody can match on a board nobody has played.',
       make: env => ({ layout: env.CONFIG.layout - 1, unlocked: 30, gold: 400, seen: seenUpTo(env, 2),
-                      stars: { 5: 3, 6: 2 }, best: { 5: 9, 6: 12 }, pars: { 5: 9, 6: 11 } })
+                      stars: { 5: 3, 6: 2 }, best: { 5: 9, 6: 12 }, pars: { 5: 9, 6: 11 },
+                      diag: { refused: { undo: 2 }, faults: 0, lastFault: '',
+                              endings: { 5: { stuck: 4 } } } })
     },
     {
       id: 'oldVersion',

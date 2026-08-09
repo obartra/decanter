@@ -52,6 +52,50 @@ describe('progress', () => {
     equal(p.parFor(1), null, 'but a par cached for a board that is gone would score the wrong bar');
     equal(p.raw.layout, CONFIG.layout, 'and the save is stamped, so this happens once');
   });
+  it('drops the ending counts when the boards move, and keeps them when they do not', () => {
+    /* The counts exist to be compared against the measured difficulty of a
+       particular board. Carried across a layout bump they would answer that
+       question with runs played on a puzzle that no longer exists, which is
+       worse than having no answer. */
+    const moved = stored({
+      layout: CONFIG.layout - 1, unlocked: 20,
+      diag: { refused: { undo: 2 }, faults: 0, lastFault: '', endings: { 19: { stuck: 4 } } }
+    });
+    equal(moved.diag.endings, {}, 'counts against boards that are gone would poison the comparison');
+    equal(moved.diag.refused, { undo: 2 }, 'a refusal is about the game, not about a board, so it stays');
+
+    const same = stored({
+      layout: CONFIG.layout, unlocked: 20,
+      diag: { refused: {}, faults: 0, lastFault: '', endings: { 19: { stuck: 4 } } }
+    });
+    equal(same.diag.endings, { 19: { stuck: 4 } }, 'the same boards keep their counts');
+  });
+  it('counts how a run ended, per level and per reason', () => {
+    const p = stored({ layout: CONFIG.layout, unlocked: 20 });
+    p.recordEnding(19, 'stuck');
+    p.recordEnding(19, 'stuck');
+    p.recordEnding(19, 'cleared');
+    p.recordEnding(20, 'short');
+    equal(p.diag.endings, { 19: { stuck: 2, cleared: 1 }, 20: { short: 1 } });
+  });
+  it('refuses an ending it cannot file, rather than growing a key for it', () => {
+    /* Reached straight from the run, so a level that is somehow not a level must
+       not become a key in a save that is then written out forever. */
+    const p = stored({ layout: CONFIG.layout, unlocked: 20 });
+    for (const bad of [[null, 'stuck'], [0, 'stuck'], ['19', 'stuck'], [19, null], [19, '']])
+      p.recordEnding(bad[0], bad[1]);
+    equal(p.diag.endings, {}, 'a bad ending was filed anyway');
+  });
+  it('survives a save whose ending counts are the wrong shape', () => {
+    /* Same reasoning as stars and best: the save is the one input this file does
+       not control, and a null here would throw during boot. */
+    for (const shape of [null, 'nope', 42, []]){
+      const p = stored({ layout: CONFIG.layout, diag: { refused: {}, faults: 0, lastFault: '', endings: shape } });
+      equal(p.diag.endings, {}, `endings as ${JSON.stringify(shape)} should have been repaired`);
+      p.recordEnding(3, 'over');
+      equal(p.diag.endings, { 3: { over: 1 } }, 'and should work afterwards');
+    }
+  });
   it('treats a save with no layout stamp as an old one', () => {
     /* the stamp was added after the game was already being played, so a save
        without one is the likeliest to be holding a par for a board that moved */

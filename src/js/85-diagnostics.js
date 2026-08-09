@@ -67,6 +67,21 @@ export const Diagnostics = (() => {
     const kinds = Object.entries(c.refusals).map(([k, n]) => `${k}:${n}`).join(' ') || 'none';
     return `${c.refused} refused (${kinds}) · ${c.fault} faults`;
   }
+  /* Lost levels only, worst first. Machine readable on purpose: this half is
+     folded back into the difficulty measurement rather than read aloud. See
+     docs/design/15-diagnostics.md and tools/endings.mjs. */
+  function endingLines(diag){
+    const rows = Object.entries((diag && diag.endings) || {})
+      .map(([level, by]) => {
+        const lost = Object.entries(by).filter(([why]) => why !== 'cleared');
+        const n = lost.reduce((sum, [, count]) => sum + count, 0);
+        return { level: Number(level), n, by };
+      })
+      .filter(r => r.n > 0)
+      .sort((a, b) => b.n - a.n || a.level - b.level);
+    return rows.map(r => `  ${r.level}: `
+      + Object.entries(r.by).map(([why, n]) => `${why} ${n}`).join(' '));
+  }
 
   function compose(){
     const { progress, state } = readState();
@@ -85,6 +100,10 @@ export const Diagnostics = (() => {
     }
     lines.push(`run: ${runLine(state)}`);
     lines.push(`this session: ${countLine()}`);
+    if (progress){
+      const ends = endingLines(progress.diag);
+      if (ends.length) lines.push('', '--- levels lost, since the boards last changed ---', ...ends);
+    }
     lines.push('', '--- what happened ---');
     const log = Trace.lines();
     lines.push(...(log.length ? log : ['nothing recorded']));

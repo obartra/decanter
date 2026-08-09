@@ -216,6 +216,30 @@ describe('build output', () => {
       equal(external, [], `dist/${f} still reaches out to ${external.join(', ')}`);
     }
   });
+  it('addresses no other origin from a shipped script either', () => {
+    /* The check above pins the markup and stops there, which is half the
+       promise: it would not have noticed a URL added inside a module. That gap
+       matters most exactly where somebody is tempted — the diagnostics carry
+       counts worth having, and "it is only one small ping" is how an offline
+       game stops being one. 15-diagnostics.md calls this not negotiable, so it
+       belongs in code rather than in prose.
+
+       What is asserted is the same thing the markup check asserts: no other
+       ORIGIN. Not "no fetch". The game fetches its own worker source and its own
+       audio, both same-origin and both precached, and a check that banned the
+       call would have banned working offline in the name of working offline.
+
+       The SVG namespace is a name rather than an address. Nothing dereferences
+       it, and every inline icon in the game carries it. */
+    const ALLOWED = ['http://www.w3.org/2000/svg'];
+    const offenders = [];
+    for (const f of built().filter(n => n.endsWith('.js'))){
+      for (const url of text(f).match(/https?:\/\/[^"'`) ]+/g) || []){
+        if (!ALLOWED.includes(url)) offenders.push(`dist/${f} names ${url}`);
+      }
+    }
+    equal([...new Set(offenders)], [], 'a shipped script names another origin');
+  });
 
   it('leaves no unfilled template slots', () => {
     for (const f of built().filter(n => n.endsWith('.html'))){
