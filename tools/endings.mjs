@@ -15,17 +15,32 @@
    report arrives: somebody sends it to you. Two beta players is two messages.
 
    Run: node tools/endings.mjs <paste.txt> [more.txt ...]
-        pbpaste | node tools/endings.mjs */
+        pbpaste | node tools/endings.mjs
+        node tools/endings.mjs --ci data/endings/*      (markdown, for the weekly job)
+
+   `--ci` writes markdown and says at the end whether anything wants a person.
+   It never proposes regenerating the order by itself, and that is deliberate: a
+   regeneration deals every one of the 120 levels a different board and bumps
+   CONFIG.layout, which clears the cached par in every save that exists. Doing
+   that unattended would reshuffle the game under the people whose reports asked
+   for it. The loop reports; the decision stays a decision. */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ceilingFor } from './brick-core.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const files = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const CI = argv.includes('--ci');
+/* Directories and the README that documents them are not reports. A glob in a
+   workflow expands to whatever is in the folder, so the filtering belongs here
+   rather than in the shell that happens to be calling. */
+const files = argv.filter(a => !a.startsWith('--') && !/README\.md$/.test(a))
+  .filter(f => { try { return readFileSync(f, 'utf8').length > 0; } catch { return false; } });
 
 function readAll(){
   if (files.length) return files.map(f => ({ name: f, text: readFileSync(f, 'utf8') }));
+  if (CI) return [];
   return [{ name: 'stdin', text: readFileSync(0, 'utf8') }];
 }
 
@@ -63,6 +78,16 @@ for (const { name, text } of pasted){
 }
 
 if (!pooled.size){
+  /* Nothing to say is the normal state for the weekly job, and it must not read
+     as a failure: no reports yet means nobody has sent one, not that anything is
+     broken. On a person's terminal it is a mistake worth an exit code, because
+     they pointed this at something. */
+  if (CI){
+    console.log('## Player reports\n\nNo reports in `data/endings` yet, so there is nothing to measure the difficulty against.');
+    console.log('\nAsk a player to hold the gold count, tap Copy, and send what it gives them.');
+    console.log('\nNEEDS_ATTENTION=false');
+    process.exit(0);
+  }
   console.log('no `levels lost` rows found. Paste the whole diagnostics dump, not just part of it.');
   process.exit(1);
 }
@@ -130,4 +155,32 @@ if (overCeiling.length){
       + ` ceiling ${pct(x.ceiling)}`);
   console.log('  a loss is not always a brick, so read these next to the stuck column');
   console.log('  rather than as a ceiling breach on their own.');
+}
+
+/* The one line the weekly job reads. Two things are worth waking somebody for:
+   a board that is beating players harder than its chapter can rescue, and a
+   model that has stopped agreeing with them. Everything else above is context
+   for whoever comes to look. */
+if (CI){
+  const stuckOverCeiling = solid.filter(x => x.stuckRate > x.ceiling);
+  const modelLost = solid.length >= 4 && r < 0.5;
+  const why = [];
+  if (stuckOverCeiling.length)
+    why.push(`${stuckOverCeiling.length} level(s) bricking players past their ceiling: `
+      + stuckOverCeiling.map(x => `${x.level} (${pct(x.stuckRate)} of ${x.runs} runs)`).join(', '));
+  if (modelLost)
+    why.push(`the modeled brick rate no longer predicts what players hit (r = ${r.toFixed(3)} over ${solid.length} levels)`);
+  console.log('\n---\n');
+  if (why.length){
+    console.log('**Worth a look:**\n');
+    for (const w of why) console.log(`- ${w}`);
+    console.log('\nRegenerating the order is the fix for the first and re-thinking the proxy is the fix');
+    console.log('for the second. Neither happens here: a regeneration deals every level a new board');
+    console.log('and clears the cached par in every save, which is not a thing to do to players on a');
+    console.log('schedule. See docs/design/02-levels.md.');
+  } else {
+    console.log('Nothing needs a person: every level with enough runs is inside its ceiling, and the');
+    console.log('model still ranks boards the way players are experiencing them.');
+  }
+  console.log(`\nNEEDS_ATTENTION=${why.length ? 'true' : 'false'}`);
 }

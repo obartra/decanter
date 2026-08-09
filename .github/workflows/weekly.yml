@@ -1,0 +1,118 @@
+# The things worth checking on a schedule rather than on a change.
+#
+# CI answers "is this change allowed to land". This answers a different question:
+# "has anything drifted while nobody was changing it". Those need different
+# triggers, because the second one has no commit to hang off. Player reports
+# arrive between commits. Duplication appears when two changes that were each
+# fine meet. Neither has a pull request to fail.
+#
+# What this deliberately does NOT do is fix anything on its own. Every job here
+# reports, and the two that could act instead open an issue for a person. The
+# reason is in the difficulty job below and it generalizes: the changes worth
+# making here are the ones a schedule is worst at judging.
+#
+# Runs Monday morning UTC, before the week rather than during it, and can be run
+# by hand from the Actions tab when somebody wants an answer now.
+name: Weekly
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+# One at a time. A hand-triggered run while the scheduled one is going would
+# otherwise race to update the same issue.
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  difficulty:
+    name: what players are hitting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Reads whatever reports are in data/endings and measures the shipped
+      # difficulty against them. Says nothing useful until somebody sends one,
+      # which is the expected state and is not a failure.
+      - id: measure
+        run: |
+          node tools/endings.mjs --ci data/endings/* > report.md
+          if grep -q 'NEEDS_ATTENTION=true' report.md; then
+            echo 'attention=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'attention=false' >> "$GITHUB_OUTPUT"
+          fi
+          sed -i '/NEEDS_ATTENTION=/d' report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue, reopened and rewritten, rather than one a week. A weekly job
+      # that opens a fresh issue every Monday produces fifty two issues a year
+      # saying much the same thing, and the signal is buried by its own repetition.
+      #
+      # `gh` is on the runner already. A marketplace action would be a dependency
+      # for something two commands do, in a repository whose whole delivery story
+      # is that it has none.
+      - if: steps.measure.outputs.attention == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create difficulty --color 0E8A16 --description 'the shipped curve against what players hit' 2>/dev/null || true
+          title='Player reports disagree with the shipped difficulty'
+          existing=$(gh issue list --label difficulty --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file report.md
+            gh issue comment "$existing" --body 'Still true as of this week. Body updated above.'
+          else
+            gh issue create --title "$title" --label difficulty --body-file report.md
+          fi
+
+  duplication:
+    name: what has been written twice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Not gated per pull request the way dead code is, and for a reason worth
+      # knowing: dead code is a fact about one commit, and duplication is a fact
+      # about two. The second copy is usually fine on its own and only reads as a
+      # copy next to the first, which may have landed months earlier. That is
+      # exactly the shape a scheduled check is for and a gate is bad at.
+      - id: scan
+        run: |
+          node tools/duplication.mjs --ci > dupes.md
+          if grep -q 'NEEDS_ATTENTION=true' dupes.md; then
+            echo 'attention=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'attention=false' >> "$GITHUB_OUTPUT"
+          fi
+          sed -i '/NEEDS_ATTENTION=/d' dupes.md
+          cat dupes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - if: steps.scan.outputs.attention == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create duplication --color FBCA04 --description 'the same logic shipped twice' 2>/dev/null || true
+          title='Duplicated logic worth folding together'
+          existing=$(gh issue list --label duplication --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file dupes.md
+          else
+            gh issue create --title "$title" --label duplication --body-file dupes.md
+          fi

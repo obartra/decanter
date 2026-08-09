@@ -77,8 +77,15 @@ describe('the workflow and the scripts it names', () => {
        workflow calling a script that is gone — and everything passes locally
        right up until the pull request goes red on `Missing script`. That is
        exactly how this landed: a detector was folded into another, its script
-       came out of package.json, and the CI step naming it stayed. */
-    const yml = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+       came out of package.json, and the CI step naming it stayed.
+
+       Every workflow, not only CI. The weekly job is the one that matters most
+       here and would show it least: CI going red is a pull request nobody can
+       merge, and a scheduled job going red is a Monday email that stops
+       arriving. It has no reviewer waiting on it, so the check has to be. */
+    const dir = join(root, '.github/workflows');
+    const yml = readdirSync(dir).filter(f => f.endsWith('.yml'))
+      .map(f => readFileSync(join(dir, f), 'utf8')).join('\n');
     const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts;
     /* Hyphens included. An npm script may have one, none here did until
        `verify:test-budget`, and a pattern that stops at the hyphen does not miss
@@ -88,8 +95,24 @@ describe('the workflow and the scripts it names', () => {
     const named = [...yml.matchAll(/npm run ([\w:-]+)/g)].map(m => m[1]);
     assert(named.length >= 5, `only found ${named.length} npm steps, so the scan has broken`);
     for (const name of new Set(named)){
-      assert(scripts[name], `.github/workflows/ci.yml runs "npm run ${name}", which package.json does not define`);
+      assert(scripts[name], `a workflow runs "npm run ${name}", which package.json does not define`);
     }
+  });
+
+  it('never runs a tool that is not on disk', () => {
+    /* The same failure one level down. The scheduled jobs call tools directly
+       rather than through npm, so a renamed or deleted tool is a workflow that
+       dies on a Monday with nobody watching. package.json cannot catch that one,
+       because the name never appears in it. */
+    const dir = join(root, '.github/workflows');
+    const missing = [];
+    for (const f of readdirSync(dir).filter(n => n.endsWith('.yml'))){
+      const yml = readFileSync(join(dir, f), 'utf8');
+      for (const m of yml.matchAll(/node (tools\/[\w./-]+\.mjs)/g)){
+        if (!existsSync(join(root, m[1]))) missing.push(`.github/workflows/${f} runs ${m[1]}, which is not on disk`);
+      }
+    }
+    equal(missing, [], 'a workflow names a tool that does not exist');
   });
 
   it('declares every package the toolchain imports', () => {
