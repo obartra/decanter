@@ -186,6 +186,36 @@ problems; the iPhone preset would pull in WebKit, which is a second browser to
 install for a suite whose subject is layout and game state rather than engine
 differences. Worth adding when there is a reason to suspect Safari specifically.
 
+## What runs on a schedule instead of on a change
+
+The gate above answers "is this change allowed to land". Some things do not fit
+that question, because they have no change to hang off:
+
+- **Player reports** arrive between commits, from people rather than pushes.
+- **Duplication** appears when two changes that were each fine meet. The second
+  copy is usually reasonable on its own and only reads as a copy next to the
+  first, which may have landed months earlier and may be the one that should
+  move. Failing the second author for the first author's decision would be wrong
+  about whose problem it is, which is why this is not a gate the way dead code
+  is: dead code is a fact about one commit, duplication is a fact about two.
+- **Toolchain drift** is nobody's change until it breaks something.
+
+`.github/workflows/weekly.yml` runs Monday morning and `.github/dependabot.yml`
+opens one grouped pull request a week. Majors are ignored on purpose: a major on
+esbuild or eslint is a decision about the toolchain rather than an update to it,
+and those should arrive when somebody is looking.
+
+**Nothing scheduled changes anything on its own.** Both weekly jobs open or
+update an issue and stop there. The clearest case is the difficulty one:
+regenerating the order in response to player reports deals all 120 levels a
+different board and bumps `CONFIG.layout`, which clears the cached par in every
+save that exists. Doing that unattended would reshuffle the game every Monday
+under the very players whose reports asked for it. The loop reports; the decision
+stays a decision. See [02 Levels](02-levels.md).
+
+One issue per subject, rewritten each week rather than opened again, because
+fifty two issues a year saying much the same thing buries its own signal.
+
 ## What is still not covered
 
 Worth stating plainly rather than implying the gate is complete.

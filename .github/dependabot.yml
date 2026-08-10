@@ -1,0 +1,50 @@
+# Keeping the toolchain current, in one pull request a week.
+#
+# There is nothing here for the game to break. This project ships no runtime
+# dependencies at all — a test fails any built page carrying an external `src` or
+# `href` — so every package below is a build or test tool, and the blast radius
+# of a bad bump is a red CI run rather than a broken game. That is the whole
+# reason this can be weekly and grouped instead of careful and one at a time.
+#
+# Grouped for the same reason. Four dev tools opening four pull requests a week
+# is four review burdens for a repository whose dependency surface fits on one
+# line, and a group that fails CI names which bump did it just as clearly.
+#
+# Minor and patch only. A major on esbuild or eslint is a decision about the
+# toolchain rather than an update to it — new rule defaults, new output, possibly
+# a different bundle — and those should arrive when somebody is looking, not on a
+# Monday. Majors still show up in `npm outdated`; they just do not open a pull
+# request that CI might wave through.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    groups:
+      toolchain:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
+    commit-message:
+      prefix: 'Update'
+    labels: [automated]
+
+  # The actions the workflows pin. Same reasoning: a stale `actions/checkout` is
+  # a supply chain question rather than a feature one, and it is invisible unless
+  # something asks.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: 'Update'
+    labels: [automated]
