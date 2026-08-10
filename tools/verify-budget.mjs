@@ -165,9 +165,32 @@ const dist = join(root, 'dist');
    on the debug surface the browser specs drive, and because a panel fetched
    after load has to be proven to still open with the network gone, which is
    exactly the promise this file's neighbor asserts. */
+/* Raised a second time, by two kilobytes, for the game offering to be told when
+   a board is beating somebody. This is the second raise in a row and that is not
+   a good look, so the arithmetic is here rather than implied.
+
+   The feature is about forty lines across the panel, the save and the app: a
+   count of how a level has gone, a rule for when that is worth mentioning, a
+   line under the buttons and a handler that opens the card that already exists.
+   The comments on all four were cut into docs/design/15-diagnostics.md first,
+   which brought the shell back under its own cap and took about half a kilobyte
+   off this one. What is left is code.
+
+   HOW THIS GETS PAID BACK, and it is the same answer as last time: the
+   diagnostics panel is five kilobytes reachable only by holding the gold count,
+   and it does not belong on the critical path. Both raises together are four,
+   so deferring it clears them and leaves a kilobyte over.
+
+   What changed is that deferring it is now safer than when that was first
+   written. The objection then was that a panel fetched after load might not have
+   arrived on a first visit over a bad network, which is exactly when somebody
+   wants it. This change gives it a second entry point that cannot be reached
+   until a player has lost the same board five times, by which point a bundle
+   fetched eagerly at load has certainly landed. The press-and-hold keeps the old
+   exposure; the offer has none. */
 const BUDGET = {
   shell: 13_000,
-  critical: 212_000,
+  critical: 214_000,
   /* This one exists to notice a game DOUBLING, and nothing finer.
 
      It was once about ten percent above the bubble game, which was the only one

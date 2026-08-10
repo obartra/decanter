@@ -1107,6 +1107,7 @@ export const App = (() => {
     $('goldWhy').textContent = failed ? 'No gold · run failed' : `Gold · ${parts.join(' + ')}`;
 
     const fee = costOf(S.level);
+    const trouble = progress.troubleOn(S.level);
     const panel = Panel.decide({
       level: S.level, lastLevel: progress.lastLevel, failed, stars,
       nextUnlocked: progress.isUnlocked(S.level + 1),
@@ -1129,7 +1130,9 @@ export const App = (() => {
       blastTargets: failed ? blastTargets().length : 0,
       improvedStars: result.improvedStars, hadStars: before,
       par: S.par, parExact: S.parExact, moves: S.moves, best: progress.bestFor(S.level),
-      totalStars: progress.totalStars(), reason: S.reason
+      totalStars: progress.totalStars(), reason: S.reason,
+      /* read after `complete`, so this run is already in the count */
+      lostHere: trouble.lost, bricksHere: trouble.bricks, alreadyAsked: trouble.asked
     });
     /* Kept, for the same reason `_state` and `_progress` are exposed: so a spec
        can ask what was decided rather than deciding it again. The browser suite
@@ -1166,6 +1169,7 @@ export const App = (() => {
     closeBlastPick();
     $('blast').hidden = panel.blastHidden;
     $('blast').disabled = panel.blastDisabled;
+    $('reportOffer').hidden = panel.reportHidden;
     $('winHint').textContent = panel.hint;
 
     const bubble = Levels.isBubble(S.level);
@@ -1481,6 +1485,15 @@ export const App = (() => {
     $('veil').addEventListener('click', e => {
       if (e.target === $('veil')) closePanel();
     });
+    /* Marked before the card opens, not after: offered and declined is the same
+       as offered and taken from here, and asking again would be nagging. */
+    $('reportOpen').onclick = () => {
+      Sound.tick();
+      progress.markAsked(S.level);
+      $('reportOffer').hidden = true;
+      Trace.note(`offered to report level ${S.level}`, 'opened the card from the panel');
+      Diagnostics.open();
+    };
     $('retry').onclick = () => {
       if (!progress.canAfford(costOf(S.level))){
         deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);

@@ -158,6 +158,14 @@ body[data-view="game"] #gameView{display:flex}
    board nobody is playing, so a second line pushes nothing around. */
 .panelBtns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px}
 
+/* The offer to say something, under the buttons rather than among them. Quiet
+   on purpose: it is asking for a favour from somebody who has just lost, so it
+   reads as an aside and never competes with the way on. */
+.panel .offer{color:var(--ink-dim); font-size:11px; margin:2px 0 0; opacity:.75}
+.asLink{background:none; border:0; padding:0; font:inherit; color:var(--gold);
+  text-decoration:underline; text-underline-offset:2px; cursor:pointer}
+.asLink:hover{color:var(--gold-lit)}
+
 /* A button holding something open. The map has had this for two-tap arming
    since it shipped, but on `.node`, so there was no rule for it on a `.btn` and
    the blast's own toggle would have changed its word and nothing else. */

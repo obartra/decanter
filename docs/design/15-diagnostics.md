@@ -67,6 +67,42 @@ would answer the question with runs played on a puzzle that no longer exists.
 rate and what players actually hit, and ignores levels with fewer than five runs,
 because a level lost once out of once is a 100% loss rate that means nothing.
 
+## Asking, rather than waiting to be told
+
+The panel above is opened by holding the gold count. Nobody discovers that by
+accident, and going looking for it is a strange thing to do while losing, so
+everything here depended on a player already knowing it existed and choosing to
+use it. That is a thin channel for the one thing the game most wants to hear.
+
+So the game watches the signal it already has. When a level has taken **five
+losses, counting a dead end as two**, the end-of-run panel offers a line under
+the buttons: *This one is giving you trouble. Send a report.* Tapping it opens
+the same card, which already knows how to copy itself.
+
+**Why a dead end counts double.** Both are failures and both are in the same
+tally, but running out of legal pours is the kind no amount of care avoids, and
+it is the kind the board selection is measured against in
+[02 Levels](02-levels.md). Three of those is as much of a signal as five ordinary
+losses.
+
+**Why five.** The fee makes a board expensive before it makes it interesting: an
+attempt costs 5 gold against 14 for a good clear, so five failures is most of a
+level's earnings spent on one board. Below that a player is playing. At that
+point they are stuck.
+
+**Once.** It is marked as asked when the card opens, not when anything is sent,
+because the game cannot tell those apart and it does not matter: the offer was
+made and the player decided. An offer that returns every time is not an offer.
+The mark is cleared by a `layout` bump along with the counts, so somebody stuck
+on the old level 19 is asked again if the new one beats them too.
+
+**It still sends nothing.** This changes when the card is put in front of a
+player, not what the card does. There is no endpoint, and adding one was
+considered and dropped: the collection SDKs cost more than the whole critical
+path budget, and the honest version of them costs a consent dialog, an
+identifier and the guarantee above, to learn something a player will tell you
+directly when asked at the right moment.
+
 ## Where it lives
 
 `Trace` holds a ring of the last 64 entries. A ring rather than a log because

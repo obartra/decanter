@@ -21,7 +21,7 @@ export const Panel = (() => {
       canPayFee, canPayNext, canPaySkip, canPayBlast,
     blastGranted, blastUsed, blastTargets,
       improvedStars, hadStars, par, parExact, moves, best, totalStars,
-      reason
+      reason, lostHere = 0, bricksHere = 0, alreadyAsked = false
     } = input;
 
     const perfect = stars === 3;
@@ -31,6 +31,12 @@ export const Panel = (() => {
        badly. */
     const atEnd = level >= lastLevel;
     const stuck = !atEnd && failed && !nextUnlocked;
+
+    /* Five ordinary failures, or three dead ends, since a dead end is counted
+       twice: it is the failure no amount of care avoids. Only on a lost run and
+       only once. Why those numbers is 15-diagnostics.md. */
+    const REPORT_AT = 5;
+    const offerReport = failed && !alreadyAsked && (lostHere + bricksHere) >= REPORT_AT;
 
     /* A lost run says so plainly and then says why. Leading with the reason alone
        read as a remark about the board rather than as the run being over. */
@@ -119,7 +125,8 @@ export const Panel = (() => {
       skipDisabled: !canPaySkip,
     blastHidden,
     blastDisabled,
-      hint
+      hint,
+      reportHidden: !offerReport
     };
   }
 
