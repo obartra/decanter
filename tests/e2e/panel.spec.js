@@ -155,6 +155,20 @@ test('offers to hear about a board that has been beating somebody', async ({ pag
   await expect(page.locator('#diagVeil')).toHaveClass(/show/);
   await expect(page.locator('#diagText')).toContainText('levels lost');
 
+  /* ON TOP of the panel that opened it, which the class alone does not say and
+     `toBeVisible` does not either: neither notices one fixed layer painted over
+     another. Every veil shared a z-index, which was fine while only one could be
+     open — the card was reached by holding the gold count, and nobody does that
+     with this panel up. This offer opens both at once, the tie went to document
+     order, and what a player saw was the offer vanish and nothing arrive. */
+  const onTop = await page.evaluate(() => {
+    const card = document.getElementById('diagVeil');
+    const box = document.getElementById('diagText').getBoundingClientRect();
+    const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return !!at && card.contains(at);
+  });
+  expect(onTop).toBe(true);
+
   /* asked once: the offer is gone on the next failure of the same board */
   const asked = await page.evaluate(() => globalThis.App._progress.troubleOn(1).asked);
   expect(asked).toBe(true);
