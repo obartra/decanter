@@ -35,6 +35,6 @@
     "@playwright/test": "^1.62.1",
     "esbuild": "^0.28.1",
     "eslint": "^9.39.5",
-    "globals": "^17.8.0"
+    "globals": "^17.9.0"
   }
 }
