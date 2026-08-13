@@ -30,7 +30,7 @@
            already had. That is what lets the map keep the whole bottom of the
            screen, which is worth about a level and a half on a short phone. -->
       <div class="mapIcons">
-        <button class="icon js-sound" type="button" aria-label="Sound"></button>
+        <button class="icon js-settings" type="button" aria-label="Settings"></button>
         <button class="icon" id="install" type="button" hidden aria-label="Install"></button>
         <!-- Only behind a beta word, which is why it is hidden here and shown
              from the one place that knows one is in the address bar. It opens a
@@ -68,7 +68,7 @@
       <!-- One shape, one corner, every screen with a game on it. It was on two
            of four, and the two without it are the two that are another game.
            See docs/design/11-sound.md. -->
-      <button class="icon js-sound" type="button" aria-label="Sound"></button>
+      <button class="icon js-settings" type="button" aria-label="Settings"></button>
     </div>
     <h1 class="wordmark small">Bubble</h1>
     <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="bubGold">0</b></div>
@@ -112,7 +112,7 @@
   <header class="gameHeader">
     <div class="headSide">
       <button class="btn ghost" id="doorToMap" type="button">&larr; Map</button>
-      <button class="icon js-sound" type="button" aria-label="Sound"></button>
+      <button class="icon js-settings" type="button" aria-label="Settings"></button>
     </div>
     <h1 class="wordmark small">The Cellar Door</h1>
     <button class="btn ghost" id="doorRestart" type="button">Restart</button>
@@ -130,7 +130,7 @@
   <header class="gameHeader">
     <div class="headSide">
       <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
-      <button class="icon js-sound" type="button" aria-label="Sound"></button>
+      <button class="icon js-settings" type="button" aria-label="Settings"></button>
     </div>
     <h1 class="wordmark small">Decanter</h1>
     <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="gold">0</b></div>
@@ -167,6 +167,18 @@
   </div>
 </div>
 
+<!-- Settings. One card rather than a row of icons in four headers: the icons
+     were two already and every new one is a button in every header and a shelf
+     that moves under the board by a pixel. -->
+<div class="veil" id="setVeil">
+  <div class="panel setCard">
+    <h2>Settings</h2>
+    <button class="setRow" id="setSound" type="button" aria-pressed="true"><span>Sound</span><b></b></button>
+    <button class="setRow" id="setCb" type="button" aria-pressed="false"><span>Patterned liquids</span><b></b></button>
+    <p class="hint">Patterns mark each liquid, so they can be told apart without color.</p>
+    <button class="btn primary" id="setClose" type="button">Done</button>
+  </div>
+</div>
 <div class="veil" id="diagVeil">
   <div class="panel diagCard">
     <h2>What the game says</h2>

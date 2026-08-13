@@ -28,6 +28,48 @@ pieces cannot be distinguished is unsolvable however sound the logic is.
 
 The same test is the constraint on ever adding a thirteenth color.
 
+## And a second channel, for the players that is not enough for
+
+The test above measures CIEDE2000 distance, which is how far apart two colors
+look **to normal vision**. It says nothing about roughly one man in twelve.
+
+No rearrangement fixes that. There are not twelve hues that stay distinct once
+an axis of vision is gone, so a palette solved harder is still a palette, and
+the answer has to be something other than color. It is texture.
+
+`src/js/pure/07-patterns.js` holds the set, one entry per color id, off unless
+the player asks for it. Four stripe orientations at two spacings, the two
+crosshatches, dots, and one deliberately plain: a board where every liquid is
+hatched is busier to read than one where eleven are, and something has to be the
+bare one.
+
+**Orientation first, spacing second, kind a distant third.** That is the order
+things are tellable apart in at the size these are drawn — a band is about fifty
+pixels across and a bubble smaller — and it is why the set is mostly stripes at
+different angles rather than twelve clever textures.
+
+**One table, two renderers.** The bands are DOM and take a CSS
+`background-image`; the fluid is a canvas and takes geometry it strokes into a
+repeating tile. Both come from the same entry, so a pattern cannot mean one
+thing in the markup and another on the canvas. That matters more than it sounds:
+the fluid is the *primary* path, since `Fluid.supported()` decides it and
+`.board.simulated .fill` hides the bands, so the DOM version is the fallback and
+would be the one nobody noticed was wrong.
+
+**The other game too.** Its six colors are this palette's first six, so its six
+hatches are these first six. Copied rather than imported, because the two games
+share no module, and pinned by `tests/patterns.test.mjs` for the same reason the
+palette copy is pinned — a red bubble and a red liquid marked differently is a
+mark that has stopped meaning anything.
+
+The ink is translucent black. The palette runs from a near white to a deep
+green, so a light hatch disappears on the pale ones; black at this alpha reads
+on all twelve without changing what color anything looks like.
+
+Casks and measure have nothing here on purpose. Casks tells one gilt cask from
+oak ones, which is a one-of-many lightness difference rather than a twelve-way
+discrimination, and measure has a single wine.
+
 ## The rest of the color
 
 Warm and dark, keyed to the drawn room: cream ink, dimmed ink for labels, gold and

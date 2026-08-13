@@ -67,6 +67,10 @@
 }
 .fill{position:absolute; inset:0; display:flex; flex-direction:column-reverse}
 .band{width:100%; flex:0 0 auto; transition:height .2s ease}
+/* The hatch, off unless asked for. Twelve hues cannot stay distinct once a
+   whole axis of vision is gone, so texture is the second channel. See
+   pure/07-patterns.js and docs/design/10-visual-system.md. */
+body.cb .band{background-image:var(--pat)}
 .band.crest{box-shadow:inset 0 3px 0 rgba(255,255,255,.28), inset 0 7px 10px rgba(255,255,255,.09)}
 .gloss{
   position:absolute; inset:0; pointer-events:none; z-index:6;

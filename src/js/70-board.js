@@ -134,6 +134,10 @@ export const Board = (() => {
         d.className = 'band' + (idx === bands.length - 1 ? ' crest' : '');
         d.dataset.c = bd.c; d.dataset.n = bd.n;
         d.style.background = colorVar(bd.c);
+        /* Named on the band rather than selected for in the stylesheet, which
+           would be twelve rules to say one thing. The stylesheet decides whether
+           it is painted; this only says which one it would be. */
+        d.style.setProperty('--pat', `var(--p${bd.c})`);
         d.style.height = bandHeight(bd.n);
         fill.appendChild(d);
       });

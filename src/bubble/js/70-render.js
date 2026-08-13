@@ -27,6 +27,36 @@ export const BubbleRender = (() => {
      long band down the left and one specular where the light actually lands.
      That is the same three-part construction the bottles use, and it is what
      stops a pale liquid reading as a flat disc. */
+  /* One CanvasPattern per color, built once. Same reasoning as the pour game's
+     fluid: a tile is a few strokes and rebuilding it every frame for every
+     bubble is those strokes sixty times a second, for a thing that never
+     changes. Off unless the page has asked for it. */
+  const tiles = new Map();
+  function hatch(i){
+    if (!document.body.classList.contains('cb')) return null;
+    if (tiles.has(i)) return tiles.get(i);
+    const [kind, angle, gap] = C.PATTERNS[i] || C.PATTERNS[0];
+    let pat = null;
+    if (kind){
+      const t = document.createElement('canvas');
+      t.width = t.height = gap;
+      const tc = t.getContext('2d');
+      tc.strokeStyle = 'rgba(0,0,0,.34)';
+      tc.lineWidth = 3;
+      tc.translate(gap / 2, gap / 2);
+      const r = (angle * Math.PI) / 180, dx = Math.cos(r), dy = Math.sin(r);
+      for (const off of [-gap, 0, gap]){
+        tc.beginPath();
+        tc.moveTo(-dy * off - dx * gap * 2, dx * off - dy * gap * 2);
+        tc.lineTo(-dy * off + dx * gap * 2, dx * off + dy * gap * 2);
+        tc.stroke();
+      }
+      pat = tc.createPattern(t, 'repeat');
+    }
+    tiles.set(i, pat);
+    return pat;
+  }
+
   function bubble(ctx, x, y, color, r = C.DRAW_R, alpha = 1){
     ctx.globalAlpha = alpha;
 
@@ -45,6 +75,18 @@ export const BubbleRender = (() => {
     ctx.beginPath();
     ctx.arc(x, y, lr, 0, Math.PI * 2);
     ctx.fill();
+
+    /* The index is looked up rather than passed, because the color arrives as a
+       hex at five call sites and threading an index through all of them to read
+       a six entry array is more change than the lookup costs. */
+    const pat = hatch(C.PALETTE.indexOf(color));
+    if (pat){
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = pat;
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.fillStyle = 'rgba(255,255,255,.22)';
     ctx.beginPath();

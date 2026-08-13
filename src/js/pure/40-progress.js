@@ -57,7 +57,7 @@ export const Progress = (() => {
 
   function blank(){
     return {
-      version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true,
+      version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true, cb:false,
       gold: CONFIG.economy.startingGold,
       /* levels whose one-time first-clear bonus has already been paid */
       claimed:{},
@@ -214,6 +214,11 @@ export const Progress = (() => {
       get unlocked(){ return state.unlocked; },
       get sound(){ return state.sound !== false; },
       setSound(on){ state.sound = !!on; save(); },
+      /* Hatched liquids, for telling twelve colors apart without the color. Off
+         by default: it is a second channel for those who need it, not a
+         redesign for everybody. */
+      get colorblind(){ return state.cb === true; },
+      setColorblind(on){ state.cb = !!on; save(); },
       starsFor: level => state.stars[level] || 0,
       bestFor: level => (level in state.best ? state.best[level] : null),
       parFor: level => (level in state.pars ? state.pars[level] : null),

@@ -124,9 +124,14 @@ test('the header controls are drawn, not typed, and still say what they are', as
      plastic blob in a gold header. These are paths in currentColor. A glyph with
      no words still has to answer a screen reader. */
   await start(page, deep);
-  const sound = page.locator('#mapView .js-sound.icon');
-  await expect(sound.locator('svg')).toHaveCount(1);
-  await expect(sound).toHaveAttribute('aria-label', /sound/i);
+  const gear = page.locator('#mapView .js-settings.icon');
+  await expect(gear).toHaveAttribute('aria-label', /settings/i);
+  /* and the thing it opens says what each row is, which an icon could not: no
+     glyph means "hatch the liquids so they can be told apart without color" */
+  await gear.click();
+  await expect(page.locator('#setSound')).toContainText('Sound');
+  await expect(page.locator('#setCb')).toContainText('Patterned');
+  const sound = page.locator('#setSound');
 
   /* Read first rather than assumed: the suite seeds a muted save so the browser
      stays silent, so which way this starts is the harness's business, not this
@@ -134,10 +139,12 @@ test('the header controls are drawn, not typed, and still say what they are', as
      label and the audio itself, together. */
   const was = await page.evaluate(() => globalThis.Sound.enabled);
   await sound.click();
-  await expect(sound).toHaveAttribute('aria-label', was ? /sound off/i : /sound on/i);
-  await expect(sound.locator('svg'), 'the glyph went missing when it changed').toHaveCount(1);
+  /* A row says its state in words and in aria-pressed, which an icon could only
+     do by changing shape. Both have to move, and the sound with them. */
+  await expect(sound).toHaveAttribute('aria-pressed', was ? 'false' : 'true');
+  await expect(sound.locator('b')).toHaveText(was ? /off/i : /on/i);
   expect(await page.evaluate(() => globalThis.Sound.enabled),
-    'the label moved but the sound did not').toBe(!was);
+    'the row moved but the sound did not').toBe(!was);
 
   /* the draught keeps its words, because it carries a number */
   await expect(page.locator('#daily')).toContainText('Daily');

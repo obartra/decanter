@@ -293,11 +293,17 @@ describe('build output', () => {
         const beyondFonts = body.replace(/@font-face\{[^}]*\}/g, '').trim();
         assert(!beyondFonts, `dist/${f} has inline CSS beyond the font block: ${beyondFonts.slice(0, 60)}`);
       }
-      /* The same number as tools/verify-budget.mjs, and it moved with it when
-         the doors put a fifth view in the app. Two copies of a cap is not ideal,
-         but this check is about a shell being MARKUP — the assertions above are
-         the real ones — and the size is a backstop on the same claim. */
-      assert(readFileSync(join(dist, f)).length < 13_000, `dist/${f} is too big for a shell`);
+      /* Read off tools/verify-budget.mjs rather than written again. It used to be
+         a second copy of that number with a comment saying two copies was not
+         ideal, and the two then went out of step exactly as that predicted: the
+         budget was raised and this was not, so the suite failed on a size the
+         project had already agreed to. The tool owns the cap; this is a backstop
+         on the same claim, and the claim it really makes is the one above, that
+         a shell is markup. Parsed rather than imported because that module runs
+         a build the moment it is loaded. */
+      const cap = Number(read('tools/verify-budget.mjs').match(/shell:\s*([\d_]+)/)[1].replace(/_/g, ''));
+      assert(cap > 0, 'could not read the shell budget out of the tool that owns it');
+      assert(readFileSync(join(dist, f)).length < cap, `dist/${f} is too big for a shell`);
     }
   });
 
