@@ -181,6 +181,27 @@ describe('the test harness', () => {
   });
 });
 
+describe('refusing a purchase', () => {
+  it('says so through the one path that explains itself', () => {
+    /* Twelve places refuse a purchase and each used to write the same sentence
+       by hand, which is how four of them were missed when the sentence gained a
+       card to go with it: the message was right and the player still saw
+       nothing. `denyBroke` builds the words and raises the card together, so a
+       thirteenth cannot have one without the other.
+
+       A source scan rather than a behavioral test, because what is being checked
+       is that no future refusal goes around the path, and the only place that is
+       visible is the source. */
+    const app = read('src/js/90-app.js');
+    const handmade = [...app.matchAll(/deny\([^;]*purse holds[^;]*\);/g)]
+      .map(m => m[0].replace(/\s+/g, ' '))
+      /* the one inside denyBroke itself is the path, not a way around it */
+      .filter(line => !line.includes('subject'));
+    equal(handmade, [], 'a refusal builds the empty purse message without raising the card');
+    assert(/function denyBroke\(/.test(app), 'the path itself has gone');
+  });
+});
+
 describe('the generators', () => {
   /* A generated source is written by a template inside a tool, and the template
      is the one copy of a module's shape that nothing imports and no linter

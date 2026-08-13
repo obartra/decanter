@@ -5,7 +5,7 @@
    road stops where it should, and whether the way back appears when there is
    somewhere to go back to. */
 import { test, expect } from '@playwright/test';
-import { start } from './helpers.js';
+import { start, openLevel } from './helpers.js';
 
 /* far enough in that the map is several screens tall and the frontier is buyable */
 const deep = { unlocked: 18, gold: 400, seen: { 0: true, 1: true },
@@ -130,7 +130,7 @@ test('the header controls are drawn, not typed, and still say what they are', as
      glyph means "hatch the liquids so they can be told apart without color" */
   await gear.click();
   await expect(page.locator('#setSound')).toContainText('Sound');
-  await expect(page.locator('#setCb')).toContainText('Patterned');
+  await expect(page.locator('#setCb')).toContainText('Color blind');
   const sound = page.locator('#setSound');
 
   /* Read first rather than assumed: the suite seeds a muted save so the browser
@@ -149,4 +149,50 @@ test('the header controls are drawn, not typed, and still say what they are', as
   /* the draught keeps its words, because it carries a number */
   await expect(page.locator('#daily')).toContainText('Daily');
   await expect(page.locator('#dailyCost')).toHaveText(/\+?\d|soon|\dm|\dh/);
+});
+
+test('the settings card holds both settings and remembers them', async ({ page }) => {
+  /* Both live in the save and both are read at boot, so the thing worth checking
+     is the round trip rather than the click: a setting that toggles and does not
+     come back is the same as no setting. */
+  await start(page, { unlocked: 4, gold: 400, sound: false, cb: false });
+  await page.locator('#mapView .js-settings').click();
+  await expect(page.locator('#setVeil')).toHaveClass(/show/);
+
+  await page.locator('#setCb').click();
+  expect(await page.evaluate(() => document.body.classList.contains('cb'))).toBe(true);
+  await expect(page.locator('#setCb')).toHaveAttribute('aria-pressed', 'true');
+
+  await page.reload();
+  await page.waitForFunction(() => globalThis.App && globalThis.App._progress);
+  expect(await page.evaluate(() => document.body.classList.contains('cb')),
+    'the mode was forgotten across a reload').toBe(true);
+  expect(await page.evaluate(() => globalThis.App._progress.colorblind)).toBe(true);
+});
+
+test('the card gets out of the way the ways every other one does', async ({ page }) => {
+  await start(page, { unlocked: 4, gold: 400 });
+  await page.locator('#mapView .js-settings').click();
+  await expect(page.locator('#setVeil')).toHaveClass(/show/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#setVeil')).not.toHaveClass(/show/);
+
+  await page.locator('#mapView .js-settings').click();
+  await page.locator('#setClose').click();
+  await expect(page.locator('#setVeil')).not.toHaveClass(/show/);
+});
+
+test('the hatch reaches the bottles and not only the body', async ({ page }) => {
+  /* The class on the body is the switch; what matters is that a band actually
+     paints something because of it. The fluid canvas is the primary path and
+     cannot be asked this way, so this covers the DOM one. */
+  await start(page, { unlocked: 4, gold: 400, cb: true });
+  await openLevel(page, 1);
+  const painted = await page.evaluate(() => {
+    const band = document.querySelector('#board .band');
+    if (!band) return 'no band';
+    return getComputedStyle(band).backgroundImage;
+  });
+  expect(painted).not.toBe('none');
+  expect(painted).toContain('gradient');
 });

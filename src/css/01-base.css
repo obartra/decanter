@@ -102,7 +102,10 @@ body[data-view="game"] #gameView{display:flex}
 /* Settings. Rows rather than icons, because a row can say what it is: an icon
    in a header had to mean "sound" by being a speaker, and there is no glyph
    that means "hatch the liquids so they can be told apart without color". */
-.setCard{max-width:min(340px, 92vw)}
+.setCard,.brokeCard{max-width:min(340px, 92vw)}
+/* Above the panels, because it is raised BY one: the end-of-run card offers
+   Retry and Move on, and both can be refused for the same reason this says. */
+#brokeVeil{z-index:90}
 .setRow{
   display:flex; width:100%; align-items:center; justify-content:space-between;
   gap:12px; margin:6px 0; padding:11px 14px; border-radius:10px;

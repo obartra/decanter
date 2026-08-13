@@ -343,3 +343,17 @@ test('a board dealt by Try again still banks the run it is won with', async ({ p
   expect(banked.gold, 'and no gold').toBeGreaterThan(purse);
   expect(banked.unlocked).toBe(4);
 });
+
+test('a band a pour grows into arrives already marked', async ({ page }) => {
+  /* The bands rendered up front and the band a pour lands in are built in two
+     places, and only the first was marked at first. The liquid then changed
+     appearance as it settled, which is the one moment the mark most has to hold
+     still. */
+  await start(page, { unlocked: 4, gold: 400, cb: true });
+  await openLevel(page, 1);
+  const marked = await page.evaluate(() => {
+    const bands = [...document.querySelectorAll('#board .band')];
+    return bands.length > 0 && bands.every(b => b.style.getPropertyValue('--pat').includes('--p'));
+  });
+  expect(marked, 'a band was built without its pattern').toBe(true);
+});

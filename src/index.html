@@ -167,6 +167,19 @@
   </div>
 </div>
 
+<!-- Out of gold. A refused purchase used to be a deny sound and nothing else,
+     which for a player with the sound off is a button that does nothing. -->
+<div class="veil" id="brokeVeil">
+  <div class="panel brokeCard">
+    <h2>Out of gold</h2>
+    <p id="brokeLine"></p>
+    <div class="panelBtns">
+      <button class="btn primary" id="brokeDaily" type="button" hidden>Draw the daily draught</button>
+      <button class="btn" id="brokeClose" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Settings. One card rather than a row of icons in four headers: the icons
      were two already and every new one is a button in every header and a shelf
      that moves under the board by a pixel. -->
@@ -174,8 +187,8 @@
   <div class="panel setCard">
     <h2>Settings</h2>
     <button class="setRow" id="setSound" type="button" aria-pressed="true"><span>Sound</span><b></b></button>
-    <button class="setRow" id="setCb" type="button" aria-pressed="false"><span>Patterned liquids</span><b></b></button>
-    <p class="hint">Patterns mark each liquid, so they can be told apart without color.</p>
+    <button class="setRow" id="setCb" type="button" aria-pressed="false"><span>Color blind mode</span><b></b></button>
+    <p class="hint">Marks each liquid with its own pattern, so they can be told apart without color.</p>
     <button class="btn primary" id="setClose" type="button">Done</button>
   </div>
 </div>

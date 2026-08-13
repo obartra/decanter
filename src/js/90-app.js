@@ -80,6 +80,32 @@ export const App = (() => {
     Sound.deny();
   }
 
+  /* A refusal the player can afford to be told about, which is all of them.
+
+     Every one of these used to be a deny sound and nothing else. That is a tap
+     that does nothing for anybody playing with the sound off, and it is the
+     exact report the diagnostics card was built to answer: the game knew why and
+     said so only to its own log.
+
+     The message is built here rather than at each of the eight places that
+     refuse a purchase, which were writing the same sentence eight times. */
+  function denyBroke(what, price, subject){
+    deny(what, `${subject ? subject + ' ' : ''}costs ${price}, purse holds ${progress.gold}`);
+    showBroke();
+  }
+  /* The daily is the answer often enough to be worth asking about, and only
+     worth asking when it is: a player who has already drawn today is being told
+     to go and press a button that will refuse them, which is a second refusal
+     dressed as help. */
+  function showBroke(){
+    const ready = progress.dailyReady(today());
+    $('brokeLine').textContent = ready
+      ? `That costs more than the ${progress.gold} in your purse. Your daily draught is still waiting on the map.`
+      : `That costs more than the ${progress.gold} in your purse. The daily draught has been drawn today, so the way on is to clear a board.`;
+    $('brokeDaily').hidden = !ready;
+    $('brokeVeil').classList.add('show');
+  }
+
   /* ---------- routing ---------- */
   /* The stylesheets color bands with var(--cN), the pour and the particle sim
      read CONFIG.palette. Publishing one from the other keeps a single source:
@@ -246,7 +272,7 @@ export const App = (() => {
 
   function attempt(level){
     if (!progress.spend(costOf(level))){
-      deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
+      denyBroke('attempt', costOf(level), `level ${level}`);
       paintMap();
       return false;
     }
@@ -617,7 +643,7 @@ export const App = (() => {
     }
     const price = p.free ? 0 : p.cost;
     if (!progress.spend(price)){
-      deny(what, `costs ${price}, purse holds ${progress.gold}`);
+      denyBroke(what, price);
       return false;
     }
     if (what === 'undo') S.undosUsed++;
@@ -1059,7 +1085,7 @@ export const App = (() => {
   function takeBlast(index){
     if (S.blownUp || !blastTargets().includes(index)) return;
     if (!progress.spend(CONFIG.economy.blast)){
-      deny('blast', `costs ${CONFIG.economy.blast}, purse holds ${progress.gold}`);
+      denyBroke('blast', CONFIG.economy.blast);
       return;
     }
     const after = Rules.blast(S.tubes, index);
@@ -1177,6 +1203,14 @@ export const App = (() => {
     $('blast').disabled = panel.blastDisabled;
     $('reportOffer').hidden = panel.reportHidden;
     $('winHint').textContent = panel.hint;
+    /* The wall, said out loud once.
+
+       Most controls that cost money are disabled rather than refused, on the
+       grounds that a card offering what it cannot sell is lying, so the twelve
+       refusal paths below rarely fire. This is where a purse actually stops
+       somebody: the run is over and the way on is priced above it. The hint line
+       has always said so in eleven quiet words under the buttons. */
+    if (panel.hint === Panel.BROKE) setTimeout(showBroke, 420);
 
     const bubble = Levels.isBubble(S.level);
     clearTimeout(reveal);
@@ -1301,7 +1335,7 @@ export const App = (() => {
     MapView.onBuy = level => {
       Sound.unlock();
       if (!progress.buyUnlock(level - 1, skipCost())){
-        deny('buy', `opening ${level} costs ${skipCost()}, purse holds ${progress.gold}`);
+        denyBroke('buy', skipCost(), `opening ${level}`);
         return;
       }
       Sound.tick();
@@ -1323,7 +1357,7 @@ export const App = (() => {
       Sound.unlock();
       const inTheWay = section * CONFIG.sectionSize;
       if (!progress.buyUnlock(inTheWay, skipCost())){
-        deny('buy', `moving past ${inTheWay} costs ${skipCost()}, purse holds ${progress.gold}`);
+        denyBroke('buy', skipCost(), `moving past ${inTheWay}`);
         return;
       }
       Sound.tick();
@@ -1337,7 +1371,7 @@ export const App = (() => {
       if (S.queue.length || S.running || !S.history.length) return;
       /* charge before rolling back, so a refused payment changes nothing */
       if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){
-        deny('undo', `costs ${CONFIG.economy.undoCost}, purse holds ${progress.gold}`);
+        denyBroke('undo', CONFIG.economy.undoCost);
         return;
       }
       S.undosUsed++;
@@ -1353,7 +1387,7 @@ export const App = (() => {
     $('vessel').onclick = () => {
       if (S.queue.length || S.running || S.vesselUsed) return;
       if (!progress.spend(CONFIG.economy.vessel)){
-        deny('vessel', `costs ${CONFIG.economy.vessel}, purse holds ${progress.gold}`);
+        denyBroke('vessel', CONFIG.economy.vessel);
         return;
       }
       S.vesselUsed = true;
@@ -1385,7 +1419,7 @@ export const App = (() => {
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
       if (!progress.canAfford(hintCost())){
-        deny('hint', `costs ${hintCost()}, purse holds ${progress.gold}`);
+        denyBroke('hint', hintCost());
         return;
       }
       Sound.unlock();
@@ -1415,7 +1449,7 @@ export const App = (() => {
         const proven = !!res.exact;
         const fee = proven ? hintCost() : 0;
         if (fee > 0 && !progress.spend(fee)){
-          deny('hint', `costs ${fee}, purse holds ${progress.gold}`);
+          denyBroke('hint', fee);
           paintHud();
           return;
         }
@@ -1524,7 +1558,7 @@ export const App = (() => {
     };
     $('retry').onclick = () => {
       if (!progress.canAfford(costOf(S.level))){
-        deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);
+        denyBroke('retry', costOf(S.level));
         return;
       }
       closeVeil();
@@ -1532,7 +1566,7 @@ export const App = (() => {
     };
     $('skip').onclick = () => {
       if (!progress.buyUnlock(S.level, skipCost())){
-        deny('skip', `costs ${skipCost()}, purse holds ${progress.gold}`);
+        denyBroke('skip', skipCost());
         return;
       }
       closeVeil();
@@ -1552,7 +1586,7 @@ export const App = (() => {
         return;
       }
       if (!progress.canAfford(costOf(S.level + 1))){
-        deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
+        denyBroke('next', costOf(S.level + 1), `level ${S.level + 1}`);
         return;
       }
       closeVeil();
@@ -1600,6 +1634,19 @@ export const App = (() => {
       btn.onclick = () => { Sound.tick(); $('setVeil').classList.add('show'); };
     });
     $('setClose').onclick = () => { Sound.tick(); $('setVeil').classList.remove('show'); };
+    const closeBroke = () => $('brokeVeil').classList.remove('show');
+    $('brokeClose').onclick = () => { Sound.tick(); closeBroke(); };
+    $('brokeVeil').addEventListener('click', e => { if (e.target === $('brokeVeil')) closeBroke(); });
+    $('brokeDaily').onclick = () => {
+      Sound.unlock();
+      /* Claimed here rather than sending them to the map to press it: the
+         button is on the map and this is not, and a player told to go somewhere
+         to fix a thing will find the thing already fixable where they are. */
+      if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); closeBroke(); return; }
+      Sound.lift();
+      goldChanged();
+      closeBroke();
+    };
     $('setVeil').addEventListener('click', e => {
       if (e.target === $('setVeil')) $('setVeil').classList.remove('show');
     });
@@ -1665,6 +1712,8 @@ export const App = (() => {
     addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if ($('diagVeil').classList.contains('show')){ Diagnostics.close(); return; }
+      if ($('brokeVeil').classList.contains('show')){ $('brokeVeil').classList.remove('show'); return; }
+      if ($('setVeil').classList.contains('show')){ $('setVeil').classList.remove('show'); return; }
       if ($('previewVeil').classList.contains('show')){ closePreview(); return; }
       if ($('chapterVeil').classList.contains('show')){ $('chapterGo').click(); return; }
       if ($('veil').classList.contains('show')){ closePanel(); return; }
