@@ -255,8 +255,7 @@ export const Progress = (() => {
         row[reason] = (row[reason] || 0) + 1;
         save();
       },
-      /* How badly a level has gone, for deciding whether to offer to hear about
-         it. Counted here rather than at the panel, which is pure. */
+      /* Counted here rather than at the panel, which is pure. */
       troubleOn(level){
         const row = state.diag.endings[level] || {};
         let lost = 0;

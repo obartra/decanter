@@ -1485,8 +1485,7 @@ export const App = (() => {
     $('veil').addEventListener('click', e => {
       if (e.target === $('veil')) closePanel();
     });
-    /* Marked before the card opens, not after: offered and declined is the same
-       as offered and taken from here, and asking again would be nagging. */
+    /* Marked before it opens: offered and declined read the same from here. */
     $('reportOpen').onclick = () => {
       Sound.tick();
       progress.markAsked(S.level);
