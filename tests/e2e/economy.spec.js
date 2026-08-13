@@ -181,14 +181,21 @@ test('every beta word shouts its own name, and unlocks the same everything else'
     'one beta word cannot show that the name is data rather than markup').toBeGreaterThan(1);
   await page.setViewportSize({ width: 320, height: 700 });
 
-  for (const [word, name] of words){
+  for (const entry of words){
+    const [word] = entry;
+    /* Asked of the module rather than rebuilt here. Every word used to end in
+       `Mode` and this test spelled that out, which made it a second copy of the
+       one thing the file above says must only be written once. The first word
+       that did not end in `Mode` would have failed a correct game. */
+    const said = await page.evaluate(e => globalThis.Jabari.linesOf(e), entry);
+    const name = said.join(' ');
     await page.goto(`/?${word}`);
     /* Caught and read in the same frame, so the message cannot take itself away
        between being found and being read. The box is read rather than the
        painted rect: the word is flung out to twice its size on its way off, so
        what it measures depends on the frame it was caught on, and the layout
        box does not move while the message is up. */
-    const said = await (await page.waitForFunction(() => {
+    const shown = await (await page.waitForFunction(() => {
       const el = document.getElementById('jabari');
       if (!el || el.hidden || !el.classList.contains('go')) return null;
       const w = el.querySelector('.jabariWord');
@@ -199,10 +206,16 @@ test('every beta word shouts its own name, and unlocks the same everything else'
         clipped: w.scrollWidth > w.clientWidth
       };
     })).jsonValue();
-    expect(said.says, `${word} shouted somebody else's name`).toBe(`${name}Mode`);
-    expect(said.shouts).toBe('+9,999,999');
-    expect(said.tooWide, `${name} is wider than the screen it is shouted on`).toBe(false);
-    expect(said.clipped, `${name} does not fit the word it is shouted in`).toBe(false);
+    /* Both sides stripped the same way. What is read off the page has its
+       whitespace removed because the two lines are separated by an element
+       rather than by a space, and the first word to carry a space inside it
+       would otherwise fail a game that was saying exactly the right thing. */
+    const flat = s => s.replace(/\s+/g, '');
+    expect(shown.says, `${word} shouted something other than its own words`)
+      .toBe(flat(said.join('')));
+    expect(shown.shouts).toBe('+9,999,999');
+    expect(shown.tooWide, `${name} is wider than the screen it is shouted on`).toBe(false);
+    expect(shown.clipped, `${name} does not fit the word it is shouted in`).toBe(false);
     expect(await page.evaluate(() => globalThis.App._progress.gold),
       `${word} did not fill the purse`).toBe(full);
     /* and the other thing a beta word is a key to */
