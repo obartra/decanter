@@ -133,3 +133,51 @@ test('only a stuck run at the frontier is offered a way past it', async ({ page 
   expect(open.skipHidden).toBe(true);
   expect(agree(open, await onScreen(page))).toEqual([]);
 });
+
+test('offers to hear about a board that has been beating somebody', async ({ page }) => {
+  /* The whole point of this offer is that it arrives without being looked for,
+     so the check has to be the real flow: a save that has already lost this
+     board four times, a fifth loss played out, and the line appearing under the
+     buttons on its own.
+
+     Four then five rather than five then one, because the interesting boundary
+     is the one a player crosses rather than one a fixture starts on. */
+  await start(page, { layout: undefined, unlocked: 3, gold: 400,
+    diag: { refused: {}, faults: 0, lastFault: '', endings: { 1: { over: 4 } }, asked: {} } });
+  await openLevel(page, 1);
+  await endRun(page, 'stuck');
+
+  await expect(page.locator('#reportOffer')).toBeVisible();
+
+  /* and it opens the card that already knows how to copy itself, rather than
+     sending anything anywhere */
+  await page.locator('#reportOpen').click();
+  await expect(page.locator('#diagVeil')).toHaveClass(/show/);
+  await expect(page.locator('#diagText')).toContainText('levels lost');
+
+  /* ON TOP of the panel that opened it, which the class alone does not say and
+     `toBeVisible` does not either: neither notices one fixed layer painted over
+     another. Every veil shared a z-index, which was fine while only one could be
+     open — the card was reached by holding the gold count, and nobody does that
+     with this panel up. This offer opens both at once, the tie went to document
+     order, and what a player saw was the offer vanish and nothing arrive. */
+  const onTop = await page.evaluate(() => {
+    const card = document.getElementById('diagVeil');
+    const box = document.getElementById('diagText').getBoundingClientRect();
+    const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return !!at && card.contains(at);
+  });
+  expect(onTop).toBe(true);
+
+  /* asked once: the offer is gone on the next failure of the same board */
+  const asked = await page.evaluate(() => globalThis.App._progress.troubleOn(1).asked);
+  expect(asked).toBe(true);
+});
+
+test('says nothing to somebody who is merely playing', async ({ page }) => {
+  await start(page, { unlocked: 3, gold: 400,
+    diag: { refused: {}, faults: 0, lastFault: '', endings: { 1: { over: 2 } }, asked: {} } });
+  await openLevel(page, 1);
+  await endRun(page, 'stuck');
+  await expect(page.locator('#reportOffer')).toBeHidden();
+});

@@ -73,7 +73,7 @@ export const Progress = (() => {
          counts that answer "has this happened before, and how often" have to
          outlive it. Deliberately counts and one message rather than a log: this
          lives in the player's save, and a save is not a place to grow a diary. */
-      diag: { refused: {}, faults: 0, lastFault: '', endings: {} }
+      diag: { refused: {}, faults: 0, lastFault: '', endings: {}, asked: {} }
     };
   }
   /* No rise in the purse skips this. The cap exists because the beta word fills
@@ -175,6 +175,7 @@ export const Progress = (() => {
     if (!state.diag || typeof state.diag !== 'object' || Array.isArray(state.diag)) state.diag = blank().diag;
     state.diag.refused = record(state.diag.refused);
     state.diag.endings = record(state.diag.endings);
+    state.diag.asked = record(state.diag.asked);
     if (!Number.isInteger(state.diag.faults)) state.diag.faults = 0;
     /* The boards moved. What a player earned stays earned: stars and best move
        counts are theirs, and taking them away to keep a record tidy is a worse
@@ -190,6 +191,10 @@ export const Progress = (() => {
       state.layout = CONFIG.layout;
       state.pars = {};
       state.diag.endings = {};
+      /* and the record of having asked, because the board it was asked about is
+         gone: a player stuck on the old level 19 should be asked again if the
+         new one beats them too */
+      state.diag.asked = {};
     }
 
     function save(){
@@ -248,6 +253,19 @@ export const Progress = (() => {
         if (!Number.isInteger(level) || level < 1 || !reason) return;
         const row = state.diag.endings[level] || (state.diag.endings[level] = {});
         row[reason] = (row[reason] || 0) + 1;
+        save();
+      },
+      /* Counted here rather than at the panel, which is pure. */
+      troubleOn(level){
+        const row = state.diag.endings[level] || {};
+        let lost = 0;
+        for (const [why, n] of Object.entries(row)) if (why !== 'cleared') lost += n;
+        return { lost, bricks: row.stuck || 0, asked: !!state.diag.asked[level] };
+      },
+      /* Asked once. Whether anything was sent is not knowable from here. */
+      markAsked(level){
+        if (!Number.isInteger(level) || level < 1) return;
+        state.diag.asked[level] = true;
         save();
       },
       hasSeen: section => !!state.seen[section],

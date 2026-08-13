@@ -179,6 +179,35 @@ describe('end of run panel', () => {
     equal(p.nextIsDoor, false, 'nothing to go on to until that board is behind you');
   });
 
+  /* The offer to be told a board is beating somebody. Every one of these is a
+     way to get it wrong that costs more than it saves: asking somebody who is
+     winning, asking again after they said no, or never asking at all because the
+     kind of failure that matters most is also the rarest. */
+  const losing = { failed: true, stars: 0, nextUnlocked: false, reason: 'over' };
+  it('says nothing until a board has actually been beating somebody', () => {
+    equal(decide({ ...losing, lostHere: 4 }).reportHidden, true, 'four losses is still playing');
+    equal(decide({ ...losing, lostHere: 5 }).reportHidden, false, 'five is stuck');
+  });
+  it('counts a dead end twice, because it is the one no care avoids', () => {
+    /* Three dead ends should reach the same bar as five ordinary losses: it is
+       the failure the board selection is measured against, so it is the one
+       most worth hearing about. */
+    equal(decide({ ...losing, lostHere: 3, bricksHere: 2 }).reportHidden, false);
+    equal(decide({ ...losing, lostHere: 2, bricksHere: 1 }).reportHidden, true,
+      'three losses with one dead end is not enough on its own');
+  });
+  it('never asks somebody who just won', () => {
+    /* The counts are per level and survive a clear, so a player who struggled
+       and then beat it would otherwise be asked on the run that went well. */
+    equal(decide({ lostHere: 9, bricksHere: 4 }).reportHidden, true);
+  });
+  it('does not ask twice', () => {
+    equal(decide({ ...losing, lostHere: 20, alreadyAsked: true }).reportHidden, true);
+  });
+  it('says nothing about it on a board nobody has lost', () => {
+    equal(decide({ ...losing }).reportHidden, true, 'absent counts must not read as trouble');
+  });
+
   it('keeps retry and next disabled independently', () => {
     const broke = decide({ canPayFee: false, canPayNext: false });
     equal(broke.retryDisabled, true);
