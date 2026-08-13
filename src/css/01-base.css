@@ -98,6 +98,23 @@ body[data-view="game"] #gameView{display:flex}
    its own: nothing else in the game scrolls, but a log that is cut off is a log
    that lost the line worth having. */
 .diagCard{max-width:min(560px, 92vw)}
+
+/* Settings. Rows rather than icons, because a row can say what it is: an icon
+   in a header had to mean "sound" by being a speaker, and there is no glyph
+   that means "hatch the liquids so they can be told apart without color". */
+.setCard,.brokeCard{max-width:min(340px, 92vw)}
+/* Above the panels, because it is raised BY one: the end-of-run card offers
+   Retry and Move on, and both can be refused for the same reason this says. */
+#brokeVeil{z-index:90}
+.setRow{
+  display:flex; width:100%; align-items:center; justify-content:space-between;
+  gap:12px; margin:6px 0; padding:11px 14px; border-radius:10px;
+  border:1px solid rgba(224,177,92,.26); background:rgba(224,177,92,.06);
+  font:inherit; font-size:13px; color:var(--ink); cursor:pointer;
+}
+.setRow:hover{border-color:rgba(244,217,160,.55)}
+.setRow b{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim)}
+.setRow[aria-pressed="true"] b{color:var(--gold-lit)}
 .diagText{
   margin:12px 0; padding:12px; max-height:52vh; overflow:auto;
   text-align:left; white-space:pre-wrap; word-break:break-word;

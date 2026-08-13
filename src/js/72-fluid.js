@@ -12,6 +12,7 @@
    guarded against, it has no representation. */
 import { CONFIG } from './pure/00-config.js';
 import { Rules } from './pure/20-rules.js';
+import * as Patterns from './pure/07-patterns.js';
 
 export const Fluid = (() => {
   function supported(){
@@ -29,6 +30,45 @@ export const Fluid = (() => {
   let running = false, raf = 0, last = 0, idle = 0;
 
   const colorOf = c => CONFIG.palette[c] || '#888';
+
+  /* One CanvasPattern per color, built once and kept.
+
+     A tile is a handful of strokes and building it every frame for every band of
+     every bottle is the same handful sixty times a second. They never change: a
+     pattern belongs to a color id, and the palette is fixed at boot.
+
+     Returns null when the mode is off or the color is the plain one, which is
+     also the signal not to paint a second time. */
+  const tiles = new Map();
+  function hatch(color){
+    if (!document.body.classList.contains('cb')) return null;
+    if (tiles.has(color)) return tiles.get(color);
+    const spec = Patterns.tileFor(color);
+    let pat = null;
+    if (spec){
+      const t = document.createElement('canvas');
+      t.width = t.height = spec.size;
+      const tc = t.getContext('2d');
+      tc.strokeStyle = tc.fillStyle = spec.ink;
+      if (spec.dot){
+        tc.beginPath();
+        tc.arc(spec.size / 2, spec.size / 2, spec.dot, 0, Math.PI * 2);
+        tc.fill();
+      } else {
+        tc.lineWidth = spec.width;
+        tc.translate(spec.size / 2, spec.size / 2);
+        for (const l of spec.lines){
+          tc.beginPath();
+          tc.moveTo(l.x1, l.y1);
+          tc.lineTo(l.x2, l.y2);
+          tc.stroke();
+        }
+      }
+      pat = tc.createPattern(t, 'repeat');
+    }
+    tiles.set(color, pat);
+    return pat;
+  }
 
   function mount(el){
     root = el;
@@ -222,6 +262,15 @@ export const Fluid = (() => {
       if (yLo - yHi < 0.2) return;
       c.fillStyle = colorOf(band.c);
       c.fillRect(-4, yHi, W + 8, yLo - yHi);
+      /* The hatch over the color, when it has been asked for. Painted here
+         rather than as a layer over the whole canvas so it is clipped to the
+         band exactly as the color is, and moves with the liquid rather than
+         sitting still while it sloshes. */
+      const pat = hatch(band.c);
+      if (pat){
+        c.fillStyle = pat;
+        c.fillRect(-4, yHi, W + 8, yLo - yHi);
+      }
       /* a brighter line where one liquid meets the next, so the layers read as
          surfaces rather than as stacked blocks */
       c.fillStyle = 'rgba(255,255,255,.16)';

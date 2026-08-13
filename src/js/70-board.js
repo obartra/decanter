@@ -133,7 +133,15 @@ export const Board = (() => {
         const d = document.createElement('div');
         d.className = 'band' + (idx === bands.length - 1 ? ' crest' : '');
         d.dataset.c = bd.c; d.dataset.n = bd.n;
-        d.style.background = colorVar(bd.c);
+        /* The long hand, not `background`. The shorthand writes an inline
+           `background-image: none`, which outranks the stylesheet rule that
+           paints the hatch, so the bands stayed bare while the canvas beside
+           them was patterned. */
+        d.style.backgroundColor = colorVar(bd.c);
+        /* Named on the band rather than selected for in the stylesheet, which
+           would be twelve rules to say one thing. The stylesheet decides whether
+           it is painted; this only says which one it would be. */
+        d.style.setProperty('--pat', `var(--p${bd.c})`);
         d.style.height = bandHeight(bd.n);
         fill.appendChild(d);
       });
@@ -307,7 +315,11 @@ export const Board = (() => {
       dstBand = document.createElement('div');
       dstBand.className = 'band crest';
       dstBand.dataset.c = move.color;
-      dstBand.style.background = colorVar(move.color);
+      /* longhand and the hatch, same as the bands built in render(): this one is
+         the band a pour grows into, so it has to arrive already marked or the
+         liquid changes appearance as it lands */
+      dstBand.style.backgroundColor = colorVar(move.color);
+      dstBand.style.setProperty('--pat', `var(--p${move.color})`);
       dstBand.style.height = '0px';
       dstFill.querySelector('.band.crest')?.classList.remove('crest');
       dstFill.appendChild(dstBand);

@@ -10,7 +10,7 @@
    Every level number here is asked for rather than written down, so moving which
    boards are bubble cannot quietly turn these into tests of the pour game. */
 import { test, expect } from '@playwright/test';
-import { start, open } from './helpers.js';
+import { start, open , toggleSetting } from './helpers.js';
 
 const kinds = page => page.evaluate(() => {
   const all = [...Array(120)].map((_, i) => i + 1);
@@ -192,7 +192,7 @@ test('muting the game mutes all of them, including the boards that are another o
   await start(page, { unlocked: 120, gold: 400, sound: true, seen: { 0: true, 1: true, 2: true } });
   const { bubble } = await kinds(page);
 
-  await page.locator('#mapView .js-sound').click();
+  await toggleSetting(page, 'sound', 'mapView');
   const afterTap = await page.evaluate(() => ({
     pour: globalThis.Sound.enabled,
     bubble: globalThis.BubbleAudio.enabled,
@@ -208,7 +208,7 @@ test('muting the game mutes all of them, including the boards that are another o
 
   /* back on again, from the control that is now on that screen too, and all
      three hear it */
-  await page.locator('#bubbleView .js-sound').click();
+  await toggleSetting(page, 'sound', 'bubbleView');
   expect(await page.evaluate(() => ({
     pour: globalThis.Sound.enabled, bubble: globalThis.BubbleAudio.enabled,
     casks: globalThis.CasksAudio.enabled
@@ -219,14 +219,14 @@ test('muting the game mutes all of them, including the boards that are another o
    paragraph above is about, and for two of these screens the fix for it was the
    button rather than the wiring. Asked of every view that has a game on it,
    including the map they are reached from. */
-test('every screen carries the same one control for the sound', async ({ page }) => {
+test('every screen carries the same one way into the settings', async ({ page }) => {
   await start(page, { unlocked: 120, gold: 400, seen: { 0: true, 1: true, 2: true } });
   for (const view of ['mapView', 'gameView', 'bubbleView', 'doorView']){
-    const btn = page.locator(`#${view} .js-sound`);
+    const btn = page.locator(`#${view} .js-settings`);
     expect(await btn.count(), `${view} has no way to stop the sound`).toBe(1);
-    /* the same shape everywhere: a glyph, and a label that says which way it is */
+    /* the same shape everywhere: a glyph, and a label a screen reader can use */
     await expect(btn).toHaveClass(/icon/);
-    await expect(btn).toHaveAttribute('aria-label', /Sound (on|off)/);
+    await expect(btn).toHaveAttribute('aria-label', /Settings/i);
   }
 });
 

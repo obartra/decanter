@@ -75,6 +75,7 @@ export const loadBubble = (extra = []) => loadGame('bubble', extra);
 /* The pour game, and everything shared */
 import * as config from '../src/js/pure/00-config.js';
 import * as trace from '../src/js/pure/05-trace.js';
+import * as patterns from '../src/js/pure/07-patterns.js';
 import * as rng from '../src/js/pure/10-rng.js';
 import * as rules from '../src/js/pure/20-rules.js';
 import * as levels from '../src/js/pure/30-levels.js';
@@ -118,6 +119,7 @@ export const MODULES = new Map([
   /* The pour game, and everything shared */
   ['src/js/pure/00-config.js', config],
   ['src/js/pure/05-trace.js', trace],
+  ['src/js/pure/07-patterns.js', patterns],
   ['src/js/pure/10-rng.js', rng],
   ['src/js/pure/20-rules.js', rules],
   ['src/js/pure/30-levels.js', levels],

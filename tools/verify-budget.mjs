@@ -188,9 +188,39 @@ const dist = join(root, 'dist');
    until a player has lost the same board five times, by which point a bundle
    fetched eagerly at load has certainly landed. The press-and-hold keeps the old
    exposure; the offer has none. */
+/* Both raised for the patterned liquids, and the shell one for the first time
+   since the doors.
+
+   This is an accessibility feature and that is the whole argument. The palette
+   was solved for CIEDE2000 distance, which measures how far apart two colors
+   look to normal vision and says nothing about the roughly one man in twelve
+   who does not have it. There are not twelve hues that stay distinct once an
+   axis of vision is gone, so no rearranging fixes it and a second channel is the
+   only answer. A load budget is worth defending; it is not worth more than the
+   game being playable by the people who cannot read it.
+
+   Where it went. Six kilobytes on the critical path: the pattern table, the two
+   ways of drawing it — the bands are DOM and the fluid is a canvas — and the
+   settings card. Seven hundred on the shell, which is that card's markup.
+
+   The card is why the shell moved and it is worth its own line, because the
+   first attempt was cheaper and wrong. Two icons in each of four headers is
+   eight buttons, and it moved the shelf under the board by a pixel on a phone,
+   which the layout suite caught. One gear in each header opening one card is
+   four buttons and a panel, costs slightly more, and is the shape that does not
+   charge the next setting another eight.
+
+   What was tried first, since a budget its own author edits to fit is not a
+   budget. The table is data read by both renderers rather than two tables of
+   gradients, which is most of what stopped this being eight kilobytes. The
+   comments went to docs/design/10-visual-system.md. The bubble game's share is
+   not in either number: it is a deferred bundle and had room.
+
+   The five kilobytes named in the two entries above are still there, still
+   unclaimed, and would now cover this and both of those. */
 const BUDGET = {
-  shell: 13_000,
-  critical: 214_000,
+  shell: 14_500,
+  critical: 224_000,
   /* This one exists to notice a game DOUBLING, and nothing finer.
 
      It was once about ten percent above the bubble game, which was the only one

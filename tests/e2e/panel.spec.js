@@ -181,3 +181,38 @@ test('says nothing to somebody who is merely playing', async ({ page }) => {
   await endRun(page, 'stuck');
   await expect(page.locator('#reportOffer')).toBeHidden();
 });
+
+test('a purse that cannot pay the way on says so out loud', async ({ page }) => {
+  /* Most controls that cost money are disabled rather than refused, on the
+     grounds that a card offering what it cannot sell is lying. That leaves the
+     wall itself said in eleven quiet words under the buttons, which is the one
+     moment a player is actually stuck. */
+  await start(page, { unlocked: 3, gold: 400 });
+  await openLevel(page, 1);
+  await page.evaluate(() => globalThis.App._progress.spend(globalThis.App._progress.gold));
+  await endRun(page, 'stuck');
+
+  await expect(page.locator('#brokeVeil')).toHaveClass(/show/);
+  await expect(page.locator('#brokeLine')).toContainText('purse');
+  /* the draught is the answer, so it is offered where the problem is said */
+  await expect(page.locator('#brokeDaily')).toBeVisible();
+
+  await page.locator('#brokeDaily').click();
+  await expect(page.locator('#brokeVeil')).not.toHaveClass(/show/);
+  expect(await page.evaluate(() => globalThis.App._progress.gold)).toBeGreaterThan(0);
+});
+
+test('does not send somebody to a draught they have already drawn', async ({ page }) => {
+  /* Telling a player to go and press a button that will refuse them is a second
+     refusal dressed as help. */
+  const d = new Date();
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  await start(page, { unlocked: 3, gold: 400, dailyOn: iso });
+  await openLevel(page, 1);
+  await page.evaluate(() => globalThis.App._progress.spend(globalThis.App._progress.gold));
+  await endRun(page, 'stuck');
+
+  await expect(page.locator('#brokeVeil')).toHaveClass(/show/);
+  await expect(page.locator('#brokeDaily')).toBeHidden();
+  await expect(page.locator('#brokeLine')).toContainText('drawn today');
+});

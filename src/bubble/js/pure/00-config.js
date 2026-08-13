@@ -96,6 +96,12 @@ export const BubbleConfig = {
      and the six are written out. A test asserts they match rather than trusting
      the comment. See tests/palette.test.mjs. */
   PALETTE: ['#FD685F', '#C99329', '#519B3D', '#3ED1D5', '#1887ED', '#C269D5'],
+  /* The hatch that goes with each of those, for telling six bubbles apart
+     without the color. Copied rather than imported for the same reason the six
+     hexes above are: the two games share no module, and a test pins these
+     against the pour game's first six so the pair cannot drift. Same shape as
+     src/js/pure/07-patterns.js, which explains what the numbers mean. */
+  PATTERNS: [[0, 0, 0], [1, 45, 8], [1, 135, 8], [1, 90, 8], [1, 0, 8], [1, 45, 16]],
 
   /* Every color in the palette gets dealt. This was five against a palette of
      six, so one of them was drawn on the board by nobody and existed only in the

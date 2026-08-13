@@ -10,6 +10,7 @@
    late-bound for the same reason, and 49-audio.js explains it at length. */
 import { CONFIG } from './pure/00-config.js';
 import { Trace } from './pure/05-trace.js';
+import * as Patterns from './pure/07-patterns.js';
 import { Rules } from './pure/20-rules.js';
 import { Levels } from './pure/30-levels.js';
 import { PARS } from './pure/35-pars.js';
@@ -79,6 +80,32 @@ export const App = (() => {
     Sound.deny();
   }
 
+  /* A refusal the player can afford to be told about, which is all of them.
+
+     Every one of these used to be a deny sound and nothing else. That is a tap
+     that does nothing for anybody playing with the sound off, and it is the
+     exact report the diagnostics card was built to answer: the game knew why and
+     said so only to its own log.
+
+     The message is built here rather than at each of the eight places that
+     refuse a purchase, which were writing the same sentence eight times. */
+  function denyBroke(what, price, subject){
+    deny(what, `${subject ? subject + ' ' : ''}costs ${price}, purse holds ${progress.gold}`);
+    showBroke();
+  }
+  /* The daily is the answer often enough to be worth asking about, and only
+     worth asking when it is: a player who has already drawn today is being told
+     to go and press a button that will refuse them, which is a second refusal
+     dressed as help. */
+  function showBroke(){
+    const ready = progress.dailyReady(today());
+    $('brokeLine').textContent = ready
+      ? `That costs more than the ${progress.gold} in your purse. Your daily draught is still waiting on the map.`
+      : `That costs more than the ${progress.gold} in your purse. The daily draught has been drawn today, so the way on is to clear a board.`;
+    $('brokeDaily').hidden = !ready;
+    $('brokeVeil').classList.add('show');
+  }
+
   /* ---------- routing ---------- */
   /* The stylesheets color bands with var(--cN), the pour and the particle sim
      read CONFIG.palette. Publishing one from the other keeps a single source:
@@ -86,7 +113,12 @@ export const App = (() => {
      the old colors into the new bottles. */
   function publishPalette(){
     const s = document.documentElement.style;
-    CONFIG.palette.forEach((hex, i) => s.setProperty(`--c${i}`, hex));
+    /* The hatch travels with the color it belongs to, published in the same
+       pass, so the two cannot go out of step. See pure/07-patterns.js. */
+    CONFIG.palette.forEach((hex, i) => {
+      s.setProperty(`--c${i}`, hex);
+      s.setProperty(`--p${i}`, Patterns.cssFor(i));
+    });
   }
 
   /* A new build is waiting. Reloading is the only way to pick it up, but doing
@@ -240,7 +272,7 @@ export const App = (() => {
 
   function attempt(level){
     if (!progress.spend(costOf(level))){
-      deny('attempt', `level ${level} costs ${costOf(level)}, purse holds ${progress.gold}`);
+      denyBroke('attempt', costOf(level), `level ${level}`);
       paintMap();
       return false;
     }
@@ -611,7 +643,7 @@ export const App = (() => {
     }
     const price = p.free ? 0 : p.cost;
     if (!progress.spend(price)){
-      deny(what, `costs ${price}, purse holds ${progress.gold}`);
+      denyBroke(what, price);
       return false;
     }
     if (what === 'undo') S.undosUsed++;
@@ -1053,7 +1085,7 @@ export const App = (() => {
   function takeBlast(index){
     if (S.blownUp || !blastTargets().includes(index)) return;
     if (!progress.spend(CONFIG.economy.blast)){
-      deny('blast', `costs ${CONFIG.economy.blast}, purse holds ${progress.gold}`);
+      denyBroke('blast', CONFIG.economy.blast);
       return;
     }
     const after = Rules.blast(S.tubes, index);
@@ -1171,6 +1203,14 @@ export const App = (() => {
     $('blast').disabled = panel.blastDisabled;
     $('reportOffer').hidden = panel.reportHidden;
     $('winHint').textContent = panel.hint;
+    /* The wall, said out loud once.
+
+       Most controls that cost money are disabled rather than refused, on the
+       grounds that a card offering what it cannot sell is lying, so the twelve
+       refusal paths below rarely fire. This is where a purse actually stops
+       somebody: the run is over and the way on is priced above it. The hint line
+       has always said so in eleven quiet words under the buttons. */
+    if (panel.hint === Panel.BROKE) setTimeout(showBroke, 420);
 
     const bubble = Levels.isBubble(S.level);
     clearTimeout(reveal);
@@ -1198,6 +1238,7 @@ export const App = (() => {
   const ICON = {
     sound: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
     muted: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l4 5M21 9.5l-4 5"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9M18.6 18.6l-1.9-1.9M7.3 7.3L5.4 5.4"/></svg>',
     install: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8.5 10.5L12 14l3.5-3.5"/><path d="M5 17.5h14"/></svg>'
   };
 
@@ -1222,6 +1263,28 @@ export const App = (() => {
      every screen there is. It used to be words in a level and a glyph on the
      map, which is two things to find and two to keep in step, and the two
      screens that are another game had neither. */
+  /* One class on the body, because that is the whole switch: the stylesheet
+     decides what a hatched band looks like and the canvases ask for it. The
+     bubble game is fetched after the page opens, so it is handed the setting the
+     moment it arrives, exactly as the sound is below and for the same reason. */
+  function applyColorblind(on){
+    document.body.classList.toggle('cb', !!on);
+    const row = document.getElementById('setCb');
+    if (row){
+      row.setAttribute('aria-pressed', on ? 'true' : 'false');
+      row.querySelector('b').textContent = on ? 'On' : 'Off';
+    }
+    if (typeof BubbleApp !== 'undefined') BubbleApp.colorblind = !!on;
+    else Deferred.ready('bubble').then(() => {
+      if (typeof BubbleApp !== 'undefined') BubbleApp.colorblind = progress.colorblind;
+    });
+    /* Only when there is a board to repaint. This is called during boot as well
+       as from the settings card, and at boot the board is not mounted yet: a
+       render then measured a shelf against bottles that were not standing on it
+       and moved the rows by a pixel, which the layout suite caught. */
+    if (document.body.dataset.view === 'game') Board.render();
+    return !!on;
+  }
   function applySound(on){
     Sound.setEnabled(on);
     /* The bubble game is fetched after the page opens, so during boot this name
@@ -1244,9 +1307,9 @@ export const App = (() => {
     else Deferred.ready('casks').then(() => {
       if (typeof CasksApp !== 'undefined') CasksApp.sound = Sound.enabled;
     });
-    document.querySelectorAll('.js-sound').forEach(b => {
-      b.innerHTML = on ? ICON.sound : ICON.muted;
-      b.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
+    document.querySelectorAll('#setSound').forEach(b => {
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.querySelector('b').textContent = on ? 'On' : 'Off';
       b.classList.toggle('off', !on);
     });
     return on;
@@ -1272,7 +1335,7 @@ export const App = (() => {
     MapView.onBuy = level => {
       Sound.unlock();
       if (!progress.buyUnlock(level - 1, skipCost())){
-        deny('buy', `opening ${level} costs ${skipCost()}, purse holds ${progress.gold}`);
+        denyBroke('buy', skipCost(), `opening ${level}`);
         return;
       }
       Sound.tick();
@@ -1294,7 +1357,7 @@ export const App = (() => {
       Sound.unlock();
       const inTheWay = section * CONFIG.sectionSize;
       if (!progress.buyUnlock(inTheWay, skipCost())){
-        deny('buy', `moving past ${inTheWay} costs ${skipCost()}, purse holds ${progress.gold}`);
+        denyBroke('buy', skipCost(), `moving past ${inTheWay}`);
         return;
       }
       Sound.tick();
@@ -1308,7 +1371,7 @@ export const App = (() => {
       if (S.queue.length || S.running || !S.history.length) return;
       /* charge before rolling back, so a refused payment changes nothing */
       if (!undoIsFree() && !progress.spend(CONFIG.economy.undoCost)){
-        deny('undo', `costs ${CONFIG.economy.undoCost}, purse holds ${progress.gold}`);
+        denyBroke('undo', CONFIG.economy.undoCost);
         return;
       }
       S.undosUsed++;
@@ -1324,7 +1387,7 @@ export const App = (() => {
     $('vessel').onclick = () => {
       if (S.queue.length || S.running || S.vesselUsed) return;
       if (!progress.spend(CONFIG.economy.vessel)){
-        deny('vessel', `costs ${CONFIG.economy.vessel}, purse holds ${progress.gold}`);
+        denyBroke('vessel', CONFIG.economy.vessel);
         return;
       }
       S.vesselUsed = true;
@@ -1356,7 +1419,7 @@ export const App = (() => {
     $('hint').onclick = () => {
       if (S.queue.length || S.running || S.over || S.hinting) return;
       if (!progress.canAfford(hintCost())){
-        deny('hint', `costs ${hintCost()}, purse holds ${progress.gold}`);
+        denyBroke('hint', hintCost());
         return;
       }
       Sound.unlock();
@@ -1386,7 +1449,7 @@ export const App = (() => {
         const proven = !!res.exact;
         const fee = proven ? hintCost() : 0;
         if (fee > 0 && !progress.spend(fee)){
-          deny('hint', `costs ${fee}, purse holds ${progress.gold}`);
+          denyBroke('hint', fee);
           paintHud();
           return;
         }
@@ -1495,7 +1558,7 @@ export const App = (() => {
     };
     $('retry').onclick = () => {
       if (!progress.canAfford(costOf(S.level))){
-        deny('retry', `costs ${costOf(S.level)}, purse holds ${progress.gold}`);
+        denyBroke('retry', costOf(S.level));
         return;
       }
       closeVeil();
@@ -1503,7 +1566,7 @@ export const App = (() => {
     };
     $('skip').onclick = () => {
       if (!progress.buyUnlock(S.level, skipCost())){
-        deny('skip', `costs ${skipCost()}, purse holds ${progress.gold}`);
+        denyBroke('skip', skipCost());
         return;
       }
       closeVeil();
@@ -1523,7 +1586,7 @@ export const App = (() => {
         return;
       }
       if (!progress.canAfford(costOf(S.level + 1))){
-        deny('next', `level ${S.level + 1} costs ${costOf(S.level + 1)}, purse holds ${progress.gold}`);
+        denyBroke('next', costOf(S.level + 1), `level ${S.level + 1}`);
         return;
       }
       closeVeil();
@@ -1556,14 +1619,48 @@ export const App = (() => {
          there through the smooth scroll it just started */
       $('mapJump').hidden = true;
     };
-    document.querySelectorAll('.js-sound').forEach(btn => {
-      btn.onclick = () => {
-        Sound.unlock();
-        const on = applySound(!Sound.enabled);
-        progress.setSound(on);
-        if (on) Sound.lift();
-      };
+    /* Same shape as the sound toggle next to it: one class, every header, wired
+       once. A player who needs the hatch needs it on every screen, so the button
+       is wherever the sound button is rather than buried in a menu the game does
+       not otherwise have. */
+    /* One card, opened from every header. What used to be two icons in each of
+       four headers is one, which is what stops every future setting costing a
+       button on every screen and moving the board under it. */
+    document.querySelectorAll('.js-settings').forEach(btn => {
+      /* Drawn rather than typed, like every other header icon: a glyph arrives
+         as whatever the platform has, which is how a gray plastic blob ended up
+         in a gold header once already. */
+      btn.innerHTML = ICON.settings;
+      btn.onclick = () => { Sound.tick(); $('setVeil').classList.add('show'); };
     });
+    $('setClose').onclick = () => { Sound.tick(); $('setVeil').classList.remove('show'); };
+    const closeBroke = () => $('brokeVeil').classList.remove('show');
+    $('brokeClose').onclick = () => { Sound.tick(); closeBroke(); };
+    $('brokeVeil').addEventListener('click', e => { if (e.target === $('brokeVeil')) closeBroke(); });
+    $('brokeDaily').onclick = () => {
+      Sound.unlock();
+      /* Claimed here rather than sending them to the map to press it: the
+         button is on the map and this is not, and a player told to go somewhere
+         to fix a thing will find the thing already fixable where they are. */
+      if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); closeBroke(); return; }
+      Sound.lift();
+      goldChanged();
+      closeBroke();
+    };
+    $('setVeil').addEventListener('click', e => {
+      if (e.target === $('setVeil')) $('setVeil').classList.remove('show');
+    });
+    $('setSound').onclick = () => {
+      Sound.unlock();
+      const on = applySound(!Sound.enabled);
+      progress.setSound(on);
+      if (on) Sound.lift();
+    };
+    $('setCb').onclick = () => {
+      Sound.tick();
+      applyColorblind(!progress.colorblind);
+      progress.setColorblind(document.body.classList.contains('cb'));
+    };
     $('daily').onclick = () => {
       Sound.unlock();
       if (!progress.claimDaily(today())){ deny('daily', 'already drawn today'); return; }
@@ -1615,6 +1712,8 @@ export const App = (() => {
     addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if ($('diagVeil').classList.contains('show')){ Diagnostics.close(); return; }
+      if ($('brokeVeil').classList.contains('show')){ $('brokeVeil').classList.remove('show'); return; }
+      if ($('setVeil').classList.contains('show')){ $('setVeil').classList.remove('show'); return; }
       if ($('previewVeil').classList.contains('show')){ closePreview(); return; }
       if ($('chapterVeil').classList.contains('show')){ $('chapterGo').click(); return; }
       if ($('veil').classList.contains('show')){ closePanel(); return; }
@@ -1647,6 +1746,7 @@ export const App = (() => {
       Diagnostics.source = () => ({ progress, state: S });
       Diagnostics.mount();
       applySound(progress.sound);
+      applyColorblind(progress.colorblind);
       showMap(false);
       Jabari.takeGift(progress, goldChanged);
       /* The wait on the draught has to run down on its own, or it is a stale

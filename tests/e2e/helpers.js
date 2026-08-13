@@ -306,3 +306,15 @@ export async function optimalLine(page) {
     return line;
   });
 }
+
+/* Sound and the patterned liquids live in a settings card now, reachable from
+   the gear in every header. The specs used to click a header icon directly;
+   this is the same intent, one screen deeper, written once so the next setting
+   does not mean editing four files again. */
+export async function toggleSetting(page, which, view = 'mapView'){
+  await page.locator(`#${view} .js-settings`).click();
+  await page.waitForFunction(() => document.getElementById('setVeil').classList.contains('show'));
+  await page.locator(which === 'sound' ? '#setSound' : '#setCb').click();
+  await page.locator('#setClose').click();
+  await page.waitForFunction(() => !document.getElementById('setVeil').classList.contains('show'));
+}
