@@ -42,8 +42,14 @@ export const CONFIG = {
   lookahead: 2,
   /* Words in the query string that fill the purse, for handing to a beta
      player who has run dry mid-report rather than making them wait out a day.
-     One entry per player: the word to put in the link, and the name the
+     One entry per player: the word to put in the link, and the two lines the
      celebration shouts back. A player costs a line here and nothing else.
+
+     Two lines rather than one because that is what the shout is: a word, a
+     break, another word, and the break is an element so it falls after the
+     first line rather than wherever the screen runs out. The second line was
+     `Mode` written into the markup until somebody wanted a phrase that is not
+     one, so it defaults to `Mode` and can be anything.
 
      They fill the purse to `purseCap` rather than paying a sum into it, so a
      link can be opened as many times as you like and always lands on the same
@@ -51,7 +57,7 @@ export const CONFIG = {
      localStorage on the player's own device, so this is a convenience with a
      password-shaped hole in it. It comes out with the beta, and the rest of the
      reasoning is in docs/design/04-economy.md. */
-  beta: { words: [['jabarimoneeey', 'Jabari'], ['gavinmode', 'Gavin']] },
+  beta: { words: [['jabarimoneeey', 'Jabari'], ['gavinmode', 'Gavin'], ['perlamarona', 'Per la', 'Marona']] },
   solver: { nodeCap: 400000, msCap: 8000 },
   /* Gold is deliberately thin: the only rescue worth buying costs about three
      well-played new levels, and replaying old ones barely pays, so a stockpile

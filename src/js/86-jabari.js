@@ -44,6 +44,12 @@ export const Jabari = (() => {
      taking the beta out stays a matter of deleting one file and its calls. */
   function on(){ return opened() !== null; }
 
+  /* What an entry actually shouts, as its two lines. Exported so the browser
+     suite can ask rather than restate it: the whole point of the name being data
+     is that nothing writes it down twice, and a test that hard-codes `Mode` is a
+     second copy in the one place that is supposed to catch second copies. */
+  const linesOf = ([, first, second = 'Mode']) => [first, second];
+
   /* Gold handed over rather than earned, for a beta player who has run dry in
      the middle of telling us about something else.
 
@@ -54,10 +60,11 @@ export const Jabari = (() => {
   function takeGift(progress, onGold){
     const who = opened();
     if (!who) return;
+    const said = linesOf(who);
     const gold = progress.fill();
-    Trace.note('purse filled', `${gold} from the query string, ${who[1]}`);
+    Trace.note('purse filled', `${gold} from the query string, ${said.join(' ')}`);
     onGold();
-    shout(who[1]);
+    shout(said);
   }
 
   /* The bang: now if the page is allowed to make one, and on the first touch if
@@ -122,13 +129,17 @@ export const Jabari = (() => {
      the eye on a dark shelf; this is chosen to be as loud as a screen goes. */
   const SHOUT_COLORS = ['#FF3DDA','#FF2D2D','#FF8A1E','#FFE04A','#5BFF5F','#3DF2FF','#7A5BFF','#FFFFFF'];
 
-  function shout(name){
+  function shout(lines){
     const el = $('jabari');
     /* Written in rather than sat in the markup, which is one block serving every
        word. The break is an element because a newline would fall wherever the
-       line ran out of room instead of after the name. */
+       line ran out of room instead of after the first line.
+
+       Both lines come from the config now. `Mode` was written in here, which was
+       fine while every word was somebody's name and stopped being fine the first
+       time one was not a name at all. */
     el.querySelector('.jabariWord span')
-      .replaceChildren(name, document.createElement('br'), 'Mode');
+      .replaceChildren(lines[0], document.createElement('br'), lines[1]);
     $('jabariGold').textContent = `+${CONFIG.economy.purseCap.toLocaleString('en-US')}`;
     el.hidden = false;
     /* forced out of the frame that unhid it, or the animation never starts */
@@ -164,5 +175,5 @@ export const Jabari = (() => {
     }, 3100);
   }
 
-  return { takeGift, on };
+  return { takeGift, on, linesOf };
 })();

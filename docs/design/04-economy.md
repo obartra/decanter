@@ -163,16 +163,24 @@ written down in plain sight rather than dressed up as a lock. It is counted in
 the save, because a purse nobody earned is a debugging trap otherwise, and it
 comes out with the beta.
 
-There is **a word per beta player**, and the name it shouts back is the only
-thing that differs between them: `CONFIG.beta.words` is that list, of the word
-to put in the link and the name to say. `?jabarimoneeey` shouts JABARI MODE and
-`?gavinmode` shouts GAVIN MODE, and both do everything else identically,
-including the sandbox below. Adding a player is a line of config, which is the
-point of holding the name as data: the alternative is a second copy of a
-celebration that is three seconds of very specific animation, kept in step with
-the first for as long as the beta lasts. Nothing else about the word is per
-player, and nothing should become so. The words are read in the order they are
-written, so a link carrying two of them shouts the first.
+There is **a word per beta player**, and what it shouts back is the only thing
+that differs between them: `CONFIG.beta.words` is that list, of the word to put
+in the link and the two lines to say. `?jabarimoneeey` shouts JABARI MODE,
+`?gavinmode` shouts GAVIN MODE, `?perlamarona` shouts PER LA MARONA, and all
+three do everything else identically, including the sandbox below.
+
+**Two lines, not a name and a suffix.** `Mode` used to be written into the
+module, which held for exactly as long as every word was somebody's name. It is
+the second line of the entry now, defaulting to `Mode` so the two that want it
+still read as one word each. A word is free to shout something that is not a
+name and not a mode.
+
+Adding a player is a line of config, which is the point of holding this as data:
+the alternative is a second copy of a celebration that is three seconds of very
+specific animation, kept in step with the first for as long as the beta lasts.
+Nothing else about the word is per player, and nothing should become so. The
+words are read in the order they are written, so a link carrying two of them
+shouts the first.
 
 It **fills the purse to `economy.purseCap`** rather than paying a sum into it,
 and that is what lets the word stay in the address bar. Adding stacked a second
