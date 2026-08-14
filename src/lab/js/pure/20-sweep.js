@@ -302,7 +302,11 @@ export const LabSweep = (() => {
          split out of the app to prevent: the screen looks broken rather than
          refused. `BROKE` is the module's own sentence, asked for by name rather
          than matched on, so the two cannot part company. */
-      if (o.retryDisabled && !o.retryHidden && o.hint !== panel.BROKE)
+      /* Asked for rather than read: the sentence is a function now, because it
+         is a translation and the language can change while the page is open. A
+         fixture may still hand over the string it froze. */
+      const broke = typeof panel.BROKE === 'function' ? panel.BROKE() : panel.BROKE;
+      if (o.retryDisabled && !o.retryHidden && o.hint !== broke)
         faults.push(`${r.ending} / ${r.purse}: Retry is dead and the hint does not say why`);
     }
     return { kind: 'panel', rows, faults };

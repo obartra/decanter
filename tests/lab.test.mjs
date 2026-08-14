@@ -280,7 +280,7 @@ describe('lab sweep', () => {
   it('would catch a panel offering a board that is not there', () => {
     const g = loadPure();
     const bent = {
-      BROKE: g.Panel.BROKE,
+      BROKE: g.Panel.BROKE(),
       decide: input => ({ ...g.Panel.decide(input), nextHidden: false })
     };
     const res = LabSweep.panels({ panel: bent, lastLevel: g.LAST_LEVEL });

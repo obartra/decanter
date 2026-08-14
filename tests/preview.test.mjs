@@ -100,11 +100,11 @@ describe('the card before a replay', () => {
        which is exactly when a card that offered it anyway would be lying */
     const p = decide({ fee: 5, canPayFee: false });
     equal(p.playDisabled, true);
-    equal(p.hint, Panel.BROKE);
+    equal(p.hint, Panel.BROKE());
   });
 
   it('an empty purse outranks the advice it would be useless to give', () => {
     const p = decide({ fee: 5, canPayFee: false, stars: 1, par: 20, parExact: true });
-    equal(p.hint, Panel.BROKE, 'told them how to earn a star on a board it will not deal');
+    equal(p.hint, Panel.BROKE(), 'told them how to earn a star on a board it will not deal');
   });
 });

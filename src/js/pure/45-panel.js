@@ -7,13 +7,14 @@
    level, and the pours are animated, so a hidden or throttled tab cannot get
    there at all. Everything here is decided from numbers, so the cases can simply
    be asserted. */
+import { say } from './08-say.js';
 import { CONFIG } from './00-config.js';
 
 export const Panel = (() => {
   /* The one thing worth saying to an empty purse, and the way out of it. Named
      rather than typed twice: the card shown before a replay refuses for the same
      reason and has to refuse in the same words. */
-  const BROKE = 'Not enough gold. The daily draught is on the map.';
+  const BROKE = () => say('broke');
 
   function decide(input){
     const {
@@ -40,10 +41,10 @@ export const Panel = (() => {
 
     /* A lost run says so plainly and then says why. Leading with the reason alone
        read as a remark about the board rather than as the run being over. */
-    const title = !failed ? (perfect ? 'Poured clean' : 'Level cleared') : 'Failed';
-    const because = reason === 'stuck' ? 'You are out of valid moves.'
-      : reason === 'short' ? 'What is left needs more pours than the run had.'
-      : `That is ${moves} pours against a minimum of ${par}.`;
+    const title = say(!failed ? (perfect ? 'poured-clean' : 'level-cleared') : 'failed');
+    const because = reason === 'stuck' ? say('out-of-moves')
+      : reason === 'short' ? say('needs-more-pours')
+      : say('that-is-n-against', { moves, par });
 
     /* Two fees, not one, because the panel offers two different boards.
 
@@ -83,30 +84,30 @@ export const Panel = (() => {
     /* Last writer wins, so the order is the priority order. Being told the game is
        over does not help someone who cannot afford another go, so an empty purse
        outranks it; a new best outranks the standing advice. */
-    let hint = failed && par != null ? `Clear it in ${par + CONFIG.stars.one} or fewer.` : '';
-    if (!failed && improvedStars && hadStars > 0) hint = 'High score!';
+    let hint = failed && par != null ? say('clear-it-in', { n: par + CONFIG.stars.one }) : '';
+    if (!failed && improvedStars && hadStars > 0) hint = say('high-score');
     if (atEnd && canPayFee){
       hint = failed
-        ? 'The last one. Another go?'
-        : `That is the last of them. ${totalStars} stars from ${lastLevel} levels.`;
+        ? say('last-one-another-go')
+        : say('that-is-the-last', { stars: totalStars, levels: lastLevel });
     }
     /* Said only when the offer is real and payable, and before the empty purse
      line so an empty purse still outranks it: somebody who cannot afford another
      go does not need to hear about a dearer way out first. */
-  if (!blastHidden && canPayBlast) hint = 'A blast would leave this board winnable.';
-  if (!canPayFee || cannotGoOn) hint = BROKE;
+  if (!blastHidden && canPayBlast) hint = say('blast-would-win');
+  if (!canPayFee || cannotGoOn) hint = BROKE();
 
     /* Matching the minimum is the whole point of the scoring, so say that and stop.
        Quoting the count twice ("sorted in 12 pours, the minimum is 12") makes the
        reader do the comparison the sentence was supposed to make for them. */
     const atPar = !failed && parExact && par != null && moves === par;
     const parLine = par == null ? ''
-      : parExact ? ` The minimum is ${par}.`
-      : ` The best found is about ${par}.`;
-    const bestLine = !failed && best != null && best < moves ? ` Your best here is ${best}.` : '';
+      : parExact ? ` ${say('the-minimum-is', { n: par })}`
+      : ` ${say('the-best-found', { n: par })}`;
+    const bestLine = !failed && best != null && best < moves ? ` ${say('your-best-here', { n: best })}` : '';
     const line = failed ? because
-      : atPar ? 'Solved in the minimum moves.'
-      : `Sorted in ${moves} pours.${parLine}${bestLine}`;
+      : atPar ? say('solved-in-minimum')
+      : `${say('sorted-in', { n: moves })}${parLine}${bestLine}`;
 
     return {
       atEnd,

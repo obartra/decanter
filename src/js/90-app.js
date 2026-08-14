@@ -818,7 +818,7 @@ export const App = (() => {
     const id = ++S.parRequest;
     const level = S.level;
     const mine = runId;
-    $('pourLabel').textContent = 'Reading the board…';
+    $('pourLabel').textContent = inWords('reading-board');
     SolverClient.solve(S.tubes, Levels.shape(level).colors, res => {
       if (id !== S.parRequest) return;
       S.par = res.par;
@@ -886,14 +886,14 @@ export const App = (() => {
     $('statLeft').textContent = left == null ? S.moves : left;
     $('pourLabel').textContent =
       S.saying ? S.saying
-      : left == null ? 'pours made'
-      : left === 0 ? 'no pours left'
-      : left === 1 ? 'last pour'
-      : 'pours left';
+      : left == null ? inWords('pours-made')
+      : left === 0 ? inWords('no-pours-left')
+      : left === 1 ? inWords('last-pour')
+      : inWords('pours-left');
     $('gold').textContent = progress.gold;
 
     const freeLeft = Math.max(0, progress.perks().freeUndos - S.undosUsed);
-    $('undoCost').textContent = freeLeft ? `${freeLeft} free` : `${CONFIG.economy.undoCost}`;
+    $('undoCost').textContent = freeLeft ? `${freeLeft} ${inWords('free')}` : `${CONFIG.economy.undoCost}`;
     $('undo').disabled = !S.history.length || busy ||
       (!undoIsFree() && !progress.canAfford(CONFIG.economy.undoCost));
 
@@ -916,7 +916,7 @@ export const App = (() => {
     $('undo').hidden = !perks.undo;
     $('vessel').hidden = !perks.vessel;
     $('hint').hidden = !perks.hint;
-    $('hintCost').textContent = hintFee > 0 ? hintFee : 'free';
+    $('hintCost').textContent = hintFee > 0 ? hintFee : inWords('free');
     $('hint').disabled = busy || S.over || S.hinting || !progress.canAfford(hintFee);
     $('hint').classList.toggle('spent', S.hinting);
   }
@@ -1183,10 +1183,11 @@ export const App = (() => {
     $('stars').innerHTML = starRow(stars);
 
     /* say where the gold came from, so the thin payouts read as earned */
-    const parts = [`${stars}★`];
-    if (result.firstClear) parts.push('first clear');
+    const parts = [inWords('stars-n', { n: stars })];
+    if (result.firstClear) parts.push(inWords('first-clear'));
     $('goldEarned').textContent = `+${result.earned}`;
-    $('goldWhy').textContent = failed ? 'No gold · run failed' : `Gold · ${parts.join(' + ')}`;
+    $('goldWhy').textContent = failed ? inWords('no-gold-run-failed')
+      : `${inWords('gold-for')} · ${parts.join(' + ')}`;
 
     const fee = costOf(S.level);
     const trouble = progress.troubleOn(S.level);
@@ -1228,15 +1229,16 @@ export const App = (() => {
 
     $('veil').classList.toggle('failed', failed);
     $('retry').hidden = panel.retryHidden;
-    $('retry').innerHTML = panel.retryHidden ? 'Retry'
-      : fee > 0 ? `Try again<small>${fee} &#9670;</small>` : 'Try again<small>free</small>';
+    $('retry').innerHTML = panel.retryHidden ? inWords('retry')
+      : fee > 0 ? `${inWords('try-again')}<small>${fee} &#9670;</small>`
+      : `${inWords('try-again')}<small>${inWords('free')}</small>`;
     $('retry').classList.toggle('priced', true);
     $('retry').classList.toggle('primary', panel.retryPrimary);
     $('retry').disabled = panel.retryDisabled;
     $('next').hidden = panel.nextHidden;
     /* Named for what pressing it opens: at the end of a chapter that is the
        gate, and "Next level" there promises a board it will not deal. */
-    $('next').textContent = panel.nextIsDoor ? 'The cellar door' : 'Next level';
+    $('next').textContent = inWords(panel.nextIsDoor ? 'the-cellar-door-btn' : 'next-level');
     $('next').classList.toggle('primary', panel.nextPrimary);
     $('next').disabled = panel.nextDisabled;
     /* Beaten by a board is not the same as stuck on it. Paying past it opens the
@@ -1260,7 +1262,11 @@ export const App = (() => {
        refusal paths below rarely fire. This is where a purse actually stops
        somebody: the run is over and the way on is priced above it. The hint line
        has always said so in eleven quiet words under the buttons. */
-    if (panel.hint === Panel.BROKE) setTimeout(showBroke, 420);
+    /* Asked for, not read. `BROKE` became a function when it became a
+       translation, and comparing a sentence to a function is quietly never
+       true: the card simply stopped appearing, and only the browser suite
+       noticed. */
+    if (panel.hint === Panel.BROKE()) setTimeout(showBroke, 420);
 
     const bubble = Levels.isBubble(S.level);
     clearTimeout(reveal);

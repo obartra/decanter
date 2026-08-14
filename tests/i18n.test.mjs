@@ -87,6 +87,23 @@ describe('the languages', () => {
     equal(loose, [], 'a visible phrase carries no key, so it can never be translated');
   });
 
+  it('never compares against a sentence without asking for it', () => {
+    /* `Panel.BROKE` was a constant and is a function, because a translated
+       sentence has to be re-asked after the language changes rather than frozen
+       at load. Three places compared against it by name and quietly stopped
+       matching: a string is never equal to a function, so the empty purse card
+       simply stopped appearing and nothing threw.
+
+       A source scan, because the failure is silence. */
+    const files = ['src/js/90-app.js', 'src/js/pure/45-panel.js', 'src/js/pure/46-preview.js',
+                   'src/lab/js/pure/20-sweep.js'];
+    const bare = [];
+    for (const f of files)
+      for (const m of read(f).matchAll(/[!=]==\s*(?:Panel\.|panel\.|)BROKE(?!\s*\()/g))
+        bare.push(`${f}: ${m[0].trim()} is compared without calling it`);
+    equal(bare, [], 'a translated sentence is being compared as a value');
+  });
+
   it('spells characters out rather than leaving entities in a table', () => {
     /* The words are written with `textContent`, which does not decode entities:
        `&larr; Map` arrives on the button as those nine characters. Only the two

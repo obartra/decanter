@@ -88,7 +88,7 @@ export const Preview = (() => {
     /* Last writer wins, so the order is the priority order. A price the purse
        cannot cover outranks anything else this line could say, because the board
        is not going to be dealt at all. */
-    if (!canPayFee) hint = Panel.BROKE;
+    if (!canPayFee) hint = Panel.BROKE();
 
     return {
       title: `Level ${level}`,
