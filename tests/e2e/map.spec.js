@@ -196,3 +196,24 @@ test('the hatch reaches the bottles and not only the body', async ({ page }) => 
   expect(painted).not.toBe('none');
   expect(painted).toContain('gradient');
 });
+
+test('the draught wears its tick only once it has been drawn', async ({ page }) => {
+  /* The glyph is the answer to "have I had it today" without reading the
+     countdown under it, so the two states have to actually differ. A calendar
+     that always wore its tick would be decoration. */
+  const tick = () => page.evaluate(() =>
+    document.getElementById('dailyGlyph').innerHTML.includes('4-4'));
+
+  await start(page, { unlocked: 4, gold: 400 });
+  await expect(page.locator('#daily')).toBeEnabled();
+  expect(await tick(), 'an undrawn draught is already ticked').toBe(false);
+
+  await page.locator('#daily').click();
+  await expect(page.locator('#daily')).toBeDisabled();
+  expect(await tick(), 'a drawn draught did not take its tick').toBe(true);
+
+  /* and it survives the reload, because the save is what remembers the day */
+  await page.reload();
+  await page.waitForFunction(() => globalThis.App && globalThis.App._progress);
+  expect(await tick(), 'the tick was forgotten across a reload').toBe(true);
+});

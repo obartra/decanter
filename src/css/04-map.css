@@ -202,6 +202,12 @@
 .icon:active{transform:translateY(1px)}
 .icon.off{opacity:.45}
 .btn.tiny{padding:6px 10px; font-size:9px; margin-top:6px}
+/* The draught's cask, beside the word rather than above it. `.priced` is a
+   column, so a third child becomes a third row and the button grows into a blob;
+   the glyph and the label share one row of it. */
+.btn.priced .lede{display:inline-flex; align-items:center; gap:5px}
+.btn.priced .lede .glyph{display:grid; place-items:center}
+.btn.priced .lede .glyph svg{display:block}
 
 /* Shown only when the level you are on is off screen, and in the header with
    the rest of the controls rather than floating over the board. A floating one

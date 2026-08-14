@@ -181,6 +181,9 @@ export const App = (() => {
     $('dailyCost').textContent = ready
       ? `+${CONFIG.economy.daily}`
       : Progress.briefly(Progress.untilNextDay(new Date()));
+    /* repainted here rather than once at boot, because it says which of the two
+       states the draught is in and that changes at midnight without a reload */
+    $('dailyGlyph').innerHTML = ready ? ICON.daily : ICON.daily.replace('</svg>', '<path d="M9 15.4l2 2 4-4"/></svg>');
     /* a board costs gold to deal, so the map has to say so and stop offering one
        that cannot be paid for. A level already beaten is free, and says free
        rather than showing a nought nobody has to think about. */
@@ -1236,9 +1239,19 @@ export const App = (() => {
      header; these are two paths in currentColor, so they are the same ink as
      everything around them at any size. */
   const ICON = {
+    /* The draught, as a calendar rather than a cask: what the button has to say
+       is WHEN, not what. The tick is the drawn state, so the glyph answers
+       "have I had it today" without reading the countdown under it. Grown from
+       the plain one rather than written twice, because two nearly identical
+       path strings is exactly where one of them gets edited alone. */
+    daily: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.4" y="5" width="17.2" height="15.6" rx="2.4"/><path d="M8 2.8v4M16 2.8v4M3.4 10h17.2"/></svg>',
     sound: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
     muted: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l4 5M21 9.5l-4 5"/></svg>',
-    settings: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9M18.6 18.6l-1.9-1.9M7.3 7.3L5.4 5.4"/></svg>',
+    /* Sliders rather than a cog. The first one drawn here was a circle with
+       eight straight spokes, which is a sun: at 16px in a 34px pill it read as
+       a brightness toggle, and a real cog's teeth break into dots at that size.
+       Two rows with knobs survive the shrink and look like nothing else here. */
+    settings: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.1"/><circle cx="10" cy="17" r="2.1"/></svg>',
     install: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8.5 10.5L12 14l3.5-3.5"/><path d="M5 17.5h14"/></svg>'
   };
 

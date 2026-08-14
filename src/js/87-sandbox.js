@@ -245,7 +245,10 @@ export const Sandbox = (() => {
   /* Three bubbles, in the same weight as the header's other two so a beta build
      does not look like a different build. Here rather than with them because
      nothing outside this mode ever draws it. */
-  const icon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="4"/><circle cx="17" cy="12" r="3"/><circle cx="10" cy="17.5" r="2.5"/></svg>';
+  /* Four circles of different sizes packed together rather than three of nearly
+     one size. Varied size is what makes a cluster read as bubbles at all; evenly
+     sized circles read as dots, or as the nodes of a diagram. */
+  const icon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="4.6"/><circle cx="17" cy="7.5" r="2.6"/><circle cx="14.5" cy="16" r="4"/><circle cx="6.5" cy="17.5" r="2.2"/></svg>';
 
   return {
     open, hide, ended, icon,
