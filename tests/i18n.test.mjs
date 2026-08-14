@@ -13,7 +13,7 @@ import { describe, it, equal, read } from './helpers.mjs';
 import { en } from '../src/i18n/en.js';
 import { es } from '../src/i18n/es.js';
 import { ca } from '../src/i18n/ca.js';
-import { LOCALES, say, pickLocale } from '../src/js/pure/08-say.js';
+import { LOCALES, say, pickLocale, setLocale } from '../src/js/pure/08-say.js';
 
 const TABLES = { en, es, ca };
 
@@ -88,12 +88,17 @@ describe('the languages', () => {
   });
 
   it('falls back rather than printing a key at somebody', () => {
-    const before = globalThis.LANG;
-    globalThis.LANG = { 'settings': 'Ajustes' };
-    equal(say('settings'), 'Ajustes', 'the shipped table wins');
+    const before = globalThis.LANGS;
+    globalThis.LANGS = { en, xx: { 'settings': 'Ajustes' } };
+    setLocale('xx');
+    equal(say('settings'), en['settings'], 'a locale the game does not offer is not selectable');
+    setLocale('es');
+    globalThis.LANGS = { en, es: { 'settings': 'Ajustes' } };
+    equal(say('settings'), 'Ajustes', 'the chosen table wins');
     equal(say('done'), en['done'], 'a key it lacks falls back to English');
     equal(say('no-such-key-anywhere'), 'no-such-key-anywhere', 'and an unknown key is its own name');
-    globalThis.LANG = before;
+    setLocale('en');
+    globalThis.LANGS = before;
   });
 
   it('reads a browser language list the way browsers actually write one', () => {

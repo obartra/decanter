@@ -424,11 +424,11 @@ describe('build output', () => {
        card before a replay and Jabari mode's workbench are fetched after first
        paint, so each hands over through a global because that is what a network
        boundary can do. */
-    /* `LANG` joins them for the same reason: a page loads the table for its own
+    /* `LANGS` joins them for the same reason: a page loads the table for its own
        language as a separate file, so the words cross a network boundary into a
        bundle that is identical in every language. A global is what that boundary
        can hand over. See src/js/pure/08-say.js. */
-    const lateBound = ['Sound', 'Preview', 'Sandbox', 'LANG'];
+    const lateBound = ['Sound', 'Preview', 'Sandbox', 'LANGS'];
     for (const f of built().filter(n => /^assets\/.*\.js$/.test(n))){
       const assigns = [...text(f).matchAll(/globalThis\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]);
       equal(assigns.filter(n => !lateBound.includes(n)), [],

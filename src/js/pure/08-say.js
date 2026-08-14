@@ -35,8 +35,19 @@ export function pickLocale(preferred, wanted){
    count comes before the par in English and after it in neither, but the day
    will come. A slot with nothing to fill it is left as it was written rather
    than becoming `undefined` on somebody's screen. */
+/* Which language the page is showing. Set at boot and again whenever the player
+   changes it, which is why this is a variable rather than a constant read of the
+   shipped file: switching happens on the screen the player is looking at. */
+let current = DEFAULT_LOCALE;
+export const locale = () => current;
+export function setLocale(loc){
+  current = LOCALES.includes(loc) ? loc : DEFAULT_LOCALE;
+  return current;
+}
+
 export function say(key, vars){
-  const table = globalThis.LANG || en;
+  const tables = globalThis.LANGS || { en };
+  const table = tables[current] || tables.en || en;
   const text = (key in table) ? table[key] : en[key];
   if (text == null) return key;
   if (!vars) return text;

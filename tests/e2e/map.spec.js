@@ -217,3 +217,29 @@ test('the draught wears its tick only once it has been drawn', async ({ page }) 
   await page.waitForFunction(() => globalThis.App && globalThis.App._progress);
   expect(await tick(), 'the tick was forgotten across a reload').toBe(true);
 });
+
+test('takes its language from the browser and changes it without leaving the page', async ({ page }) => {
+  /* The whole point of doing this in the settings rather than at a second
+     address: the words change on the screen the player is looking at, and the
+     address never moves. A reload has to find the choice still there. */
+  await start(page, { unlocked: 4, gold: 400 });
+  const url = new URL(page.url()).pathname;
+
+  await page.locator('#mapView .js-settings').click();
+  await page.locator('#setLangs button', { hasText: 'Castellano' }).click();
+
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await expect(page.locator('#setCb')).toContainText('Modo daltónico');
+  expect(new URL(page.url()).pathname, 'changing language navigated somewhere').toBe(url);
+
+  await page.reload();
+  await page.waitForFunction(() => globalThis.App && globalThis.App._progress);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  expect(await page.evaluate(() => globalThis.App._progress.language)).toBe('es');
+
+  /* and back, so the row is a control rather than a one way door */
+  await page.locator('#mapView .js-settings').click();
+  await page.locator('#setLangs button', { hasText: 'English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('#setCb')).toContainText('Color blind');
+});

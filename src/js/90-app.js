@@ -12,7 +12,7 @@ import { CONFIG } from './pure/00-config.js';
 import { Trace } from './pure/05-trace.js';
 /* `say` is taken in this file: the run has its own, which puts a sentence
    under the pour count for a moment. This is the other kind of saying. */
-import { LOCALES, pickLocale, say as inWords } from './pure/08-say.js';
+import { LOCALES, pickLocale, setLocale, locale, say as inWords } from './pure/08-say.js';
 import * as Patterns from './pure/07-patterns.js';
 import { Rules } from './pure/20-rules.js';
 import { Levels } from './pure/30-levels.js';
@@ -114,16 +114,37 @@ export const App = (() => {
      read CONFIG.palette. Publishing one from the other keeps a single source:
      when the palette moved to jewel tones and the CSS did not, the sim poured
      the old colors into the new bottles. */
-  /* Where a language's pages live: English at the root, the rest one directory
-     down, mirroring what the build emits. The path is rebuilt rather than
-     patched so a player already in /ca/ can cross to /es/ without stacking. */
-  function goToLocale(loc, silent){
-    const parts = location.pathname.split('/').filter(Boolean);
-    if (LOCALES.includes(parts[0]) && parts[0] !== 'en') parts.shift();
-    const rest = parts.join('/');
-    const to = '/' + (loc === 'en' ? '' : loc + '/') + rest + (rest && !rest.endsWith('/') ? '' : '');
-    if (!silent) Trace.note(`switched to ${loc}`, to);
-    location.replace(to + location.search + location.hash);
+  /* redrawn whenever the language does, so the current one stays marked */
+  let paintLangs = null;
+
+  /* Put a language on the screen.
+
+     Every translatable node in the markup carries its key, so the words can be
+     swapped where they stand; the ones the code writes are re-asked for by
+     repainting whatever is on screen. Called once at boot and again whenever the
+     player changes it. */
+  function applyLanguage(loc, repaint){
+    const chosen = setLocale(loc);
+    document.documentElement.lang = chosen;
+    for (const el of document.querySelectorAll('[data-t]')){
+      const said = inWords(el.dataset.t);
+      if (said === el.dataset.t) continue;          /* no such key: leave it be */
+      if (el.hasAttribute('data-t-html')){ el.innerHTML = said; continue; }
+      /* Its own words, not its children's. A key often sits on a button that
+         also holds a `<small>` with the price in it, and `textContent` on the
+         button deletes that `<small>` — after which the code that writes the
+         price into it writes into nothing, throws inside the pour loop, and
+         strands the animation queue. Which is exactly what it did. */
+      const own = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+      if (own) own.textContent = said;
+      else if (!el.children.length) el.textContent = said;
+    }
+    /* The sentences the code owns, which no attribute can reach. Only on a
+       change, never at boot: boot paints everything a moment later anyway, and
+       painting here reaches for a screen that has not been built yet. */
+    if (repaint){ paintMap(); paintHud(); }
+    if (paintLangs) paintLangs();
+    return chosen;
   }
 
   /* The chapter's name in the player's language. `Levels.sectionName` answers
@@ -1673,30 +1694,28 @@ export const App = (() => {
        Switching navigates rather than swaps, because the words are baked into
        the shell: /es/ is a different page carrying only Spanish. Same origin,
        same save, so nothing is lost crossing over. */
-    const here = document.documentElement.lang || 'en';
-    /* An explicit choice always wins and follows the player everywhere. Without
-       one, the page they actually opened wins: somebody handed a link to /es/
-       gets Spanish even with an English browser, which is the whole point of the
-       link. The browser's own list only decides at the root, which is the one
-       address that has not been asked for a language. */
-    const chosen = progress.language;
-    const wanted = chosen ? pickLocale([], chosen)
-      : (here === 'en' ? pickLocale(navigator.languages || [navigator.language], null) : here);
-    if (wanted !== here) goToLocale(wanted, true);
-    $('setLangs').innerHTML = '';
-    for (const loc of LOCALES){
-      const b = document.createElement('button');
-      b.type = 'button';
-      /* named in itself, never translated */
-      b.textContent = { en: 'English', es: 'Castellano', ca: 'Català' }[loc];
-      b.setAttribute('aria-current', loc === here ? 'true' : 'false');
-      b.onclick = () => {
-        Sound.tick();
-        progress.setLanguage(loc);
-        if (loc !== here) goToLocale(loc, false);
-      };
-      $('setLangs').appendChild(b);
-    }
+    /* No navigation. The words are swapped on the screen the player is looking
+       at, because a setting that reloads the page is not a setting, it is a
+       link. The address never changes and neither does the save. */
+    const langNames = { en: 'English', es: 'Castellano', ca: 'Català' };
+    paintLangs = () => {
+      $('setLangs').innerHTML = '';
+      for (const loc of LOCALES){
+        const b = document.createElement('button');
+        b.type = 'button';
+        /* named in itself, never translated: somebody who has landed in a
+           language they cannot read still has to find their own */
+        b.textContent = langNames[loc];
+        b.setAttribute('aria-current', loc === locale() ? 'true' : 'false');
+        b.onclick = () => {
+          Sound.tick();
+          progress.setLanguage(loc);
+          applyLanguage(loc, true);
+        };
+        $('setLangs').appendChild(b);
+      }
+    };
+    paintLangs();
     document.querySelectorAll('.js-settings').forEach(btn => {
       /* Drawn rather than typed, like every other header icon: a glyph arrives
          as whatever the platform has, which is how a gray plastic blob ended up
@@ -1818,6 +1837,9 @@ export const App = (() => {
       Diagnostics.mount();
       applySound(progress.sound);
       applyColorblind(progress.colorblind);
+      /* An explicit choice wins; otherwise the browser's own list decides, which
+         is the right default for somebody who has never opened the settings. */
+      applyLanguage(pickLocale(navigator.languages || [navigator.language], progress.language));
       showMap(false);
       Jabari.takeGift(progress, goldChanged);
       /* The wait on the draught has to run down on its own, or it is a stale
