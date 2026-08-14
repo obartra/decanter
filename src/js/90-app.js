@@ -1807,7 +1807,10 @@ export const App = (() => {
       if ($('previewVeil').classList.contains('show')){ closePreview(); return; }
       if ($('chapterVeil').classList.contains('show')){ $('chapterGo').click(); return; }
       if ($('veil').classList.contains('show')){ closePanel(); return; }
-      if (document.body.dataset.view === 'game') showMap(false);
+      /* Any screen with a game on it, not just the pour one. Escape left the
+         bottles and did nothing at all on the bubble board or the cellar door,
+         which are reached the same way and leave the same way. */
+      if (['game', 'bubble', 'door'].includes(document.body.dataset.view)) showMap(false);
     });
   }
   /* An exception inside a click handler is the quietest failure the game has:

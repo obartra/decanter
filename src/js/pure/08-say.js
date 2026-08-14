@@ -7,12 +7,14 @@
 
    English is the fallback for a key the shipped table has never heard of, which
    should be impossible — a test compares the tables key for key — and is still
-   better than the key itself appearing on a button.
+   better than the key itself appearing on a button. It is read out of the
+   shipped tables rather than imported: this module is bundled twice, and
+   importing a dictionary would put a second copy of one in the deferred bundle
+   for no reason at all.
 
    Pure, so this cannot read `document` or `navigator`: which locale a page IS
    was decided when the page was built, and which one a player WANTS is read from
    the save by 90-app.js. This only answers what the words are. */
-import { en } from '../../i18n/en.js';
 
 export const LOCALES = ['en', 'es', 'ca'];
 /* the one every other table is measured against, and the fallback */
@@ -35,25 +37,28 @@ export function pickLocale(preferred, wanted){
    count comes before the par in English and after it in neither, but the day
    will come. A slot with nothing to fill it is left as it was written rather
    than becoming `undefined` on somebody's screen. */
-/* Which language the page is showing. Set at boot and again whenever the player
-   changes it, which is why this is a variable rather than a constant read of the
-   shipped file: switching happens on the screen the player is looking at. */
-let current = DEFAULT_LOCALE;
-export const locale = () => current;
+/* Which language the page is showing, kept on the page rather than in this
+   module.
+
+   It has to live outside, because this module is bundled twice: the app needs it
+   and so does the preview card, which is fetched after the page opens. A module
+   level `let` would give those two copies a locale each, and the card would open
+   in English while everything behind it was in Spanish — which is precisely the
+   defect the "bundled exactly once" test exists to catch, and why that test's
+   allowance is only for modules with no state. This one now has none. */
+export const locale = () => (LOCALES.includes(globalThis.LOCALE) ? globalThis.LOCALE : DEFAULT_LOCALE);
 export function setLocale(loc){
-  current = LOCALES.includes(loc) ? loc : DEFAULT_LOCALE;
-  return current;
+  globalThis.LOCALE = LOCALES.includes(loc) ? loc : DEFAULT_LOCALE;
+  return globalThis.LOCALE;
 }
 
 export function say(key, vars){
-  const tables = globalThis.LANGS || { en };
-  const table = tables[current] || tables.en || en;
-  const text = (key in table) ? table[key] : en[key];
+  const tables = globalThis.LANGS || {};
+  const source = tables.en || {};
+  const table = tables[locale()] || source;
+  const text = (key in table) ? table[key] : source[key];
   if (text == null) return key;
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (whole, name) => (name in vars ? String(vars[name]) : whole));
 }
 
-/* The English source, for the test that compares the tables and for the build,
-   which needs to know every key before it has picked a locale. */
-export { en as SOURCE };

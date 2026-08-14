@@ -13,7 +13,7 @@ export const es = {
   'chapter': 'Capítulo',
   'the-cellar': 'La Bodega',
   'stars-earned': 'estrellas ganadas',
-  'map': '&larr; Mapa',
+  'map': '← Mapa',
   'bubble': 'Burbujas',
   '35-shots-left': 'quedan 35 tiros',
   'drops-in-10': 'baja en 10',
@@ -89,5 +89,19 @@ export const es = {
   'on': 'Sí',
   'off': 'No',
   'language': 'Idioma',
-  'soon': 'pronto'
+  'soon': 'pronto',
+
+  /* the sentences the code writes, rather than the markup */
+  'three-stars-needs': 'Tres estrellas necesitan {n}.',
+  'best-pours': 'Mejor {n} vertidos.',
+  'for-three-stars': 'para tres estrellas',
+  'shots-left': 'quedan {n} tiros',
+  'last-shot': 'último tiro',
+  'drops-in': 'baja en {n}',
+  'drops-next': 'baja al siguiente tiro',
+  'survive-to-win': 'Sobrevive {n} tiros para ganar.',
+  'clear-to-win': 'Despeja el tablero para ganar.',
+  'gold': 'Oro',
+  'the-minimum-is': 'El mínimo es {n}.',
+  'best-is-minimum': 'Mejor {n} vertidos, el mínimo.',
 };

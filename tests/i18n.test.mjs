@@ -87,6 +87,19 @@ describe('the languages', () => {
     equal(loose, [], 'a visible phrase carries no key, so it can never be translated');
   });
 
+  it('spells characters out rather than leaving entities in a table', () => {
+    /* The words are written with `textContent`, which does not decode entities:
+       `&larr; Map` arrives on the button as those nine characters. Only the two
+       strings that own their markup may carry any, because those are written
+       with `innerHTML`. */
+    const owns = new Set(['door-says', 'bubble-rule']);
+    const bad = [];
+    for (const [loc, table] of Object.entries(TABLES))
+      for (const [k, v] of Object.entries(table))
+        if (!owns.has(k) && /&[a-z]+;|&#\d+;/.test(v)) bad.push(`${loc}/${k}: ${v}`);
+    equal(bad, [], 'an entity in a string written as text prints as itself');
+  });
+
   it('falls back rather than printing a key at somebody', () => {
     const before = globalThis.LANGS;
     globalThis.LANGS = { en, xx: { 'settings': 'Ajustes' } };

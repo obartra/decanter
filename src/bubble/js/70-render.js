@@ -27,34 +27,62 @@ export const BubbleRender = (() => {
      long band down the left and one specular where the light actually lands.
      That is the same three-part construction the bottles use, and it is what
      stops a pale liquid reading as a flat disc. */
-  /* One CanvasPattern per color, built once. Same reasoning as the pour game's
-     fluid: a tile is a few strokes and rebuilding it every frame for every
-     bubble is those strokes sixty times a second, for a thing that never
-     changes. Off unless the page has asked for it. */
-  const tiles = new Map();
-  function hatch(i){
-    if (!document.body.classList.contains('cb')) return null;
-    if (tiles.has(i)) return tiles.get(i);
-    const [kind, angle, gap] = C.PATTERNS[i] || C.PATTERNS[0];
-    let pat = null;
-    if (kind){
-      const t = document.createElement('canvas');
-      t.width = t.height = gap;
-      const tc = t.getContext('2d');
-      tc.strokeStyle = 'rgba(0,0,0,.34)';
-      tc.lineWidth = 3;
-      tc.translate(gap / 2, gap / 2);
-      const r = (angle * Math.PI) / 180, dx = Math.cos(r), dy = Math.sin(r);
-      for (const off of [-gap, 0, gap]){
-        tc.beginPath();
-        tc.moveTo(-dy * off - dx * gap * 2, dx * off - dy * gap * 2);
-        tc.lineTo(-dy * off + dx * gap * 2, dx * off + dy * gap * 2);
-        tc.stroke();
+  /* The hatch, drawn on the bubble rather than tiled under it.
+
+     The pour game tiles a pattern across a band fifty pixels wide and it reads.
+     A bubble is half that and round, and the same tile came out as a smear: at
+     three pixels of stroke on an eight pixel tile, most of a bubble is ink and
+     none of it is a direction. What reads at this size is a few bold marks
+     placed on the disc itself, so that is what this draws.
+
+     Same table as the bands, so a red bubble and a red liquid are marked the
+     same way; only the drawing differs, because the surfaces do. */
+  function hatchDisc(ctx, x, y, r, i){
+    const spec = C.PATTERNS[i];
+    if (!spec || !spec[0]) return;
+    const [kind, angle] = spec;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.clip();
+    /* Light, where the bands use dark. The liquids in the pour game are pale to
+       mid and a dark hatch reads on all twelve; a bubble is a lit sphere shaded
+       to a deep edge, so the same dark hatch disappears into it. What separates
+       a mark from a bubble here is that the mark is brighter than the glass.
+
+       And one mark, not a field of them. Two chords across a disc this size stop
+       being stripes and become a wash: the bubble goes pale and the direction,
+       which is the only thing worth reading, goes with it. */
+    ctx.strokeStyle = 'rgba(255,255,255,.72)';
+    /* A fraction of the bubble and nothing else. This carried a `Math.max(1.4,
+       ...)` floor, which reads as "never thinner than 1.4 pixels" and is not:
+       this canvas is drawn in board units and scaled up, so the floor was 1.4
+       UNITS, wider than the bubble it was marking. Every attempt to tune the
+       hatch moved a number the floor was already overriding, which is why it
+       painted the whole disc whatever it was set to. */
+    ctx.lineWidth = r * 0.17;
+    ctx.lineCap = 'butt';
+    if (kind === 3){
+      /* dots read better as one plain spot than as a field of small ones */
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const angles = kind === 2 ? [angle, angle + 90] : [angle];
+      /* three chords across the disc, which is as many as stays legible */
+      for (const a of angles){
+        const rad = (a * Math.PI) / 180;
+        const dx = Math.cos(rad), dy = Math.sin(rad);
+        for (const off of [0]){
+          ctx.beginPath();
+          ctx.moveTo(x - dy * off - dx * r, y + dx * off - dy * r);
+          ctx.lineTo(x - dy * off + dx * r, y + dx * off + dy * r);
+          ctx.stroke();
+        }
       }
-      pat = tc.createPattern(t, 'repeat');
     }
-    tiles.set(i, pat);
-    return pat;
+    ctx.restore();
   }
 
   function bubble(ctx, x, y, color, r = C.DRAW_R, alpha = 1){
@@ -79,18 +107,11 @@ export const BubbleRender = (() => {
     /* The index is looked up rather than passed, because the color arrives as a
        hex at five call sites and threading an index through all of them to read
        a six entry array is more change than the lookup costs. */
-    const pat = hatch(C.PALETTE.indexOf(color));
-    if (pat){
-      ctx.save();
-      ctx.clip();
-      ctx.fillStyle = pat;
-      ctx.fill();
-      ctx.restore();
-    }
+    if (document.body.classList.contains('cb')) hatchDisc(ctx, x, y, lr, C.PALETTE.indexOf(color));
 
-    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.fillStyle = 'rgba(255,255,255,.16)';
     ctx.beginPath();
-    ctx.ellipse(x - r * 0.44, y - r * 0.04, r * 0.09, r * 0.4, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(x - r * 0.44, y - r * 0.04, r * 0.08, r * 0.26, -0.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(255,248,232,.55)';
     ctx.beginPath();

@@ -390,7 +390,12 @@ describe('build output', () => {
      than tolerated as "some overlap". Growing it should be a decision, and the
      decision it points at is emitting modules and letting the bundler split,
      which is the real fix and is a change to how every page loads. */
-  const SHARED = ['src/js/pure/00-config.js', 'src/js/pure/45-panel.js'];
+  /* `08-say.js` is here on the same terms as the other two: it holds no state.
+     The locale it answers with lives on the page rather than in the module, for
+     exactly the reason the paragraph above gives — two copies with a locale each
+     would open the replay card in English behind a Spanish game.
+ */
+  const SHARED = ['src/js/pure/00-config.js', 'src/js/pure/45-panel.js', 'src/js/pure/08-say.js'];
 
   it('bundles every source module exactly once, critical or knowingly shared', () => {
     const bundles = appBundles('js');
@@ -428,7 +433,7 @@ describe('build output', () => {
        language as a separate file, so the words cross a network boundary into a
        bundle that is identical in every language. A global is what that boundary
        can hand over. See src/js/pure/08-say.js. */
-    const lateBound = ['Sound', 'Preview', 'Sandbox', 'LANGS'];
+    const lateBound = ['Sound', 'Preview', 'Sandbox', 'LANGS', 'LOCALE'];
     for (const f of built().filter(n => /^assets\/.*\.js$/.test(n))){
       const assigns = [...text(f).matchAll(/globalThis\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]);
       equal(assigns.filter(n => !lateBound.includes(n)), [],

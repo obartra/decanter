@@ -77,6 +77,9 @@ import * as config from '../src/js/pure/00-config.js';
 import * as trace from '../src/js/pure/05-trace.js';
 import * as patterns from '../src/js/pure/07-patterns.js';
 import * as say from '../src/js/pure/08-say.js';
+import { en as enWords } from '../src/i18n/en.js';
+import { es as esWords } from '../src/i18n/es.js';
+import { ca as caWords } from '../src/i18n/ca.js';
 import * as rng from '../src/js/pure/10-rng.js';
 import * as rules from '../src/js/pure/20-rules.js';
 import * as levels from '../src/js/pure/30-levels.js';
@@ -115,6 +118,18 @@ import * as casksScore from '../src/casks/js/pure/45-score.js';
 import * as labConfig from '../src/lab/js/pure/00-config.js';
 import * as labStates from '../src/lab/js/pure/10-states.js';
 import * as labSweep from '../src/lab/js/pure/20-sweep.js';
+
+/* The words, as a page has them.
+
+   Every shell loads the tables before the bundle, so in a browser `LANGS` is
+   always there by the time anything asks for a sentence. Nothing loads them in
+   Node, and without them `say` answers with the key — which is correct
+   behavior and makes every suite that reads a sentence fail on a string that
+   looks like a bug in the sentence. So the harness plays the part of the page.
+
+   Set here rather than per suite, because it is a property of the environment
+   rather than of any one test. */
+globalThis.LANGS = { en: enWords, es: esWords, ca: caWords };
 
 export const MODULES = new Map([
   /* The pour game, and everything shared */
