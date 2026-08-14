@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Decanter</title>
+<title data-t="decanter">Decanter</title>
 <meta name="theme-color" content="#1A120A">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="A water sorting puzzle. Pour until every bottle holds one color.">
@@ -24,8 +24,8 @@
 <section class="view" id="mapView">
   <header class="mapHeader">
     <div>
-      <p class="eyebrow">Chapter</p>
-      <h1 class="wordmark" id="mapChapter">The Cellar</h1>
+      <p data-t="chapter" class="eyebrow">Chapter</p>
+      <h1 data-t="the-cellar" class="wordmark" id="mapChapter">The Cellar</h1>
       <!-- The two that are only actions live up here, in the space the header
            already had. That is what lets the map keep the whole bottom of the
            screen, which is worth about a level and a half on a short phone. -->
@@ -49,9 +49,9 @@
     </div>
     <div class="mapMeta">
       <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="mapGold">0</b></div>
-      <div class="tally"><b id="mapStars">0</b><span>stars earned</span></div>
+      <div class="tally"><b id="mapStars">0</b><span data-t="stars-earned">stars earned</span></div>
       <!-- The draught keeps its number. It is money, and money stays readable. -->
-      <button class="btn priced tiny" id="daily" type="button"><span class="lede"><span class="glyph" id="dailyGlyph" aria-hidden="true"></span>Daily</span><small id="dailyCost">+12</small></button>
+      <button class="btn priced tiny" id="daily" type="button"><span class="lede"><span class="glyph" id="dailyGlyph" aria-hidden="true"></span><span data-t="daily">Daily</span></span><small id="dailyCost">+12</small></button>
     </div>
   </header>
   <div class="mapScroll" id="mapScroll"><div class="mapCanvas"></div></div>
@@ -64,13 +64,13 @@
 <section class="view" id="bubbleView">
   <header class="gameHeader">
     <div class="headSide">
-      <button class="btn ghost" id="bubToMap" type="button">&larr; Map</button>
+      <button data-t="map" class="btn ghost" id="bubToMap" type="button">&larr; Map</button>
       <!-- One shape, one corner, every screen with a game on it. It was on two
            of four, and the two without it are the two that are another game.
            See docs/design/11-sound.md. -->
       <button class="icon js-settings" type="button" aria-label="Settings"></button>
     </div>
-    <h1 class="wordmark small">Bubble</h1>
+    <h1 data-t="bubble" class="wordmark small">Bubble</h1>
     <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="bubGold">0</b></div>
   </header>
   <div class="bubHud">
@@ -81,24 +81,24 @@
          has no stars and no end to count down to, so without this there is no
          shot count anywhere and a run that goes two hundred shots says nothing
          about itself. It counts down on a level and up in the sandbox. -->
-    <small id="bubbleLeft">35 shots left</small>
-    <small id="bubbleDrop">drops in 10</small>
+    <small data-t="35-shots-left" id="bubbleLeft">35 shots left</small>
+    <small data-t="drops-in-10" id="bubbleDrop">drops in 10</small>
   </div>
   <main class="stage">
     <canvas id="bubbleCanvas"></canvas>
     <!-- The number comes from BubbleConfig.RUN_SHOTS, the same as the standalone
          page. Two copies of the rules already exist; two copies of the number
          inside them is how one of them ends up wrong. -->
-    <p class="rule" id="bubbleRule">Match three of a color to bring them down.<br><span id="bubbleGoal">Survive 35 shots to win.</span> If the bubbles reach the line, you lose.</p>
+    <p class="rule" id="bubbleRule" data-t="bubble-rule" data-t-html>Match three of a color to bring them down.<br><span id="bubbleGoal">Survive 35 shots to win.</span> If the bubbles reach the line, you lose.</p>
   </main>
   <!-- Priced, the way the pour game's are. These take gold and were the only
        controls in either game that did so without saying what they cost. -->
   <div class="tools">
-    <button class="btn tool priced" id="bubbleUndo" type="button">Undo<small id="bubbleUndoCost"></small></button>
-    <button class="btn tool priced" id="bubbleHint" type="button">Hint<small id="bubbleHintCost"></small></button>
-    <button class="btn tool" id="bubbleSwap" type="button">Swap</button>
-    <button class="btn tool priced" id="bubblePick" type="button" aria-expanded="false">Color<small id="bubblePickCost"></small></button>
-    <button class="btn tool priced" id="bubbleBomb" type="button">Bomb<small id="bubbleBombCost"></small></button>
+    <button data-t="undo" class="btn tool priced" id="bubbleUndo" type="button">Undo<small id="bubbleUndoCost"></small></button>
+    <button data-t="hint" class="btn tool priced" id="bubbleHint" type="button">Hint<small id="bubbleHintCost"></small></button>
+    <button data-t="swap" class="btn tool" id="bubbleSwap" type="button">Swap</button>
+    <button data-t="color" class="btn tool priced" id="bubblePick" type="button" aria-expanded="false">Color<small id="bubblePickCost"></small></button>
+    <button data-t="bomb" class="btn tool priced" id="bubbleBomb" type="button">Bomb<small id="bubbleBombCost"></small></button>
   </div>
   <div class="palette" id="bubblePalette" hidden></div>
 </section>
@@ -111,16 +111,16 @@
 <section class="view" id="doorView">
   <header class="gameHeader">
     <div class="headSide">
-      <button class="btn ghost" id="doorToMap" type="button">&larr; Map</button>
+      <button data-t="map" class="btn ghost" id="doorToMap" type="button">&larr; Map</button>
       <button class="icon js-settings" type="button" aria-label="Settings"></button>
     </div>
-    <h1 class="wordmark small">The Cellar Door</h1>
-    <button class="btn ghost" id="doorRestart" type="button">Restart</button>
+    <h1 data-t="the-cellar-door" class="wordmark small">The Cellar Door</h1>
+    <button data-t="restart" class="btn ghost" id="doorRestart" type="button">Restart</button>
   </header>
   <!-- Not `.rule`, and not how a cask moves: that sentence is drawn on the
        canvas by the game's own renderer, and `.rule` is positioned for the
        bubble stage, so saying it here put it twice, once over the casks. -->
-  <p class="doorSays">The way into <b id="doorChapter">the next chapter</b>. No par, no stars &mdash; it is open or it is not.</p>
+  <p class="doorSays" data-t="door-says" data-t-html>The way into <b id="doorChapter">the next chapter</b>. No par, no stars &mdash; it is open or it is not.</p>
   <main class="stage">
     <canvas id="cskCanvas"></canvas>
   </main>
@@ -129,14 +129,14 @@
 <section class="view" id="gameView">
   <header class="gameHeader">
     <div class="headSide">
-      <button class="btn ghost" id="toMap" type="button">&larr; Map</button>
+      <button data-t="map" class="btn ghost" id="toMap" type="button">&larr; Map</button>
       <button class="icon js-settings" type="button" aria-label="Settings"></button>
     </div>
-    <h1 class="wordmark small">Decanter</h1>
+    <h1 data-t="decanter" class="wordmark small">Decanter</h1>
     <div class="purse"><span class="coin" aria-hidden="true">&#9670;</span><b id="gold">0</b></div>
   </header>
   <div class="hud">
-    <div class="stat"><b id="statLevel">1</b><span>Level</span></div>
+    <div class="stat"><b id="statLevel">1</b><span data-t="level">Level</span></div>
     <div class="stat wide" id="movesStat">
       <b id="statLeft" class="hudCount">&mdash;</b>
       <b id="statStars" class="hudStars">&#9733;&#9733;&#9733;</b>
@@ -145,10 +145,10 @@
   </div>
   <div class="board" id="board"></div>
   <div class="controls">
-    <button class="btn priced" id="undo" type="button">Undo<small id="undoCost">3 free</small></button>
-    <button class="btn priced" id="hint" type="button">Hint<small id="hintCost">12</small></button>
-    <button class="btn priced" id="vessel" type="button">Vessel<small id="vesselCost">45</small></button>
-    <button class="btn" id="restart" type="button">Restart</button>
+    <button data-t="undo" class="btn priced" id="undo" type="button">Undo<small data-t="3-free" id="undoCost">3 free</small></button>
+    <button data-t="hint" class="btn priced" id="hint" type="button">Hint<small id="hintCost">12</small></button>
+    <button data-t="vessel" class="btn priced" id="vessel" type="button">Vessel<small id="vesselCost">45</small></button>
+    <button data-t="restart" class="btn" id="restart" type="button">Restart</button>
   </div>
 </section>
 
@@ -171,11 +171,11 @@
      which for a player with the sound off is a button that does nothing. -->
 <div class="veil" id="brokeVeil">
   <div class="panel brokeCard">
-    <h2>Out of gold</h2>
+    <h2 data-t="out-of-gold">Out of gold</h2>
     <p id="brokeLine"></p>
     <div class="panelBtns">
-      <button class="btn primary" id="brokeDaily" type="button" hidden>Draw the daily draught</button>
-      <button class="btn" id="brokeClose" type="button">Close</button>
+      <button data-t="draw-the-daily-draught" class="btn primary" id="brokeDaily" type="button" hidden>Draw the daily draught</button>
+      <button data-t="close" class="btn" id="brokeClose" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -185,32 +185,36 @@
      that moves under the board by a pixel. -->
 <div class="veil" id="setVeil">
   <div class="panel setCard">
-    <h2>Settings</h2>
-    <button class="setRow" id="setSound" type="button" aria-pressed="true"><span>Sound</span><b></b></button>
-    <button class="setRow" id="setCb" type="button" aria-pressed="false"><span>Color blind mode</span><b></b></button>
-    <p class="hint">Marks each liquid with its own pattern, so they can be told apart without color.</p>
-    <button class="btn primary" id="setClose" type="button">Done</button>
+    <h2 data-t="settings">Settings</h2>
+    <button class="setRow" id="setSound" type="button" aria-pressed="true"><span data-t="sound">Sound</span><b></b></button>
+    <button class="setRow" id="setCb" type="button" aria-pressed="false"><span data-t="color-blind-mode">Color blind mode</span><b></b></button>
+    <p data-t="marks-each-liquid-with-its" class="hint">Marks each liquid with its own pattern, so they can be told apart without color.</p>
+    <!-- A row of its own rather than a toggle: three is too many for one button
+         to cycle, and the names are written in their own language so somebody who
+         has landed in one they cannot read can still find theirs. -->
+    <div class="setLangs" id="setLangs" role="group" aria-label="Language"></div>
+    <button data-t="done" class="btn primary" id="setClose" type="button">Done</button>
   </div>
 </div>
 <div class="veil" id="diagVeil">
   <div class="panel diagCard">
-    <h2>What the game says</h2>
-    <p class="hint">Read this out, or copy it, to whoever is looking into it.</p>
+    <h2 data-t="what-the-game-says">What the game says</h2>
+    <p data-t="read-this-out-or-copy" class="hint">Read this out, or copy it, to whoever is looking into it.</p>
     <pre class="diagText" id="diagText"></pre>
     <div class="panelBtns">
-      <button class="btn primary" id="diagCopy" type="button">Copy</button>
-      <button class="btn" id="diagClose" type="button">Close</button>
+      <button data-t="copy" class="btn primary" id="diagCopy" type="button">Copy</button>
+      <button data-t="close" class="btn" id="diagClose" type="button">Close</button>
     </div>
   </div>
 </div>
 
 <div class="veil" id="chapterVeil">
   <div class="panel chapterCard">
-    <p class="kicker">Chapter <b id="chapterNum">1</b></p>
-    <h2 id="chapterName">The Cellar</h2>
+    <p data-t="chapter" class="kicker">Chapter <b id="chapterNum">1</b></p>
+    <h2 data-t="the-cellar" id="chapterName">The Cellar</h2>
     <p class="chapterBlurb" id="chapterBlurb"></p>
     <p class="chapterGrant" id="chapterGrant" hidden></p>
-    <button class="btn primary" id="chapterGo" type="button">Begin</button>
+    <button data-t="begin" class="btn primary" id="chapterGo" type="button">Begin</button>
   </div>
 </div>
 
@@ -221,8 +225,8 @@
      earn, which is not a thing anyone can work out from the outside. -->
 <div class="veil" id="previewVeil">
   <div class="panel previewCard">
-    <p class="kicker" id="previewChapter">The Cellar</p>
-    <h2 id="previewTitle">Level 1</h2>
+    <p data-t="the-cellar" class="kicker" id="previewChapter">The Cellar</p>
+    <h2 data-t="level-1" id="previewTitle">Level 1</h2>
     <p class="previewKind" id="previewKind" hidden></p>
     <div class="stars" id="previewStars"></div>
     <div class="stillBox" id="previewStill"></div>
@@ -230,34 +234,34 @@
     <div class="payout" id="previewPayout"><b id="previewGold">+0</b><span id="previewWhy"></span></div>
     <p class="hint" id="previewHint"></p>
     <div class="panelBtns">
-      <button class="btn" id="previewBack" type="button">Back</button>
-      <button class="btn primary priced" id="previewPlay" type="button">Play again<small id="previewFee">free</small></button>
+      <button data-t="back" class="btn" id="previewBack" type="button">Back</button>
+      <button data-t="play-again" class="btn primary priced" id="previewPlay" type="button">Play again<small data-t="free" id="previewFee">free</small></button>
     </div>
   </div>
 </div>
 
 <div class="veil" id="veil">
   <div class="panel">
-    <h2 id="winTitle">Poured clean</h2>
+    <h2 data-t="poured-clean" id="winTitle">Poured clean</h2>
     <div class="stars" id="stars"></div>
     <p id="winLine"></p>
     <div class="payout"><b id="goldEarned">+0</b><span id="goldWhy"></span></div>
     <p class="hint" id="winHint"></p>
     <div class="panelBtns">
-      <button class="btn" id="retry" type="button">Retry</button>
-      <button class="btn priced" id="skip" type="button" hidden>Move on<small id="skipCost">10</small></button>
-      <button class="btn priced" id="blast" type="button" hidden aria-expanded="false">Blast<small id="blastCost">65</small></button>
-      <button class="btn primary" id="next" type="button">Next level</button>
+      <button data-t="retry" class="btn" id="retry" type="button">Retry</button>
+      <button data-t="move-on" class="btn priced" id="skip" type="button" hidden>Move on<small id="skipCost">10</small></button>
+      <button data-t="blast" class="btn priced" id="blast" type="button" hidden aria-expanded="false">Blast<small id="blastCost">65</small></button>
+      <button data-t="next-level" class="btn primary" id="next" type="button">Next level</button>
     </div>
-    <p class="offer" id="reportOffer" hidden>This one is giving you trouble.
-      <button class="asLink" id="reportOpen" type="button">Send a report</button></p>
+    <p data-t="this-one-is-giving-you" class="offer" id="reportOffer" hidden>This one is giving you trouble.
+      <button data-t="send-a-report" class="asLink" id="reportOpen" type="button">Send a report</button></p>
     <!-- Which bottle to destroy, built from the ones the rules will actually
          allow. Empty until Blast is pressed, and never offering a target that
          would leave the run worse off than not pressing it. -->
     <div class="panelPick" id="blastPick" hidden></div>
     <div class="winFoot">
-      <button class="btn ghost" id="peek" type="button">View board</button>
-      <button class="btn ghost" id="winMap" type="button">Back to map</button>
+      <button data-t="view-board" class="btn ghost" id="peek" type="button">View board</button>
+      <button data-t="back-to-map" class="btn ghost" id="winMap" type="button">Back to map</button>
     </div>
   </div>
 </div>

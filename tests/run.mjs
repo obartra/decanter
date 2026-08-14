@@ -6,6 +6,7 @@ import './levels.test.mjs';
 import './pars.test.mjs';
 import './brick.test.mjs';
 import './patterns.test.mjs';
+import './i18n.test.mjs';
 import './duplication.test.mjs';
 import './chapters.test.mjs';
 import './doors.test.mjs';

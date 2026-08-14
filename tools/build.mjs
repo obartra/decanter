@@ -23,6 +23,9 @@
    data URIs, no worker, opens straight off disk. It is the one build where
    splitting would be the wrong answer, so it does not split. */
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, cpSync, statSync, existsSync } from 'node:fs';
+import { en } from '../src/i18n/en.js';
+import { es } from '../src/i18n/es.js';
+import { ca } from '../src/i18n/ca.js';
 import { createHash } from 'node:crypto';
 import * as esbuild from 'esbuild';
 import { join, dirname } from 'node:path';
@@ -240,6 +243,11 @@ const buildId = hash([app.allCss, app.all, solver,
   ...games.map(g => g.src.css + g.src.all)].join('\n')
   + boom.toString('base64'));
 
+/* Every language ships in one file and the page swaps between them, so nothing
+   here is per locale any more. `I18N` is still the one place the tables are
+   gathered, and the build's only job is to write them out. */
+const I18N = { en, es, ca };
+
 /* ---------- emitting ---------- */
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(join(dist, 'assets'), { recursive: true });
@@ -260,6 +268,12 @@ function asset(name, ext, body){
 const href = (depth, file) => (depth ? '../'.repeat(depth) : './') + file;
 
 const appCss = asset('app', 'css', app.css);
+/* Every language in one file, because switching is instant and does not reload:
+   a player changing language in the settings gets the new words on the screen
+   they are looking at, not a navigation. That costs the two tables they are not
+   reading, which is a few kilobytes and buys the thing that actually matters
+   about a language switch, which is that it feels like a setting. */
+const langFile = asset('lang', 'js', `globalThis.LANGS=${JSON.stringify(I18N)};`);
 const appJs = asset('app', 'js', app.js);
 const solverJs = asset('solver', 'js', solver);
 /* One bundle per group per kind, under the group's own name. The stylesheet is
@@ -304,9 +318,12 @@ const fontFace = (cinzel, sans, sansBold) => `<style>
 const fontFiles = d => fontFace(href(d, 'fonts/cinzel.woff2'), href(d, 'fonts/alegreyasans.woff2'),
                                 href(d, 'fonts/alegreyasans-bold.woff2'));
 
-const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">`;
+/* Depth-aware, because a language's root sits one directory down and reaches the
+   manifest and the icons by climbing out of it. Written as a function for the
+   same reason `gameHead` already is. */
+const pwaHead = (depth = 0) => `<link rel="manifest" href="${href(depth, 'manifest.webmanifest')}">
+<link rel="icon" href="${href(depth, 'icons/favicon-32.png')}" sizes="32x32">
+<link rel="apple-touch-icon" href="${href(depth, 'icons/apple-touch-icon.png')}">`;
 
 /* An icon and nothing else. A page without one is not merely undecorated: the
    browser goes and asks for /favicon.ico anyway and logs a 404 when there is
@@ -328,19 +345,26 @@ function page(tmpl, slots){
   return out;
 }
 
+
 /* 1. the app, as a shell over hashed bundles */
 /* A game carried by the app is one deferred group: its stylesheet, if the app
    wants it, and its code. `appCss: false` makes that group the code alone. */
 const appAssets = g => (g.appCss === false ? [href(0, g.jsFile)]
                                            : [href(0, g.cssFile), href(0, g.jsFile)]);
-const deferredFor = () => {
-  const groups = { ...deferredAssets };
-  for (const g of games.filter(x => x.inApp)) groups[g.name] = appAssets(g);
+/* Depth matters now that the same manifest is written into shells at two levels:
+   a language's page sits one directory down and reaches its bundles by climbing
+   out, exactly as the game pages already did. */
+const deferredFor = (depth = 0) => {
+  const groups = {};
+  for (const [name, list] of Object.entries(deferredAssets))
+    groups[name] = list.map(f => href(depth, f.replace(/^\.\//, '')));
+  for (const g of games.filter(x => x.inApp))
+    groups[g.name] = appAssets(g).map(f => href(depth, f.replace(/^\.\//, '')));
   return groups;
 };
 const appPage = page('src/index.html', {
   '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
-  '<!--PWAHEAD-->': pwaHead,
+  '<!--PWAHEAD-->': pwaHead(0),
   /* Where the bang is. A tag rather than a fetch of a known path, so the two
      builds can answer it differently and nothing in the audio module has to know
      which kind of build it is running in. Not a preload: almost nobody ever
@@ -354,7 +378,8 @@ const appPage = page('src/index.html', {
   '<!--SOLVER-->': `<meta name="solver" content="${href(0, solverJs)}">`,
   '<!--CSS-->': `<link rel="stylesheet" href="${href(0, appCss)}">`,
   '<!--DEFERRED-->': `<script type="application/json" id="deferredAssets">${JSON.stringify(deferredFor())}</script>`,
-  '<!--JS-->': `<script defer src="${href(0, appJs)}"></script>`
+  /* the table first, because the app reads it as it boots */
+  '<!--JS-->': `<script defer src="${href(0, langFile)}"></script><script defer src="${href(0, appJs)}"></script>`
 });
 writeFileSync(join(dist, 'index.html'), appPage);
 
@@ -380,7 +405,7 @@ const standalone = page('src/index.html', {
   '<!--CSS-->': `<style>${[app.allCss,
     ...games.filter(g => g.inApp && g.appCss !== false).map(g => g.src.css)].join('\n')}</style>`,
   '<!--DEFERRED-->': '',
-  '<!--JS-->': `<script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
+  '<!--JS-->': `<script>globalThis.LANGS=${JSON.stringify(I18N)};</script><script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
 });
 writeFileSync(join(dist, 'decanter-standalone.html'), standalone);
 
@@ -395,7 +420,7 @@ for (const g of games){
     '<!--HEAD-->': gameHead(1),
     '<!--FONTS-->': fontFiles(1),
     '<!--CSS-->': `<link rel="stylesheet" href="${href(1, g.cssFile)}">`,
-    '<!--JS-->': `<script defer src="${href(1, g.jsFile)}"></script>`
+    '<!--JS-->': `<script defer src="${href(1, langFile)}"></script><script defer src="${href(1, g.jsFile)}"></script>`
   }));
 }
 

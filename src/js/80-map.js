@@ -3,6 +3,7 @@
 import { CONFIG } from './pure/00-config.js';
 import { RNG } from './pure/10-rng.js';
 import { Levels } from './pure/30-levels.js';
+import { say } from './pure/08-say.js';
 import { LAST_LEVEL } from './pure/35-pars.js';
 
 export const MapGeom = (() => {
@@ -425,7 +426,13 @@ export const MapView = (() => {
       canvas.appendChild(b);
     }
     document.getElementById('mapStars').textContent = progress.totalStars();
-    document.getElementById('mapChapter').textContent = Levels.sectionName(unlocked);
+    /* Named in the player's language. `Levels.sectionName` is the English the
+       par table and the tests are written against, so this asks for the words
+       and falls back to it. See src/js/pure/08-say.js. */
+    const key = `chapter-${Levels.sectionOf(unlocked)}`;
+    const said = say(key);
+    document.getElementById('mapChapter').textContent =
+      said === key ? Levels.sectionName(unlocked) : said;
     lastFocus = unlocked;
   }
   function scrollToCurrent(smooth){

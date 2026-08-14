@@ -1,0 +1,99 @@
+/* The words the game says, in the language it was written in.
+
+   English is the source. Every other file in this folder answers the same keys,
+   and a test fails when one of them is missing a key or carries one that this
+   file has never heard of: a translation that silently falls back to English for
+   half a screen is worse than one that fails the build.
+
+   Keys are derived from the English text rather than numbered, so a diff of a
+   translation reads as prose. Two sentences in here carry markup, because they
+   are broken across a `<b>` or a `<span>` in the shell and a translator has to
+   be free to move the pieces: Catalan and Spanish both want them somewhere
+   English does not.
+
+   Generated once by tools/extract-strings.mjs and hand-tended since. */
+export const en = {
+  'decanter': 'Decanter',
+  'chapter': 'Chapter',
+  'the-cellar': 'The Cellar',
+  'stars-earned': 'stars earned',
+  'map': '&larr; Map',
+  'bubble': 'Bubble',
+  '35-shots-left': '35 shots left',
+  'drops-in-10': 'drops in 10',
+  'bubble-rule': 'Match three of a color to bring them down.<br><span id="bubbleGoal">Survive 35 shots to win.</span> If the bubbles reach the line, you lose.',
+  'swap': 'Swap',
+  'the-cellar-door': 'The Cellar Door',
+  'restart': 'Restart',
+  'door-says': 'The way into <b id="doorChapter">the next chapter</b>. No par, no stars &mdash; it is open or it is not.',
+  'level': 'Level',
+  'out-of-gold': 'Out of gold',
+  'draw-the-daily-draught': 'Draw the daily draught',
+  'close': 'Close',
+  'settings': 'Settings',
+  'sound': 'Sound',
+  'color-blind-mode': 'Color blind mode',
+  'marks-each-liquid-with-its': 'Marks each liquid with its own pattern, so they can be told apart without color.',
+  'done': 'Done',
+  'what-the-game-says': 'What the game says',
+  'read-this-out-or-copy': 'Read this out, or copy it, to whoever is looking into it.',
+  'copy': 'Copy',
+  'begin': 'Begin',
+  'level-1': 'Level 1',
+  'back': 'Back',
+  'poured-clean': 'Poured clean',
+  'retry': 'Retry',
+  'next-level': 'Next level',
+  'view-board': 'View board',
+  'back-to-map': 'Back to map',
+  'drops-in-4': 'drops in 4',
+  'new': 'New',
+  'undo': 'Undo',
+  'hint': 'Hint',
+  'color': 'Color',
+  'bomb': 'Bomb',
+  'board-cleared': 'Board cleared',
+  'points': 'points',
+  'play-again': 'Play again',
+  'cellar': 'Cellar',
+  'of-1': 'of 1',
+  'next': 'Next',
+  'the-door': 'The door',
+  'next-floor': 'Next floor',
+  'the-measure': 'The Measure',
+  'measure': 'Measure',
+  'of-3': 'of 3',
+  'measured': 'Measured',
+  'next-bench': 'Next bench',
+
+  /* the chapters, which the map and the door both name */
+  'chapter-0': 'The Cellar',
+  'chapter-1': 'The Apothecary',
+  'chapter-2': 'The Distillery',
+  'chapter-3': 'The Conservatory',
+  'chapter-4': 'The Vault',
+  'chapter-5': 'The Observatory',
+  'chapter-6': 'The Furnace',
+
+  /* ---- what the code says, rather than the markup ---- */
+  'daily': 'Daily',
+  'failed': 'Failed',
+  'level-cleared': 'Level cleared',
+  'move-on': 'Move on',
+  'blast': 'Blast',
+  'vessel': 'Vessel',
+  'send-a-report': 'Send a report',
+  'giving-you-trouble': 'This one is giving you trouble.',
+  'broke': 'Not enough gold. The daily draught is on the map.',
+  'out-of-moves': 'You are out of valid moves.',
+  'needs-more-pours': 'What is left needs more pours than the run had.',
+  'free': 'free',
+  'sound-on': 'Sound on',
+  'sound-off': 'Sound off',
+  'install': 'Install',
+  'bubble-sandbox': 'Bubble sandbox',
+  'on': 'On',
+  'off': 'Off',
+  'language': 'Language',
+  'soon': 'soon'
+};

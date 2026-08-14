@@ -424,7 +424,11 @@ describe('build output', () => {
        card before a replay and Jabari mode's workbench are fetched after first
        paint, so each hands over through a global because that is what a network
        boundary can do. */
-    const lateBound = ['Sound', 'Preview', 'Sandbox'];
+    /* `LANGS` joins them for the same reason: a page loads the table for its own
+       language as a separate file, so the words cross a network boundary into a
+       bundle that is identical in every language. A global is what that boundary
+       can hand over. See src/js/pure/08-say.js. */
+    const lateBound = ['Sound', 'Preview', 'Sandbox', 'LANGS'];
     for (const f of built().filter(n => /^assets\/.*\.js$/.test(n))){
       const assigns = [...text(f).matchAll(/globalThis\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]);
       equal(assigns.filter(n => !lateBound.includes(n)), [],
@@ -756,8 +760,15 @@ describe('build output', () => {
          draws its own bubble as an inline SVG, which costs no request at all.
          Only a path has to resolve. */
       if (icon[1].startsWith('data:')) continue;
-      const from = f.includes('/') ? icon[1].replace('../', '') : icon[1].replace('./', '');
-      assert(has(from), `dist/${f} points at ${icon[1]}, which was not built`);
+      /* Resolved rather than assumed. This stripped one `../`, which held while
+         every page was at most one directory down; a language's game pages are
+         two, so the check was quietly reading a path that was never emitted. */
+      const parts = f.split('/').slice(0, -1);
+      for (const seg of icon[1].split('/')){
+        if (seg === '..') parts.pop();
+        else if (seg !== '.') parts.push(seg);
+      }
+      assert(has(parts.join('/')), `dist/${f} points at ${icon[1]}, which was not built`);
     }
   });
   /* A test used to stand here forbidding two files in a game from declaring the
@@ -983,12 +994,18 @@ describe('build output', () => {
       const js = page.match(/<script defer src="\.\.\/(assets\/[^"]+)"/);
       assert(css && has(css[1]), `${g} does not load a stylesheet that exists`);
       assert(js && has(js[1]), `${g} does not load a bundle that exists`);
+      /* Every script the page loads, because a page carries its language table
+         as well as its game and the table is listed first. Asking only about the
+         first one found the table, which has no game in it and never will. */
+      const scripts = [...page.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
       /* "Not empty" used to be answered by a concatenation banner. There are no
          banners now, so it is answered by the thing every game's bundle has and
          cannot work without: the entry point's debug surface, carrying that
          game's own prefixed namespace. */
       const prefix = g[0].toUpperCase() + g.slice(1);
-      assert(new RegExp(`Object\\.assign\\(globalThis, \\{[^}]*\\b${prefix}Config\\b`).test(text(js[1])),
+      const re = new RegExp(`Object\\.assign\\(globalThis, \\{[^}]*\\b${prefix}Config\\b`);
+      const asBuilt = u => u.replace(/^(\.\.\/)+/, '').replace(/^\.\//, '');
+      assert(scripts.some(u => has(asBuilt(u)) && re.test(text(asBuilt(u)))),
         `${g}'s bundle looks empty`);
       /* it sits one level down, so every path out of it has to climb */
       assert(!/["'(]\/(assets|fonts|icons)\//.test(page),

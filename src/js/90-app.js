@@ -10,6 +10,9 @@
    late-bound for the same reason, and 49-audio.js explains it at length. */
 import { CONFIG } from './pure/00-config.js';
 import { Trace } from './pure/05-trace.js';
+/* `say` is taken in this file: the run has its own, which puts a sentence
+   under the pour count for a moment. This is the other kind of saying. */
+import { LOCALES, pickLocale, setLocale, locale, say as inWords } from './pure/08-say.js';
 import * as Patterns from './pure/07-patterns.js';
 import { Rules } from './pure/20-rules.js';
 import { Levels } from './pure/30-levels.js';
@@ -111,6 +114,50 @@ export const App = (() => {
      read CONFIG.palette. Publishing one from the other keeps a single source:
      when the palette moved to jewel tones and the CSS did not, the sim poured
      the old colors into the new bottles. */
+  /* redrawn whenever the language does, so the current one stays marked */
+  let paintLangs = null;
+
+  /* Put a language on the screen.
+
+     Every translatable node in the markup carries its key, so the words can be
+     swapped where they stand; the ones the code writes are re-asked for by
+     repainting whatever is on screen. Called once at boot and again whenever the
+     player changes it. */
+  function applyLanguage(loc, repaint){
+    const chosen = setLocale(loc);
+    document.documentElement.lang = chosen;
+    for (const el of document.querySelectorAll('[data-t]')){
+      const said = inWords(el.dataset.t);
+      if (said === el.dataset.t) continue;          /* no such key: leave it be */
+      if (el.hasAttribute('data-t-html')){ el.innerHTML = said; continue; }
+      /* Its own words, not its children's. A key often sits on a button that
+         also holds a `<small>` with the price in it, and `textContent` on the
+         button deletes that `<small>` — after which the code that writes the
+         price into it writes into nothing, throws inside the pour loop, and
+         strands the animation queue. Which is exactly what it did. */
+      const own = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+      if (own) own.textContent = said;
+      else if (!el.children.length) el.textContent = said;
+    }
+    /* The sentences the code owns, which no attribute can reach. Only on a
+       change, never at boot: boot paints everything a moment later anyway, and
+       painting here reaches for a screen that has not been built yet. */
+    if (repaint){ paintMap(); paintHud(); }
+    if (paintLangs) paintLangs();
+    return chosen;
+  }
+
+  /* The chapter's name in the player's language. `Levels.sectionName` answers
+     with the English, which is what the par table and the tests are written
+     against; this is the display of it. Past the named list it falls back to
+     what that function says, which is already a number. */
+  const chapterName = level => {
+    const i = Levels.sectionOf(level);
+    const key = `chapter-${i}`;
+    const said = inWords(key);
+    return said === key ? Levels.sectionName(level) : said;
+  };
+
   function publishPalette(){
     const s = document.documentElement.style;
     /* The hatch travels with the color it belongs to, published in the same
@@ -292,7 +339,7 @@ export const App = (() => {
     if (!chapter || progress.hasSeen(section)) return;
     progress.markSeen(section);
     $('chapterNum').textContent = section + 1;
-    $('chapterName').textContent = Levels.sectionName(level);
+    $('chapterName').textContent = chapterName(level);
     $('chapterBlurb').textContent = chapter.blurb;
     const grant = Chapters.GRANT_NAMES[chapter.grant];
     $('chapterGrant').hidden = !grant;
@@ -395,7 +442,7 @@ export const App = (() => {
       earned: progress.wouldEarn(level, 3).earned
     });
 
-    $('previewChapter').textContent = Levels.sectionName(level);
+    $('previewChapter').textContent = chapterName(level);
     $('previewTitle').textContent = card.title;
     $('previewKind').hidden = !card.kind;
     $('previewKind').textContent = card.kind;
@@ -574,7 +621,7 @@ export const App = (() => {
     }
     runId++;
     doorSection = section;
-    $('doorChapter').textContent = Levels.sectionName(first);
+    $('doorChapter').textContent = chapterName(first);
     /* Up before the game is booted, for the reason startBubble gives: booting
        measures the canvas, and a canvas in a hidden section measures zero. */
     document.body.dataset.view = 'door';
@@ -1639,6 +1686,36 @@ export const App = (() => {
     /* One card, opened from every header. What used to be two icons in each of
        four headers is one, which is what stops every future setting costing a
        button on every screen and moving the board under it. */
+    /* Which language this page IS was decided when it was built; which one the
+       player WANTS is here. A choice is remembered and beats the browser; with
+       no choice, the browser's own list decides, which is the right default for
+       somebody who has never opened the settings.
+
+       Switching navigates rather than swaps, because the words are baked into
+       the shell: /es/ is a different page carrying only Spanish. Same origin,
+       same save, so nothing is lost crossing over. */
+    /* No navigation. The words are swapped on the screen the player is looking
+       at, because a setting that reloads the page is not a setting, it is a
+       link. The address never changes and neither does the save. */
+    const langNames = { en: 'English', es: 'Castellano', ca: 'Català' };
+    paintLangs = () => {
+      $('setLangs').innerHTML = '';
+      for (const loc of LOCALES){
+        const b = document.createElement('button');
+        b.type = 'button';
+        /* named in itself, never translated: somebody who has landed in a
+           language they cannot read still has to find their own */
+        b.textContent = langNames[loc];
+        b.setAttribute('aria-current', loc === locale() ? 'true' : 'false');
+        b.onclick = () => {
+          Sound.tick();
+          progress.setLanguage(loc);
+          applyLanguage(loc, true);
+        };
+        $('setLangs').appendChild(b);
+      }
+    };
+    paintLangs();
     document.querySelectorAll('.js-settings').forEach(btn => {
       /* Drawn rather than typed, like every other header icon: a glyph arrives
          as whatever the platform has, which is how a gray plastic blob ended up
@@ -1760,6 +1837,9 @@ export const App = (() => {
       Diagnostics.mount();
       applySound(progress.sound);
       applyColorblind(progress.colorblind);
+      /* An explicit choice wins; otherwise the browser's own list decides, which
+         is the right default for somebody who has never opened the settings. */
+      applyLanguage(pickLocale(navigator.languages || [navigator.language], progress.language));
       showMap(false);
       Jabari.takeGift(progress, goldChanged);
       /* The wait on the draught has to run down on its own, or it is a stale

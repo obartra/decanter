@@ -1,0 +1,96 @@
+/* Català.
+
+   Draft, and the same warning as es.js: written by the machine that wrote the
+   feature, read by nobody who speaks it. Catalan is the one most likely to be
+   wrong here, because the easy mistake is to translate the Castilian rather than
+   the English and end up with something that reads as a calque.
+
+   Things worth a second look: `trago` is not the word here, a drink drawn from a
+   bóta is a `glop`; `Servit net` for a perfect pour may be too literal; and
+   whether the cellar should be `La Bodega` or `El Celler` is a choice about
+   where this game is set rather than a translation.
+
+   Answers exactly the keys en.js answers. A test says so. */
+export const ca = {
+  'decanter': 'Decantador',
+  'chapter': 'Capítol',
+  'the-cellar': 'El Celler',
+  'stars-earned': 'estrelles guanyades',
+  'map': '&larr; Mapa',
+  'bubble': 'Bombolles',
+  '35-shots-left': 'queden 35 trets',
+  'drops-in-10': 'baixa en 10',
+  'bubble-rule': 'Ajunta tres d\'un color per fer-les caure.<br><span id="bubbleGoal">Sobreviu 35 trets per guanyar.</span> Si les bombolles arriben a la línia, perds.',
+  'swap': 'Canviar',
+  'the-cellar-door': 'La Porta del Celler',
+  'restart': 'Reiniciar',
+  'door-says': 'L\'entrada a <b id="doorChapter">el capítol següent</b>. Sense par i sense estrelles &mdash; o s\'obre o no.',
+  'level': 'Nivell',
+  'out-of-gold': 'Sense or',
+  'draw-the-daily-draught': 'Treure el glop del dia',
+  'close': 'Tancar',
+  'settings': 'Configuració',
+  'sound': 'So',
+  'color-blind-mode': 'Mode daltònic',
+  'marks-each-liquid-with-its': 'Marca cada líquid amb el seu patró, per distingir-los sense el color.',
+  'done': 'Fet',
+  'what-the-game-says': 'El que diu el joc',
+  'read-this-out-or-copy': 'Llegeix-ho en veu alta, o copia-ho, a qui ho estigui mirant.',
+  'copy': 'Copiar',
+  'begin': 'Començar',
+  'level-1': 'Nivell 1',
+  'back': 'Enrere',
+  'poured-clean': 'Servit net',
+  'retry': 'Una altra',
+  'next-level': 'Nivell següent',
+  'view-board': 'Veure el tauler',
+  'back-to-map': 'Tornar al mapa',
+  'drops-in-4': 'baixa en 4',
+  'new': 'Nova',
+  'undo': 'Desfer',
+  'hint': 'Pista',
+  'color': 'Color',
+  'bomb': 'Bomba',
+  'board-cleared': 'Tauler net',
+  'points': 'punts',
+  'play-again': 'Tornar a jugar',
+  'cellar': 'Celler',
+  'of-1': 'd\'1',
+  'next': 'Següent',
+  'the-door': 'La porta',
+  'next-floor': 'Pis següent',
+  'the-measure': 'La Mesura',
+  'measure': 'Mesurar',
+  'of-3': 'de 3',
+  'measured': 'Mesurat',
+  'next-bench': 'Taula següent',
+
+  'chapter-0': 'El Celler',
+  'chapter-1': "L'Apotecaria",
+  'chapter-2': 'La Destil·leria',
+  'chapter-3': "L'Hivernacle",
+  'chapter-4': 'La Cambra',
+  'chapter-5': "L'Observatori",
+  'chapter-6': 'El Forn',
+
+  'daily': 'Del dia',
+  'failed': 'Fallat',
+  'level-cleared': 'Nivell superat',
+  'move-on': 'Passar',
+  'blast': 'Rebentar',
+  'vessel': 'Flascó',
+  'send-a-report': 'Enviar un informe',
+  'giving-you-trouble': 'Aquest se t\'està resistint.',
+  'broke': 'No hi ha prou or. El glop del dia és al mapa.',
+  'out-of-moves': 'T\'has quedat sense jugades.',
+  'needs-more-pours': 'El que queda necessita més abocaments dels que tenia la partida.',
+  'free': 'gratis',
+  'sound-on': 'So activat',
+  'sound-off': 'So apagat',
+  'install': 'Instal·lar',
+  'bubble-sandbox': 'Banc de bombolles',
+  'on': 'Sí',
+  'off': 'No',
+  'language': 'Idioma',
+  'soon': 'aviat'
+};
