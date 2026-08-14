@@ -23,6 +23,9 @@
    data URIs, no worker, opens straight off disk. It is the one build where
    splitting would be the wrong answer, so it does not split. */
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, cpSync, statSync, existsSync } from 'node:fs';
+import { en } from '../src/i18n/en.js';
+import { es } from '../src/i18n/es.js';
+import { ca } from '../src/i18n/ca.js';
 import { createHash } from 'node:crypto';
 import * as esbuild from 'esbuild';
 import { join, dirname } from 'node:path';
@@ -240,6 +243,39 @@ const buildId = hash([app.allCss, app.all, solver,
   ...games.map(g => g.src.css + g.src.all)].join('\n')
   + boom.toString('base64'));
 
+/* ---------- one shell per language ----------
+
+   Substituted here rather than at boot, and that is the whole design. A runtime
+   pass over the markup means every player downloads three languages to read one,
+   and the page paints in English before it corrects itself. Done at build time,
+   a shell carries only its own words and is right on the first frame.
+
+   What a player fetches is still one app bundle: the code is identical in every
+   language, and only the table differs, so the table is a separate small file
+   and the expensive thing stays shared. */
+const I18N = { en, es, ca };
+const LOCALES = Object.keys(I18N);
+/* Where a locale's pages live, and how far they sit from the assets. English is
+   at the root because it is what a link to this game has always pointed at. */
+const localeDir = loc => (loc === 'en' ? '' : loc + '/');
+const localeDepth = loc => (loc === 'en' ? 0 : 1);
+
+function localize(html, loc){
+  const table = I18N[loc];
+  const out = html.replace(/(<([a-zA-Z0-9]+)([^>]*\bdata-t="([^"]+)"[^>]*)>)([\s\S]*?)(<\/\2>)/g,
+    (whole, open, tag, attrs, key, inner, close) => {
+      const text = table[key];
+      if (text == null) return whole;
+      /* An element that owns its markup is replaced whole; anything else keeps
+         whatever tags it holds and only its own text is swapped, so an id a
+         script reaches for is never translated away. */
+      if (/data-t-html/.test(attrs)) return open + text + close;
+      if (/<[a-zA-Z]/.test(inner)) return whole;
+      return open + text + close;
+    });
+  return out.replace('<html lang="en">', `<html lang="${loc}">`);
+}
+
 /* ---------- emitting ---------- */
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(join(dist, 'assets'), { recursive: true });
@@ -260,6 +296,11 @@ function asset(name, ext, body){
 const href = (depth, file) => (depth ? '../'.repeat(depth) : './') + file;
 
 const appCss = asset('app', 'css', app.css);
+/* One per language, a few kilobytes each, and a page loads exactly one. Not part
+   of the app bundle for that reason: the bundle is the same in every language
+   and stays one cached file. */
+const langFile = Object.fromEntries(LOCALES.map(loc =>
+  [loc, asset(`lang-${loc}`, 'js', `globalThis.LANG=${JSON.stringify(I18N[loc])};`)]));
 const appJs = asset('app', 'js', app.js);
 const solverJs = asset('solver', 'js', solver);
 /* One bundle per group per kind, under the group's own name. The stylesheet is
@@ -304,9 +345,12 @@ const fontFace = (cinzel, sans, sansBold) => `<style>
 const fontFiles = d => fontFace(href(d, 'fonts/cinzel.woff2'), href(d, 'fonts/alegreyasans.woff2'),
                                 href(d, 'fonts/alegreyasans-bold.woff2'));
 
-const pwaHead = `<link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">`;
+/* Depth-aware, because a language's root sits one directory down and reaches the
+   manifest and the icons by climbing out of it. Written as a function for the
+   same reason `gameHead` already is. */
+const pwaHead = (depth = 0) => `<link rel="manifest" href="${href(depth, 'manifest.webmanifest')}">
+<link rel="icon" href="${href(depth, 'icons/favicon-32.png')}" sizes="32x32">
+<link rel="apple-touch-icon" href="${href(depth, 'icons/apple-touch-icon.png')}">`;
 
 /* An icon and nothing else. A page without one is not merely undecorated: the
    browser goes and asks for /favicon.ico anyway and logs a 404 when there is
@@ -328,19 +372,26 @@ function page(tmpl, slots){
   return out;
 }
 
+
 /* 1. the app, as a shell over hashed bundles */
 /* A game carried by the app is one deferred group: its stylesheet, if the app
    wants it, and its code. `appCss: false` makes that group the code alone. */
 const appAssets = g => (g.appCss === false ? [href(0, g.jsFile)]
                                            : [href(0, g.cssFile), href(0, g.jsFile)]);
-const deferredFor = () => {
-  const groups = { ...deferredAssets };
-  for (const g of games.filter(x => x.inApp)) groups[g.name] = appAssets(g);
+/* Depth matters now that the same manifest is written into shells at two levels:
+   a language's page sits one directory down and reaches its bundles by climbing
+   out, exactly as the game pages already did. */
+const deferredFor = (depth = 0) => {
+  const groups = {};
+  for (const [name, list] of Object.entries(deferredAssets))
+    groups[name] = list.map(f => href(depth, f.replace(/^\.\//, '')));
+  for (const g of games.filter(x => x.inApp))
+    groups[g.name] = appAssets(g).map(f => href(depth, f.replace(/^\.\//, '')));
   return groups;
 };
 const appPage = page('src/index.html', {
   '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
-  '<!--PWAHEAD-->': pwaHead,
+  '<!--PWAHEAD-->': pwaHead(0),
   /* Where the bang is. A tag rather than a fetch of a known path, so the two
      builds can answer it differently and nothing in the audio module has to know
      which kind of build it is running in. Not a preload: almost nobody ever
@@ -354,9 +405,25 @@ const appPage = page('src/index.html', {
   '<!--SOLVER-->': `<meta name="solver" content="${href(0, solverJs)}">`,
   '<!--CSS-->': `<link rel="stylesheet" href="${href(0, appCss)}">`,
   '<!--DEFERRED-->': `<script type="application/json" id="deferredAssets">${JSON.stringify(deferredFor())}</script>`,
-  '<!--JS-->': `<script defer src="${href(0, appJs)}"></script>`
+  /* the table first, because the app reads it as it boots */
+  '<!--JS-->': `<script defer src="${href(0, langFile.en)}"></script><script defer src="${href(0, appJs)}"></script>`
 });
-writeFileSync(join(dist, 'index.html'), appPage);
+writeFileSync(join(dist, 'index.html'), localize(appPage, 'en'));
+/* and the same shell again for every other language, one directory down */
+for (const loc of LOCALES.filter(l => l !== 'en')){
+  const d = localeDepth(loc);
+  mkdirSync(join(dist, loc), { recursive: true });
+  writeFileSync(join(dist, loc, 'index.html'), localize(page('src/index.html', {
+    '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
+    '<!--PWAHEAD-->': pwaHead(d),
+    '<!--BOOM-->': `<meta name="boom" content="${href(d, 'audio/boom.mp3').replace('./audio', 'audio')}">`,
+    '<!--FONTS-->': fontFiles(d),
+    '<!--SOLVER-->': `<meta name="solver" content="${href(d, solverJs)}">`,
+    '<!--CSS-->': `<link rel="stylesheet" href="${href(d, appCss)}">`,
+    '<!--DEFERRED-->': `<script type="application/json" id="deferredAssets">${JSON.stringify(deferredFor(d))}</script>`,
+    '<!--JS-->': `<script defer src="${href(d, langFile[loc])}"></script><script defer src="${href(d, appJs)}"></script>`
+  }), loc));
+}
 
 /* 2. one portable file, everything inlined, opens straight off disk.
 
@@ -380,7 +447,7 @@ const standalone = page('src/index.html', {
   '<!--CSS-->': `<style>${[app.allCss,
     ...games.filter(g => g.inApp && g.appCss !== false).map(g => g.src.css)].join('\n')}</style>`,
   '<!--DEFERRED-->': '',
-  '<!--JS-->': `<script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
+  '<!--JS-->': `<script>globalThis.LANG=${JSON.stringify(en)};</script><script>${[app.all, ...games.filter(g => g.inApp).map(g => g.src.js)].join('\n')}</script>`
 });
 writeFileSync(join(dist, 'decanter-standalone.html'), standalone);
 
@@ -388,15 +455,19 @@ writeFileSync(join(dist, 'decanter-standalone.html'), standalone);
 
    The fonts are reached by climbing out of the subfolder rather than copied,
    because a second set of the same three files is dead weight in the cache. */
-for (const g of games){
-  mkdirSync(join(dist, g.path), { recursive: true });
-  writeFileSync(join(dist, g.path, 'index.html'), page(`src/${g.path}/index.html`, {
-    '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
-    '<!--HEAD-->': gameHead(1),
-    '<!--FONTS-->': fontFiles(1),
-    '<!--CSS-->': `<link rel="stylesheet" href="${href(1, g.cssFile)}">`,
-    '<!--JS-->': `<script defer src="${href(1, g.jsFile)}"></script>`
-  }));
+for (const loc of LOCALES){
+  const d = localeDepth(loc) + 1;
+  for (const g of games){
+    const dir = join(dist, localeDir(loc) + g.path);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'index.html'), localize(page(`src/${g.path}/index.html`, {
+      '<!--BUILD-->': `<meta name="build" content="${buildId}">`,
+      '<!--HEAD-->': gameHead(d),
+      '<!--FONTS-->': fontFiles(d),
+      '<!--CSS-->': `<link rel="stylesheet" href="${href(d, g.cssFile)}">`,
+      '<!--JS-->': `<script defer src="${href(d, langFile[loc])}"></script><script defer src="${href(d, g.jsFile)}"></script>`
+    }), loc));
+  }
 }
 
 writeFileSync(join(dist, 'manifest.webmanifest'), JSON.stringify({
@@ -453,7 +524,14 @@ precache.unshift('./');
    '/index.html' — so every page offline fell back to the pour game's shell.
    That is precisely the failure the fallback exists to prevent, and it passed a
    test that only ever checked the list. */
-const shells = games.map(g => [g.path, `./${g.path}/index.html`]);
+const shells = [];
+for (const loc of LOCALES){
+  const dir = localeDir(loc);
+  for (const g of games) shells.push([dir + g.path, `./${dir}${g.path}/index.html`]);
+  /* the language root itself, so /es/ offline is the Spanish shell and not the
+     English one it would otherwise fall back to */
+  if (dir) shells.push([loc, `./${dir}index.html`]);
+}
 
 const version = 'decanter-' + buildId;
 /* The worker is a source file now, stamped rather than assembled. Its three

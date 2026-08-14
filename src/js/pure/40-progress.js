@@ -57,7 +57,7 @@ export const Progress = (() => {
 
   function blank(){
     return {
-      version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true, cb:false,
+      version:1, layout: CONFIG.layout, unlocked:1, stars:{}, best:{}, pars:{}, sound:true, cb:false, lang:null,
       gold: CONFIG.economy.startingGold,
       /* levels whose one-time first-clear bonus has already been paid */
       claimed:{},
@@ -217,6 +217,10 @@ export const Progress = (() => {
       /* Hatched liquids, for telling twelve colors apart without the color. Off
          by default: it is a second channel for those who need it, not a
          redesign for everybody. */
+      /* null means nobody has chosen, which is not the same as English: it is
+         the state where the browser's own list still decides. */
+      get language(){ return state.lang || null; },
+      setLanguage(loc){ state.lang = loc || null; save(); },
       get colorblind(){ return state.cb === true; },
       setColorblind(on){ state.cb = !!on; save(); },
       starsFor: level => state.stars[level] || 0,

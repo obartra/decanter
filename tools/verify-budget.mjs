@@ -24,7 +24,7 @@
    what would actually ship.
 
    Run: node tools/verify-budget.mjs */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -218,9 +218,27 @@ const dist = join(root, 'dist');
 
    The five kilobytes named in the two entries above are still there, still
    unclaimed, and would now cover this and both of those. */
+/* The shell raised again, for the words themselves.
+
+   Every translatable node in a shell now carries a `data-t` key, and the keys
+   are derived from the English so they read as prose rather than as numbers,
+   which costs about a kilobyte of attribute per page. That is the price of the
+   substitution happening at build time rather than at boot, and it buys the
+   thing that matters: a page carries one language and is right on the first
+   frame, instead of carrying three and correcting itself.
+
+   The critical path takes about seven kilobytes and it is worth saying where,
+   because "the table is a separate file" does not mean the path is unchanged:
+   the table IS on it. A page waits for its own language before it can paint
+   words, so one table counts here even though the other two do not — which is
+   the saving, and it is two thirds of what shipping all three would have cost.
+
+   The rest is the keys themselves. Every translatable node in a shell carries a
+   `data-t`, derived from the English so a translation diff reads as prose, and
+   that is about a kilobyte of attribute per page. */
 const BUDGET = {
-  shell: 14_500,
-  critical: 224_000,
+  shell: 16_000,
+  critical: 236_000,
   /* This one exists to notice a game DOUBLING, and nothing finer.
 
      It was once about ten percent above the bubble game, which was the only one
@@ -285,9 +303,17 @@ if (critical > BUDGET.critical)
    point. Without this only the whole-build cap would ever complain, and by then
    the number is too big to attribute to anything. Names come from the pages that
    were built, so a third and fourth game are covered the moment they exist. */
+/* A language's pages are the same games again, in different words: they point at
+   the very bundles measured below and have none of their own. Measuring them
+   would report every game three times and fail on the two that own nothing. */
+const LOCALE_DIRS = readdirSync(dist, { withFileTypes: true })
+  .filter(d => d.isDirectory() && /^[a-z]{2}$/.test(d.name)
+            && existsSync(join(dist, d.name, 'index.html')))
+  .map(d => d.name);
 for (const shell of shells){
   const game = shell.replace('/index.html', '');
   if (game === 'index.html') continue;
+  if (LOCALE_DIRS.some(l => game === l || game.startsWith(l + '/'))) continue;
   const parts = [...built.keys()].filter(f => new RegExp(`^assets/${game}-[0-9a-f]+\\.(js|css)$`).test(f));
   if (!parts.length){ fail(`${game} has a page but no bundles`); continue; }
   const size = parts.reduce((n, f) => n + built.get(f), 0);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Cellar Door</title>
+<title data-t="the-cellar-door">The Cellar Door</title>
 <meta name="theme-color" content="#150E08">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="A sliding puzzle. Clear a path and get the gilt cask out through the cellar door.">
@@ -14,15 +14,15 @@
 </head>
 <body data-only="casks">
 <header class="cskBar">
-  <span class="cskMark">Cellar</span>
+  <span data-t="cellar" class="cskMark">Cellar</span>
   <span class="cskHud">
-    <span class="cskCount"><b id="cskMoves">0</b><span id="cskPar">of 1</span></span>
+    <span class="cskCount"><b id="cskMoves">0</b><span data-t="of-1" id="cskPar">of 1</span></span>
     <span class="cskStars" id="cskStars"></span>
-    <small class="cskWhich">Floor <span id="cskLevel">1</span> &middot; <span id="cskCasks">0</span> casks</small>
+    <small data-t="floor" class="cskWhich">Floor <span id="cskLevel">1</span> &middot; <span id="cskCasks">0</span> casks</small>
   </span>
   <span class="cskActs">
-    <button class="cskBtn" id="cskSound" type="button" aria-pressed="true">Sound</button>
-    <button class="cskBtn" id="cskSkip" type="button">Next</button>
+    <button data-t="sound" class="cskBtn" id="cskSound" type="button" aria-pressed="true">Sound</button>
+    <button data-t="next" class="cskBtn" id="cskSkip" type="button">Next</button>
   </span>
 </header>
 <main class="cskStage">
@@ -38,15 +38,15 @@
      that was going to get it into one that was not. A control that is either
      redundant or self-defeating is worse than no control. -->
 <div class="cskTools">
-  <button class="cskBtn" id="cskRestart" type="button">Restart</button>
+  <button data-t="restart" class="cskBtn" id="cskRestart" type="button">Restart</button>
 </div>
 <div class="cskVeil" id="cskVeil">
   <div class="cskCard">
-    <h2 id="cskResult">The door</h2>
+    <h2 data-t="the-door" id="cskResult">The door</h2>
     <p class="cskWhy" id="cskWhy"></p>
     <p class="cskStars" id="cskStarsOut"></p>
     <p class="cskNote" id="cskNote"></p>
-    <button class="cskBtn cskPrimary" id="cskNext" type="button">Next floor</button>
+    <button data-t="next-floor" class="cskBtn cskPrimary" id="cskNext" type="button">Next floor</button>
   </div>
 </div>
 <!--JS-->

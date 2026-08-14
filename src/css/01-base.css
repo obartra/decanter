@@ -115,6 +115,15 @@ body[data-view="game"] #gameView{display:flex}
 .setRow:hover{border-color:rgba(244,217,160,.55)}
 .setRow b{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim)}
 .setRow[aria-pressed="true"] b{color:var(--gold-lit)}
+/* The languages, named in themselves and never translated: somebody who has
+   landed in one they cannot read has to be able to find their own. */
+.setLangs{display:flex; gap:6px; justify-content:center; margin:10px 0 2px}
+.setLangs button{
+  font:inherit; font-size:11px; letter-spacing:.06em; padding:7px 12px; border-radius:999px;
+  color:var(--ink-dim); cursor:pointer;
+  border:1px solid rgba(224,177,92,.26); background:rgba(224,177,92,.06);
+}
+.setLangs button[aria-current="true"]{color:var(--gold-lit); border-color:rgba(244,217,160,.55)}
 .diagText{
   margin:12px 0; padding:12px; max-height:52vh; overflow:auto;
   text-align:left; white-space:pre-wrap; word-break:break-word;
