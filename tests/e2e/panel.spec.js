@@ -93,7 +93,7 @@ test('an empty purse draws the buttons dead and says why', async ({ page }) => {
   await endRun(page, 'stuck');
   const decision = await decided(page);
   expect(agree(decision, await onScreen(page))).toEqual([]);
-  const broke = await page.evaluate(() => globalThis.Panel.BROKE);
+  const broke = await page.evaluate(() => globalThis.Panel.BROKE());
   expect(decision.hint).toBe(broke);
   await expect(page.locator('#winHint')).toHaveText(broke);
 });
