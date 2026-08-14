@@ -16,7 +16,7 @@ export const ca = {
   'chapter': 'Capítol',
   'the-cellar': 'El Celler',
   'stars-earned': 'estrelles guanyades',
-  'map': '&larr; Mapa',
+  'map': '← Mapa',
   'bubble': 'Bombolles',
   '35-shots-left': 'queden 35 trets',
   'drops-in-10': 'baixa en 10',
@@ -92,5 +92,19 @@ export const ca = {
   'on': 'Sí',
   'off': 'No',
   'language': 'Idioma',
-  'soon': 'aviat'
+  'soon': 'aviat',
+
+  /* the sentences the code writes, rather than the markup */
+  'three-stars-needs': 'Tres estrelles necessiten {n}.',
+  'best-pours': 'Millor {n} abocaments.',
+  'for-three-stars': 'per tres estrelles',
+  'shots-left': 'queden {n} trets',
+  'last-shot': 'últim tret',
+  'drops-in': 'baixa en {n}',
+  'drops-next': 'baixa al tret següent',
+  'survive-to-win': 'Sobreviu {n} trets per guanyar.',
+  'clear-to-win': 'Neteja el tauler per guanyar.',
+  'gold': 'Or',
+  'the-minimum-is': 'El mínim és {n}.',
+  'best-is-minimum': 'Millor {n} abocaments, el mínim.',
 };

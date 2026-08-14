@@ -33,6 +33,7 @@
    reports: it quietly handed `Panel.decide` this function, and the end-of-run
    panel started titling itself "Level 1". A test in the build suite now says so
    before a browser has to. */
+import { say } from './08-say.js';
 import { Panel } from './45-panel.js';
 
 export const Preview = (() => {
@@ -63,7 +64,7 @@ export const Preview = (() => {
        greater length, and the star row above has already said everything there
        is to say. What is left is what you did and the way back in. */
     const paidUp = !(earned > 0);
-    let hint = target ? `Three stars needs ${target}.` : '';
+    let hint = target ? say('three-stars-needs', { n: target }) : '';
 
     /* What you did here, in the units the level is graded in. A bubble run is
        scored on how long it lasted and a pour level on how few pours it took, so
@@ -75,14 +76,14 @@ export const Preview = (() => {
        make a comparison the card was supposed to make for them, and on a board
        whose target is known those two sentences are the same fact twice. */
     const parClause = bubble || par == null || target ? ''
-      : parExact ? ` The minimum is ${par}.`
+      : parExact ? ` ${say('the-minimum-is', { n: par })}`
       : ` The best found is about ${par}.`;
     const line = best == null ? 'Cleared, with no count recorded.'
       : bubble ? `Longest run ${best} shots.`
       /* Matching the minimum is the whole point of the scoring, so say that and
          stop, the way the end-of-run panel does. */
-      : parExact && par != null && best <= par ? `Best ${best} pours, the minimum.`
-      : `Best ${best} pours.${parClause}`;
+      : parExact && par != null && best <= par ? say('best-is-minimum', { n: best })
+      : `${say('best-pours', { n: best })}${parClause}`;
 
     /* Last writer wins, so the order is the priority order. A price the purse
        cannot cover outranks anything else this line could say, because the board
@@ -99,7 +100,7 @@ export const Preview = (() => {
       /* The winnings, and whether there are any to show at all */
       payoutHidden: paidUp,
       earnedLabel: `+${earned}`,
-      why: 'Gold · for three stars',
+      why: `${say('gold')} · ${say('for-three-stars')}`,
       hint,
       /* Free is a price and says so. A blank where a fee goes reads as the fee
          being unknown rather than as there not being one. */

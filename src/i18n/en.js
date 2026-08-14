@@ -17,7 +17,7 @@ export const en = {
   'chapter': 'Chapter',
   'the-cellar': 'The Cellar',
   'stars-earned': 'stars earned',
-  'map': '&larr; Map',
+  'map': '← Map',
   'bubble': 'Bubble',
   '35-shots-left': '35 shots left',
   'drops-in-10': 'drops in 10',
@@ -95,5 +95,19 @@ export const en = {
   'on': 'On',
   'off': 'Off',
   'language': 'Language',
-  'soon': 'soon'
+  'soon': 'soon',
+
+  /* the sentences the code writes, rather than the markup */
+  'three-stars-needs': 'Three stars needs {n}.',
+  'best-pours': 'Best {n} pours.',
+  'for-three-stars': 'for three stars',
+  'shots-left': '{n} shots left',
+  'last-shot': 'last shot',
+  'drops-in': 'drops in {n}',
+  'drops-next': 'drops next shot',
+  'survive-to-win': 'Survive {n} shots to win.',
+  'clear-to-win': 'Clear the board to win.',
+  'gold': 'Gold',
+  'the-minimum-is': 'The minimum is {n}.',
+  'best-is-minimum': 'Best {n} pours, the minimum.',
 };

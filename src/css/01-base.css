@@ -117,7 +117,7 @@ body[data-view="game"] #gameView{display:flex}
 .setRow[aria-pressed="true"] b{color:var(--gold-lit)}
 /* The languages, named in themselves and never translated: somebody who has
    landed in one they cannot read has to be able to find their own. */
-.setLangs{display:flex; gap:6px; justify-content:center; margin:10px 0 2px}
+.setLangs{display:flex; gap:6px; justify-content:center; margin:10px 0 18px}
 .setLangs button{
   font:inherit; font-size:11px; letter-spacing:.06em; padding:7px 12px; border-radius:999px;
   color:var(--ink-dim); cursor:pointer;

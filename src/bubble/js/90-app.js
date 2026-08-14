@@ -16,6 +16,45 @@ import { BubbleAudio } from './50-audio.js';
 import { BubbleView } from './60-view.js';
 import { BubbleRender } from './70-render.js';
 
+/* The hatch, read from the pour game's save.
+
+   This page can be opened on its own, and when it is there is nobody to hand the
+   setting over: the app sets a class on the body and this page has no app. So it
+   reads the same save the settings card writes, which is the one source of truth
+   for it, rather than growing a second key that could disagree. */
+/* The words.
+
+   Read off `globalThis.LANGS`, which the page loads before this bundle, rather
+   than imported from the pour game: the two games share no module, and a bundler
+   asked to share one puts it in both bundles. That is the same reason this
+   game's palette is a copy of six hexes with a test pinning it rather than an
+   import. See src/js/pure/08-say.js for the shape.
+
+   Which language is the same question `readColorblind` answers for the hatch:
+   the save if it says, the browser if it does not. */
+function T(key, vars){
+  const tables = globalThis.LANGS || {};
+  let want = null;
+  try { want = JSON.parse(localStorage.getItem('decanter.save.v1') || '{}').lang; } catch (e) {}
+  if (!want){
+    for (const tag of (navigator.languages || [navigator.language] || [])){
+      const base = String(tag).toLowerCase().split('-')[0];
+      if (tables[base]) { want = base; break; }
+    }
+  }
+  const table = tables[want] || tables.en || {};
+  const text = (key in table) ? table[key] : (tables.en || {})[key];
+  if (text == null) return key;
+  return vars ? String(text).replace(/\{(\w+)\}/g, (w, n) => (n in vars ? String(vars[n]) : w)) : text;
+}
+
+function readColorblind(){
+  try {
+    const raw = localStorage.getItem('decanter.save.v1');
+    return !!(raw && JSON.parse(raw).cb === true);
+  } catch (e) { return false; }
+}
+
 export const BubbleApp = (() => {
   const C = BubbleConfig;
   const G = BubbleGrid;
@@ -180,8 +219,8 @@ export const BubbleApp = (() => {
     const goal = document.getElementById('bubbleGoal');
     if (goal){
       goal.textContent = rules.runShots
-        ? `Survive ${rules.runShots} shots to win.`
-        : 'Clear the board to win.';
+        ? T('survive-to-win', { n: rules.runShots })
+        : T('clear-to-win');
     }
     const rule = document.getElementById('bubbleRule');
     if (rule) rule.classList.remove('gone');
@@ -672,7 +711,7 @@ export const BubbleApp = (() => {
         togo.classList.remove('nearly');
       } else {
         const n = Math.max(0, rules.runShots - st.shots);
-        togo.textContent = n === 1 ? 'last shot' : `${n} shots left`;
+        togo.textContent = n === 1 ? T('last-shot') : T('shots-left', { n });
         togo.classList.toggle('nearly', n <= 3);
       }
     }
@@ -680,7 +719,7 @@ export const BubbleApp = (() => {
     const drop = document.getElementById('bubbleDrop');
     if (drop){
       const left = rules.every - st.sinceDrop;
-      drop.textContent = left <= 1 ? 'drops next shot' : `drops in ${left}`;
+      drop.textContent = left <= 1 ? T('drops-next') : T('drops-in', { n: left });
       drop.classList.toggle('soon', left <= 2);
     }
 
@@ -947,3 +986,8 @@ if (document.body.dataset.only === 'bubble'){
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', BubbleApp.boot);
   else BubbleApp.boot();
 }
+
+/* Applied as soon as this module runs, so a board painted on this page is
+   hatched from the first frame rather than after something notices. The app
+   sets the same class when it hands a bubble level over. */
+document.body.classList.toggle('cb', readColorblind());
